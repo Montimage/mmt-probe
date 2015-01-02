@@ -67,7 +67,7 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt) {
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
 
 #define MAX_MESS 2000
-char message[MAX_MESS];
+char message[MAX_MESS + 1];
 
 int is_local_net(int addr) {
     if ((ntohl(addr) & 0xFF000000 /* 255.0.0.0 */) == 0x0A000000 /* 10.0.0.0 */) {
@@ -135,10 +135,6 @@ void send_message (FILE * out_file, char *channel, char * message){
     const char *hostname = "127.0.0.1";
     int port = 6379;
 
-    if(message==NULL || message[strlen(message)-1]!= '"'){
-        printf("Warning: truncated message not sent\n");
-    }
-
     fprintf (out_file, "%s\n", message);
 
     // Connect ro redis if not yet done
@@ -165,7 +161,7 @@ void send_message (FILE * out_file, char *channel, char * message){
     // Publish an event 
     redisReply *reply;
     //reply = (redisReply *) redisCommand    (  redis, "PUBLISH %s %s", channel, message );
-    reply   = (redisReply *) thredis_command (thredis, "PUBLISH %s %s", channel, message );
+    reply   = (redisReply *) thredis_command (thredis, "PUBLISH %s [%s]", channel, message );
 
     if(reply == NULL){
         printf("Redis command error: can't allocate reply context\n");
@@ -218,14 +214,12 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 	    //report the stats instance if there is anything to report
 	    if(proto_stats->touched) {
             snprintf(message, MAX_MESS, 
-                "\"%u,%u,'%s',%lu.%lu,%u,'%s',%"PRIu64",%"PRIi64",%"PRIu64",%"PRIu64",%"PRIu64"\"",
+                "%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIu64",%"PRIu64"",
                 MMT_STATISTICS_REPORT_FORMAT, probe_context.probe_id_number, probe_context.input_source, ts.tv_sec, ts.tv_usec, proto_id, path,
                 proto_stats->sessions_count, proto_stats->sessions_count - proto_stats->timedout_sessions_count,
                 proto_stats->data_volume, proto_stats->payload_volume, proto_stats->packets_count);
-            if(strlen(message)>MAX_MESS-1){
-                mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating message for stats.");
-                //fprintf(stderr, "Out of memory error when creating message for stats.\n");
-            }
+
+            message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
             send_message (out_file, "protocol.stat", message);
             /*
             fprintf(out_file, "%u,%lu.%lu,%u,%s,"
@@ -705,7 +699,7 @@ void radius_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 
                     //format id, timestamp, msg code, IP address, MSISDN, Acct_session_id, Acct_status_type, IMSI, IMEI, GGSN IP, SGSN IP, SGSN-MCC-MNC, RAT type, Charging class, LAC id, Cell id
                     snprintf(message, MAX_MESS, 
-                        "\"%u,%u,'%s',%lu.%lu,%i,'%s','%s',%i,'%s','%s','%s','%s','%s','%s',%i,'%s',%i,%i\"",
+                        "%u,%u,\"%s\",%lu.%lu,%i,\"%s\",\"%s\",%i,\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",%i,\"%s\",%i,%i",
                         MMT_RADIUS_REPORT_FORMAT, probe_context.probe_id_number, probe_context.input_source, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec, 
                         (int) code, (framed_ip_address != NULL) ? f_ipv4 : "",
                         (calling_station_id != NULL) ? &calling_station_id[4] : "",
@@ -721,10 +715,7 @@ void radius_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void
                         (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_lac) : 0,
                         (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_id) : 0
                     );
-                    if(strlen(message)>MAX_MESS-1){
-                        mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating message for radius.");
-                        //fprintf(stderr, "Out of memory error when creating message for stats.\n");
-                    }
+                    message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
                     send_message (out_file, "radius.report", message);
                     /* 
                     fprintf(out_file, "%i,%lu.%lu,%i,%s,%s,%i,%s,%s,%s,%s,%s,%s,%i,%s,%i,%i\n", MMT_RADIUS_REPORT_FORMAT, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec,
@@ -769,7 +760,7 @@ void radius_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 
                 //format id, timestamp, msg code, IP address, MSISDN, Acct_session_id, Acct_status_type, IMSI, IMEI, GGSN IP, SGSN IP, SGSN-MCC-MNC, RAT type, Charging class, LAC id, Cell id
                 snprintf(message, MAX_MESS, 
-                    "\"%u,%u,'%s',%lu.%lu,%i,'%s','%s',%i,'%s','%s','%s','%s','%s','%s',%i,'%s',%i,%i\"",
+                    "%u,%u,\"%s\",%lu.%lu,%i,\"%s\",\"%s\",%i,\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",%i,\"%s\",%i,%i",
                     MMT_RADIUS_REPORT_FORMAT, probe_context.probe_id_number, probe_context.input_source, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec, 
                     (int) code, (framed_ip_address != NULL) ? f_ipv4 : "",
                     (calling_station_id != NULL) ? &calling_station_id[4] : "",
@@ -785,10 +776,8 @@ void radius_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void
                     (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_lac) : 0,
                     (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_id) : 0
                     );
-                if(strlen(message)>MAX_MESS-1){
-                    mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating message for radius2.");
-                    //fprintf(stderr, "Out of memory error when creating message for stats.\n");
-                }
+
+                message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
                 send_message (out_file, "radius.report", message);
                 /* 
                 fprintf(out_file, "%i,%lu.%lu,%i,%s,%s,%i,%s,%s,%s,%s,%s,%s,%i,%s,%i,%i\n", MMT_RADIUS_REPORT_FORMAT, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec,
@@ -923,13 +912,11 @@ void report_all_protocols_microflows_stats(probe_internal_t * iprobe) {
 void report_microflows_stats(microsessions_stats_t * stats, FILE * out_file) {
     //Format id, timestamp, App name, Nb of flows, DL Packet Count, UL Packet Count, DL Byte Count, UL Byte Count
     snprintf(message, MAX_MESS, 
-          "\"%u,%u,'%s',%lu.%lu,%u,%u,%u,%u,%u,%u\"",
+          "%u,%u,\"%s\",%lu.%lu,%u,%u,%u,%u,%u,%u",
           MMT_MICROFLOWS_STATS_FORMAT, probe_context.probe_id_number, probe_context.input_source, stats->end_time.tv_sec, stats->end_time.tv_usec,
          stats->application_id, stats->flows_nb, stats->dl_pcount, stats->ul_pcount, stats->dl_bcount, stats->ul_bcount);
-     if(strlen(message)>MAX_MESS-1){
-         mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating message for microflows.");
-         //fprintf(stderr, "Out of memory error when creating message for stats.\n");
-     }
+
+     message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
      send_message (out_file, "microflows.report", message);
      /* 
      fprintf(out_file, "%i,%lu.%lu,"
@@ -1004,7 +991,7 @@ void print_default_app_format(const mmt_session_t * expired_session, FILE * out_
     const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
     
     snprintf(message, MAX_MESS, 
-        "\"%u,%u,'%s',%lu.%lu,%"PRIu64",%lu.%lu,%u,'%s','%s',%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,'%s',%u\"", // app specific 
+        "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u", // app specific 
         temp_session->app_format_id, probe_context.probe_id_number, probe_context.input_source, end_time.tv_sec, end_time.tv_usec, 
         session_id,
         init_time.tv_sec, init_time.tv_usec,
@@ -1019,10 +1006,8 @@ void print_default_app_format(const mmt_session_t * expired_session, FILE * out_
         get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
         temp_session->contentclass, path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]
     );
-    if(strlen(message)>MAX_MESS-1){
-        mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating message for default.");
-        //fprintf(stderr, "Out of memory error when creating message for stats.\n");
-    }
+
+    message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
     send_message (out_file, "flow.report", message);
     /* 
     fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,\n", // app specific 
@@ -1094,7 +1079,7 @@ void print_web_app_format(const mmt_session_t * expired_session, FILE * out_file
     const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
 
     snprintf(message, MAX_MESS, 
-        "\"%u,%u,'%s',%lu.%lu,%"PRIu64",%lu.%lu,%u,'%s','%s',%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,'%s',%u,%u,%u,%u,'%s','%s','%s','%s',%u\"", // app specific 
+        "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,%u,%u,%u,\"%s\",\"%s\",\"%s\",\"%s\",%u", // app specific 
         temp_session->app_format_id, probe_context.probe_id_number, probe_context.input_source, end_time.tv_sec, end_time.tv_usec,
         session_id,
         init_time.tv_sec, init_time.tv_usec,
@@ -1115,10 +1100,8 @@ void print_web_app_format(const mmt_session_t * expired_session, FILE * out_file
         ((web_session_attr_t *) temp_session->app_data)->mimetype, ((web_session_attr_t *) temp_session->app_data)->referer,
         dev_prop, cdn_flag
     );
-    if(strlen(message)>MAX_MESS-1){
-        mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating message for web.");
-        //fprintf(stderr, "Out of memory error when creating message for stats.\n");
-    }
+
+    message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
     send_message (out_file, "web.flow.report", message);
     /* 
     fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,%u,%u,%u,%s,%s,%s,%s,"
@@ -1186,7 +1169,7 @@ void print_ssl_app_format(const mmt_session_t * expired_session, FILE * out_file
     const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
 
     snprintf(message, MAX_MESS, 
-        "\"%u,%u,'%s',%lu.%lu,%"PRIu64",%lu.%lu,%u,'%s','%s',%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,'%s',%u,'%s',%u\"", // app specific
+        "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,\"%s\",%u", // app specific
         temp_session->app_format_id, probe_context.probe_id_number, probe_context.input_source, end_time.tv_sec, end_time.tv_usec,
         session_id,
         init_time.tv_sec, init_time.tv_usec,
@@ -1203,10 +1186,8 @@ void print_ssl_app_format(const mmt_session_t * expired_session, FILE * out_file
         (((ssl_session_attr_t *) temp_session->app_data) != NULL) ? ((ssl_session_attr_t *) temp_session->app_data)->hostname : "", 
         (get_session_content_flags(expired_session) & MMT_CONTENT_CDN) ? 2 : 0
     );
-    if(strlen(message)>MAX_MESS-1){
-        mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating message for ssl.");
-        //fprintf(stderr, "Out of memory error when creating message for stats.\n");
-    }
+
+    message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
     send_message (out_file, "ssl.flow.report", message);
     /* 
     fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,%s,%u\n", // app specific
@@ -1279,7 +1260,7 @@ void print_rtp_app_format(const mmt_session_t * expired_session, FILE * out_file
     const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
 
     snprintf(message, MAX_MESS, 
-        "\"%u,%u,'%s',%lu.%lu,%"PRIu64",%lu.%lu,%u,'%s','%s',%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,'%s',%u,%f,%f,%u,%f\"", // app specific 
+        "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,%f,%f,%u,%f", // app specific 
         temp_session->app_format_id, probe_context.probe_id_number, probe_context.input_source, end_time.tv_sec, end_time.tv_usec,
         session_id,
         init_time.tv_sec, init_time.tv_usec,
@@ -1297,10 +1278,8 @@ void print_rtp_app_format(const mmt_session_t * expired_session, FILE * out_file
         loss_burstiness,
         ((rtp_session_attr_t*) temp_session->app_data)->jitter, order_error
     );
-    if(strlen(message)>MAX_MESS-1){
-        mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating message for rtp.");
-        //fprintf(stderr, "Out of memory error when creating message for stats.\n");
-    }
+
+    message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
     send_message (out_file, "rtp.flow.report", message);
     /* 
     // Packet loss rate, Packet loss burstiness, max jitter, Order error rate 
