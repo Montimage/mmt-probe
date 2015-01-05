@@ -427,7 +427,7 @@ cfg_t * parse_conf(const char *filename) {
     switch (cfg_parse(cfg, filename)) {
         case CFG_FILE_ERROR:
             fprintf(stderr, "warning: configuration file '%s' could not be read: %s\n", filename, strerror(errno));
-            fprintf(stderr, "continuing with default values...\n\n");
+            return 0;
         case CFG_SUCCESS:
             break;
         case CFG_PARSE_ERROR:
@@ -690,7 +690,7 @@ void *Reader(void *arg) {
     handle = pcap_open_live(mmt_probe->mmt_conf->input_source, d_snap_len, 1, 0, errbuf);
 
     if (handle == NULL) {
-        fprintf(stderr, "Couldn't open device %s: %s\n", mmt_probe->mmt_conf->input_source, errbuf);
+        fprintf(stderr, "Couldn't open device %s\n", errbuf);
         exit(EXIT_FAILURE);
     }
 
@@ -1002,7 +1002,7 @@ void signal_handler(int type) {
             exit(0);
 #endif
         default:
-            mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_TERMINATION, "iReceived an unexpected signal!");
+            mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_TERMINATION, "Received an unexpected signal!");
             exit(0);
     }
 }
@@ -1052,6 +1052,11 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
     }
 
     cfg_t *cfg = parse_conf(config_file);
+    if(cfg == NULL) {
+        fprintf(stderr, "Configuration file not found: use -c <config file> or create default file /etc/mmtprobe/mmt.conf\n");
+        exit(EXIT_FAILURE);
+    }
+       
     process_conf_result(cfg, mmt_conf);
 
     if (input) {
