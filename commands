@@ -1,0 +1,32 @@
+
+#### Create clones:
+mkdir BITBUCKET
+cd BITBUCKET/
+git clone git@bitbucket.org:montimage/mmt-correlator.git
+git clone git@bitbucket.org:montimage/mmt-probe.git
+git clone git@bitbucket.org:montimage/mmt-sdk.git
+
+#### Make sdk libs
+cd mmt-sdk/
+cd sdk/
+make
+sudo make install
+
+#### Compile probes
+cd ../mmt-probe/
+gcc -I/opt/mmt/include -g -o probe src/smp_main.c src/processing.c src/thredis.c -L/opt/mmt/lib -lmmt_core -lmmt_tcpip -ldl -lpcap -lconfuse -lpthread -lhiredis
+gcc -I/opt/mmt/include -g -o simple_probe src/main.c -L/opt/mmt/lib -lmmt_core -lmmt_tcpip -ldl -lpcap
+
+####Create link to plugins
+mkdir plugins
+cd plugins/
+ln -s /opt/mmt/lib/libmmt_tcpip.so libmmt_tcpip.so
+
+#### Execute
+vi mmt.conf
+sudo su
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../mmt-sdk/sdk/lib
+./probe -c ./mmt.conf
+./probe -c ./mmt_offline.conf
+./probe -c ./mmt_online.conf
+
