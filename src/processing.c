@@ -21,6 +21,9 @@
 #endif
 
 #include "processing.h"
+#include <hiredis/hiredis.h>
+static redisContext *redis = NULL;
+
 
 #ifdef _WIN32
 #ifndef socklen_t
@@ -60,6 +63,9 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt) {
 #endif
 
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
+
+#define MAX_MESS 200
+char message[MAX_MESS];
 
 int is_local_net(int addr) {
     if ((ntohl(addr) & 0xFF000000 /* 255.0.0.0 */) == 0x0A000000 /* 10.0.0.0 */) {
@@ -122,6 +128,42 @@ typedef struct http_line_struct {
     uint16_t len;
 } http_line_struct_t;
 
+void send_message (FILE * out_file, char * message){
+    struct timeval timeout = { 1, 500000 }; // 1.5 seconds
+    const char *hostname = "127.0.0.1";
+    int port = 6379;
+
+    fprintf (out_file, "%s\n", message);
+
+    // Connect ro redis if not yet done
+    if (redis == NULL){
+        redis = redisConnectWithTimeout(hostname, port, timeout);
+        if (redis == NULL || redis->err) {
+            if (redis) {
+                printf("Connection error nb %d: %s\n", redis->err, redis->errstr);
+                redisFree(redis);
+            } else {
+                printf("Connection error: can't allocate redis context\n");
+            }
+            exit(1);
+        }
+    }
+
+    // Publish an event 
+    redisReply *reply;
+    reply = (redisReply *) redisCommand(redis,"PUBLISH %s", message );
+    if(reply == NULL || redis->err){
+        if (redis) {
+           printf("Redis command error nb %d: %s\n", redis->err, redis->errstr);
+           redisFree(redis);
+        }else{
+           printf("Redis command error: can't allocate redis context\n");
+        }
+    }else{
+        freeReplyObject(reply);
+    }
+}
+
 void protocols_stats_iterator(uint32_t proto_id, void * args) {
     FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
     mmt_handler_t * mmt_handler = (mmt_handler_t *) args;
@@ -134,35 +176,49 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
         char path[128];
         //proto_hierarchy_to_str(&proto_hierarchy, path);
         proto_hierarchy_ids_to_str(&proto_hierarchy, path);
-        //proto_statistics_t children_stats = {0};
-        //get_children_stats(proto_stats, & children_stats);
-        //if ((children_stats.packets_count != 0) && ((proto_stats->packets_count - children_stats.packets_count) != 0)) {
+        /* 
+        proto_statistics_t children_stats = {0};
+        get_children_stats(proto_stats, & children_stats);
+        if ((children_stats.packets_count != 0) && ((proto_stats->packets_count - children_stats.packets_count) != 0)) {
             //The stats instance has children, report the global stats first
-            //fprintf(out_file, "%u,%lu.%lu,%u,%s,%u,"
-            //        "%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64"\n", MMT_STATISTICS_REPORT_FORMAT, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec, proto_id, path, 0,
-            //        proto_stats->sessions_count - proto_stats->timedout_sessions_count,
-            //        proto_stats->data_volume, proto_stats->payload_volume, proto_stats->packets_count);
-
-            //fprintf(out_file, "%u,%lu.%lu,%u,%s,%u,"
-            //        "%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64"\n", MMT_STATISTICS_REPORT_FORMAT, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec, proto_id, path, 1,
-            //        (proto_stats->sessions_count)?(proto_stats->sessions_count - proto_stats->timedout_sessions_count) - (children_stats.sessions_count - children_stats.timedout_sessions_count):0,
-            //        proto_stats->data_volume - children_stats.data_volume,
-            //        proto_stats->payload_volume - children_stats.payload_volume,
-            //        proto_stats->packets_count - children_stats.packets_count);
-        //} else {
-        //    fprintf(out_file, "%u,%lu.%lu,%u,%s,%u,"
-        //            "%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64"\n", MMT_STATISTICS_REPORT_FORMAT, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec, proto_id, path, 1,
-        //            proto_stats->sessions_count - proto_stats->timedout_sessions_count,
-        //            proto_stats->data_volume, proto_stats->payload_volume, proto_stats->packets_count);
-        //}
-	//report the stats instance if there is anything to report
-	if(proto_stats->touched) {
-            fprintf(out_file, "%u,%lu.%lu,%u,%s,"
-                    "%"PRIu64",%"PRIi64",%"PRIu64",%"PRIu64",%"PRIu64"\n", MMT_STATISTICS_REPORT_FORMAT, ts.tv_sec, ts.tv_usec, proto_id, path, 
-                    proto_stats->sessions_count, proto_stats->sessions_count - proto_stats->timedout_sessions_count,
-                    //proto_stats->sessions_count, ((int64_t) (proto_stats->sessions_count - proto_stats->timedout_sessions_count) > 0)?proto_stats->sessions_count - proto_stats->timedout_sessions_count:0,
+            fprintf(out_file, "%u,%lu.%lu,%u,%s,%u,"
+                    "%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64"\n", MMT_STATISTICS_REPORT_FORMAT, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec, proto_id, path, 0,
+                    proto_stats->sessions_count - proto_stats->timedout_sessions_count,
                     proto_stats->data_volume, proto_stats->payload_volume, proto_stats->packets_count);
-	}
+
+            fprintf(out_file, "%u,%lu.%lu,%u,%s,%u,"
+                    "%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64"\n", MMT_STATISTICS_REPORT_FORMAT, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec, proto_id, path, 1,
+                    (proto_stats->sessions_count)?(proto_stats->sessions_count - proto_stats->timedout_sessions_count) - (children_stats.sessions_count - children_stats.timedout_sessions_count):0,
+                    proto_stats->data_volume - children_stats.data_volume,
+                    proto_stats->payload_volume - children_stats.payload_volume,
+                    proto_stats->packets_count - children_stats.packets_count);
+        } else {
+            fprintf(out_file, "%u,%lu.%lu,%u,%s,%u,"
+                    "%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64"\n", MMT_STATISTICS_REPORT_FORMAT, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec, proto_id, path, 1,
+                    proto_stats->sessions_count - proto_stats->timedout_sessions_count,
+                    proto_stats->data_volume, proto_stats->payload_volume, proto_stats->packets_count);
+        }
+        */
+	    //report the stats instance if there is anything to report
+	    if(proto_stats->touched) {
+            snprintf(message, MAX_MESS, 
+                "protocol.stat %u,%u,%s,%lu.%lu,%u,%s,%"PRIu64",%"PRIi64",%"PRIu64",%"PRIu64",%"PRIu64"\n",
+                MMT_STATISTICS_REPORT_FORMAT, probe_context.probe_id_number, probe_context.input_source, ts.tv_sec, ts.tv_usec, proto_id, path,
+                proto_stats->sessions_count, proto_stats->sessions_count - proto_stats->timedout_sessions_count,
+                proto_stats->data_volume, proto_stats->payload_volume, proto_stats->packets_count);
+            if(strlen(message)>MAX_MESS-1){
+                mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating message for stats.");
+                //fprintf(stderr, "Out of memory error when creating message for stats.\n");
+            }
+            send_message (out_file, message);
+            /*
+            fprintf(out_file, "%u,%lu.%lu,%u,%s,"
+                "%"PRIu64",%"PRIi64",%"PRIu64",%"PRIu64",%"PRIu64"\n", MMT_STATISTICS_REPORT_FORMAT, ts.tv_sec, ts.tv_usec, proto_id, path, 
+                proto_stats->sessions_count, proto_stats->sessions_count - proto_stats->timedout_sessions_count,
+                //proto_stats->sessions_count, ((int64_t) (proto_stats->sessions_count - proto_stats->timedout_sessions_count) > 0)?proto_stats->sessions_count - proto_stats->timedout_sessions_count:0,
+                proto_stats->data_volume, proto_stats->payload_volume, proto_stats->packets_count);
+            */
+	    }
         reset_statistics(proto_stats);
         proto_stats = proto_stats->next;
     }
@@ -632,21 +688,45 @@ void radius_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void
                     }
 
                     //format id, timestamp, msg code, IP address, MSISDN, Acct_session_id, Acct_status_type, IMSI, IMEI, GGSN IP, SGSN IP, SGSN-MCC-MNC, RAT type, Charging class, LAC id, Cell id
+                    snprintf(message, MAX_MESS, 
+                        "radius.report %u,%u,%s,%lu.%lu,%i,%s,%s,%i,%s,%s,%s,%s,%s,%s,%i,%s,%i,%i\n",
+                        MMT_RADIUS_REPORT_FORMAT, probe_context.probe_id_number, probe_context.input_source, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec, 
+                        (int) code, (framed_ip_address != NULL) ? f_ipv4 : "",
+                        (calling_station_id != NULL) ? &calling_station_id[4] : "",
+                        (account_status_type != NULL) ? *account_status_type : 0,
+                        (account_session_id != NULL) ? &account_session_id[4] : "",
+                        (imsi != NULL) ? &imsi[4] : "",
+                        (imei != NULL) ? &imei[4] : "",
+                        (ggsn_ip_address != NULL) ? ggsn_ip : "",
+                        (sgsn_ip_address != NULL) ? sgsn_ip : "",
+                        (sgsn_mccmnc != NULL) ? &sgsn_mccmnc[4] : "",
+                        (rat_type != NULL) ? (int) *((uint8_t *) rat_type) : 0,
+                        (charg_charact != NULL) ? &charg_charact[4] : "",
+                        (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_lac) : 0,
+                        (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_id) : 0
+                    );
+                    if(strlen(message)>MAX_MESS-1){
+                        mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating message for radius.");
+                        //fprintf(stderr, "Out of memory error when creating message for stats.\n");
+                    }
+                    send_message (out_file, message);
+                    /* 
                     fprintf(out_file, "%i,%lu.%lu,%i,%s,%s,%i,%s,%s,%s,%s,%s,%s,%i,%s,%i,%i\n", MMT_RADIUS_REPORT_FORMAT, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec,
-                            (int) code, (framed_ip_address != NULL) ? f_ipv4 : "",
-                            (calling_station_id != NULL) ? &calling_station_id[4] : "",
-                            (account_status_type != NULL) ? *account_status_type : 0,
-                            (account_session_id != NULL) ? &account_session_id[4] : "",
-                            (imsi != NULL) ? &imsi[4] : "",
-                            (imei != NULL) ? &imei[4] : "",
-                            (ggsn_ip_address != NULL) ? ggsn_ip : "",
-                            (sgsn_ip_address != NULL) ? sgsn_ip : "",
-                            (sgsn_mccmnc != NULL) ? &sgsn_mccmnc[4] : "",
-                            (rat_type != NULL) ? (int) *((uint8_t *) rat_type) : 0,
-                            (charg_charact != NULL) ? &charg_charact[4] : "",
-                            (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_lac) : 0,
-                            (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_id) : 0
-                            );
+                        (int) code, (framed_ip_address != NULL) ? f_ipv4 : "",
+                        (calling_station_id != NULL) ? &calling_station_id[4] : "",
+                        (account_status_type != NULL) ? *account_status_type : 0,
+                        (account_session_id != NULL) ? &account_session_id[4] : "",
+                        (imsi != NULL) ? &imsi[4] : "",
+                        (imei != NULL) ? &imei[4] : "",
+                        (ggsn_ip_address != NULL) ? ggsn_ip : "",
+                        (sgsn_ip_address != NULL) ? sgsn_ip : "",
+                        (sgsn_mccmnc != NULL) ? &sgsn_mccmnc[4] : "",
+                        (rat_type != NULL) ? (int) *((uint8_t *) rat_type) : 0,
+                        (charg_charact != NULL) ? &charg_charact[4] : "",
+                        (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_lac) : 0,
+                        (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_id) : 0
+                    );
+                    */
                 }
             } else { //Report anyway
                 uint32_t * account_status_type = get_attribute_extracted_data(ipacket, PROTO_RADIUS, RADIUS_ACCT_STATUS_TYPE);
@@ -672,22 +752,45 @@ void radius_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void
                 }
 
                 //format id, timestamp, msg code, IP address, MSISDN, Acct_session_id, Acct_status_type, IMSI, IMEI, GGSN IP, SGSN IP, SGSN-MCC-MNC, RAT type, Charging class, LAC id, Cell id
+                snprintf(message, MAX_MESS, 
+                    "radius.report %u,%u,%s,%lu.%lu,%i,%s,%s,%i,%s,%s,%s,%s,%s,%s,%i,%s,%i,%i\n",
+                    MMT_RADIUS_REPORT_FORMAT, probe_context.probe_id_number, probe_context.input_source, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec, 
+                    (int) code, (framed_ip_address != NULL) ? f_ipv4 : "",
+                    (calling_station_id != NULL) ? &calling_station_id[4] : "",
+                    (account_status_type != NULL) ? *account_status_type : 0,
+                    (account_session_id != NULL) ? &account_session_id[4] : "",
+                    (imsi != NULL) ? &imsi[4] : "",
+                    (imei != NULL) ? &imei[4] : "",
+                    (ggsn_ip_address != NULL) ? ggsn_ip : "",
+                    (sgsn_ip_address != NULL) ? sgsn_ip : "",
+                    (sgsn_mccmnc != NULL) ? &sgsn_mccmnc[4] : "",
+                    (rat_type != NULL) ? (int) *((uint8_t *) rat_type) : 0,
+                    (charg_charact != NULL) ? &charg_charact[4] : "",
+                    (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_lac) : 0,
+                    (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_id) : 0
+                    );
+                if(strlen(message)>MAX_MESS-1){
+                    mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating message for radius2.");
+                    //fprintf(stderr, "Out of memory error when creating message for stats.\n");
+                }
+                send_message (out_file, message);
+                /* 
                 fprintf(out_file, "%i,%lu.%lu,%i,%s,%s,%i,%s,%s,%s,%s,%s,%s,%i,%s,%i,%i\n", MMT_RADIUS_REPORT_FORMAT, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec,
-                        (int) code, (framed_ip_address != NULL) ? f_ipv4 : "",
-                        (calling_station_id != NULL) ? &calling_station_id[4] : "",
-                        (account_status_type != NULL) ? *account_status_type : 0,
-                        (account_session_id != NULL) ? &account_session_id[4] : "",
-                        (imsi != NULL) ? &imsi[4] : "",
-                        (imei != NULL) ? &imei[4] : "",
-                        (ggsn_ip_address != NULL) ? ggsn_ip : "",
-                        (sgsn_ip_address != NULL) ? sgsn_ip : "",
-                        (sgsn_mccmnc != NULL) ? &sgsn_mccmnc[4] : "",
-                        (rat_type != NULL) ? (int) *((uint8_t *) rat_type) : 0,
-                        (charg_charact != NULL) ? &charg_charact[4] : "",
-                        (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_lac) : 0,
-                        (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_id) : 0
-                        );
-
+                    (int) code, (framed_ip_address != NULL) ? f_ipv4 : "",
+                    (calling_station_id != NULL) ? &calling_station_id[4] : "",
+                    (account_status_type != NULL) ? *account_status_type : 0,
+                    (account_session_id != NULL) ? &account_session_id[4] : "",
+                    (imsi != NULL) ? &imsi[4] : "",
+                    (imei != NULL) ? &imei[4] : "",
+                    (ggsn_ip_address != NULL) ? ggsn_ip : "",
+                    (sgsn_ip_address != NULL) ? sgsn_ip : "",
+                    (sgsn_mccmnc != NULL) ? &sgsn_mccmnc[4] : "",
+                    (rat_type != NULL) ? (int) *((uint8_t *) rat_type) : 0,
+                    (charg_charact != NULL) ? &charg_charact[4] : "",
+                    (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_lac) : 0,
+                    (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_id) : 0
+                    );
+                */
             }
         }
     }
@@ -731,7 +834,7 @@ inline void encodeblock(unsigned char in[3], unsigned char out[4], int len) {
  **
  ** base64 encode a string.
  */
-inline int encode_str(const char *infile, char *outfile) {
+inline int encode_str(const char *infile, char *out_file) {
     unsigned char in[3], out[4];
     int i, len;
     int copiedBytes = 0;
@@ -749,12 +852,12 @@ inline int encode_str(const char *infile, char *outfile) {
         if (len) {
             encodeblock(in, out, len);
             for (i = 0; i < 4; i++) {
-                outfile[copiedBytes] = out[i];
+                out_file[copiedBytes] = out[i];
                 copiedBytes++;
             }
         }
     }
-    outfile[copiedBytes] = '\0';
+    out_file[copiedBytes] = '\0';
     return copiedBytes;
 }
 
@@ -803,18 +906,27 @@ void report_all_protocols_microflows_stats(probe_internal_t * iprobe) {
 
 void report_microflows_stats(microsessions_stats_t * stats, FILE * out_file) {
     //Format id, timestamp, App name, Nb of flows, DL Packet Count, UL Packet Count, DL Byte Count, UL Byte Count
-    fprintf(out_file, "%i,"
-            "%lu.%lu,"
-            //"%lu.%lu,"
-            "%u,%u,%u,%u,%u,%u\n",
-            MMT_MICROFLOWS_STATS_FORMAT,
-            //stats->start_time.tv_sec, stats->start_time.tv_usec,
-            stats->end_time.tv_sec, stats->end_time.tv_usec,
-            stats->application_id,
-            stats->flows_nb, stats->dl_pcount, stats->ul_pcount, stats->dl_bcount, stats->ul_bcount);
-
-    //Now clean the stats
-    reset_microflows_stats(stats);
+    snprintf(message, MAX_MESS, 
+          "microflows.report %u,%u,%s,%lu.%lu,%u,%u,%u,%u,%u,%u\n",
+          MMT_MICROFLOWS_STATS_FORMAT, probe_context.probe_id_number, probe_context.input_source, stats->end_time.tv_sec, stats->end_time.tv_usec,
+         stats->application_id, stats->flows_nb, stats->dl_pcount, stats->ul_pcount, stats->dl_bcount, stats->ul_bcount);
+     if(strlen(message)>MAX_MESS-1){
+         mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating message for microflows.");
+         //fprintf(stderr, "Out of memory error when creating message for stats.\n");
+     }
+     send_message (out_file, message);
+     /* 
+     fprintf(out_file, "%i,%lu.%lu,"
+         //"%lu.%lu,"
+         "%u,%u,%u,%u,%u,%u\n",
+         MMT_MICROFLOWS_STATS_FORMAT,
+         //stats->start_time.tv_sec, stats->start_time.tv_usec,
+         stats->end_time.tv_sec, stats->end_time.tv_usec,
+         stats->application_id,
+         stats->flows_nb, stats->dl_pcount, stats->ul_pcount, stats->dl_bcount, stats->ul_bcount);
+     */
+     //Now clean the stats
+     reset_microflows_stats(stats);
 }
 
 void update_microflows_stats(microsessions_stats_t * stats, const mmt_session_t * expired_session) {
@@ -875,27 +987,44 @@ void print_default_app_format(const mmt_session_t * expired_session, FILE * out_
     struct timeval end_time = get_session_last_activity_time(expired_session);
     const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
     
-    fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,"
-            "%u,%s,%s,%hu,%hu,%hu,"
-            "%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,"
-            "\n", /* app specific */
-            temp_session->app_format_id, end_time.tv_sec, end_time.tv_usec,
-            session_id,
-            init_time.tv_sec, init_time.tv_usec,
-            (int) temp_session->ipversion,
-            ip_dst_str, ip_src_str,
-            temp_session->serverport, temp_session->clientport, (unsigned short) temp_session->proto,
-
-            (keep_direction)?get_session_ul_packet_count(expired_session):get_session_dl_packet_count(expired_session),
-            (keep_direction)?get_session_dl_packet_count(expired_session):get_session_ul_packet_count(expired_session),
-            (keep_direction)?get_session_ul_byte_count(expired_session):get_session_dl_byte_count(expired_session),
-            (keep_direction)?get_session_dl_byte_count(expired_session):get_session_ul_byte_count(expired_session),
-            
-            rtt_ms, get_session_retransmission_count(expired_session),
-            get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
-            temp_session->contentclass, path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]
-
-            );
+    snprintf(message, MAX_MESS, 
+        "flow.report %u,%u,%s,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u\n", // app specific 
+        temp_session->app_format_id, probe_context.probe_id_number, probe_context.input_source, end_time.tv_sec, end_time.tv_usec, 
+        session_id,
+        init_time.tv_sec, init_time.tv_usec,
+        (int) temp_session->ipversion,
+        ip_dst_str, ip_src_str,
+        temp_session->serverport, temp_session->clientport, (unsigned short) temp_session->proto,
+        (keep_direction)?get_session_ul_packet_count(expired_session):get_session_dl_packet_count(expired_session),
+        (keep_direction)?get_session_dl_packet_count(expired_session):get_session_ul_packet_count(expired_session),
+        (keep_direction)?get_session_ul_byte_count(expired_session):get_session_dl_byte_count(expired_session),
+        (keep_direction)?get_session_dl_byte_count(expired_session):get_session_ul_byte_count(expired_session),
+        rtt_ms, get_session_retransmission_count(expired_session),
+        get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
+        temp_session->contentclass, path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]
+    );
+    if(strlen(message)>MAX_MESS-1){
+        mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating message for default.");
+        //fprintf(stderr, "Out of memory error when creating message for stats.\n");
+    }
+    send_message (out_file, message);
+    /* 
+    fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,\n", // app specific 
+        temp_session->app_format_id, end_time.tv_sec, end_time.tv_usec,
+        session_id,
+        init_time.tv_sec, init_time.tv_usec,
+        (int) temp_session->ipversion,
+        ip_dst_str, ip_src_str,
+        temp_session->serverport, temp_session->clientport, (unsigned short) temp_session->proto,
+        (keep_direction)?get_session_ul_packet_count(expired_session):get_session_dl_packet_count(expired_session),
+        (keep_direction)?get_session_dl_packet_count(expired_session):get_session_ul_packet_count(expired_session),
+        (keep_direction)?get_session_ul_byte_count(expired_session):get_session_dl_byte_count(expired_session),
+        (keep_direction)?get_session_dl_byte_count(expired_session):get_session_ul_byte_count(expired_session),
+        rtt_ms, get_session_retransmission_count(expired_session),
+        get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
+        temp_session->contentclass, path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]
+    );
+    */
 }
 
 //Response time, Transactions Nb, Interaction time, Hostname, MIME type, Referer, User agent, xcdn_seen
@@ -948,33 +1077,59 @@ void print_web_app_format(const mmt_session_t * expired_session, FILE * out_file
     struct timeval end_time = get_session_last_activity_time(expired_session);
     const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
 
-    fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,"
-            "%u,%s,%s,%hu,%hu,%hu,"
-            "%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,"
-            "%u,%u,%u,%s,%s,%s,%s,"
-            //"%s,"
-            "%u\n", /* app specific */
-            temp_session->app_format_id, end_time.tv_sec, end_time.tv_usec,
-            session_id,
-            init_time.tv_sec, init_time.tv_usec,
-            (int) temp_session->ipversion,
-            ip_dst_str, ip_src_str,
-            temp_session->serverport, temp_session->clientport, (unsigned short) temp_session->proto,
-            (keep_direction)?get_session_ul_packet_count(expired_session):get_session_dl_packet_count(expired_session),
-            (keep_direction)?get_session_dl_packet_count(expired_session):get_session_ul_packet_count(expired_session),
-            (keep_direction)?get_session_ul_byte_count(expired_session):get_session_dl_byte_count(expired_session),
-            (keep_direction)?get_session_dl_byte_count(expired_session):get_session_ul_byte_count(expired_session),
-            rtt_ms, get_session_retransmission_count(expired_session),
-            get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
-            temp_session->contentclass, path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)],
-            (((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint32_t) TIMEVAL_2_MSEC(((web_session_attr_t *) temp_session->app_data)->response_time) : 0,
-            (((web_session_attr_t *) temp_session->app_data)->seen_response) ? ((web_session_attr_t *) temp_session->app_data)->trans_nb : 0,
-            (((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint32_t) TIMEVAL_2_MSEC(mmt_time_diff(((web_session_attr_t *) temp_session->app_data)->first_request_time, ((web_session_attr_t *) temp_session->app_data)->interaction_time)) : 0,
-            ((web_session_attr_t *) temp_session->app_data)->hostname,
-            ((web_session_attr_t *) temp_session->app_data)->mimetype, ((web_session_attr_t *) temp_session->app_data)->referer,
-            //temp_session->web_attr.useragent,
-            dev_prop, cdn_flag
-            );
+    snprintf(message, MAX_MESS, 
+        "web.flow.report %u,%u,%s,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,%u,%u,%u,%s,%s,%s,%s,%u\n", // app specific 
+        temp_session->app_format_id, probe_context.probe_id_number, probe_context.input_source, end_time.tv_sec, end_time.tv_usec,
+        session_id,
+        init_time.tv_sec, init_time.tv_usec,
+        (int) temp_session->ipversion,
+        ip_dst_str, ip_src_str,
+        temp_session->serverport, temp_session->clientport, (unsigned short) temp_session->proto,
+        (keep_direction)?get_session_ul_packet_count(expired_session):get_session_dl_packet_count(expired_session),
+        (keep_direction)?get_session_dl_packet_count(expired_session):get_session_ul_packet_count(expired_session),
+        (keep_direction)?get_session_ul_byte_count(expired_session):get_session_dl_byte_count(expired_session),
+        (keep_direction)?get_session_dl_byte_count(expired_session):get_session_ul_byte_count(expired_session),
+        rtt_ms, get_session_retransmission_count(expired_session),
+        get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
+        temp_session->contentclass, path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)],
+        (((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint32_t) TIMEVAL_2_MSEC(((web_session_attr_t *) temp_session->app_data)->response_time) : 0,
+        (((web_session_attr_t *) temp_session->app_data)->seen_response) ? ((web_session_attr_t *) temp_session->app_data)->trans_nb : 0,
+        (((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint32_t) TIMEVAL_2_MSEC(mmt_time_diff(((web_session_attr_t *) temp_session->app_data)->first_request_time, ((web_session_attr_t *) temp_session->app_data)->interaction_time)) : 0,
+        ((web_session_attr_t *) temp_session->app_data)->hostname,
+        ((web_session_attr_t *) temp_session->app_data)->mimetype, ((web_session_attr_t *) temp_session->app_data)->referer,
+        dev_prop, cdn_flag
+    );
+    if(strlen(message)>MAX_MESS-1){
+        mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating message for web.");
+        //fprintf(stderr, "Out of memory error when creating message for stats.\n");
+    }
+    send_message (out_file, message);
+    /* 
+    fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,%u,%u,%u,%s,%s,%s,%s,"
+        //"%s,"
+        "%u\n", // app specific 
+        temp_session->app_format_id, end_time.tv_sec, end_time.tv_usec,
+        session_id,
+        init_time.tv_sec, init_time.tv_usec,
+        (int) temp_session->ipversion,
+        ip_dst_str, ip_src_str,
+        temp_session->serverport, temp_session->clientport, (unsigned short) temp_session->proto,
+        (keep_direction)?get_session_ul_packet_count(expired_session):get_session_dl_packet_count(expired_session),
+        (keep_direction)?get_session_dl_packet_count(expired_session):get_session_ul_packet_count(expired_session),
+        (keep_direction)?get_session_ul_byte_count(expired_session):get_session_dl_byte_count(expired_session),
+        (keep_direction)?get_session_dl_byte_count(expired_session):get_session_ul_byte_count(expired_session),
+        rtt_ms, get_session_retransmission_count(expired_session),
+        get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
+        temp_session->contentclass, path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)],
+        (((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint32_t) TIMEVAL_2_MSEC(((web_session_attr_t *) temp_session->app_data)->response_time) : 0,
+        (((web_session_attr_t *) temp_session->app_data)->seen_response) ? ((web_session_attr_t *) temp_session->app_data)->trans_nb : 0,
+        (((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint32_t) TIMEVAL_2_MSEC(mmt_time_diff(((web_session_attr_t *) temp_session->app_data)->first_request_time, ((web_session_attr_t *) temp_session->app_data)->interaction_time)) : 0,
+        ((web_session_attr_t *) temp_session->app_data)->hostname,
+        ((web_session_attr_t *) temp_session->app_data)->mimetype, ((web_session_attr_t *) temp_session->app_data)->referer,
+        //temp_session->web_attr.useragent,
+        dev_prop, cdn_flag
+    );
+    */
 }
 
 void print_ssl_app_format(const mmt_session_t * expired_session, FILE * out_file, probe_internal_t * iprobe) {
@@ -1014,25 +1169,47 @@ void print_ssl_app_format(const mmt_session_t * expired_session, FILE * out_file
     struct timeval end_time = get_session_last_activity_time(expired_session);
     const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
 
-    fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,"
-            "%u,%s,%s,%hu,%hu,%hu,"
-            "%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,"
-            "%s,%u\n", /* app specific */
-            (uint16_t) MMT_SSL_APP_REPORT_FORMAT, end_time.tv_sec, end_time.tv_usec,
-            session_id,
-            init_time.tv_sec, init_time.tv_usec,
-            (int) temp_session->ipversion,
-            ip_dst_str, ip_src_str,
-            temp_session->serverport, temp_session->clientport, (unsigned short) temp_session->proto,
-            (keep_direction)?get_session_ul_packet_count(expired_session):get_session_dl_packet_count(expired_session),
-            (keep_direction)?get_session_dl_packet_count(expired_session):get_session_ul_packet_count(expired_session),
-            (keep_direction)?get_session_ul_byte_count(expired_session):get_session_dl_byte_count(expired_session),
-            (keep_direction)?get_session_dl_byte_count(expired_session):get_session_ul_byte_count(expired_session),
-            rtt_ms, get_session_retransmission_count(expired_session),
-            get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
-            temp_session->contentclass, path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)],
-            (((ssl_session_attr_t *) temp_session->app_data) != NULL) ? ((ssl_session_attr_t *) temp_session->app_data)->hostname : "", (get_session_content_flags(expired_session) & MMT_CONTENT_CDN) ? 2 : 0
-            );
+    snprintf(message, MAX_MESS, 
+        "ssl.flow.report %u,%u,%s,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,%s,%u\n", // app specific
+        temp_session->app_format_id, probe_context.probe_id_number, probe_context.input_source, end_time.tv_sec, end_time.tv_usec,
+        session_id,
+        init_time.tv_sec, init_time.tv_usec,
+        (int) temp_session->ipversion,
+        ip_dst_str, ip_src_str,
+        temp_session->serverport, temp_session->clientport, (unsigned short) temp_session->proto,
+        (keep_direction)?get_session_ul_packet_count(expired_session):get_session_dl_packet_count(expired_session),
+        (keep_direction)?get_session_dl_packet_count(expired_session):get_session_ul_packet_count(expired_session),
+        (keep_direction)?get_session_ul_byte_count(expired_session):get_session_dl_byte_count(expired_session),
+        (keep_direction)?get_session_dl_byte_count(expired_session):get_session_ul_byte_count(expired_session),
+        rtt_ms, get_session_retransmission_count(expired_session),
+        get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
+        temp_session->contentclass, path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)],
+        (((ssl_session_attr_t *) temp_session->app_data) != NULL) ? ((ssl_session_attr_t *) temp_session->app_data)->hostname : "", 
+        (get_session_content_flags(expired_session) & MMT_CONTENT_CDN) ? 2 : 0
+    );
+    if(strlen(message)>MAX_MESS-1){
+        mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating message for ssl.");
+        //fprintf(stderr, "Out of memory error when creating message for stats.\n");
+    }
+    send_message (out_file, message);
+    /* 
+    fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,%s,%u\n", // app specific
+        (uint16_t) MMT_SSL_APP_REPORT_FORMAT, end_time.tv_sec, end_time.tv_usec,
+        session_id,
+        init_time.tv_sec, init_time.tv_usec,
+        (int) temp_session->ipversion,
+        ip_dst_str, ip_src_str,
+        temp_session->serverport, temp_session->clientport, (unsigned short) temp_session->proto,
+        (keep_direction)?get_session_ul_packet_count(expired_session):get_session_dl_packet_count(expired_session),
+        (keep_direction)?get_session_dl_packet_count(expired_session):get_session_ul_packet_count(expired_session),
+        (keep_direction)?get_session_ul_byte_count(expired_session):get_session_dl_byte_count(expired_session),
+        (keep_direction)?get_session_dl_byte_count(expired_session):get_session_ul_byte_count(expired_session),
+        rtt_ms, get_session_retransmission_count(expired_session),
+        get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
+        temp_session->contentclass, path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)],
+        (((ssl_session_attr_t *) temp_session->app_data) != NULL) ? ((ssl_session_attr_t *) temp_session->app_data)->hostname : "", (get_session_content_flags(expired_session) & MMT_CONTENT_CDN) ? 2 : 0
+    );
+    */
 }
 
 void print_rtp_app_format(const mmt_session_t * expired_session, FILE * out_file, probe_internal_t * iprobe) {
@@ -1085,30 +1262,53 @@ void print_rtp_app_format(const mmt_session_t * expired_session, FILE * out_file
     struct timeval end_time = get_session_last_activity_time(expired_session);
     const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
 
-    fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,"
-            "%u,%s,%s,%hu,%hu,%hu,"
-            "%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,"
-            /* Packet loss rate, Packet loss burstiness, max jitter, Order error rate */
-            "%f,%f,%u,%f\n", /* app specific */
-            temp_session->app_format_id, end_time.tv_sec, end_time.tv_usec,
-            session_id,
-            init_time.tv_sec, init_time.tv_usec,
-            (int) temp_session->ipversion,
-            ip_dst_str, ip_src_str,
-            temp_session->serverport, temp_session->clientport, (unsigned short) temp_session->proto,
-            (keep_direction)?get_session_ul_packet_count(expired_session):get_session_dl_packet_count(expired_session),
-            (keep_direction)?get_session_dl_packet_count(expired_session):get_session_ul_packet_count(expired_session),
-            (keep_direction)?get_session_ul_byte_count(expired_session):get_session_dl_byte_count(expired_session),
-            (keep_direction)?get_session_dl_byte_count(expired_session):get_session_ul_byte_count(expired_session),
-            rtt_ms, get_session_retransmission_count(expired_session),
-            //get_application_class_by_protocol_id(expired_session->proto_path.proto_path[expired_session->proto_path.len - 1]),
-            //(expired_session->content_flags & MMT_CONTENT_CONVERSATIONAL) ? PROTO_CLASS_CONVERSATIONAL : PROTO_CLASS_STREAMING,
-            app_class,
-            temp_session->contentclass, path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)],
-            loss_rate,
-            loss_burstiness,
-            ((rtp_session_attr_t*) temp_session->app_data)->jitter, order_error
-            );
+    snprintf(message, MAX_MESS, 
+        "rtp.flow.report %u,%u,%s,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,%f,%f,%u,%f\n", // app specific 
+        temp_session->app_format_id, probe_context.probe_id_number, probe_context.input_source, end_time.tv_sec, end_time.tv_usec,
+        session_id,
+        init_time.tv_sec, init_time.tv_usec,
+        (int) temp_session->ipversion,
+        ip_dst_str, ip_src_str,
+        temp_session->serverport, temp_session->clientport, (unsigned short) temp_session->proto,
+        (keep_direction)?get_session_ul_packet_count(expired_session):get_session_dl_packet_count(expired_session),
+        (keep_direction)?get_session_dl_packet_count(expired_session):get_session_ul_packet_count(expired_session),
+        (keep_direction)?get_session_ul_byte_count(expired_session):get_session_dl_byte_count(expired_session),
+        (keep_direction)?get_session_dl_byte_count(expired_session):get_session_ul_byte_count(expired_session),
+        rtt_ms, get_session_retransmission_count(expired_session),
+        app_class,
+        temp_session->contentclass, path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)],
+        loss_rate,
+        loss_burstiness,
+        ((rtp_session_attr_t*) temp_session->app_data)->jitter, order_error
+    );
+    if(strlen(message)>MAX_MESS-1){
+        mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating message for rtp.");
+        //fprintf(stderr, "Out of memory error when creating message for stats.\n");
+    }
+    send_message (out_file, message);
+    /* 
+    // Packet loss rate, Packet loss burstiness, max jitter, Order error rate 
+    fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,%f,%f,%u,%f\n", // app specific 
+        temp_session->app_format_id, end_time.tv_sec, end_time.tv_usec,
+        session_id,
+        init_time.tv_sec, init_time.tv_usec,
+        (int) temp_session->ipversion,
+        ip_dst_str, ip_src_str,
+        temp_session->serverport, temp_session->clientport, (unsigned short) temp_session->proto,
+        (keep_direction)?get_session_ul_packet_count(expired_session):get_session_dl_packet_count(expired_session),
+        (keep_direction)?get_session_dl_packet_count(expired_session):get_session_ul_packet_count(expired_session),
+        (keep_direction)?get_session_ul_byte_count(expired_session):get_session_dl_byte_count(expired_session),
+        (keep_direction)?get_session_dl_byte_count(expired_session):get_session_ul_byte_count(expired_session),
+        rtt_ms, get_session_retransmission_count(expired_session),
+        //get_application_class_by_protocol_id(expired_session->proto_path.proto_path[expired_session->proto_path.len - 1]),
+        //(expired_session->content_flags & MMT_CONTENT_CONVERSATIONAL) ? PROTO_CLASS_CONVERSATIONAL : PROTO_CLASS_STREAMING,
+        app_class,
+        temp_session->contentclass, path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)],
+        loss_rate,
+        loss_burstiness,
+        ((rtp_session_attr_t*) temp_session->app_data)->jitter, order_error
+    );
+    */
 }
 
 void classification_expiry_session(const mmt_session_t * expired_session, void * args) {

@@ -109,6 +109,7 @@ extern "C" {
         uint32_t thread_queue_plen;
         uint32_t thread_queue_blen;
         uint32_t input_mode;
+        uint32_t probe_id_number;
         char input_source[256 + 1];
         char log_file[256 + 1];
         char data_out[256 + 1];

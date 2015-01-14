@@ -330,6 +330,7 @@ void usage(const char * prg_name) {
     fprintf(stderr, "\t-p <period>      : Gives the period in seconds for statistics reporting. \n");
     fprintf(stderr, "\t-s <0|1>         : Enables or disables protocol statistics reporting. \n");
     fprintf(stderr, "\t-f <0|1>         : Enables or disables flows reporting. \n");
+    fprintf(stderr, "\t-n <probe number>: Unique probe id number. \n");
     fprintf(stderr, "\t-h               : Prints this help.\n");
     exit(1);
 }
@@ -417,6 +418,7 @@ cfg_t * parse_conf(const char *filename) {
         CFG_INT("thread-data", 0, CFGF_NONE),
         CFG_INT_CB("input-mode", ONLINE_ANALYSIS, CFGF_NONE, conf_parse_input_mode),
         CFG_STR("input-source", 0, CFGF_NONE),
+        CFG_INT("probe-id-number", 0, CFGF_NONE),
         CFG_STR("logfile", 0, CFGF_NONE),
         CFG_INT("loglevel", 2, CFGF_NONE),
         CFG_END()
@@ -440,7 +442,7 @@ cfg_t * parse_conf(const char *filename) {
 int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
     if (cfg) {
         mmt_conf->enable_proto_stats = 1; //enabled by default
-        mmt_conf->enable_flow_stats; //enabled by default
+        mmt_conf->enable_flow_stats = 1;  //enabled by default
         mmt_conf->stats_reporting_period = (uint32_t) cfg_getint(cfg, "stats-period");
         mmt_conf->thread_nb = (uint32_t) cfg_getint(cfg, "thread-nb");
         mmt_conf->thread_nb_2_power = get_2_power(mmt_conf->thread_nb);
@@ -451,6 +453,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         if (mmt_conf->thread_queue_blen == 0) mmt_conf->thread_queue_blen = 0xFFFFFFFF; //No limitation
         mmt_conf->input_mode = (uint32_t) cfg_getint(cfg, "input-mode");
         strncpy(mmt_conf->input_source, (char *) cfg_getstr(cfg, "input-source"), 256);
+        mmt_conf->probe_id_number = (uint32_t) cfg_getint(cfg, "probe-id-number");
         strncpy(mmt_conf->log_file, (char *) cfg_getstr(cfg, "logfile"), 256);
         mmt_conf->log_level = (uint32_t) cfg_getint(cfg, "loglevel");
 
@@ -1014,8 +1017,9 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
     char * output = NULL;
     int period = 0;
     int proto_stats = 1;
+    int probe_id_number = 0;
     int flow_stats = 1;
-    while ((opt = getopt(argc, argv, "c:t:i:o:p:s:f:h")) != EOF) {
+    while ((opt = getopt(argc, argv, "c:t:i:o:p:s:n:f:h")) != EOF) {
         switch (opt) {
             case 'c':
                 config_file = optarg;
@@ -1042,6 +1046,9 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
                 break;
             case 's':
                 proto_stats = atoi(optarg);
+                break;
+            case 'n':
+                probe_id_number = atoi(optarg);
                 break;
             case 'f':
                 flow_stats = atoi(optarg);
@@ -1073,6 +1080,10 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
     
     if(!proto_stats) {
         mmt_conf->enable_proto_stats = 0;
+    }
+    
+    if(probe_id_number) {
+        mmt_conf->probe_id_number = probe_id_number;
     }
     
     if(!flow_stats) {
