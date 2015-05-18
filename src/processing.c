@@ -67,7 +67,6 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt) {
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
 
 #define MAX_MESS 2000
-char message[MAX_MESS + 1];
 
 /**
  * Connects to redis server and exits if the connection fails
@@ -78,7 +77,6 @@ char message[MAX_MESS + 1];
  **/
 void init_redis (char * hostname, int port) {
     struct timeval timeout = { 1, 500000 }; // 1.5 seconds
-                 printf("Thredis wrapper zifit thredis_new failed\n");
 
     // Connect ro redis if not yet done
     if (redis == NULL){
@@ -190,6 +188,7 @@ void send_message (FILE * out_file, char *channel, char * message) {
 
 void protocols_stats_iterator(uint32_t proto_id, void * args) {
     FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
+    char message[MAX_MESS + 1];
     mmt_handler_t * mmt_handler = (mmt_handler_t *) args;
     if (proto_id <= 1) return; //ignor META and UNknown protocols
     proto_statistics_t * proto_stats = get_protocol_stats(mmt_handler, proto_id);
@@ -663,6 +662,7 @@ struct mmt_location_info_struct {
 void radius_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     //FILE * out_file = (user_args != NULL) ? (FILE *) user_args : stdout;
     if(ipacket->session == NULL) return;
+    char message[MAX_MESS + 1];
     FILE * out_file = (probe_context.radius_out_file != NULL) ? probe_context.radius_out_file : stdout;
 
     //Mark this flow as SKIP REPORTING one! Yeah we don't want to report RADIUS flows 
@@ -923,6 +923,7 @@ void report_all_protocols_microflows_stats(probe_internal_t * iprobe) {
 
 void report_microflows_stats(microsessions_stats_t * stats, FILE * out_file) {
     //Format id, timestamp, App name, Nb of flows, DL Packet Count, UL Packet Count, DL Byte Count, UL Byte Count
+    char message[MAX_MESS + 1];
     snprintf(message, MAX_MESS, 
           "%u,%u,\"%s\",%lu.%lu,%u,%u,%u,%u,%u,%u",
           MMT_MICROFLOWS_STATS_FORMAT, probe_context.probe_id_number, probe_context.input_source, stats->end_time.tv_sec, stats->end_time.tv_usec,
@@ -969,6 +970,7 @@ void update_microflows_stats(microsessions_stats_t * stats, const mmt_session_t 
 void print_default_app_format(const mmt_session_t * expired_session, FILE * out_file, probe_internal_t * iprobe) {
     int keep_direction = 1;
     session_struct_t * temp_session = get_user_session_context(expired_session);
+    char message[MAX_MESS + 1];
     char path[128];
     //common fields
     //format id, timestamp
@@ -1046,6 +1048,7 @@ void print_web_app_format(const mmt_session_t * expired_session, FILE * out_file
     int keep_direction = 1;
     session_struct_t * temp_session = get_user_session_context(expired_session);
     char path[128];
+    char message[MAX_MESS + 1];
     //common fields
     //format id, timestamp
     //Flow_id, Start timestamp, IP version, Server_Address, Client_Address, Server_Port, Client_Port, Transport Protocol ID,
@@ -1146,6 +1149,7 @@ void print_web_app_format(const mmt_session_t * expired_session, FILE * out_file
 void print_ssl_app_format(const mmt_session_t * expired_session, FILE * out_file, probe_internal_t * iprobe) {
     int keep_direction = 1;
     session_struct_t * temp_session = get_user_session_context(expired_session);
+    char message[MAX_MESS + 1];
     char path[128];
     //common fields
     //format id, timestamp
@@ -1230,6 +1234,7 @@ void print_rtp_app_format(const mmt_session_t * expired_session, FILE * out_file
     //Uplink Packet Count, Downlink Packet Count, Uplink Byte Count, Downlink Byte Count, TCP RTT, Retransmissions,
     //Application_Family, Content Class, Protocol_Path, Application_Name
 
+    char message[MAX_MESS + 1];
     char path[128];
     //proto_hierarchy_to_str(&expired_session->proto_path, path);
     uint64_t session_id = get_session_id(expired_session);

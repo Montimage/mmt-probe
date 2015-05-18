@@ -491,9 +491,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
             int port = (uint32_t) cfg_getint(redis_output, "port");
             int enabled = (uint32_t) cfg_getint(redis_output, "enabled");
             strncpy(hostname, (char *) cfg_getstr(redis_output, "hostname"), 256);
-printf("redis hostname %s port %i enabled %i\n", hostname, port, enabled);
             if (enabled) {
-printf("redis hostname %s port %i enabled %i\n", hostname, port, enabled);
                 init_redis(hostname, port);
             }
         }
