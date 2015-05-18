@@ -1,3 +1,16 @@
+# MMT Probe
+
+## Documentation
+
+* [About](/montimage/mmt-probe/wiki/About/)
+* [Installation](/montimage/mmt-probe/wiki/Installation/)
+* [Configuration](/montimage/mmt-probe/wiki/Configuration/)
+* [Data Format](/montimage/mmt-probe/wiki/Data Format/)
+* [User Guide](/montimage/mmt-probe/wiki/User Guide/)
+* [Developer Guide](/montimage/mmt-probe/wiki/Developer Guide/)
+
+## Getting Started
+```
 # Add these two destinations to your library path if it is not the case
 export LD_LIBRARY_PATH=/opt/mmt/lib:/usr/local/lib:$LD_LIBRARY_PATH
 
@@ -15,3 +28,4 @@ gcc -I/opt/mmt/include -o simple_probe src/main.c -L/opt/mmt/lib -lmmt_core -lmm
 > sudo make install
 
 # Before executing, insure you have created "plugins" forder and have either copied the TCPIP plugin or created a symbolic link to it.
+```
