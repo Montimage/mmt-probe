@@ -202,6 +202,7 @@ extern "C" {
 
     //session_struct_t * flows;
 
+    void init_redis (char * hostname, int port);
     void proto_stats_init(void * handler);
     void proto_stats_cleanup(void * handler);
     void flowstruct_init(void * handler);

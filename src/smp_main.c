@@ -388,6 +388,13 @@ cfg_t * parse_conf(const char *filename) {
         CFG_END()
     };
 
+    cfg_opt_t redis_output_opts[] = {
+        CFG_STR("hostname", "localhost", CFGF_NONE),
+        CFG_INT("port", 6379, CFGF_NONE),
+        CFG_INT("enabled", 0, CFGF_NONE),
+        CFG_END()
+    };
+
     cfg_opt_t output_opts[] = {
         CFG_STR("data-file", 0, CFGF_NONE),
         CFG_STR("radius-file", 0, CFGF_NONE),
@@ -410,6 +417,7 @@ cfg_t * parse_conf(const char *filename) {
     cfg_opt_t opts[] = {
         CFG_SEC("micro-flows", micro_flows_opts, CFGF_NONE),
         CFG_SEC("output", output_opts, CFGF_NONE),
+        CFG_SEC("redis-output", redis_output_opts, CFGF_NONE),
         CFG_SEC("data-output", data_output_opts, CFGF_NONE),
         CFG_SEC("radius-output", radius_output_opts, CFGF_NONE),
         CFG_INT("stats-period", 60, CFGF_NONE),
@@ -474,6 +482,19 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
                 mmt_conf->combine_radius = 1;
             } else {
                 mmt_conf->combine_radius = 0;
+            }
+        }
+
+        if (cfg_size(cfg, "redis-output")) {
+            cfg_t *redis_output = cfg_getnsec(cfg, "redis-output", 0);
+            char hostname[256 + 1];
+            int port = (uint32_t) cfg_getint(redis_output, "port");
+            int enabled = (uint32_t) cfg_getint(redis_output, "enabled");
+            strncpy(hostname, (char *) cfg_getstr(redis_output, "hostname"), 256);
+printf("redis hostname %s port %i enabled %i\n", hostname, port, enabled);
+            if (enabled) {
+printf("redis hostname %s port %i enabled %i\n", hostname, port, enabled);
+                init_redis(hostname, port);
             }
         }
 

@@ -69,6 +69,39 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt) {
 #define MAX_MESS 2000
 char message[MAX_MESS + 1];
 
+/**
+ * Connects to redis server and exits if the connection fails
+ *
+ * @param hostname hostname of the redis server
+ * @param port port number of the redis server
+ *
+ **/
+void init_redis (char * hostname, int port) {
+    struct timeval timeout = { 1, 500000 }; // 1.5 seconds
+                 printf("Thredis wrapper zifit thredis_new failed\n");
+
+    // Connect ro redis if not yet done
+    if (redis == NULL){
+        redis = redisConnectWithTimeout(hostname, port, timeout);
+        if (redis == NULL || redis->err) {
+            if (redis) {
+                printf("Connection error nb %d: %s\n", redis->err, redis->errstr);
+                redisFree(redis);
+            } else {
+                printf("Connection error: can't allocate redis context\n");
+            }
+            exit(1);
+        }
+        if (thredis == NULL){
+            thredis = thredis_new(redis);
+            if(thredis == NULL) {
+                 printf("Thredis wrapper thredis_new failed\n");
+                 exit(1);
+            }
+        }
+    }
+}
+
 int is_local_net(int addr) {
     if ((ntohl(addr) & 0xFF000000 /* 255.0.0.0 */) == 0x0A000000 /* 10.0.0.0 */) {
         return 1;
@@ -130,49 +163,28 @@ typedef struct http_line_struct {
     uint16_t len;
 } http_line_struct_t;
 
-void send_message (FILE * out_file, char *channel, char * message){
-    struct timeval timeout = { 1, 500000 }; // 1.5 seconds
-    const char *hostname = "127.0.0.1";
-    int port = 6379;
+void send_message (FILE * out_file, char *channel, char * message) {
 
     fprintf (out_file, "%s\n", message);
 
-    // Connect ro redis if not yet done
-    if (redis == NULL){
-        redis = redisConnectWithTimeout(hostname, port, timeout);
-        if (redis == NULL || redis->err) {
-            if (redis) {
-                printf("Connection error nb %d: %s\n", redis->err, redis->errstr);
-                redisFree(redis);
-            } else {
-                printf("Connection error: can't allocate redis context\n");
-            }
-            exit(1);
-        }
-        if (thredis == NULL){
-            thredis = thredis_new(redis);
-            if(thredis == NULL) {
-                 printf("Thredis wrapper thredis_new failed\n");
-                 exit(1);
-            }
-        }
-    }
+    // Publish to redis if it is enabled
+    if (redis != NULL) {
+        // Publish an event 
+        redisReply *reply;
+        //reply = (redisReply *) redisCommand    (  redis, "PUBLISH %s %s", channel, message );
+        reply   = (redisReply *) thredis_command (thredis, "PUBLISH %s [%s]", channel, message );
 
-    // Publish an event 
-    redisReply *reply;
-    //reply = (redisReply *) redisCommand    (  redis, "PUBLISH %s %s", channel, message );
-    reply   = (redisReply *) thredis_command (thredis, "PUBLISH %s [%s]", channel, message );
-
-    if(reply == NULL){
-        printf("Redis command error: can't allocate reply context\n");
-    }else{
-        if(redis->err != 0){
-           printf("Redis command error nb %d: %s\n", redis->err, redis->errstr);
+        if(reply == NULL){
+            printf("Redis command error: can't allocate reply context\n");
+        }else{
+            if(redis->err != 0){
+                printf("Redis command error nb %d: %s\n", redis->err, redis->errstr);
+            }
+            if(reply->type == REDIS_REPLY_ERROR){
+                printf("Redis reply error nb %d: %s\n", reply->type, reply->str);
+            }
+            freeReplyObject(reply);
         }
-        if(reply->type == REDIS_REPLY_ERROR){
-           printf("Redis reply error nb %d: %s\n", reply->type, reply->str);
-        }
-        freeReplyObject(reply);
     }
 }
 
