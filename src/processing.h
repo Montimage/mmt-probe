@@ -19,6 +19,7 @@ extern "C" {
 #define MMT_WEB_APP_REPORT_FORMAT       0x1
 #define MMT_SSL_APP_REPORT_FORMAT       0x2
 #define MMT_RTP_APP_REPORT_FORMAT       0x3
+#define MMT_SAMPLED_RTP_APP_REPORT_FORMAT       1003
 
 #define MMT_RADIUS_REPORT_ALL 0x0
 #define MMT_RADIUS_REPORT_MSG 0x1
@@ -156,7 +157,13 @@ extern "C" {
         uint32_t jitter;
         uint32_t nb_order_error;
         uint32_t nb_lost;
-        uint32_t nb_loss_bursts; //metric
+        uint32_t nb_loss_bursts;
+        uint64_t ul_packet_count;
+        uint64_t dl_packet_count;
+        uint64_t ul_byte_count;
+        uint64_t dl_byte_count;        //metric
+        time_t last_report_time_sec;
+        time_t last_report_time_usec;//jeevan
     } rtp_session_attr_t;
 
     typedef struct web_session_attr_struct {
