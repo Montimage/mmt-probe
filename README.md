@@ -2,12 +2,12 @@
 
 ## Documentation
 
-* [About](/montimage/mmt-probe/wiki/About/)
-* [Installation](/montimage/mmt-probe/wiki/Installation/)
-* [Configuration](/montimage/mmt-probe/wiki/Configuration/)
-* [Data Format](/montimage/mmt-probe/wiki/Data Format/)
-* [User Guide](/montimage/mmt-probe/wiki/User Guide/)
-* [Developer Guide](/montimage/mmt-probe/wiki/Developer Guide/)
+* [About](https://bitbucket.org/montimage/mmt-probe/wiki/About/)
+* [Installation](https://bitbucket.org/montimage/mmt-probe/wiki/Installation/)
+* [Configuration](https://bitbucket.org/montimage/mmt-probe/wiki/Configuration/)
+* [Data Format](https://bitbucket.org/montimage/mmt-probe/wiki/Data Format/)
+* [User Guide](https://bitbucket.org/montimage/mmt-probe/wiki/User Guide/)
+* [Developer Guide](https://bitbucket.org/montimage/mmt-probe/wiki/Developer Guide/)
 
 ## Getting Started
 ```
