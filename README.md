@@ -16,9 +16,15 @@ export LD_LIBRARY_PATH=/opt/mmt/lib:/usr/local/lib:$LD_LIBRARY_PATH
 
 # Compile the Ericsson probe. with:
 gcc -I/opt/mmt/include -o probe src/smp_main.c src/processing.c src/thredis.c -L/opt/mmt/lib -lmmt_core -lmmt_tcpip -ldl -lpcap -lconfuse -lhiredis -lpthread
+# execute:
+sudo su
+export LD_LIBRARY_PATH=/opt/mmt/lib:/usr/local/lib:$LD_LIBRARY_PATH
+./probe -c ./mmt_online.con
 
 # Compile the simple probe with:
 gcc -I/opt/mmt/include -o simple_probe src/main.c -L/opt/mmt/lib -lmmt_core -lmmt_tcpip -ldl -lpcap
+# Execute: 
+./simple_probe <pcap file>
 
 # This assumes that you have compiled MMT SDK and install it on your system
 # If this is not the case:
