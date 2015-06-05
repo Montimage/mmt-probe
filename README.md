@@ -20,6 +20,11 @@ gcc -I/opt/mmt/include -o probe src/smp_main.c src/processing.c src/thredis.c -L
 sudo su
 export LD_LIBRARY_PATH=/opt/mmt/lib:/usr/local/lib:$LD_LIBRARY_PATH
 ./probe -c ./mmt_online.con
+#if using redis and mmt_operator
+redis-server
+node app.js -d mongo
+firefox localhost:8088
+
 
 # Compile the simple probe with:
 gcc -I/opt/mmt/include -o simple_probe src/main.c -L/opt/mmt/lib -lmmt_core -lmmt_tcpip -ldl -lpcap
