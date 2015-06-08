@@ -414,6 +414,13 @@ cfg_t * parse_conf(const char *filename) {
         CFG_END()
     };
 
+    cfg_opt_t event_report_opts[] = {
+        CFG_INT("id", 0, CFGF_NONE),
+        CFG_STR("event", "", CFGF_NONE),
+        CFG_STR_LIST("attributes", "{}", CFGF_NONE),
+        CFG_END()
+    };    
+
     cfg_opt_t opts[] = {
         CFG_SEC("micro-flows", micro_flows_opts, CFGF_NONE),
         CFG_SEC("output", output_opts, CFGF_NONE),
@@ -429,6 +436,7 @@ cfg_t * parse_conf(const char *filename) {
         CFG_INT("probe-id-number", 0, CFGF_NONE),
         CFG_STR("logfile", 0, CFGF_NONE),
         CFG_INT("loglevel", 2, CFGF_NONE),
+        CFG_SEC("event_report", event_report_opts, CFGF_TITLE | CFGF_MULTI),
         CFG_END()
     };
 
@@ -448,6 +456,9 @@ cfg_t * parse_conf(const char *filename) {
 }
 
 int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
+    int i, j;
+    cfg_t *event_opts;
+
     if (cfg) {
         mmt_conf->enable_proto_stats = 1; //enabled by default
         mmt_conf->enable_flow_stats = 1;  //enabled by default
@@ -510,6 +521,17 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         if (cfg_size(cfg, "data-output")) {
             cfg_t *doutput = cfg_getnsec(cfg, "data-output", 0);
             mmt_conf->user_agent_parsing_threshold = (uint32_t) cfg_getint(doutput, "include-user-agent")*1000;
+        }
+
+        for(j = 0; j < cfg_size(cfg, "event_report"); j++) {
+            event_opts = cfg_getnsec(cfg, "event_report", j);
+            printf("Title %s", cfg_title(event_opts));
+            printf("ID %i", cfg_getint(event_opts, "id"));
+            printf("Event %s", cfg_getstr(event_opts, "event"));
+            printf("Attributes: ");
+            for(i = 0; i < cfg_size(event_opts, "attributes"); i++)
+                printf(", %s", cfg_getnstr(event_opts, "attributes", i));
+            printf("*************\n");
         }
 
         cfg_free(cfg);
