@@ -313,6 +313,7 @@ void rtp_jitter_handle(const ipacket_t * ipacket, attribute_t * attribute, void 
     /*sampling RTP*/
 
     char path[128];
+    char message[MAX_MESS + 1];
 
     //IP strings
     char ip_src_str[46];
