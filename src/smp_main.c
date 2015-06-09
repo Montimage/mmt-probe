@@ -275,6 +275,7 @@ static void *smp_thread_routine(void *arg) {
     if(mmt_probe.mmt_conf->enable_flow_stats) {
         register_session_timeout_handler(th->mmt_handler, classification_expiry_session, &th->iprobe);
         flowstruct_init(th->mmt_handler); // initialize our event handler
+        event_reports_init(th->mmt_handler); // initialize our event reports
         radius_ext_init(th->mmt_handler); // initialize radius extraction and attribute event handler
     }
     
@@ -455,6 +456,33 @@ cfg_t * parse_conf(const char *filename) {
     return cfg;
 }
 
+/** transforms "proto.attribute" into mmt_event_attribute_t 
+ *  Raturns 0 on success, a positive value otherwise
+ **/
+int parse_dot_proto_attribute(char * inputstring, mmt_event_attribute_t * protoattr) {
+    char **ap, *argv[2];
+    int valid = 0;
+    /* code from http://www.manpagez.com/man/3/strsep/ 
+     * You can make it better!
+     */
+    for (ap = argv; (*ap = strsep(&inputstring, ".")) != NULL;)	{
+        valid ++;
+        if (**ap != '\0') {
+            if (++ap >= &argv[2] || valid > 2) {
+                break;
+            }
+        }
+    }
+
+    if(valid != 2) {
+        return 1;
+    } else {
+        strncpy(protoattr->proto, argv[0], 256);
+        strncpy(protoattr->attribute, argv[1], 256);
+        return 0;
+    }
+}
+
 int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
     int i, j;
     cfg_t *event_opts;
@@ -523,15 +551,36 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
             mmt_conf->user_agent_parsing_threshold = (uint32_t) cfg_getint(doutput, "include-user-agent")*1000;
         }
 
-        for(j = 0; j < cfg_size(cfg, "event_report"); j++) {
-            event_opts = cfg_getnsec(cfg, "event_report", j);
-            printf("Title %s", cfg_title(event_opts));
-            printf("ID %i", cfg_getint(event_opts, "id"));
-            printf("Event %s", cfg_getstr(event_opts, "event"));
-            printf("Attributes: ");
-            for(i = 0; i < cfg_size(event_opts, "attributes"); i++)
-                printf(", %s", cfg_getnstr(event_opts, "attributes", i));
-            printf("*************\n");
+        int event_reports_nb = cfg_size(cfg, "event_report");
+        int event_attributes_nb = 0;
+        mmt_conf->event_reports = NULL;
+        mmt_event_report_t * temp_er;
+        mmt_conf->event_reports_nb = event_reports_nb;
+
+        if (event_reports_nb > 0) {
+            mmt_conf->event_reports = calloc(sizeof(mmt_event_report_t), event_reports_nb);
+            for(j = 0; j < event_reports_nb; j++) {
+                event_opts = cfg_getnsec(cfg, "event_report", j);
+                temp_er = & mmt_conf->event_reports[j];
+                temp_er->id = cfg_getint(event_opts, "id");
+                if (parse_dot_proto_attribute((char *) cfg_getstr(event_opts, "event"), &temp_er->event)) {
+                    fprintf(stderr, "Error: invalid event_report event value '%s'\n", (char *) cfg_getstr(event_opts, "event"));
+                    exit(-1);
+                }
+                event_attributes_nb = cfg_size(event_opts, "attributes");
+                temp_er->attributes_nb = event_attributes_nb;
+
+                if(event_attributes_nb > 0) {
+                    temp_er->attributes = calloc(sizeof(mmt_event_attribute_t), event_attributes_nb);
+ 
+                    for(i = 0; i < event_attributes_nb; i++) {
+                        if (parse_dot_proto_attribute(cfg_getnstr(event_opts, "attributes", i), &temp_er->attributes[i])) {
+                            fprintf(stderr, "Error: invalid event_report attribute value '%s'\n", (char *) cfg_getnstr(event_opts, "attributes", i));
+                            exit(-1);
+                        }
+                    }
+                }
+            }
         }
 
         cfg_free(cfg);
@@ -1180,14 +1229,11 @@ int main(int argc, char **argv) {
         }
         mmt_probe.iprobe.instance_id = 0;
 
-        mmt_probe.iprobe.instance_id = 0;
-
-        mmt_probe.iprobe.instance_id = 0;
-
         // customized packet and session handling functions are then registered
         if(mmt_probe.mmt_conf->enable_flow_stats) {
             register_session_timeout_handler(mmt_probe.mmt_handler, classification_expiry_session, &mmt_probe.iprobe);
             flowstruct_init(mmt_probe.mmt_handler); // initialize our event handler
+            event_reports_init(mmt_probe.mmt_handler); // initialize our event reports 
             radius_ext_init(mmt_probe.mmt_handler); // initialize radius extraction and attribute event handler
         }
 

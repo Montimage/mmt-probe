@@ -713,6 +713,16 @@ void proto_stats_cleanup(void * handler) {
     (void) unregister_packet_handler((mmt_handler_t *) handler, 1);
 }
 
+void event_reports_init(void * handler) {
+    int i, valid;
+    for(i = 0; i < probe_context.event_reports_nb; i++) {
+        mmt_event_report_t * event_report = &probe_context.event_reports[i];
+        if(register_event_report_handle(handler, event_report) == 0) {
+            fprintf(stderr, "Error while initializing event report number %i!\n", event_report->id);
+        }
+    }
+}
+
 void flowstruct_init(void * handler) {
     int i = 1;
     i &= register_extraction_attribute(handler, PROTO_TCP, TCP_SRC_PORT);
@@ -765,6 +775,27 @@ struct mmt_location_info_struct {
     uint16_t cell_lac;
     uint16_t cell_id;
 };
+
+void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
+    mmt_event_report_t * event_report = (mmt_event_report_t *) user_args;
+
+    printf("Event id %u --- event proto %s --- event attribute %s attributes nb %u\n", 
+        event_report->id,
+        event_report->event.proto,
+        event_report->event.attribute,
+        event_report->attributes_nb
+    );
+}
+
+int register_event_report_handle(void * handler, mmt_event_report_t * event_report) {
+    int i = 1, j;
+    i &= register_attribute_handler_by_name(handler, event_report->event.proto, event_report->event.attribute, event_report_handle, NULL, (void *) event_report);
+    for(j = 0; j < event_report->attributes_nb; j++) {
+        mmt_event_attribute_t * event_attribute = &event_report->attributes[j];
+        i &= register_extraction_attribute_by_name(handler, event_attribute->proto, event_attribute->attribute);
+    }
+    return i;
+}
 
 void radius_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     //FILE * out_file = (user_args != NULL) ? (FILE *) user_args : stdout;

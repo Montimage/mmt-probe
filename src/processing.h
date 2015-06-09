@@ -104,6 +104,18 @@ extern "C" {
         uint16_t dev_id;
     } mmt_dev_properties_t;
 
+    typedef struct mmt_event_attribute_struct {
+        char proto[256 + 1];
+        char attribute[256 + 1];
+    } mmt_event_attribute_t;
+
+    typedef struct mmt_event_report_struct {
+      uint32_t id;
+      mmt_event_attribute_t event;
+      uint32_t attributes_nb;
+      mmt_event_attribute_t * attributes; 
+    } mmt_event_report_t;
+
     typedef struct mmt_probe_context_struct {
         uint32_t thread_nb;
         uint32_t thread_nb_2_power;
@@ -138,6 +150,8 @@ extern "C" {
         uint32_t microf_report_fthreshold;
         uint32_t user_agent_parsing_threshold;
         uint32_t stats_reporting_period;
+        uint32_t event_reports_nb;
+        mmt_event_report_t * event_reports;
     } mmt_probe_context_t;
 
     typedef struct microsessions_stats_struct {
@@ -216,6 +230,8 @@ extern "C" {
     void flowstruct_cleanup(void * handler);
     void radius_ext_init(void * handler);
     void radius_ext_cleanup(void * handler);
+    void event_reports_init(void * handler);
+    void event_reports_cleanup(void * handler);
     void init_session_structs();
     void print_session_structs();
     void report_microflows_stats(microsessions_stats_t * stats, FILE * out_file);
@@ -223,6 +239,8 @@ extern "C" {
     void report_all_protocols_microflows_stats(probe_internal_t * iprobe);
 
     void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char * log_msg);
+
+    int register_event_report_handle(void * handler, mmt_event_report_t * event_report);
 
     mmt_probe_context_t * get_probe_context_config();
 
