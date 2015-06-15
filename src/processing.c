@@ -714,7 +714,7 @@ void proto_stats_cleanup(void * handler) {
 }
 
 void event_reports_init(void * handler) {
-    int i, valid;
+    int i;
     for(i = 0; i < probe_context.event_reports_nb; i++) {
         mmt_event_report_t * event_report = &probe_context.event_reports[i];
         if(register_event_report_handle(handler, event_report) == 0) {
@@ -777,15 +777,51 @@ struct mmt_location_info_struct {
 };
 
 void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-    mmt_event_report_t * event_report = (mmt_event_report_t *) user_args;
+    int j;
+    attribute_t * attr_extract;
+    int offset = 0, valid;
+    char message[MAX_MESS + 1];
 
-    printf("Event id %u --- event proto %s --- event attribute %s attributes nb %u\n", 
-        event_report->id,
-        event_report->event.proto,
-        event_report->event.attribute,
-        event_report->attributes_nb
-    );
+    FILE * out_file = (probe_context.radius_out_file != NULL) ? probe_context.radius_out_file : stdout;
+    mmt_event_report_t * event_report = (mmt_event_report_t *) user_args;
+    session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
+
+
+   valid= snprintf(message, MAX_MESS,
+        "%u,%u,\"%s\",%lu.%lu",
+        event_report->id, probe_context.probe_id_number, probe_context.input_source, ipacket->p_hdr->ts.tv_sec,ipacket->p_hdr->ts.tv_usec);
+   if(valid > 0) {
+       offset += valid;
+   }else {
+        return;
+   }
+
+    valid = mmt_attr_sprintf(&message[offset], MAX_MESS - offset, attribute);
+    message[offset] = ',';
+    if(valid > 0) {
+    	offset += valid;
+    }else {
+    	return;
+    }
+
+    for(j = 0; j < event_report->attributes_nb; j++) {
+    	mmt_event_attribute_t * event_attribute = &event_report->attributes[j];
+    	attr_extract = get_extracted_attribute_by_name(ipacket,event_attribute->proto, event_attribute->attribute);
+		message[offset] = ',';
+    	if(attr_extract != NULL) {
+			valid = mmt_attr_sprintf(&message[offset + 1], MAX_MESS - offset, attr_extract);
+			if(valid > 0) {
+				offset += valid;
+			}else {
+				return;
+			}
+    	}else {
+    		offset += 1;
+    	}
+    }
+    send_message (out_file, "radius.report", message);
 }
+
 
 int register_event_report_handle(void * handler, mmt_event_report_t * event_report) {
     int i = 1, j;
