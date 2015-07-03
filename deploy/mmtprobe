@@ -1,0 +1,33 @@
+#!/bin/sh
+#/etc/init.d/mmtprobe
+
+### BEGIN INIT INFO
+# Provides:          mmtprobe
+# Required-Start:    $local_fs $remote_fs
+# Required-Stop:     $local_fs $remote_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: automatic crash report generation
+### END INIT INFO
+
+
+export PATH=$PATH:/usr/local/bin
+export NODE_PATH=$NODE_PATH:/usr/local/lib/node_modules
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/mmt/lib
+
+case "$1" in
+  start)
+  cd /home/montimage/dev/mmt-probe
+  exec /home/montimage/dev/mmt-probe/probe -c /home/montimage/dev/mmt-probe/mmt_online.conf -s 1 -f 1 -i eth0 &
+  ;;
+stop)
+  exec killproc mmtprobe
+  ;;
+*)
+  echo "Usage: /etc/init.d/mmtprobe {start|stop}"
+  exit 1
+  ;;
+esac
+
+exit 0
+
