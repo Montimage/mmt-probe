@@ -796,10 +796,12 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
         return;
    }
 
-    valid = mmt_attr_sprintf(&message[offset], MAX_MESS - offset, attribute);
-    message[offset] = ',';
+   message[offset] = ',';
+
+    valid = mmt_attr_sprintf(&message[offset+1], MAX_MESS - offset+1, attribute);
+
     if(valid > 0) {
-    	offset += valid;
+    	offset += valid+1;
     }else {
     	return;
     }
@@ -809,9 +811,9 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
     	attr_extract = get_extracted_attribute_by_name(ipacket,event_attribute->proto, event_attribute->attribute);
 		message[offset] = ',';
     	if(attr_extract != NULL) {
-			valid = mmt_attr_sprintf(&message[offset + 1], MAX_MESS - offset, attr_extract);
+			valid = mmt_attr_sprintf(&message[offset + 1], MAX_MESS - offset+1, attr_extract);
 			if(valid > 0) {
-				offset += valid;
+				offset += valid+1;
 			}else {
 				return;
 			}
