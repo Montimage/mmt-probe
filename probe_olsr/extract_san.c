@@ -123,8 +123,9 @@ void attr_handler(const ipacket_t * ipacket, attribute_t * attr, void * user_arg
     json_t * data = mmt_json_new_node();
     mmt_json_set_name(data, "data");
     mmt_json_push(data, mmt_json_new_a("id", test_event->event_id));//TODO: the event name will be described somewhere, for the moment use a static text
+    mmt_json_push(data, mmt_json_new_i("packet_id", (int)ipacket->packet_id));
     mmt_json_push(data, mmt_attr_json(attr, 0));//attributes of hello  i.e. hello structure, format has no attributes
-
+    //printf("packet_id=%lu", ipacket->id);
     // Now concatenate the instance id string
     int count = 0, inst_id_len = 1024; //TODO: this should be e definition
     int off = 0;
@@ -159,7 +160,7 @@ void attr_handler(const ipacket_t * ipacket, attribute_t * attr, void * user_arg
     mmt_json_push(n, attributes);
 
     char * format = mmt_json_format(n);
-    //printf("%s", format);
+    printf("%s", format);
 
     // Publish an event
     redisReply *reply; 

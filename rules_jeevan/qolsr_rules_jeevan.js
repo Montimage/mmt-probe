@@ -19,14 +19,19 @@ function update_neighborbourhood_quality (active_state, evt, msg, opts) {
 }
 function check_property_quality (active_state, evt, msg, opts) {
 	//console.log(msg);
-  if(neighborbourhood[msg.data.value.neighbor]!= null && neighborbourhood[msg.data.value.neighbor][msg.data.value.orig][1]!=0 && neighborbourhood[msg.data.value.neighbor][msg.data.value.orig][2]!= 0){
-        if( neighborbourhood[msg.data.value.neighbor][msg.data.value.orig][2]!=neighborbourhood[msg.data.value.orig][msg.data.value.neighbor][1]) 
+  if(neighborbourhood[msg.data.value.neighbor]!= null && neighborbourhood[msg.data.value.neighbor][msg.data.value.orig][1]!=0 && neighborbourhood[msg.data.value.neighbor][msg.data.value.orig][2]!= 0 && neighborbourhood[msg.data.value.orig][msg.data.value.neighbor][1]!=0 && neighborbourhood[msg.data.value.orig][msg.data.value.neighbor][2]!=0){
+     //   if( neighborbourhood[msg.data.value.neighbor][msg.data.value.orig][2]!=neighborbourhood[msg.data.value.orig][msg.data.value.neighbor][1] && neighborbourhood[msg.data.value.neighbor][msg.data.value.orig][1]!=neighborbourhood[msg.data.value.orig][msg.data.value.neighbor][2]) 
+if( neighborbourhood[msg.data.value.neighbor][msg.data.value.orig][1]!=neighborbourhood[msg.data.value.orig][msg.data.value.neighbor][2])
         {
+console.log(neighborbourhood[msg.data.value.neighbor][msg.data.value.orig][1]);
+console.log(neighborbourhood[msg.data.value.orig][msg.data.value.neighbor][2]);
+              console.log(msg);
                MMT.emitVerdict(active_state, evt, msg, {value: false,
                  attributes:{ orig: msg.data.value.orig, neighbor: msg.data.value.neighbor,
                  type: neighborbourhood[msg.data.value.orig][msg.data.value.neighbor],
                  attacker: msg.data.value.orig}});
           console.log("OLSR quality false");
+
         } else {/*
                 MMT.emitVerdict(active_state, evt, msg, {value: true, attributes:{ orig: msg.data.value.orig, neighbor: msg.data.value.neighbor,
                   type: neighborbourhood[msg.data.value.orig][msg.data.value.neighbor],

@@ -38,8 +38,8 @@ typedef struct olsr_hello_event_struct {
     uint32_t neighbor;
     uint16_t seqnb;
     uint8_t  type;
-    uint8_t  fwd_signal;
-    uint8_t  rcv_signal;
+    int8_t  fwd_signal;
+    int8_t  rcv_signal;
     uint8_t  interface;
     uint8_t  reserve;
     uint8_t ttl;
