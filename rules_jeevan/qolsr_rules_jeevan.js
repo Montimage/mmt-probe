@@ -20,7 +20,7 @@ function update_neighborbourhood_quality (active_state, evt, msg, opts) {
 function check_property_quality (active_state, evt, msg, opts) {
 	//console.log(msg);
   if(neighborbourhood[msg.data.value.neighbor]!= null && neighborbourhood[msg.data.value.neighbor][msg.data.value.orig][1]!=0 && neighborbourhood[msg.data.value.neighbor][msg.data.value.orig][2]!= 0){
-        if(neighborbourhood[msg.data.value.neighbor][msg.data.value.orig][1]!=neighborbourhood[msg.data.value.orig][msg.data.value.neighbor][2] || neighborbourhood[msg.data.value.neighbor][msg.data.value.orig][2]!=neighborbourhood[msg.data.value.orig][msg.data.value.neighbor][1]) 
+        if( neighborbourhood[msg.data.value.neighbor][msg.data.value.orig][2]!=neighborbourhood[msg.data.value.orig][msg.data.value.neighbor][1]) 
         {
                MMT.emitVerdict(active_state, evt, msg, {value: false,
                  attributes:{ orig: msg.data.value.orig, neighbor: msg.data.value.neighbor,
@@ -65,11 +65,11 @@ var efsm = new mmt.EFSM(
 
 
 //San
-setTimeout(function(){ publisher.publish('olsr.hello', JSON.stringify(MMT.attributeJSON(1000, 'olsr.hello',{"timestamp":1000,"orig":"192.168.200.4","neighbor":"192.168.200.3", "type":6,"fwd_signal":10,"rcv_signal":0},'', 'i1'))); }, 1000);
-setTimeout(function(){ publisher.publish('olsr.hello', JSON.stringify(MMT.attributeJSON(1000, 'olsr.hello',{"timestamp":1000,"orig":"192.168.200.4","neighbor":"192.168.200.5", "type":6,"fwd_signal":100,"rcv_signal":200},'', 'i1'))); }, 1500);
-setTimeout(function(){ publisher.publish('olsr.hello', JSON.stringify(MMT.attributeJSON(2000, 'olsr.hello',{"timestamp":2000,"orig":"192.168.200.5","neighbor":"192.168.200.4", "type":6,"fwd_signal":200,"rcv_signal":100},'','i1'))); }, 2000);
+//setTimeout(function(){ publisher.publish('olsr.hello', JSON.stringify(MMT.attributeJSON(1000, 'olsr.hello',{"timestamp":1000,"orig":"192.168.200.4","neighbor":"192.168.200.3", "type":6,"fwd_signal":10,"rcv_signal":0},'', 'i1'))); }, 1000);
+//setTimeout(function(){ publisher.publish('olsr.hello', JSON.stringify(MMT.attributeJSON(1000, 'olsr.hello',{"timestamp":1000,"orig":"192.168.200.4","neighbor":"192.168.200.5", "type":6,"fwd_signal":100,"rcv_signal":200},'', 'i1'))); }, 1500);
+//setTimeout(function(){ publisher.publish('olsr.hello', JSON.stringify(MMT.attributeJSON(2000, 'olsr.hello',{"timestamp":2000,"orig":"192.168.200.5","neighbor":"192.168.200.4", "type":6,"fwd_signal":200,"rcv_signal":500},'','i1'))); }, 2000);
 
-setTimeout(function(){ publisher.publish('olsr.hello', JSON.stringify(MMT.attributeJSON(1000, 'olsr.hello',{"timestamp":1000,"orig":"192.168.200.3","neighbor":"192.168.200.4", "type":6,"fwd_signal":0,"rcv_signal":10},'', 'i1'))); }, 2500);
-setTimeout(function(){ publisher.publish('olsr.hello', JSON.stringify(MMT.attributeJSON(1000, 'olsr.hello',{"timestamp":1000,"orig":"192.168.200.5","neighbor":"192.168.200.6", "type":6,"fwd_signal":100,"rcv_signal":200},'', 'i1'))); }, 3000);
-setTimeout(function(){ publisher.publish('olsr.hello', JSON.stringify(MMT.attributeJSON(2000, 'olsr.hello',{"timestamp":2000,"orig":"192.168.200.6","neighbor":"192.168.200.5", "type":6,"fwd_signal":400,"rcv_signal":100},'','i1'))); }, 4000);
+//setTimeout(function(){ publisher.publish('olsr.hello', JSON.stringify(MMT.attributeJSON(1000, 'olsr.hello',{"timestamp":1000,"orig":"192.168.200.3","neighbor":"192.168.200.4", "type":6,"fwd_signal":0,"rcv_signal":10},'', 'i1'))); }, 2500);
+//setTimeout(function(){ publisher.publish('olsr.hello', JSON.stringify(MMT.attributeJSON(1000, 'olsr.hello',{"timestamp":1000,"orig":"192.168.200.5","neighbor":"192.168.200.6", "type":6,"fwd_signal":100,"rcv_signal":200},'', 'i1'))); }, 3000);
+//setTimeout(function(){ publisher.publish('olsr.hello', JSON.stringify(MMT.attributeJSON(2000, 'olsr.hello',{"timestamp":2000,"orig":"192.168.200.6","neighbor":"192.168.200.5", "type":6,"fwd_signal":400,"rcv_signal":100},'','i1'))); }, 4000);
 
