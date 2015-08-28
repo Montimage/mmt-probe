@@ -1,0 +1,5 @@
+# Add these two destinations to your library path if it is not the case
+export LD_LIBRARY_PATH=/opt/mmt/lib:/usr/local/lib:$LD_LIBRARY_PATH
+
+#compile
+gcc -DNDEBUG -I/opt/mmt/include -o extract extract_san.c attribute_json.c -L/opt/mmt/lib -lmmt_core -ldl -ljson -lhiredis -lpcap -lstdc++ -luv
