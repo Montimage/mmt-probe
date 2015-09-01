@@ -10,6 +10,13 @@ var moment = require('moment');
 var jade = require('jade');
 var app = express();
 var io = require('socket.io');
+var mongodbClient = require('mongodb').MongoClient;
+
+mdb = null;
+mongodbClient.connect('mongodb://127.0.0.1:27017/olsrdb',function(err,db){
+  if(err) throw err;
+  mdb = db;
+});
 
 var publisher = redis.createClient();
 
@@ -66,14 +73,18 @@ var server = http.createServer(app);
 io = io.listen(server);
 io.set('log level', 1); //warning + errors
 server.listen(app.get('port'));
-
+console.log(io);
+console.log(io.sockets);
 io.sockets.on('connection', function (client) {
+    console.log("Someone connecting...")
     // Subscribe to Context messages
     var sub = redis.createClient();
     sub.psubscribe("context.*");
     sub.psubscribe('*.verdict');
+    sub.psubscribe('*');
 
     sub.on("pmessage", function (pattern, channel, message) {
+        console.log(message);
         if(channel.indexOf('pr') === 0) console.log(message);
         msg = JSON.parse(message);
         client.send(JSON.stringify({channel: channel, data: msg}));

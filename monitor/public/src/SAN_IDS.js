@@ -41,6 +41,7 @@
   }
 
   function addLink(attacker, neighbor) {
+    console.log("addlink: "+ gsrc);
     n_node = (neighbor.split("."))[3];
     a_node = (attacker.split("."))[3];
 
@@ -78,22 +79,23 @@
       dashboard:Dashboard("#dashboard", sys),
       io:IO("#editor .io"),
       init:function(){
-        
+      console.log("That is init()!"+gsrc)
         $(window).resize(that.resize)
         that.resize()
         that.updateLayout(Math.max(1, $(window).width()-340))
 
         //_code.keydown(that.typing)
         _grabber.bind('mousedown', that.grabbed)
-
+        that.getDoc({id:"SAN_IDS"})
         $(that.io).bind('get', that.getDoc)
         $(that.io).bind('clear', that.newDoc)
         return that
       },
       
       getDoc:function(e){
+        console.log("getDoc is called");
         $.getJSON('/library/'+e.id+'.json', function(doc){
-            
+            console.log("getDoc: doc "+doc);
           // update the system parameters
           if (doc.sys){
             sys.parameters(doc.sys)
@@ -122,6 +124,7 @@
 
       updateGraph:function(e){
         //var src_txt = _code.val()
+        console.log("updateGraph");
         var src_txt = gsrc;
         network = parse(src_txt)
 
@@ -201,15 +204,17 @@
         _updateTimeout = setTimeout(that.updateGraph, 900)
       }
     }
-    
+    console.log("That is created!")
     return that.init()    
   }
 
-
+      
   $(document).ready(function(){
+    console.log("Connected ???");
     var mcp = SANIDS("#SAN_IDS")    
 
-    var socket = new io.connect('/');
+    var socket = new io.connect('localhost:8080/');
+    console.log(socket);
     var failNb = 0;
 
     socket.on('connect', function() {
@@ -219,19 +224,30 @@
     //addFormatIncident('192.168.1.1');  
     socket.on('message', function(message){
       var msg = JSON.parse(message);
+      console.log(message);
       if( msg.channel === 'PacketFormat.verdict' && msg.data.data.value === false) {
+        console.log("LinkSpoofing.verdict");
         addFormatIncident(msg.data.attributes.attacker);
         id = (msg.data.attributes.attacker).replace(/\./g, '_');
         val = parseInt($('#' + id).text()) + 1;
         $('#' + id).text(val);
         addOrange(msg.data.attributes.attacker);
       } else if( msg.channel === 'LinkSpoofing.verdict' && msg.data.data.value === false) {
+        console.log("LinkSpoofing.verdict");
         addTopoIncident(msg.data.attributes.attacker);  
         addLink(msg.data.attributes.attacker, msg.data.attributes.neighbor);
         id = (msg.data.attributes.attacker).replace(/\./g, '_');
         val = parseInt($('#' + id).text()) + 1;
         $('#' + id).text(val);
-      }else if( msg.channel === 'context.cpu' ) {
+      }else if(msg.channel === 'Linkqualityspoofing.verdict' && msg.data.data.value === false){
+        console.log("Linkqualityspoofing.verdict");
+        addTopoIncident(msg.data.attributes.attacker);  
+        addLink(msg.data.attributes.attacker, msg.data.attributes.neighbor);
+        id = (msg.data.attributes.attacker).replace(/\./g, '_');
+        val = parseInt($('#' + id).text()) + 1;
+        $('#' + id).text(val);
+      }
+      else if ( msg.channel === 'context.cpu' ) {
         cpuusage = 100 - msg.data.data.idle;
         $('#cpu').text(cpuusage.toFixed(2) + ' %');
       }
