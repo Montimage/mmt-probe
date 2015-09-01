@@ -1,3 +1,0 @@
-gcc test.c -lnetfilter_queue
-
-sudo iptables -A OUTPUT -p udp --dport 698 -j NFQUEUE --queue-num 0

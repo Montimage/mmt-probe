@@ -1,2 +1,0 @@
-{"_id":"SAN_IDS","_rev":"1-9405f221c6d6391d7950c28b268f767d","sys":{"repulsion":2600,"friction":0.5,"stiffness":512,"gravity":false},"src":"-> {color:none, label:\u00b7}\n{color:#aa9}\n\n1 -> 2\n2 -> 1 \n\n1 {color:#95cde5,shape:dot,label:192.168.200.1} \n2 {color:#95cde5,shape:dot,label:192.168.200.2}\n\n","example":"doodle","title":"SAN_IDS"}
-
