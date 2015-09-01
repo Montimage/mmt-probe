@@ -16,6 +16,10 @@ Makefile
 Makefile.in
 *.swp
 *~
+# ignoring nodejs modules
+node_modules
+*/node_modules
+*/*/node_modules
 
 # ignoring binaries
 
