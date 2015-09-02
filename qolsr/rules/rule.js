@@ -4,9 +4,12 @@ var redis = require("redis");
 var publisher = redis.createClient();
 
 // MAX number of signal to keep
-var MAX_PERIOD = 20;
+var MAX_PERIOD = 5;
+// Max gap time of latest fs and oldest rs signal (micro-second)
+var MAX_TIME = 10000;
 
-var LOG_LEVEL = 2;
+
+var LOG_LEVEL = 0;
 
 function show_log (flag,message) {
   if(flag==LOG_LEVEL){
@@ -20,6 +23,13 @@ function show_log (flag,message) {
       console.log("UNKNOWN LOG TYPE: "+message);
     }
   }
+}
+
+function RSignal (value,ts) {
+  var that = {};
+  that.ts = ts;
+  that.val = value;
+  return that;
 }
 /**
 * Neighborhood struct
@@ -35,6 +45,7 @@ function Neighbor (ipaddress) {
   that.fs=null;
   // reverse signal: list of value
   that.rs=[];
+
   return that;
 }
 
@@ -45,14 +56,38 @@ function Neighbor (ipaddress) {
 * @data data to update
 * @neighbor neighbor who will be updated
 */
-function updateSignal(data,neighbor) {
+function updateSignal(data,neighbor,ts) {
   if(data.neighbor!=neighbor.ip){
     show_log(1,"Wrong ip address");
   }else{
     if(data.fwd_signal) neighbor.fs = data.fwd_signal;
-    if(data.rcv_signal) addNewSignal(data.rcv_signal,neighbor.rs);
+    if(data.rcv_signal) {
+      var newRS = new RSignal(data.rcv_signal,ts);
+      addNewSignal(newRS,neighbor.rs);
+    }
   }
 };
+
+/**
+* Get the oldest time stamp of all the reverse message of a neighbor
+*/
+function getOldestTimeStamp (origin,nbIP) {
+  var neighbor = getNeighborByIP(nbIP,origin);
+  if(neighbor){
+    if(neighbor.rs.length==0){
+      return -1;
+    }else{
+      var lts = neighbor.rs[0].ts;
+      for(var i=0;i<neighbor.rs.length;i++){
+        if(lts>neighbor.rs[i].ts){
+          lts = neighbor.rs[i].ts;
+        }
+      }
+      return lts; 
+    }
+  }
+  show_log(2,"Cannot find neighbor: " + nbIP+" of origin: " + origin.ip);
+}
 
 /**
 * add new signal to the list - with limitation of size #MAX_PERIOD
@@ -82,7 +117,7 @@ function Origin (ipaddress) {
 * @data: data of neighbor
 * @origin: who will be updated
 */
-function addNeighbor(data,origin) {
+function addNeighbor(data,origin,ts) {
   if(data.orig!=origin.ip){
     show_log(1,"Wrong origin");
   }else{
@@ -92,10 +127,10 @@ function addNeighbor(data,origin) {
       var nb = getNeighborByIP(data.neighbor,origin);
       if(nb==null){
         var newNB = new Neighbor(data.neighbor);
-        updateSignal(data,newNB);
+        updateSignal(data,newNB,ts);
         origin.neighbors.push(newNB);
       }else{
-        updateSignal(data,nb);
+        updateSignal(data,nb,ts);
       }
     }
   }
@@ -137,19 +172,25 @@ function update_neighborbourhood_quality (active_state, evt, msg, opts) {
   var origin = findOriginByIP(data.orig);
   if(!origin){
     origin = new Origin(data.orig);
-    addNeighbor(data,origin);
+    addNeighbor(data,origin,msg.ts);
     listOrigins.push(origin);
   }else{
-    addNeighbor(data,origin);
+    addNeighbor(data,origin,msg.ts);
   }
   
   return;
 }
-
+/**
+* Get the list of rs signal
+*/
 function getRSignals (origin,nbIP) {
   var neighbor = getNeighborByIP(nbIP,origin);
+  var rss = [];
   if(neighbor){
-    return neighbor.rs;
+    for(var i=0;i<neighbor.rs.length;i++){
+      rss.push(neighbor.rs[i].val);
+    }
+    return rss;
   }
   return null;
 }
@@ -159,34 +200,42 @@ function check_property_quality (active_state, evt, msg, opts) {
   var origin = findOriginByIP(msg.data.value.orig);
   var neighbor = findOriginByIP(msg.data.value.neighbor);
   if(origin&&neighbor){
-    var rss = getRSignals(neighbor,origin.ip);
     var fs = msg.data.value.fwd_signal;
-    if(rss){
-      for(var i=0;i<rss.length;i++){
-        // Quality true
-        if(fs == rss[i]){
-          show_log(0,"Quality true");
-          return;
-        }
+    var ts = msg.ts;
+    var rss = getRSignals(neighbor,origin.ip);
+    var lts = getOldestTimeStamp(neighbor,origin.ip);
+
+    if(ts-lts<MAX_TIME){
+        if(rss){
+          for(var i=0;i<rss.length;i++){
+            // Quality true
+            if(fs == rss[i]){
+              show_log(0,"Quality true");
+              return;
+            }
+          }
+          // Quality false
+          show_log(0,"Quality false\n");
+          show_log(2,"origin: "+origin.ip+"\n");
+          show_log(2,"neighbor: "+neighbor.ip+"\n");
+          show_log(2,"msg:\n");
+          show_log(2,JSON.stringify(msg));
+          
+          show_log(2,"TEST: \nfs: "+fs+"\n");
+          show_log(2,"timestamp: "+ts);
+          show_log(2,"oldest timestamp:"+lts);
+          show_log(2,"rss:");
+          show_log(2,rss);
+          show_log(2,"listOrigins:\n");
+          show_log(2,JSON.stringify(listOrigins));
+          MMT.emitVerdict(active_state, evt, msg, {value: false,
+                     attributes:{ orig: msg.data.value.orig, neighbor: msg.data.value.neighbor,
+                     type: msg.data.value.type,
+                     attacker: msg.data.value.orig}});
       }
-      // Quality false
-      show_log(0,"Quality false\n");
-      show_log(2,"origin: "+origin.ip+"\n");
-      show_log(2,"neighbor: "+neighbor.ip+"\n");
-      show_log(2,"msg:\n");
-      show_log(2,JSON.stringify(msg));
-      show_log(2,"listOrigins:\n");
-      show_log(2,"TEST: \nfs: "+fs+"\n");
-      show_log(2,"rss:");
-      show_log(2,rss);
-      show_log(2,JSON.stringify(listOrigins));
-      MMT.emitVerdict(active_state, evt, msg, {value: false,
-                 attributes:{ orig: msg.data.value.orig, neighbor: msg.data.value.neighbor,
-                 type: msg.data.value.type,
-                 attacker: msg.data.value.orig}});
     }
   }
-  
+  show_log(0,"Quality true");
   return;
 }
 
