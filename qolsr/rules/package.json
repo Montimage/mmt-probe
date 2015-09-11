@@ -1,0 +1,12 @@
+{
+  "name": "qolsr-rule",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "node rule.js"
+  },
+  "dependencies": {
+    "mmt-correlator": "~0.1.3",
+    "redis": "~1.0.0"
+  }
+}
