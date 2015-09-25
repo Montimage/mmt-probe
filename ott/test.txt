@@ -1,0 +1,806 @@
+Loading plugins from: /opt/mmt/plugins/libmmt_tcpip.so 
+Attribute mp4.totalduration = 424
+Attribute mp4.video_samplecount = 0
+Attribute mp4.video_framerate = 0
+Attribute mp4.videodatarate = 0
+Attribute mp4.width = 192
+Attribute mp4.heigth = 108
+Attribute mp4.totalduration = 424
+Attribute mp4.video_samplecount = 0
+Attribute mp4.video_framerate = 0
+Attribute mp4.videodatarate = 0
+Attribute mp4.width = 320
+Attribute mp4.heigth = 180
+Attribute mp4.totalduration = 424
+Attribute mp4.video_samplecount = 0
+Attribute mp4.video_framerate = 0
+Attribute mp4.videodatarate = 0
+Attribute mp4.width = 384
+Attribute mp4.heigth = 216
+Attribute mp4.totalduration = 426
+Attribute mp4.video_samplecount = 0
+Attribute mp4.video_framerate = 0
+Attribute mp4.videodatarate = 0
+Attribute mp4.width = 640
+Attribute mp4.heigth = 360
+Attribute mp4.totalduration = 424
+Attribute mp4.video_samplecount = 0
+Attribute mp4.video_framerate = 0
+Attribute mp4.videodatarate = 0
+Attribute mp4.width = 768
+Attribute mp4.heigth = 432
+
+Attribute mp4.mfhd_sequence_count_moof = 1
+current_time =0 seconds
+ Attribute mp4.videodatarate = 190027
+Attribute mp4.total_video_duration_downloaded = 2
+Attribute mp4.totalduration = 424
+Attribute mp4.audio_samplecount = 0
+Attribute mp4.audio_framerate = 0
+Attribute mp4.audiodatarate = 0
+
+Attribute mp4.mfhd_sequence_count_moof = 1
+current_time =0 seconds
+ buffer_time =2 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 2
+current_time =0 seconds
+ time_buffering_start =0 seconds
+ buffer_time =2 seconds
+ rebuffer_time =0 seconds
+ Attribute mp4.videodatarate = 1540927
+Attribute mp4.total_video_duration_downloaded = 4
+
+Attribute mp4.mfhd_sequence_count_moof = 2
+current_time =1 seconds
+ buffer_time =3 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 3
+current_time =1 seconds
+ buffer_time =3 seconds
+ Attribute mp4.videodatarate = 1675011
+Attribute mp4.total_video_duration_downloaded = 6
+
+Attribute mp4.mfhd_sequence_count_moof = 3
+current_time =2 seconds
+ buffer_time =4 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 4
+current_time =2 seconds
+ buffer_time =4 seconds
+ Attribute mp4.videodatarate = 1534415
+Attribute mp4.total_video_duration_downloaded = 8
+
+Attribute mp4.mfhd_sequence_count_moof = 4
+current_time =3 seconds
+ buffer_time =5 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 5
+current_time =3 seconds
+ buffer_time =5 seconds
+ Attribute mp4.videodatarate = 1389687
+Attribute mp4.total_video_duration_downloaded = 10
+
+Attribute mp4.mfhd_sequence_count_moof = 5
+current_time =4 seconds
+ buffer_time =6 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 6
+current_time =4 seconds
+ buffer_time =6 seconds
+ Attribute mp4.videodatarate = 1488451
+Attribute mp4.total_video_duration_downloaded = 12
+
+Attribute mp4.mfhd_sequence_count_moof = 6
+current_time =5 seconds
+ buffer_time =7 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 7
+current_time =7 seconds
+ buffer_time =5 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 8
+current_time =9 seconds
+ buffer_time =3 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 9
+current_time =11 seconds
+ time_buffering_start =11 seconds
+ buffer_time =1 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 10
+current_time =13 seconds
+ Rebuffering state
+rebuffer_time_continuous=2
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 11
+current_time =15 seconds
+ Rebuffering state
+rebuffer_time_continuous=4
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 12
+current_time =17 seconds
+ Rebuffering state
+rebuffer_time_continuous=6
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 7
+current_time =18 seconds
+ Rebuffering state
+rebuffer_time_continuous=7
+buffer_time =0 seconds
+ rebuffer_time =7 seconds
+ Attribute mp4.videodatarate = 1469643
+Attribute mp4.total_video_duration_downloaded = 14
+
+Attribute mp4.mfhd_sequence_count_moof = 8
+current_time =18 seconds
+ buffer_time =3 seconds
+ Attribute mp4.videodatarate = 1606635
+Attribute mp4.total_video_duration_downloaded = 16
+
+Attribute mp4.mfhd_sequence_count_moof = 13
+current_time =19 seconds
+ buffer_time =4 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 9
+current_time =19 seconds
+ buffer_time =4 seconds
+ Attribute mp4.videodatarate = 1555503
+Attribute mp4.total_video_duration_downloaded = 18
+
+Attribute mp4.mfhd_sequence_count_moof = 10
+current_time =20 seconds
+ buffer_time =5 seconds
+ Attribute mp4.videodatarate = 1426731
+Attribute mp4.total_video_duration_downloaded = 20
+
+Attribute mp4.mfhd_sequence_count_moof = 14
+current_time =21 seconds
+ buffer_time =6 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 11
+current_time =21 seconds
+ buffer_time =6 seconds
+ Attribute mp4.videodatarate = 1558699
+Attribute mp4.total_video_duration_downloaded = 22
+
+Attribute mp4.mfhd_sequence_count_moof = 12
+current_time =22 seconds
+ buffer_time =7 seconds
+ Attribute mp4.videodatarate = 1394171
+Attribute mp4.total_video_duration_downloaded = 24
+
+Attribute mp4.mfhd_sequence_count_moof = 15
+current_time =23 seconds
+ buffer_time =8 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 13
+current_time =23 seconds
+ buffer_time =8 seconds
+ Attribute mp4.videodatarate = 1491447
+Attribute mp4.total_video_duration_downloaded = 26
+
+Attribute mp4.mfhd_sequence_count_moof = 14
+current_time =24 seconds
+ buffer_time =9 seconds
+ Attribute mp4.videodatarate = 1632683
+Attribute mp4.total_video_duration_downloaded = 28
+
+Attribute mp4.mfhd_sequence_count_moof = 15
+current_time =25 seconds
+ buffer_time =10 seconds
+ Attribute mp4.videodatarate = 1400155
+Attribute mp4.total_video_duration_downloaded = 30
+
+Attribute mp4.mfhd_sequence_count_moof = 16
+current_time =26 seconds
+ buffer_time =11 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 16
+current_time =26 seconds
+ buffer_time =11 seconds
+ Attribute mp4.videodatarate = 1562267
+Attribute mp4.total_video_duration_downloaded = 32
+
+Attribute mp4.mfhd_sequence_count_moof = 17
+current_time =27 seconds
+ buffer_time =12 seconds
+ Attribute mp4.videodatarate = 1375703
+Attribute mp4.total_video_duration_downloaded = 34
+
+Attribute mp4.mfhd_sequence_count_moof = 17
+current_time =27 seconds
+ buffer_time =14 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 18
+current_time =29 seconds
+ buffer_time =12 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 19
+current_time =31 seconds
+ buffer_time =10 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 20
+current_time =33 seconds
+ buffer_time =8 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 21
+current_time =35 seconds
+ buffer_time =6 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 22
+current_time =37 seconds
+ buffer_time =4 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 23
+current_time =39 seconds
+ time_buffering_start =39 seconds
+ buffer_time =2 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 24
+current_time =41 seconds
+ Rebuffering state
+rebuffer_time_continuous=2
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 25
+current_time =43 seconds
+ Rebuffering state
+rebuffer_time_continuous=4
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 26
+current_time =45 seconds
+ Rebuffering state
+rebuffer_time_continuous=6
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 27
+current_time =47 seconds
+ Rebuffering state
+rebuffer_time_continuous=8
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 28
+current_time =49 seconds
+ Rebuffering state
+rebuffer_time_continuous=10
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 29
+current_time =51 seconds
+ Rebuffering state
+rebuffer_time_continuous=12
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 30
+current_time =53 seconds
+ Rebuffering state
+rebuffer_time_continuous=14
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 31
+current_time =55 seconds
+ Rebuffering state
+rebuffer_time_continuous=16
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 32
+current_time =57 seconds
+ Rebuffering state
+rebuffer_time_continuous=18
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 33
+current_time =59 seconds
+ Rebuffering state
+rebuffer_time_continuous=20
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 34
+current_time =61 seconds
+ Rebuffering state
+rebuffer_time_continuous=22
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 35
+current_time =63 seconds
+ Rebuffering state
+rebuffer_time_continuous=24
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 36
+current_time =65 seconds
+ Rebuffering state
+rebuffer_time_continuous=26
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 37
+current_time =67 seconds
+ Rebuffering state
+rebuffer_time_continuous=28
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 38
+current_time =69 seconds
+ Rebuffering state
+rebuffer_time_continuous=30
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 39
+current_time =71 seconds
+ Rebuffering state
+rebuffer_time_continuous=32
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 40
+current_time =73 seconds
+ Rebuffering state
+rebuffer_time_continuous=34
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 41
+current_time =75 seconds
+ Rebuffering state
+rebuffer_time_continuous=36
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 42
+current_time =77 seconds
+ Rebuffering state
+rebuffer_time_continuous=38
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 43
+current_time =79 seconds
+ Rebuffering state
+rebuffer_time_continuous=40
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 44
+current_time =81 seconds
+ Rebuffering state
+rebuffer_time_continuous=42
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 45
+current_time =83 seconds
+ Rebuffering state
+rebuffer_time_continuous=44
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 46
+current_time =85 seconds
+ Rebuffering state
+rebuffer_time_continuous=46
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 47
+current_time =87 seconds
+ Rebuffering state
+rebuffer_time_continuous=48
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 48
+current_time =89 seconds
+ Rebuffering state
+rebuffer_time_continuous=50
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 49
+current_time =91 seconds
+ Rebuffering state
+rebuffer_time_continuous=52
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 50
+current_time =93 seconds
+ Rebuffering state
+rebuffer_time_continuous=54
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 51
+current_time =95 seconds
+ Rebuffering state
+rebuffer_time_continuous=56
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 52
+current_time =97 seconds
+ Rebuffering state
+rebuffer_time_continuous=58
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 53
+current_time =99 seconds
+ Rebuffering state
+rebuffer_time_continuous=60
+buffer_time =0 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 18
+current_time =101 seconds
+ Rebuffering state
+rebuffer_time_continuous=62
+buffer_time =0 seconds
+ rebuffer_time =69 seconds
+ Attribute mp4.videodatarate = 1525199
+Attribute mp4.total_video_duration_downloaded = 36
+
+Attribute mp4.mfhd_sequence_count_moof = 54
+current_time =101 seconds
+ buffer_time =4 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 19
+current_time =102 seconds
+ buffer_time =3 seconds
+ Attribute mp4.videodatarate = 1460935
+Attribute mp4.total_video_duration_downloaded = 38
+
+Attribute mp4.mfhd_sequence_count_moof = 20
+current_time =102 seconds
+ buffer_time =5 seconds
+ Attribute mp4.videodatarate = 1554743
+Attribute mp4.total_video_duration_downloaded = 40
+
+Attribute mp4.mfhd_sequence_count_moof = 55
+current_time =103 seconds
+ buffer_time =6 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 21
+current_time =103 seconds
+ buffer_time =6 seconds
+ Attribute mp4.videodatarate = 1543687
+Attribute mp4.total_video_duration_downloaded = 42
+
+Attribute mp4.mfhd_sequence_count_moof = 22
+current_time =104 seconds
+ buffer_time =7 seconds
+ Attribute mp4.videodatarate = 1478095
+Attribute mp4.total_video_duration_downloaded = 44
+
+Attribute mp4.mfhd_sequence_count_moof = 56
+current_time =105 seconds
+ buffer_time =8 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 23
+current_time =105 seconds
+ buffer_time =8 seconds
+ Attribute mp4.videodatarate = 1629171
+Attribute mp4.total_video_duration_downloaded = 46
+
+Attribute mp4.mfhd_sequence_count_moof = 24
+current_time =106 seconds
+ buffer_time =9 seconds
+ Attribute mp4.videodatarate = 1436271
+Attribute mp4.total_video_duration_downloaded = 48
+
+Attribute mp4.mfhd_sequence_count_moof = 57
+current_time =107 seconds
+ buffer_time =10 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 25
+current_time =107 seconds
+ buffer_time =10 seconds
+ Attribute mp4.videodatarate = 1549591
+Attribute mp4.total_video_duration_downloaded = 50
+
+Attribute mp4.mfhd_sequence_count_moof = 26
+current_time =108 seconds
+ buffer_time =11 seconds
+ Attribute mp4.videodatarate = 1396639
+Attribute mp4.total_video_duration_downloaded = 52
+
+Attribute mp4.mfhd_sequence_count_moof = 27
+current_time =109 seconds
+ buffer_time =12 seconds
+ Attribute mp4.videodatarate = 1560127
+Attribute mp4.total_video_duration_downloaded = 54
+
+Attribute mp4.mfhd_sequence_count_moof = 58
+current_time =110 seconds
+ buffer_time =13 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 28
+current_time =110 seconds
+ buffer_time =13 seconds
+ Attribute mp4.videodatarate = 1642543
+Attribute mp4.total_video_duration_downloaded = 56
+
+Attribute mp4.mfhd_sequence_count_moof = 29
+current_time =111 seconds
+ buffer_time =14 seconds
+ Attribute mp4.videodatarate = 1437567
+Attribute mp4.total_video_duration_downloaded = 58
+
+Attribute mp4.mfhd_sequence_count_moof = 59
+current_time =111 seconds
+ buffer_time =16 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 30
+current_time =111 seconds
+ buffer_time =16 seconds
+ Attribute mp4.videodatarate = 1530899
+Attribute mp4.total_video_duration_downloaded = 60
+
+Attribute mp4.mfhd_sequence_count_moof = 31
+current_time =112 seconds
+ buffer_time =17 seconds
+ Attribute mp4.videodatarate = 1356019
+Attribute mp4.total_video_duration_downloaded = 62
+
+Attribute mp4.mfhd_sequence_count_moof = 60
+current_time =113 seconds
+ buffer_time =18 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 32
+current_time =113 seconds
+ buffer_time =18 seconds
+ Attribute mp4.videodatarate = 1434399
+Attribute mp4.total_video_duration_downloaded = 64
+
+Attribute mp4.mfhd_sequence_count_moof = 33
+current_time =114 seconds
+ buffer_time =19 seconds
+ Attribute mp4.videodatarate = 1441939
+Attribute mp4.total_video_duration_downloaded = 66
+
+Attribute mp4.mfhd_sequence_count_moof = 61
+current_time =115 seconds
+ buffer_time =20 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 34
+current_time =115 seconds
+ buffer_time =20 seconds
+ Attribute mp4.videodatarate = 1482943
+Attribute mp4.total_video_duration_downloaded = 68
+
+Attribute mp4.mfhd_sequence_count_moof = 35
+current_time =116 seconds
+ buffer_time =21 seconds
+ Attribute mp4.videodatarate = 1630707
+Attribute mp4.total_video_duration_downloaded = 70
+
+Attribute mp4.mfhd_sequence_count_moof = 62
+current_time =117 seconds
+ buffer_time =22 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 36
+current_time =117 seconds
+ buffer_time =22 seconds
+ Attribute mp4.videodatarate = 1509971
+Attribute mp4.total_video_duration_downloaded = 72
+
+Attribute mp4.mfhd_sequence_count_moof = 37
+current_time =118 seconds
+ buffer_time =23 seconds
+ Attribute mp4.videodatarate = 1439903
+Attribute mp4.total_video_duration_downloaded = 74
+
+Attribute mp4.mfhd_sequence_count_moof = 38
+current_time =119 seconds
+ buffer_time =24 seconds
+ Attribute mp4.videodatarate = 1434231
+Attribute mp4.total_video_duration_downloaded = 76
+
+Attribute mp4.mfhd_sequence_count_moof = 63
+current_time =119 seconds
+ buffer_time =26 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 39
+current_time =119 seconds
+ buffer_time =26 seconds
+ Attribute mp4.videodatarate = 1580443
+Attribute mp4.total_video_duration_downloaded = 78
+
+Attribute mp4.mfhd_sequence_count_moof = 40
+current_time =120 seconds
+ buffer_time =27 seconds
+ Attribute mp4.videodatarate = 1450775
+Attribute mp4.total_video_duration_downloaded = 80
+
+Attribute mp4.mfhd_sequence_count_moof = 64
+current_time =121 seconds
+ buffer_time =28 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 41
+current_time =121 seconds
+ buffer_time =28 seconds
+ Attribute mp4.videodatarate = 1406663
+Attribute mp4.total_video_duration_downloaded = 82
+
+Attribute mp4.mfhd_sequence_count_moof = 42
+current_time =122 seconds
+ buffer_time =29 seconds
+ Attribute mp4.videodatarate = 1616787
+Attribute mp4.total_video_duration_downloaded = 84
+
+Attribute mp4.mfhd_sequence_count_moof = 65
+current_time =123 seconds
+ buffer_time =30 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 43
+current_time =123 seconds
+ buffer_time =30 seconds
+ Attribute mp4.videodatarate = 1453331
+Attribute mp4.total_video_duration_downloaded = 86
+
+Attribute mp4.mfhd_sequence_count_moof = 44
+current_time =124 seconds
+ buffer_time =31 seconds
+ Attribute mp4.videodatarate = 1847235
+Attribute mp4.total_video_duration_downloaded = 88
+
+Attribute mp4.mfhd_sequence_count_moof = 45
+current_time =125 seconds
+ buffer_time =32 seconds
+ Attribute mp4.videodatarate = 1511331
+Attribute mp4.total_video_duration_downloaded = 90
+
+Attribute mp4.mfhd_sequence_count_moof = 66
+current_time =126 seconds
+ buffer_time =33 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 46
+current_time =126 seconds
+ buffer_time =33 seconds
+ Attribute mp4.videodatarate = 1318627
+Attribute mp4.total_video_duration_downloaded = 92
+
+Attribute mp4.mfhd_sequence_count_moof = 47
+current_time =126 seconds
+ buffer_time =35 seconds
+ Attribute mp4.videodatarate = 1482371
+Attribute mp4.total_video_duration_downloaded = 94
+
+Attribute mp4.mfhd_sequence_count_moof = 67
+current_time =127 seconds
+ buffer_time =36 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 48
+current_time =127 seconds
+ buffer_time =36 seconds
+ Attribute mp4.videodatarate = 1498443
+Attribute mp4.total_video_duration_downloaded = 96
+
+Attribute mp4.mfhd_sequence_count_moof = 49
+current_time =128 seconds
+ buffer_time =37 seconds
+ Attribute mp4.videodatarate = 1416011
+Attribute mp4.total_video_duration_downloaded = 98
+
+Attribute mp4.mfhd_sequence_count_moof = 68
+current_time =129 seconds
+ buffer_time =38 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 50
+current_time =129 seconds
+ buffer_time =38 seconds
+ Attribute mp4.videodatarate = 1601751
+Attribute mp4.total_video_duration_downloaded = 100
+
+Attribute mp4.mfhd_sequence_count_moof = 51
+current_time =130 seconds
+ buffer_time =39 seconds
+ Attribute mp4.videodatarate = 1493395
+Attribute mp4.total_video_duration_downloaded = 102
+
+Attribute mp4.mfhd_sequence_count_moof = 52
+current_time =131 seconds
+ buffer_time =40 seconds
+ Attribute mp4.videodatarate = 1453171
+Attribute mp4.total_video_duration_downloaded = 104
+
+Attribute mp4.mfhd_sequence_count_moof = 69
+current_time =132 seconds
+ buffer_time =41 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 53
+current_time =132 seconds
+ buffer_time =41 seconds
+ Attribute mp4.videodatarate = 1389351
+Attribute mp4.total_video_duration_downloaded = 106
+
+Attribute mp4.mfhd_sequence_count_moof = 54
+current_time =133 seconds
+ buffer_time =42 seconds
+ Attribute mp4.videodatarate = 1495811
+Attribute mp4.total_video_duration_downloaded = 108
+
+Attribute mp4.mfhd_sequence_count_moof = 70
+current_time =133 seconds
+ buffer_time =44 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 55
+current_time =134 seconds
+ buffer_time =43 seconds
+ Attribute mp4.videodatarate = 1476303
+Attribute mp4.total_video_duration_downloaded = 110
+
+Attribute mp4.mfhd_sequence_count_moof = 56
+current_time =134 seconds
+ buffer_time =45 seconds
+ Attribute mp4.videodatarate = 1564275
+Attribute mp4.total_video_duration_downloaded = 112
+
+Attribute mp4.mfhd_sequence_count_moof = 71
+current_time =135 seconds
+ buffer_time =46 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 57
+current_time =135 seconds
+ buffer_time =46 seconds
+ Attribute mp4.videodatarate = 1495335
+Attribute mp4.total_video_duration_downloaded = 114
+
+Attribute mp4.mfhd_sequence_count_moof = 58
+current_time =136 seconds
+ buffer_time =47 seconds
+ Attribute mp4.videodatarate = 1383399
+Attribute mp4.total_video_duration_downloaded = 116
+
+Attribute mp4.mfhd_sequence_count_moof = 59
+current_time =137 seconds
+ buffer_time =48 seconds
+ Attribute mp4.videodatarate = 1507839
+Attribute mp4.total_video_duration_downloaded = 118
+
+Attribute mp4.mfhd_sequence_count_moof = 72
+current_time =138 seconds
+ buffer_time =49 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 60
+current_time =138 seconds
+ buffer_time =49 seconds
+ Attribute mp4.videodatarate = 1513067
+Attribute mp4.total_video_duration_downloaded = 120
+
+Attribute mp4.mfhd_sequence_count_moof = 61
+current_time =139 seconds
+ buffer_time =50 seconds
+ Attribute mp4.videodatarate = 1535359
+Attribute mp4.total_video_duration_downloaded = 122
+
+Attribute mp4.mfhd_sequence_count_moof = 73
+current_time =140 seconds
+ buffer_time =51 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 62
+current_time =140 seconds
+ buffer_time =51 seconds
+ Attribute mp4.videodatarate = 1484883
+Attribute mp4.total_video_duration_downloaded = 124
+
+Attribute mp4.mfhd_sequence_count_moof = 63
+current_time =141 seconds
+ buffer_time =52 seconds
+ Attribute mp4.videodatarate = 1525747
+Attribute mp4.total_video_duration_downloaded = 126
+
+Attribute mp4.mfhd_sequence_count_moof = 74
+current_time =141 seconds
+ buffer_time =54 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 64
+current_time =142 seconds
+ buffer_time =53 seconds
+ Attribute mp4.videodatarate = 1647563
+Attribute mp4.total_video_duration_downloaded = 128
+
+Attribute mp4.mfhd_sequence_count_moof = 65
+current_time =142 seconds
+ buffer_time =55 seconds
+ Attribute mp4.videodatarate = 1431571
+Attribute mp4.total_video_duration_downloaded = 130
+
+Attribute mp4.mfhd_sequence_count_moof = 75
+current_time =143 seconds
+ buffer_time =56 seconds
+ 
+Attribute mp4.mfhd_sequence_count_moof = 66
+current_time =143 seconds
+ buffer_time =56 seconds
+ Attribute mp4.videodatarate = 1561763
+Attribute mp4.total_video_duration_downloaded = 132
