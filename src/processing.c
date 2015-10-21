@@ -315,7 +315,7 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
             */
 	    }
         reset_statistics(proto_stats);
-        //if (proto_id==99)reset_eth_statistics(eth_stat);
+        if (proto_id==99)reset_eth_statistics(eth_stat);
         proto_stats = proto_stats->next;
     }
 }
