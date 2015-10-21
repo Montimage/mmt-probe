@@ -24,6 +24,12 @@
 #include <hiredis/hiredis.h>
 #include "thredis.h"
 
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <unistd.h>
+
+
 static redisContext *redis = NULL;
 static thredis_t* thredis = NULL;
 
@@ -67,6 +73,9 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt) {
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
 
 #define MAX_MESS 2000
+long int total_inbound=0,total_outbound=0;
+unsigned char * mac_address[10];
+int num_interfaces=0;
 
 /**
  * Connects to redis server and exits if the connection fails
@@ -186,6 +195,46 @@ void send_message (FILE * out_file, char *channel, char * message) {
     }
 }
 
+void gethostMACaddress()
+{
+    struct ifreq ifr;
+    struct ifconf ifc;
+    char buf[1024];
+    int success = 0;
+
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock == -1) { /* handle error*/ };
+
+    ifc.ifc_len = sizeof(buf);
+    ifc.ifc_buf = buf;
+    if (ioctl(sock, SIOCGIFCONF, &ifc) == -1) { /* handle error */ }
+
+    struct ifreq* it = ifc.ifc_req;
+    const struct ifreq* const end = it + (ifc.ifc_len / sizeof(struct ifreq));
+
+    for (; it != end; ++it) {
+        strcpy(ifr.ifr_name, it->ifr_name);
+        mac_address[num_interfaces]= (unsigned char*)malloc(7);
+
+        if (ioctl(sock, SIOCGIFFLAGS, &ifr) == 0) {
+        	 //printf("%s\n",it->ifr_name);
+        	 memcpy(mac_address[num_interfaces], ifr.ifr_hwaddr.sa_data, 6);
+        	 mac_address[num_interfaces][6]='\0';
+        	 //printf("host MAC address=%.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n", mac_address[num_interfaces][0],mac_address[num_interfaces][1],mac_address[num_interfaces][2],mac_address[num_interfaces][3],mac_address[num_interfaces][4],mac_address[num_interfaces][5]);
+        	 num_interfaces++;
+            if (! (ifr.ifr_flags & IFF_LOOPBACK)) { // don't count loopback
+                if (ioctl(sock, SIOCGIFHWADDR, &ifr) == 0) {
+                    success = 1;
+                    //break;
+                }
+            }
+        }
+        else { /* handle error */ }
+    }
+}
+
+
+
 void protocols_stats_iterator(uint32_t proto_id, void * args) {
     FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
     char message[MAX_MESS + 1];
@@ -194,7 +243,16 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
     proto_statistics_t * proto_stats = get_protocol_stats(mmt_handler, proto_id);
     proto_hierarchy_t proto_hierarchy = {0};
     struct timeval ts = get_last_activity_time(mmt_handler);
+
     while (proto_stats != NULL) {
+
+    	if (proto_id==99){
+    		proto_stats->payload_volume_direction[0]=total_inbound;
+    		proto_stats->payload_volume_direction[1]=total_outbound;
+    		total_inbound=0;
+    		total_outbound=0;
+    	}
+
         get_protocol_stats_path(mmt_handler, proto_stats, &proto_hierarchy);
         char path[128];
         //proto_hierarchy_to_str(&proto_hierarchy, path);
@@ -225,10 +283,10 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 	    //report the stats instance if there is anything to report
 	    if(proto_stats->touched) {
             snprintf(message, MAX_MESS, 
-                "%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIu64",%"PRIu64"",
+                "%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIi64",%"PRIi64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64"",
                 MMT_STATISTICS_REPORT_FORMAT, probe_context.probe_id_number, probe_context.input_source, ts.tv_sec, ts.tv_usec, proto_id, path,
-                proto_stats->sessions_count, proto_stats->sessions_count - proto_stats->timedout_sessions_count,
-                proto_stats->data_volume, proto_stats->payload_volume, proto_stats->packets_count);
+                proto_stats->sessions_count, proto_stats->sessions_count - proto_stats->timedout_sessions_count,proto_stats->timedout_sessions_count,
+                proto_stats->data_volume, proto_stats->payload_volume,proto_stats->payload_volume_direction[0],proto_stats->payload_volume_direction[1], proto_stats->packets_count);
 
             message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
             send_message (out_file, "protocol.stat", message);
@@ -245,10 +303,47 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
     }
 }
 
+int compare(unsigned char * a,unsigned char * b )
+	{
+	    int i;
+	    for(i=0;i<6;i++){
+	    if(a[i]!=b[i])
+	        return 1;
+	    }
+	    return 0;
+	}
+
+void calc_payload(const ipacket_t * ipacket,MAC_stat_attr_t * statistics){
+int i=0;
+
+    for (i=0;i<num_interfaces;i++){
+	if (compare(statistics->sourceMAC, mac_address[i])==0){
+	    total_outbound+=ipacket->p_hdr->caplen;
+
+	    //printf("packet_id=%lu,Outbound_traffic=%d,total_outbound=%lu\n",ipacket->packet_id,ipacket->p_hdr->caplen,total_outbound);
+    }else if (compare(statistics->destMAC, mac_address[i])==0){
+	    total_inbound+=ipacket->p_hdr->caplen;
+	    //printf("packet_id=%lu,Inbound_traffic=%d, total_inbound=%lu\n",ipacket->packet_id,ipacket->p_hdr->caplen,total_inbound);
+	}else{
+	}
+
+}
+
+}
+
 void packet_handler(const ipacket_t * ipacket, void * args) {
     static time_t last_report_time = 0;
-    if (last_report_time == 0) {
+    MAC_stat_attr_t * statistics= (MAC_stat_attr_t *) malloc(sizeof(MAC_stat_attr_t));
+    memset(statistics, '\0', sizeof (MAC_stat_attr_t));
+
+
+    statistics->sourceMAC = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_SRC);
+    statistics->destMAC=(unsigned char *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_DST);
+    calc_payload(ipacket,statistics);
+
+        if (last_report_time == 0) {
         last_report_time = ipacket->p_hdr->ts.tv_sec;
+
         return;
     }
 
@@ -431,7 +526,19 @@ void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, v
         }
     }
 }
-
+/*
+void video_duration_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
+    if(ipacket->session == NULL) return;
+    session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
+    if (temp_session != NULL && temp_session->app_data != NULL) {
+        uint16_t * video_downloaded = (uint16_t *) attribute->data;
+        if (video_downloaded != NULL) {
+            ((mp4_dash_attr_t*) temp_session->app_data)->video_duration_downloaded = video_downloaded;
+        }
+    }
+    printf ("video_duration_downloaded=%d", ((mp4_dash_attr_t*) temp_session->app_data)->video_duration_downloaded);
+}
+*/
 void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     if(ipacket->session == NULL) return;
     session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
@@ -730,6 +837,10 @@ void flowstruct_init(void * handler) {
     i &= register_extraction_attribute(handler, PROTO_UDP, UDP_SRC_PORT);
     i &= register_extraction_attribute(handler, PROTO_UDP, UDP_DEST_PORT);
 
+    i &= register_extraction_attribute(handler, PROTO_ETHERNET, ETH_DST);
+    i &= register_extraction_attribute(handler, PROTO_ETHERNET, ETH_SRC);
+
+
     i &= register_extraction_attribute(handler, PROTO_IP, IP_SRC);
     i &= register_extraction_attribute(handler, PROTO_IP, IP_DST);
     i &= register_extraction_attribute(handler, PROTO_IP, IP_PROTO_ID);
@@ -759,6 +870,7 @@ void flowstruct_init(void * handler) {
     i &= register_attribute_handler(handler, PROTO_RTP, RTP_UNORDER, rtp_order_error_handle, NULL, NULL);
     i &= register_attribute_handler(handler, PROTO_RTP, RTP_ERROR_ORDER, rtp_order_error_handle, NULL, NULL);
     i &= register_attribute_handler(handler, PROTO_RTP, RTP_BURST_LOSS, rtp_burst_loss_handle, NULL, NULL);
+    //i &= register_attribute_handler(handler, PROTO_MP4, TOTAL_VIDEO_DURATION_DOWNLOADED, video_duration_handle, NULL, NULL);
     
     if(!i) {
         //TODO: we need a sound error handling mechanism! Anyway, we should never get here :)

@@ -1209,7 +1209,7 @@ int main(int argc, char **argv) {
         mmt_log(mmt_conf, MMT_L_ERROR, MMT_E_INIT_ERROR, "MMT Extraction engine initialization error! Exiting!");
         return EXIT_FAILURE;
     }
-
+    gethostMACaddress();
     //Initialization
     if (mmt_conf->thread_nb == 1) {
         mmt_log(mmt_conf, MMT_L_INFO, MMT_E_INIT, "Initializating MMT Extraction engine! Single threaded operation.");

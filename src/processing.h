@@ -180,6 +180,17 @@ extern "C" {
         time_t last_report_time_usec;//jeevan
     } rtp_session_attr_t;
 
+    typedef struct MAC_stat_attr_struct {
+        //unsigned char * hostMAC;
+    	unsigned char * sourceMAC;
+        unsigned char * destMAC;
+    } MAC_stat_attr_t;
+
+    typedef struct mp4_dash_attr_struct {
+            uint32_t video_duration_downloaded; /* The reason we need this is that RTP flows may contain STUN messages. We follow here RTP packets only */
+            //jeevan
+        } mp4_dash_attr_t;
+
     typedef struct web_session_attr_struct {
         struct timeval first_request_time;
         struct timeval response_time;
