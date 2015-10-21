@@ -283,10 +283,10 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 	    //report the stats instance if there is anything to report
 	    if(proto_stats->touched) {
             snprintf(message, MAX_MESS, 
-                "%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIi64",%"PRIi64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64"",
+                "%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIi64",%"PRIi64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64"",
                 MMT_STATISTICS_REPORT_FORMAT, probe_context.probe_id_number, probe_context.input_source, ts.tv_sec, ts.tv_usec, proto_id, path,
                 proto_stats->sessions_count, proto_stats->sessions_count - proto_stats->timedout_sessions_count,proto_stats->timedout_sessions_count,
-                proto_stats->data_volume, proto_stats->payload_volume,proto_stats->payload_volume_direction[0],proto_stats->payload_volume_direction[1], proto_stats->packets_count);
+                proto_stats->data_volume, proto_stats->payload_volume,proto_stats->packets_count,proto_stats->payload_volume_direction[1],proto_stats->payload_volume_direction[1],0l,proto_stats->payload_volume_direction[0],proto_stats->payload_volume_direction[0],0l);
 
             message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
             send_message (out_file, "protocol.stat", message);
