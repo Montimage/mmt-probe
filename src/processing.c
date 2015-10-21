@@ -74,8 +74,10 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt) {
 
 #define MAX_MESS 2000
 long int total_inbound=0,total_outbound=0;
+long int total_inbound_packet_count=0,total_outbound_packet_count=0;
 unsigned char * mac_address[10];
 int num_interfaces=0;
+
 
 /**
  * Connects to redis server and exits if the connection fails
@@ -194,7 +196,19 @@ void send_message (FILE * out_file, char *channel, char * message) {
         }
     }
 }
+void reset_eth_statistics(ethernet_statistics_t * eth_stat){
 
+	eth_stat->payload_volume_direction[0]=0;
+	eth_stat->payload_volume_direction[1]=0;
+    eth_stat->total_inbound_packet_count=0;
+    eth_stat->total_outbound_packet_count=0;
+
+    total_inbound=0;
+    total_outbound=0;
+    total_outbound_packet_count=0;
+    total_inbound_packet_count=0;
+
+}
 void gethostMACaddress()
 {
     struct ifreq ifr;
@@ -234,7 +248,6 @@ void gethostMACaddress()
 }
 
 
-
 void protocols_stats_iterator(uint32_t proto_id, void * args) {
     FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
     char message[MAX_MESS + 1];
@@ -244,14 +257,10 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
     proto_hierarchy_t proto_hierarchy = {0};
     struct timeval ts = get_last_activity_time(mmt_handler);
 
-    while (proto_stats != NULL) {
+    ethernet_statistics_t * eth_stat = (ethernet_statistics_t *) malloc (sizeof(ethernet_statistics_t));
+    memset(eth_stat, '\0', sizeof (ethernet_statistics_t));
 
-    	if (proto_id==99){
-    		proto_stats->payload_volume_direction[0]=total_inbound;
-    		proto_stats->payload_volume_direction[1]=total_outbound;
-    		total_inbound=0;
-    		total_outbound=0;
-    	}
+    while (proto_stats != NULL) {
 
         get_protocol_stats_path(mmt_handler, proto_stats, &proto_hierarchy);
         char path[128];
@@ -282,11 +291,18 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
         */
 	    //report the stats instance if there is anything to report
 	    if(proto_stats->touched) {
+
+	    	if (proto_id==99){
+	    	    eth_stat->payload_volume_direction[0]=total_inbound;
+	    	    eth_stat->payload_volume_direction[1]=total_outbound;
+	    	    eth_stat->total_inbound_packet_count=total_inbound_packet_count;
+	    	    eth_stat->total_outbound_packet_count=total_outbound_packet_count;
+
+	    	}
             snprintf(message, MAX_MESS, 
-                "%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIi64",%"PRIi64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64"",
+                "%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIi64",%"PRIi64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64"",
                 MMT_STATISTICS_REPORT_FORMAT, probe_context.probe_id_number, probe_context.input_source, ts.tv_sec, ts.tv_usec, proto_id, path,
-                proto_stats->sessions_count, proto_stats->sessions_count - proto_stats->timedout_sessions_count,proto_stats->timedout_sessions_count,
-                proto_stats->data_volume, proto_stats->payload_volume,proto_stats->packets_count,proto_stats->payload_volume_direction[1],proto_stats->payload_volume_direction[1],0l,proto_stats->payload_volume_direction[0],proto_stats->payload_volume_direction[0],0l);
+                proto_stats->sessions_count, proto_stats->sessions_count - proto_stats->timedout_sessions_count,proto_stats->data_volume, proto_stats->payload_volume,proto_stats->packets_count,eth_stat->payload_volume_direction[1],eth_stat->payload_volume_direction[1],eth_stat->total_outbound_packet_count,eth_stat->payload_volume_direction[0],eth_stat->payload_volume_direction[0],eth_stat->total_inbound_packet_count);
 
             message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
             send_message (out_file, "protocol.stat", message);
@@ -299,6 +315,7 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
             */
 	    }
         reset_statistics(proto_stats);
+        //if (proto_id==99)reset_eth_statistics(eth_stat);
         proto_stats = proto_stats->next;
     }
 }
@@ -317,13 +334,19 @@ void calc_payload(const ipacket_t * ipacket,MAC_stat_attr_t * statistics){
 int i=0;
 
     for (i=0;i<num_interfaces;i++){
+    	//printf("host MAC address2=%.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n", mac_address[i][0],mac_address[i][1],mac_address[i][2],mac_address[i][3],mac_address[i][4],mac_address[i][5]);
 	if (compare(statistics->sourceMAC, mac_address[i])==0){
-	    total_outbound+=ipacket->p_hdr->caplen;
+		//printf ("source MAC address=%.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n", statistics->sourceMAC[0],statistics->sourceMAC[1],statistics->sourceMAC[2],statistics->sourceMAC[3],statistics->sourceMAC[4],statistics->sourceMAC[5]);
+		total_outbound_packet_count++;
+		total_outbound+=ipacket->p_hdr->caplen;
 
-	    //printf("packet_id=%lu,Outbound_traffic=%d,total_outbound=%lu\n",ipacket->packet_id,ipacket->p_hdr->caplen,total_outbound);
+
+	    //printf("packet_id=%lu,Outbound_traffic=%d,total_outbound=%lu,total_outbound_packet_count=%lu\n",ipacket->packet_id,ipacket->p_hdr->caplen,total_outbound,total_outbound_packet_count);
     }else if (compare(statistics->destMAC, mac_address[i])==0){
-	    total_inbound+=ipacket->p_hdr->caplen;
-	    //printf("packet_id=%lu,Inbound_traffic=%d, total_inbound=%lu\n",ipacket->packet_id,ipacket->p_hdr->caplen,total_inbound);
+    	//printf ("Dest MAC address=%.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n", statistics->destMAC[0],statistics->destMAC[1],statistics->destMAC[2],statistics->destMAC[3],statistics->destMAC[4],statistics->destMAC[5]);
+    	total_inbound_packet_count++;
+    	total_inbound+=ipacket->p_hdr->caplen;
+	    //printf("packet_id=%lu,Inbound_traffic=%d, total_inbound=%lu,total_inbound_packet_count=%lu\n",ipacket->packet_id,ipacket->p_hdr->caplen,total_inbound,total_inbound_packet_count);
 	}else{
 	}
 

@@ -186,10 +186,13 @@ extern "C" {
         unsigned char * destMAC;
     } MAC_stat_attr_t;
 
-    typedef struct mp4_dash_attr_struct {
-            uint32_t video_duration_downloaded; /* The reason we need this is that RTP flows may contain STUN messages. We follow here RTP packets only */
-            //jeevan
-        } mp4_dash_attr_t;
+    typedef struct ethernet_statistics_struct {
+    	uint64_t total_inbound_packet_count;
+    	uint64_t total_outbound_packet_count;
+    	uint64_t payload_volume_direction[2];
+    	uint64_t data_volume_direction[2];
+
+    } ethernet_statistics_t;
 
     typedef struct web_session_attr_struct {
         struct timeval first_request_time;
