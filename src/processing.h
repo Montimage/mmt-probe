@@ -180,17 +180,33 @@ extern "C" {
         time_t last_report_time_usec;//jeevan
     } rtp_session_attr_t;
 
-    typedef struct MAC_stat_attr_struct {
+    /*typedef struct MAC_stat_attr_struct {
         //unsigned char * hostMAC;
     	unsigned char * sourceMAC;
         unsigned char * destMAC;
+        void * app_data;
     } MAC_stat_attr_t;
-
-    typedef struct ethernet_statistics_struct {
-    	uint64_t total_inbound_packet_count;
-    	uint64_t total_outbound_packet_count;
+    */
+    typedef struct ethernet_session__struct {
+    	//uint64_t total_inbound_packet_count;
+    	//uint64_t total_outbound_packet_count;
+        uint8_t touched;
+    	uint64_t unique_id;
+    	unsigned char * clientMAC;
+        unsigned char * sourceMAC;
+        unsigned char * destMAC;
+    	uint64_t total_packet_count[2];
     	uint64_t payload_volume_direction[2];
     	uint64_t data_volume_direction[2];
+    	time_t last_report_time_sec;
+    	time_t start_sec;
+    	time_t start_usec;
+    	uint64_t protocol_id[10];
+    	uint64_t protocol_data_volume[2][10];
+    	uint64_t proto_counter;
+
+
+    	struct ethernet_session__struct * next;
 
     } ethernet_statistics_t;
 

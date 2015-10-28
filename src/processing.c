@@ -73,11 +73,16 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt) {
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
 
 #define MAX_MESS 2000
+#define MAX_HOST_MAC_ADDR 10
+#define MAX_MAC_ADDR 2000
 long int total_inbound=0,total_outbound=0;
 long int total_inbound_packet_count=0,total_outbound_packet_count=0;
-unsigned char * mac_address[10];
+unsigned char * mac_address[MAX_HOST_MAC_ADDR];
+unsigned char * eth_session_id[MAX_MAC_ADDR];
 int num_interfaces=0;
+int id_counter=0;
 
+ethernet_statistics_t * HEAD;
 
 /**
  * Connects to redis server and exits if the connection fails
@@ -196,56 +201,17 @@ void send_message (FILE * out_file, char *channel, char * message) {
         }
     }
 }
-void reset_eth_statistics(ethernet_statistics_t * eth_stat){
 
+void reset_eth_statistics(ethernet_statistics_t * eth_stat ){
+
+	eth_stat->touched=0;
 	eth_stat->payload_volume_direction[0]=0;
-	eth_stat->payload_volume_direction[1]=0;
-    eth_stat->total_inbound_packet_count=0;
-    eth_stat->total_outbound_packet_count=0;
-
-    total_inbound=0;
-    total_outbound=0;
-    total_outbound_packet_count=0;
-    total_inbound_packet_count=0;
-
+    eth_stat->payload_volume_direction[1]=0;
+    eth_stat->total_packet_count[1]=0;
+    eth_stat->total_packet_count[0]=0;
+    eth_stat->protocol_data_volume[2][10]=0;
 }
-void gethostMACaddress()
-{
-    struct ifreq ifr;
-    struct ifconf ifc;
-    char buf[1024];
-    int success = 0;
 
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sock == -1) { /* handle error*/ };
-
-    ifc.ifc_len = sizeof(buf);
-    ifc.ifc_buf = buf;
-    if (ioctl(sock, SIOCGIFCONF, &ifc) == -1) { /* handle error */ }
-
-    struct ifreq* it = ifc.ifc_req;
-    const struct ifreq* const end = it + (ifc.ifc_len / sizeof(struct ifreq));
-
-    for (; it != end; ++it) {
-        strcpy(ifr.ifr_name, it->ifr_name);
-        mac_address[num_interfaces]= (unsigned char*)malloc(7);
-
-        if (ioctl(sock, SIOCGIFFLAGS, &ifr) == 0) {
-        	 //printf("%s\n",it->ifr_name);
-        	 memcpy(mac_address[num_interfaces], ifr.ifr_hwaddr.sa_data, 6);
-        	 mac_address[num_interfaces][6]='\0';
-        	 //printf("host MAC address=%.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n", mac_address[num_interfaces][0],mac_address[num_interfaces][1],mac_address[num_interfaces][2],mac_address[num_interfaces][3],mac_address[num_interfaces][4],mac_address[num_interfaces][5]);
-        	 num_interfaces++;
-            if (! (ifr.ifr_flags & IFF_LOOPBACK)) { // don't count loopback
-                if (ioctl(sock, SIOCGIFHWADDR, &ifr) == 0) {
-                    success = 1;
-                    //break;
-                }
-            }
-        }
-        else { /* handle error */ }
-    }
-}
 
 
 void protocols_stats_iterator(uint32_t proto_id, void * args) {
@@ -257,8 +223,8 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
     proto_hierarchy_t proto_hierarchy = {0};
     struct timeval ts = get_last_activity_time(mmt_handler);
 
-    ethernet_statistics_t * eth_stat = (ethernet_statistics_t *) malloc (sizeof(ethernet_statistics_t));
-    memset(eth_stat, '\0', sizeof (ethernet_statistics_t));
+    //ethernet_statistics_t * eth_stat = (ethernet_statistics_t *) malloc (sizeof(ethernet_statistics_t));
+    //memset(eth_stat, '\0', sizeof (ethernet_statistics_t));
 
     while (proto_stats != NULL) {
 
@@ -291,7 +257,7 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
         */
 	    //report the stats instance if there is anything to report
 	    if(proto_stats->touched) {
-
+            /*
 	    	if (proto_id==99){
 	    	    eth_stat->payload_volume_direction[0]=total_inbound;
 	    	    eth_stat->payload_volume_direction[1]=total_outbound;
@@ -299,10 +265,11 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 	    	    eth_stat->total_outbound_packet_count=total_outbound_packet_count;
 
 	    	}
+	    	*/
             snprintf(message, MAX_MESS, 
-                "%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIi64",%"PRIi64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64"",
+                "%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIi64",%"PRIi64",%"PRIu64"",
                 MMT_STATISTICS_REPORT_FORMAT, probe_context.probe_id_number, probe_context.input_source, ts.tv_sec, ts.tv_usec, proto_id, path,
-                proto_stats->sessions_count, proto_stats->sessions_count - proto_stats->timedout_sessions_count,proto_stats->data_volume, proto_stats->payload_volume,proto_stats->packets_count,eth_stat->payload_volume_direction[1],eth_stat->payload_volume_direction[1],eth_stat->total_outbound_packet_count,eth_stat->payload_volume_direction[0],eth_stat->payload_volume_direction[0],eth_stat->total_inbound_packet_count);
+                proto_stats->sessions_count,proto_stats->data_volume, proto_stats->payload_volume,proto_stats->packets_count);
 
             message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
             send_message (out_file, "protocol.stat", message);
@@ -315,54 +282,424 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
             */
 	    }
         reset_statistics(proto_stats);
-        if (proto_id==99)reset_eth_statistics(eth_stat);
+        //if (proto_id==99)reset_eth_statistics(eth_stat);
         proto_stats = proto_stats->next;
     }
 }
 
+void gethostMACaddress()
+{
+    struct ifreq ifr;
+    struct ifconf ifc;
+    char buf[1024];
+    int success = 0;
+
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock == -1) { /* handle error*/ };
+
+    ifc.ifc_len = sizeof(buf);
+    ifc.ifc_buf = buf;
+    if (ioctl(sock, SIOCGIFCONF, &ifc) == -1) { /* handle error */ }
+
+    struct ifreq* it = ifc.ifc_req;
+    const struct ifreq* const end = it + (ifc.ifc_len / sizeof(struct ifreq));
+
+    for (; it != end; ++it) {
+        strcpy(ifr.ifr_name, it->ifr_name);
+        mac_address[num_interfaces]= (unsigned char*)malloc(7);
+
+        if (ioctl(sock, SIOCGIFFLAGS, &ifr) == 0) {
+        	 //printf("%s\n",it->ifr_name);
+        	 memcpy(mac_address[num_interfaces], ifr.ifr_hwaddr.sa_data, 6);
+        	 mac_address[num_interfaces][6]='\0';
+        	 printf("host MAC address=%.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n", mac_address[num_interfaces][0],mac_address[num_interfaces][1],mac_address[num_interfaces][2],mac_address[num_interfaces][3],mac_address[num_interfaces][4],mac_address[num_interfaces][5]);
+        	 num_interfaces++;
+            if (! (ifr.ifr_flags & IFF_LOOPBACK)) { // don't count loopback
+                if (ioctl(sock, SIOCGIFHWADDR, &ifr) == 0) {
+                    success = 1;
+                    //break;
+                }
+            }
+        }
+        else { /* handle error */ }
+    }
+    //printf("num_of_interfaces=%d\n",num_interfaces);
+}
+
+
 int compare(unsigned char * a,unsigned char * b )
-	{
-	    int i;
-	    for(i=0;i<6;i++){
+{
+	int i;
+	for(i=0;i<6;i++){
 	    if(a[i]!=b[i])
 	        return 1;
 	    }
-	    return 0;
+    return 0;
+}
+void calc_id (const ipacket_t * ipacket,unsigned char * MAC, ethernet_statistics_t * eth_stat){
+
+
+	eth_session_id[id_counter]= (unsigned char*)malloc(7);
+	memcpy(eth_session_id[id_counter], MAC, 6);
+    eth_session_id[id_counter][6]='\0';
+    //printf("\nclient MAC address [%d]=%.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n\n",id_counter, eth_session_id[id_counter][0],eth_session_id[id_counter][1],eth_session_id[id_counter][2],eth_session_id[id_counter][3],eth_session_id[id_counter][4],eth_session_id[id_counter][5]);
+
+}
+
+void print_MAC(unsigned char * sourceMAC,unsigned char * destMAC){
+
+	//printf("host MAC address=%.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n", mac_address[j][0],mac_address[j][1],mac_address[j][2],mac_address[j][3],mac_address[j][4],mac_address[j][5]);
+	printf ("source MAC address=%.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n", sourceMAC[0],sourceMAC[1],sourceMAC[2],sourceMAC[3],sourceMAC[4],sourceMAC[5]);
+	printf ("dest MAC address=%.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n", destMAC[0],destMAC[1],destMAC[2],destMAC[3],destMAC[4],destMAC[5]);
+
+}
+
+
+void create_eth_structure (const ipacket_t * ipacket,ethernet_statistics_t * eth_stat,int direction){
+
+	mmt_handler_t *mmt_handler= (void *) ipacket->mmt_handler;
+	struct timeval ts = get_last_activity_time(mmt_handler);
+	int flag=0;
+	int k=0;
+	int j=0;
+	int data_volume=0;
+    int offset=0;
+
+	eth_stat->touched=1;
+	eth_stat->sourceMAC = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_SRC);
+	eth_stat->destMAC=(unsigned char *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_DST);
+	eth_stat->unique_id=id_counter;
+	eth_stat->payload_volume_direction[direction]=ipacket->p_hdr->caplen;
+	eth_stat->total_packet_count[direction]=1;
+	eth_stat->start_sec=ts.tv_sec;
+	eth_stat->start_usec=ts.tv_usec;
+
+	print_MAC(eth_stat->sourceMAC,eth_stat->destMAC);
+
+	 printf("proto_hierarchy_len=%lu\n\n", ipacket->proto_hierarchy->len);
+	    //printf("proto_hierarchy_len=%d\n\n", ipacket->internal_proto_hierarchy.len);
+
+	    for (k=0;k<ipacket->proto_hierarchy->len;k++){
+	    	//printf("proto_path=%d\n", ipacket->proto_hierarchy->proto_path[k]);
+	    	//printf("proto_path_offset=%d\n", ipacket->proto_headers_offset->proto_path[k]);
+
+
+            for(j=0;j<=eth_stat->proto_counter;j++){
+	    	    if (eth_stat->protocol_id[j]==ipacket->proto_hierarchy->proto_path[k]){
+                    flag=1;
+	    	        offset += ipacket->proto_headers_offset->proto_path[k];
+
+	    	        data_volume= ipacket->p_hdr->caplen-offset;
+
+
+	    	        printf("data_volume[%d]=%lu\n",eth_stat->protocol_id[k], data_volume);
+	    	        //printf("total_data_volume[%d]=%d\n", ipacket->p_hdr->caplen);
+	    	        //eth_stat->protocol_data_volume[direction][k]+= data_volume;
+	    	        eth_stat->protocol_data_volume[direction][j]+= data_volume;
+	    	        printf("eth_stat->data_volume[%lu][%lu]=%lu\n",direction,j, eth_stat->protocol_data_volume[direction][j]);
+
+	    	        break;
+	    	    }
+
+
+            }
+            if (flag==0){
+                eth_stat->protocol_id[eth_stat->proto_counter]=ipacket->proto_hierarchy->proto_path[k];
+            	printf("eth_stat->protocol_id[%lu]=%lu\n",eth_stat->proto_counter,eth_stat->protocol_id[eth_stat->proto_counter]);
+
+                offset += ipacket->proto_headers_offset->proto_path[k];
+            	data_volume= ipacket->p_hdr->caplen-offset;
+            	eth_stat->protocol_data_volume[direction][eth_stat->proto_counter]=data_volume;
+            	printf("eth_stat->data_volume[%lu][%lu]=%lu\n",direction,eth_stat->proto_counter, eth_stat->protocol_data_volume[direction][eth_stat->proto_counter]);
+            	eth_stat->proto_counter++;
+            }
+
+	      // printf("header_offset=%d\n",ipacket->proto_headers_offset.proto_path[k]);
+
+	   }
+
+
+
+
+    //printf("NEW :unique_id=%lu,direction =%d, packet_id=%lu,eth_stat->payload_volume_direction[0]=%lu,eth_stat->payload_volume_direction[1]=%lu,eth_stat->total_packet_count[0]=%lu,eth_stat->total_packet_count[1]=%lu\n\n",eth_stat->unique_id,direction,ipacket->packet_id,eth_stat->payload_volume_direction[0],eth_stat->payload_volume_direction[1],eth_stat->total_packet_count[0],eth_stat->total_packet_count[1]);
+
+	id_counter++;
+}
+
+void iterate_through_MACs(const ipacket_t *ipacket){
+	ethernet_statistics_t * eth_stat;
+	eth_stat = HEAD;
+	FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
+	char message[MAX_MESS + 1];
+    mmt_handler_t *mmt_handler= (void *) ipacket->mmt_handler;
+    struct timeval ts = get_last_activity_time(mmt_handler);
+
+
+
+	while(eth_stat!=NULL){
+		if (eth_stat->touched == 1){
+
+			snprintf(message, MAX_MESS,
+			                "%.2X:%.2X:%.2X:%.2X:%.2X:%.2X,%u,\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,%lu.%lu",
+							eth_session_id[eth_stat->unique_id][0],eth_session_id[eth_stat->unique_id][1],eth_session_id[eth_stat->unique_id][2],eth_session_id[eth_stat->unique_id][3],eth_session_id[eth_stat->unique_id][4],eth_session_id[eth_stat->unique_id][5], probe_context.probe_id_number, probe_context.input_source,
+							eth_stat->payload_volume_direction[0],eth_stat->total_packet_count[0],eth_stat->payload_volume_direction[1],eth_stat->total_packet_count[1],ts.tv_sec, ts.tv_usec,eth_stat->start_sec,eth_stat->start_usec);
+
+	        printf("UPDATED :unique_id=%lu,payload_volume_direction[0]=%lu,payload_volume_direction[1]=%lu,total_packet_count[0]=%lu,total_packet_count[1]=%lu\n\n",eth_stat->unique_id,eth_stat->payload_volume_direction[0],eth_stat->payload_volume_direction[1],eth_stat->total_packet_count[0],eth_stat->total_packet_count[1]);
+
+	        message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
+	        send_message (out_file, "protocol.stat", message);
+
+		}
+		reset_eth_statistics(eth_stat);
+		eth_stat=eth_stat->next;
 	}
 
-void calc_payload(const ipacket_t * ipacket,MAC_stat_attr_t * statistics){
-int i=0;
+}
+
+void update_eth_structure (int i,const ipacket_t * ipacket,int direction){
+	ethernet_statistics_t * eth_stat;
+	eth_stat = HEAD;
+	int flag=0;
+    int k=0;
+    int j=0;
+    int data_volume=0;
+	int offset=0;
+	eth_stat->sourceMAC = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_SRC);
+	eth_stat->destMAC=(unsigned char *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_DST);
+
+
+	print_MAC(eth_stat->sourceMAC,eth_stat->destMAC);
+	while(eth_stat!=NULL){
+	    if (eth_stat->unique_id == i){
+	    	eth_stat->touched=1;
+	        eth_stat->payload_volume_direction[direction]+=ipacket->p_hdr->caplen;
+	        eth_stat->total_packet_count[direction]+=1;
+
+	        printf("proto_hierarchy_len=%lu\n\n", ipacket->proto_hierarchy->len);
+
+
+	       	    for (k=0;k<ipacket->proto_hierarchy->len;k++){
+
+
+	                   for(j=0;j<eth_stat->proto_counter;j++){
+	       	    	        if (eth_stat->protocol_id[j]==ipacket->proto_hierarchy->proto_path[k]){
+	                            flag=1;
+	       	    	            offset += ipacket->proto_headers_offset->proto_path[k];
+
+	       	    	            data_volume= ipacket->p_hdr->caplen-offset;
+
+
+	       	    	            printf("data_volume[%d]=%lu\n",eth_stat->protocol_id[k], data_volume);
+
+	       	    	            eth_stat->protocol_data_volume[direction][j]+= data_volume;
+		 	                   	printf("eth_stat->data_volume[%lu][%lu]=%lu\n",direction,j, eth_stat->protocol_data_volume[direction][j]);
+
+	       	    	            break;
+	       	    	    }
+
+
+	                   }
+	                   if (flag==0){
+	                       eth_stat->protocol_id[eth_stat->proto_counter]=ipacket->proto_hierarchy->proto_path[k];
+	                   	   printf("eth_stat->protocol_id[%lu]=%lu\n",eth_stat->proto_counter,eth_stat->protocol_id[eth_stat->proto_counter]);
+
+	                       offset += ipacket->proto_headers_offset->proto_path[k];
+	                   	   data_volume= ipacket->p_hdr->caplen-offset;
+	                   	   eth_stat->protocol_data_volume[direction][eth_stat->proto_counter]=data_volume;
+	                   	   printf("eth_stat->data_volume[%lu][%lu]=%lu\n",direction,eth_stat->proto_counter, eth_stat->protocol_data_volume[direction][eth_stat->proto_counter]);
+	                       eth_stat->proto_counter++;
+	                   }
+	       	    }
+
+	    }
+	    eth_stat=eth_stat->next;
+	}
+
+}
+
+void eth_get_session_attr(const ipacket_t * ipacket){
+
+    unsigned int i=0,j=0;
+    int direction;
+    int flag =0;
+
+
+    unsigned char *sourceMAC = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_SRC);
+    unsigned char * destMAC=(unsigned char *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_DST);
+
+    ethernet_statistics_t * eth_stat = (ethernet_statistics_t *)malloc(sizeof(ethernet_statistics_t));
+    if (eth_stat != NULL) memset(eth_stat, '\0', sizeof (ethernet_statistics_t));
+
+
+/*
+    for (k=0;k<ipacket->internal_proto_hierarchy.len;k++){
+    printf("proto_path=%d\n", ipacket->internal_proto_hierarchy.proto_path[k]);
+    printf("header_offset=%d\n",ipacket->internal_proto_headers_offset.proto_path[k]);
+
+    }
+*/
+
+
+    //print_MAC(k,sourceMAC,destMAC);
+
+        if (id_counter==0){
+
+        	HEAD=NULL;
+
+
+        	for (j=0;j<num_interfaces;j++){
+
+           if (compare(sourceMAC, mac_address[j])==0){
+
+        	   direction=0;
+        	   calc_id (ipacket,destMAC,eth_stat);
+
+
+        	   create_eth_structure(ipacket,eth_stat,direction);
+        	   eth_stat->next=HEAD;
+        	   HEAD=eth_stat;
+        	   //print_MAC(j,sourceMAC,destMAC);
+
+
+        	}else if (compare(destMAC, mac_address[j])==0){
+         	    direction=1;
+        		calc_id (ipacket,sourceMAC,eth_stat);
+
+        		create_eth_structure(ipacket,eth_stat,direction);
+        		eth_stat->next=HEAD;
+        		HEAD=eth_stat;
+
+        	}
+        	}
+        }else{
+
+        	for (j=0;j<num_interfaces;j++){
+
+        		    if (compare(sourceMAC, mac_address[j])==0){
+                        direction=0;
+        		    	for (i=0;i<id_counter;i++){
+            	            if (compare(eth_session_id[i],destMAC)==0){
+            	            	update_eth_structure(i,ipacket,direction);
+            	            	flag=1;
+
+            	            	break;
+            	            }
+
+        		    	}
+                        if(flag==0){
+            	            calc_id(ipacket,destMAC,eth_stat);
+            	            create_eth_structure(ipacket,eth_stat,direction);
+            	            eth_stat->next=HEAD;
+            	            HEAD=eth_stat;
+            	            break;
+                            }
+
+
+	               }else if (compare(destMAC, mac_address[j])==0){
+	            	   direction=1;
+
+	            	   for (i=0;i<id_counter;i++){
+	        	            if (compare(eth_session_id[i],sourceMAC)==0){
+	        	            	update_eth_structure(i,ipacket,direction);
+                                flag=1;
+
+	        	            	break;
+	        	            }
+
+	            	   }
+                       if (flag==0){
+	        	           calc_id(ipacket,sourceMAC,eth_stat);
+	        	           create_eth_structure(ipacket,eth_stat,direction);
+	        	           eth_stat->next=HEAD;
+	        	           HEAD=eth_stat;
+	        	           break;
+                       }
+
+	              }
+	          }
+
+    }
+}
+/*
+void calc_payload(const ipacket_t * ipacket){
+    int i=0;
+    static time_t last_report_time = 0;
+    char message[MAX_MESS + 1];
+    if(ipacket->session == NULL) return;
+    session_struct_t * temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
+
+    FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
+
+    if (temp_session != NULL) {
+        if (temp_session->app_data == NULL) {
+            ethernet_statistics_t * eth_attr = (ethernet_statistics_t *) malloc(sizeof (ethernet_statistics_t));
+            if (eth_attr != NULL) {
+                memset(eth_attr, '\0', sizeof (ethernet_statistics_t));
+                temp_session->app_data = (void *) eth_attr;
+            }else {
+                mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating RTP reporting context");
+                    //fprintf(stderr, "Out of memory error when creating RTP specific data structure!\n");
+            }
+        }
+    }
+
+
+	temp_session->sourceMAC = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_SRC);
+    temp_session->destMAC=(unsigned char *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_DST);
+
+
 
     for (i=0;i<num_interfaces;i++){
-    	//printf("host MAC address2=%.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n", mac_address[i][0],mac_address[i][1],mac_address[i][2],mac_address[i][3],mac_address[i][4],mac_address[i][5]);
-	if (compare(statistics->sourceMAC, mac_address[i])==0){
-		//printf ("source MAC address=%.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n", statistics->sourceMAC[0],statistics->sourceMAC[1],statistics->sourceMAC[2],statistics->sourceMAC[3],statistics->sourceMAC[4],statistics->sourceMAC[5]);
-		total_outbound_packet_count++;
-		total_outbound+=ipacket->p_hdr->caplen;
+        printf("host MAC address=%.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n", mac_address[i][0],mac_address[i][1],mac_address[i][2],mac_address[i][3],mac_address[i][4],mac_address[i][5]);
+	    if (compare(temp_session->sourceMAC, mac_address[i])==0){
+		    printf ("source MAC address=%.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n", temp_session->sourceMAC[0],temp_session->sourceMAC[1],temp_session->sourceMAC[2],temp_session->sourceMAC[3],temp_session->sourceMAC[4],temp_session->sourceMAC[5]);
+		    total_outbound_packet_count++;
+		    total_outbound+=ipacket->p_hdr->caplen;
+
+		    ((ethernet_statistics_t *) temp_session->app_data)->payload_volume_direction[0]+=ipacket->p_hdr->caplen;
+		    ((ethernet_statistics_t *) temp_session->app_data)->total_packet_count[0]=total_outbound_packet_count++;
 
 
 	    //printf("packet_id=%lu,Outbound_traffic=%d,total_outbound=%lu,total_outbound_packet_count=%lu\n",ipacket->packet_id,ipacket->p_hdr->caplen,total_outbound,total_outbound_packet_count);
-    }else if (compare(statistics->destMAC, mac_address[i])==0){
-    	//printf ("Dest MAC address=%.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n", statistics->destMAC[0],statistics->destMAC[1],statistics->destMAC[2],statistics->destMAC[3],statistics->destMAC[4],statistics->destMAC[5]);
-    	total_inbound_packet_count++;
-    	total_inbound+=ipacket->p_hdr->caplen;
+        }else if (compare(temp_session->destMAC, mac_address[i])==0){
+    	    printf ("DestMAC address=%.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n", temp_session->destMAC[0],temp_session->destMAC[1],temp_session->destMAC[2],temp_session->destMAC[3],temp_session->destMAC[4],temp_session->destMAC[5]);
+    	    total_inbound_packet_count++;
+    	    total_inbound+=ipacket->p_hdr->caplen;
+
+		((ethernet_statistics_t *) temp_session->app_data)->payload_volume_direction[1]+=ipacket->p_hdr->caplen;
+		((ethernet_statistics_t *) temp_session->app_data)->total_packet_count[1]=total_outbound_packet_count++;;
 	    //printf("packet_id=%lu,Inbound_traffic=%d, total_inbound=%lu,total_inbound_packet_count=%lu\n",ipacket->packet_id,ipacket->p_hdr->caplen,total_inbound,total_inbound_packet_count);
-	}else{
+        }
 	}
 
-}
+	if (((ethernet_statistics_t *) temp_session->app_data)->last_report_time_sec == 0) {
+		((ethernet_statistics_t *) temp_session->app_data)->last_report_time_sec = ipacket->p_hdr->ts.tv_sec;
+	    return;
+	    }
+   if ((ipacket->p_hdr->ts.tv_sec - ((ethernet_statistics_t *) temp_session->app_data)->last_report_time_sec) >= probe_context.stats_reporting_period) {
+	   snprintf(message, MAX_MESS,
+	                   "%.2X:%.2X:%.2X:%.2X:%.2X:%.2X,%.2X:%.2X:%.2X:%.2X:%.2X:%.2X,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64"",
+					   temp_session->sourceMAC[0],temp_session->sourceMAC[1],temp_session->sourceMAC[2],temp_session->sourceMAC[3],temp_session->sourceMAC[4],temp_session->sourceMAC[5],temp_session->destMAC[0],temp_session->destMAC[1],temp_session->destMAC[2],temp_session->destMAC[3],temp_session->destMAC[4],temp_session->destMAC[5],((ethernet_statistics_t *) temp_session->app_data)->payload_volume_direction[0],((ethernet_statistics_t *) temp_session->app_data)->payload_volume_direction[1],((ethernet_statistics_t *) temp_session->app_data)->total_packet_count[0],((ethernet_statistics_t *) temp_session->app_data)->total_packet_count[1]);
+
+	   ((ethernet_statistics_t *) temp_session->app_data)->last_report_time_sec = ipacket->p_hdr->ts.tv_sec;
+
+	   message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
+	   send_message (out_file, "eth.flow.report", message);
+	   reset_eth_statistics(temp_session);
+	    }
 
 }
+*/
 
 void packet_handler(const ipacket_t * ipacket, void * args) {
     static time_t last_report_time = 0;
-    MAC_stat_attr_t * statistics= (MAC_stat_attr_t *) malloc(sizeof(MAC_stat_attr_t));
-    memset(statistics, '\0', sizeof (MAC_stat_attr_t));
+    //MAC_stat_attr_t * statistics= (MAC_stat_attr_t *) malloc(sizeof(MAC_stat_attr_t));
+    //memset(statistics, '\0', sizeof (MAC_stat_attr_t));
 
 
-    statistics->sourceMAC = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_SRC);
-    statistics->destMAC=(unsigned char *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_DST);
-    calc_payload(ipacket,statistics);
+
+
+        eth_get_session_attr(ipacket);
 
         if (last_report_time == 0) {
         last_report_time = ipacket->p_hdr->ts.tv_sec;
@@ -372,6 +709,7 @@ void packet_handler(const ipacket_t * ipacket, void * args) {
 
     if ((ipacket->p_hdr->ts.tv_sec - last_report_time) >= probe_context.stats_reporting_period) {
         iterate_through_protocols(protocols_stats_iterator, (void *) ipacket->mmt_handler);
+        iterate_through_MACs(ipacket);
         last_report_time = ipacket->p_hdr->ts.tv_sec;
     }
 }
