@@ -926,6 +926,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
     if (mmt_conf->thread_nb == 1) {
         //One thread for processing packets
         //Cleanup the MMT handler
+    	proto_stats_cleanup(mmt_probe.mmt_handler);
         flowstruct_cleanup(mmt_probe.mmt_handler); // cleanup our event handler
         radius_ext_cleanup(mmt_probe.mmt_handler); // cleanup our event handler for RADIUS initializations
         mmt_close_handler(mmt_probe.mmt_handler);
@@ -966,6 +967,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
             for (i = 0; i < mmt_conf->thread_nb; i++) {
                 //pthread_join(mmt_probe.smp_threads[i].handle, NULL);
                 if (mmt_probe.smp_threads[i].mmt_handler != NULL) {
+                	proto_stats_cleanup(mmt_probe.smp_threads[i].mmt_handler);
                     flowstruct_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler
                     radius_ext_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler for RADIUS initializations
                     mmt_close_handler(mmt_probe.smp_threads[i].mmt_handler);
@@ -1197,11 +1199,11 @@ int main(int argc, char **argv) {
     mmt_conf->log_output = fopen(mmt_conf->log_file, "a");
 
     sigfillset(&signal_set);
-    signal(SIGINT, signal_handler);
+    signal(SIGINT,  signal_handler);
     signal(SIGTERM, signal_handler);
     signal(SIGSEGV, signal_handler);
     signal(SIGABRT, signal_handler);
-    
+
     mmt_log(mmt_conf, MMT_L_INFO, MMT_P_INIT, "MMT Probe started!");
 
     if (!init_extraction()) { // general ixE initialization
@@ -1209,7 +1211,7 @@ int main(int argc, char **argv) {
         mmt_log(mmt_conf, MMT_L_ERROR, MMT_E_INIT_ERROR, "MMT Extraction engine initialization error! Exiting!");
         return EXIT_FAILURE;
     }
-    gethostMACaddress();
+
     //Initialization
     if (mmt_conf->thread_nb == 1) {
         mmt_log(mmt_conf, MMT_L_INFO, MMT_E_INIT, "Initializating MMT Extraction engine! Single threaded operation.");
@@ -1340,6 +1342,9 @@ int main(int argc, char **argv) {
         }
     }
     if (mmt_conf->input_mode == ONLINE_ANALYSIS) {
+    	//if( get_host_mac_address(& mmt_conf->mac_address_host, mmt_conf->input_source ) != 0)
+    	//	mmt_conf->mac_address_host = NULL;
+
         mmt_conf->data_out_file = fopen(mmt_conf->data_out, "w");
         sprintf(lg_msg, "Open output results file: %s", mmt_conf->data_out);
         mmt_log(mmt_conf, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);

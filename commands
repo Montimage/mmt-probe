@@ -29,4 +29,3 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../mmt-sdk/sdk/lib
 ./probe -c ./mmt.conf
 ./probe -c ./mmt_offline.conf
 ./probe -c ./mmt_online.conf
-
