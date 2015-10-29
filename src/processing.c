@@ -363,8 +363,7 @@ void iterate_through_mac( mmt_handler_t *mmt_handler ){
 						src, dst);
 
 				message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-				printf("\n%s", message );
-				//send_message (out_file, "protocol.stat", message);
+				send_message (out_file, "protocol.flow.stat", message);
 
 			}
 			reset_eth_proto_stat( proto_stats );
