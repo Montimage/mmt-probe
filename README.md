@@ -11,14 +11,10 @@
 
 ## Getting Started
 ```
-# Add these two destinations to your library path if it is not the case
-export LD_LIBRARY_PATH=/opt/mmt/lib:/usr/local/lib:$LD_LIBRARY_PATH
-
 # Compile the Ericsson probe. with:
-gcc -I/opt/mmt/include -o probe src/smp_main.c src/processing.c src/thredis.c -L/opt/mmt/lib -lmmt_core -lmmt_tcpip -ldl -lpcap -lconfuse -lhiredis -lpthread
+gcc -o probe src/smp_main.c src/processing.c src/thredis.c -lmmt_core -ldl -lpcap -lconfuse -lhiredis -lpthread
 # execute:
 sudo su
-export LD_LIBRARY_PATH=/opt/mmt/lib:/usr/local/lib:$LD_LIBRARY_PATH
 ./probe -c ./mmt_online.con
 #if using redis and mmt_operator
 redis-server
@@ -27,7 +23,7 @@ firefox localhost:8088
 
 
 # Compile the simple probe with:
-gcc -I/opt/mmt/include -o simple_probe src/main.c -L/opt/mmt/lib -lmmt_core -lmmt_tcpip -ldl -lpcap
+gcc -o simple_probe src/main.c -lmmt_core -ldl -lpcap
 # Execute: 
 ./simple_probe <pcap file>
 
