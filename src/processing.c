@@ -632,7 +632,7 @@ void rtp_jitter_handle(const ipacket_t * ipacket, attribute_t * attribute, void 
 	char ip_src_str[46];
 	char ip_dst_str[46];
 	int keep_direction = 1;
-	uint64_t local_machine=0;
+	uint8_t local_machine=0;
 
 	mmt_session_t * rtp_session = get_session_from_packet(ipacket);
 	if(rtp_session == NULL) return;
@@ -646,8 +646,8 @@ void rtp_jitter_handle(const ipacket_t * ipacket, attribute_t * attribute, void 
 		inet_ntop(AF_INET, (void *) &temp_session->ipserver.ipv4, ip_dst_str, INET_ADDRSTRLEN);
 		keep_direction = is_local_net(temp_session->ipclient.ipv4);
 
-		if (is_local_net(temp_session->ipclient.ipv4)==1)local_machine=1;
-		if (is_local_net(temp_session->ipserver.ipv4)==1)local_machine=2;
+		if (is_local_net(temp_session->ipclient.ipv4)==1)local_machine=2;
+		if (is_local_net(temp_session->ipserver.ipv4)==1)local_machine=1;
 		if ((is_local_net(temp_session->ipclient.ipv4)==1)&&(is_local_net(temp_session->ipserver.ipv4)==1))local_machine=3;
 
 	} else {
@@ -690,7 +690,7 @@ void rtp_jitter_handle(const ipacket_t * ipacket, attribute_t * attribute, void 
 		((rtp_session_attr_t*) temp_session->app_data)->dl_byte_count=get_session_dl_byte_count(rtp_session)-((rtp_session_attr_t*) temp_session->app_data)->dl_byte_count;
 
 
-		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%lu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,%f,%f,%u,%f", // app specific
+		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%"PRIu8",%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,%f,%f,%u,%f", // app specific
 				MMT_SAMPLED_RTP_APP_REPORT_FORMAT,
 				probe_context.probe_id_number,
 				probe_context.input_source,
@@ -1467,7 +1467,6 @@ void report_microflows_stats(microsessions_stats_t * stats, FILE * out_file) {
 
 void update_microflows_stats(microsessions_stats_t * stats, const mmt_session_t * expired_session) {
 	int keep_direction = 1;
-	uint64_t local_machine=0;
 	session_struct_t * temp_session = get_user_session_context(expired_session);
 	if (temp_session->ipversion == 4) {
 		keep_direction = is_local_net(temp_session->ipclient.ipv4);
@@ -1493,7 +1492,7 @@ void print_default_app_format(const mmt_session_t * expired_session, FILE * out_
 	session_struct_t * temp_session = get_user_session_context(expired_session);
 	char message[MAX_MESS + 1];
 	char path[128];
-	uint64_t local_machine=0;
+	uint8_t local_machine=0;
 	//common fields
 	//format id, timestamp
 	//Flow_id, Start timestamp, IP version, Server_Address, Client_Address, Server_Port, Client_Port, Transport Protocol ID,
@@ -1522,8 +1521,8 @@ void print_default_app_format(const mmt_session_t * expired_session, FILE * out_
 		inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
 		inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
 
-	    if (is_localv6_net(ip_dst_str)==1)local_machine=2;
-	    if (is_localv6_net(ip_src_str)==1)local_machine=1;
+	    if (is_localv6_net(ip_dst_str)==1)local_machine=1;
+	    if (is_localv6_net(ip_src_str)==1)local_machine=2;
 	    if ((is_localv6_net(ip_dst_str)==1)&&(is_localv6_net(ip_src_str)==1))local_machine=3;
 
 	}
@@ -1539,7 +1538,7 @@ void print_default_app_format(const mmt_session_t * expired_session, FILE * out_
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
 
 	snprintf(message, MAX_MESS,
-			"%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%lu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u", // app specific
+			"%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%"PRIu8",%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u", // app specific
 			temp_session->app_format_id, probe_context.probe_id_number, probe_context.input_source, end_time.tv_sec, end_time.tv_usec,
 			session_id,
 			init_time.tv_sec, init_time.tv_usec,
@@ -1583,7 +1582,7 @@ void print_web_app_format(const mmt_session_t * expired_session, FILE * out_file
 	session_struct_t * temp_session = get_user_session_context(expired_session);
 	char path[128];
 	char message[MAX_MESS + 1];
-	uint64_t local_machine=0;
+	uint8_t local_machine=0;
 	//common fields
 	//format id, timestamp
 	//Flow_id, Start timestamp, IP version, Server_Address, Client_Address, Server_Port, Client_Port, Transport Protocol ID,
@@ -1623,8 +1622,8 @@ void print_web_app_format(const mmt_session_t * expired_session, FILE * out_file
 		inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
 
 
-	    if (is_localv6_net(ip_dst_str)==1)local_machine=2;
-	    if (is_localv6_net(ip_src_str)==1)local_machine=1;
+	    if (is_localv6_net(ip_dst_str)==1)local_machine=1;
+	    if (is_localv6_net(ip_src_str)==1)local_machine=2;
 	    if ((is_localv6_net(ip_dst_str)==1)&&(is_localv6_net(ip_src_str)==1))local_machine=3;
 	}
 
@@ -1641,7 +1640,7 @@ void print_web_app_format(const mmt_session_t * expired_session, FILE * out_file
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
 
 	snprintf(message, MAX_MESS,
-			"%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%lu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,%u,%u,%u,\"%s\",\"%s\",\"%s\",\"%s\",%u", // app specific
+			"%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%"PRIu8",%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,%u,%u,%u,\"%s\",\"%s\",\"%s\",\"%s\",%u", // app specific
 			temp_session->app_format_id, probe_context.probe_id_number, probe_context.input_source, end_time.tv_sec, end_time.tv_usec,
 			session_id,
 			init_time.tv_sec, init_time.tv_usec,
@@ -1698,7 +1697,7 @@ void print_ssl_app_format(const mmt_session_t * expired_session, FILE * out_file
 	session_struct_t * temp_session = get_user_session_context(expired_session);
 	char message[MAX_MESS + 1];
 	char path[128];
-	uint64_t local_machine=0;
+	uint8_t local_machine=0;
 	//common fields
 	//format id, timestamp
 	//Flow_id, Start timestamp, IP version, Server_Address, Client_Address, Server_Port, Client_Port, Transport Protocol ID,
@@ -1727,8 +1726,8 @@ void print_ssl_app_format(const mmt_session_t * expired_session, FILE * out_file
 		inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
 		inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
 
-	    if (is_localv6_net(ip_dst_str)==1)local_machine=2;
-	    if (is_localv6_net(ip_src_str)==1)local_machine=1;
+	    if (is_localv6_net(ip_dst_str)==1)local_machine=1;
+	    if (is_localv6_net(ip_src_str)==1)local_machine=2;
 	    if ((is_localv6_net(ip_dst_str)==1)&&(is_localv6_net(ip_src_str)==1))local_machine=3;
 	}
 
@@ -1742,7 +1741,7 @@ void print_ssl_app_format(const mmt_session_t * expired_session, FILE * out_file
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
 
 	snprintf(message, MAX_MESS,
-			"%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%lu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,\"%s\",%u", // app specific
+			"%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%"PRIu8",%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,\"%s\",%u", // app specific
 			temp_session->app_format_id, probe_context.probe_id_number, probe_context.input_source, end_time.tv_sec, end_time.tv_usec,
 			session_id,
 			init_time.tv_sec, init_time.tv_usec,
@@ -1793,7 +1792,7 @@ void print_rtp_app_format(const mmt_session_t * expired_session, FILE * out_file
 
 	char message[MAX_MESS + 1];
 	char path[128];
-	uint64_t local_machine=0;
+	uint8_t local_machine=0;
 	//proto_hierarchy_to_str(&expired_session->proto_path, path);
 	uint64_t session_id = get_session_id(expired_session);
 
@@ -1817,8 +1816,8 @@ void print_rtp_app_format(const mmt_session_t * expired_session, FILE * out_file
 		inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
 		inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
 
-		if (is_localv6_net(ip_dst_str)==1)local_machine=2;
-	    if (is_localv6_net(ip_src_str)==1)local_machine=1;
+		if (is_localv6_net(ip_dst_str)==1)local_machine=1;
+	    if (is_localv6_net(ip_src_str)==1)local_machine=2;
 	    if ((is_localv6_net(ip_dst_str)==1)&&(is_localv6_net(ip_src_str)==1))local_machine=3;
 
 	}
@@ -1846,7 +1845,7 @@ void print_rtp_app_format(const mmt_session_t * expired_session, FILE * out_file
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
 
 	snprintf(message, MAX_MESS,
-			"%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%lu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,%f,%f,%u,%f", // app specific
+			"%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%"PRIu8",%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,%f,%f,%u,%f", // app specific
 			temp_session->app_format_id, probe_context.probe_id_number, probe_context.input_source, end_time.tv_sec, end_time.tv_usec,
 			session_id,
 			init_time.tv_sec, init_time.tv_usec,
