@@ -426,7 +426,7 @@ ethernet_proto_statistics_t *get_proto_stat_for_proto_path(ethernet_proto_statis
  */
 void update_proto_stat_info( ethernet_proto_statistics_t *proto_stats, const ipacket_t * ipacket, int direction){
 
-	uint32_t proto_offset, next_proto_offset, index;
+	uint32_t proto_offset, index;
 	uint64_t p_data, p_payload;
 
 	if( direction != 0 && direction != 1){
@@ -435,12 +435,9 @@ void update_proto_stat_info( ethernet_proto_statistics_t *proto_stats, const ipa
 	}
 	index = proto_stats->proto_hierarchy->len -1;
 	//offset of the current protocol
-	proto_offset = get_packet_offset_at_index( ipacket, index );
-	//offset of its child protocol
-	next_proto_offset = get_packet_offset_at_index( ipacket, index + 1 );
 
-	p_data    = ipacket->p_hdr->len - proto_offset;
-	p_payload = ipacket->p_hdr->len - next_proto_offset;
+	p_data    = ipacket->p_hdr->len;
+	p_payload = ipacket->p_hdr->len - proto_offset;
 
 	//first time the flow is detected
 	if( proto_stats->touched == 0 ){
@@ -459,34 +456,30 @@ void update_proto_stat_info( ethernet_proto_statistics_t *proto_stats, const ipa
 }
 
 void update_proto_stat (ethernet_statistics_t *eth_stat, const ipacket_t * ipacket, int direction){
-	int i, j, len = ipacket->proto_hierarchy->len;
+	int j;
 
 	ethernet_proto_statistics_t *root;
 	root = eth_stat->proto_stats;
 
-	//for each proto_path
-	//omit the first proto: META
-	for (i=1; i<len; i++){
-		ipacket->proto_hierarchy->len = i+1;
-		ethernet_proto_statistics_t *p = get_proto_stat_for_proto_path( root, ipacket->proto_hierarchy);
+	//update only leaf
+	ethernet_proto_statistics_t *p = get_proto_stat_for_proto_path( root, ipacket->proto_hierarchy);
 
-		//well, the stat for this proto path does not exist => I will create it
-		if( p == NULL){
-			p = create_and_init_proto_stat();
+	//well, the stat for this proto path does not exist => I will create it
+	if( p == NULL){
+		p = create_and_init_proto_stat();
 
-			p->proto_hierarchy = (proto_hierarchy_t *)malloc(sizeof(proto_hierarchy_t));
-			//copy proto_hierarchy
-			p->proto_hierarchy->len = ipacket->proto_hierarchy->len;
-			for( j=0; j<ipacket->proto_hierarchy->len; j++ )
-				p->proto_hierarchy->proto_path[j] = ipacket->proto_hierarchy->proto_path[j];
+		p->proto_hierarchy = (proto_hierarchy_t *)malloc(sizeof(proto_hierarchy_t));
+		//copy proto_hierarchy
+		p->proto_hierarchy->len = ipacket->proto_hierarchy->len;
+		for( j=0; j<ipacket->proto_hierarchy->len; j++ )
+			p->proto_hierarchy->proto_path[j] = ipacket->proto_hierarchy->proto_path[j];
 
-			//put this before root
-			p->next = eth_stat->proto_stats;
-			eth_stat->proto_stats = p;
-		}
-
-		update_proto_stat_info( p, ipacket, direction );
+		//put this before root
+		p->next = eth_stat->proto_stats;
+		eth_stat->proto_stats = p;
 	}
+
+	update_proto_stat_info( p, ipacket, direction );
 
 }
 
