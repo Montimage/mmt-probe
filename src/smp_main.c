@@ -276,6 +276,7 @@ static void *smp_thread_routine(void *arg) {
         register_session_timeout_handler(th->mmt_handler, classification_expiry_session, &th->iprobe);
         flowstruct_init(th->mmt_handler); // initialize our event handler
         event_reports_init(th->mmt_handler); // initialize our event reports
+        conditional_reports_init(th->mmt_handler);// initialize our condition reports
         radius_ext_init(th->mmt_handler); // initialize radius extraction and attribute event handler
     }
     
@@ -420,7 +421,17 @@ cfg_t * parse_conf(const char *filename) {
         CFG_STR("event", "", CFGF_NONE),
         CFG_STR_LIST("attributes", "{}", CFGF_NONE),
         CFG_END()
-    };    
+    };
+
+    cfg_opt_t condition_report_opts[] = {
+        CFG_INT("id", 0, CFGF_NONE),
+        CFG_STR("condition", "", CFGF_NONE),
+        CFG_STR("location", "", CFGF_NONE),
+        CFG_STR_LIST("attributes", "{}", CFGF_NONE),
+        CFG_STR_LIST("handlers", "{}", CFGF_NONE),
+        CFG_END()
+    };
+   
 
     cfg_opt_t opts[] = {
         CFG_SEC("micro-flows", micro_flows_opts, CFGF_NONE),
@@ -438,6 +449,7 @@ cfg_t * parse_conf(const char *filename) {
         CFG_STR("logfile", 0, CFGF_NONE),
         CFG_INT("loglevel", 2, CFGF_NONE),
         CFG_SEC("event_report", event_report_opts, CFGF_TITLE | CFGF_MULTI),
+        CFG_SEC("condition_report", condition_report_opts, CFGF_TITLE | CFGF_MULTI),
         CFG_END()
     };
 
@@ -454,6 +466,30 @@ cfg_t * parse_conf(const char *filename) {
     }
 
     return cfg;
+}
+
+int condition_parse_dot_proto_attribute(char * inputstring, mmt_condition_attribute_t * protoattr) {
+    char **ap, *argv[2];
+    int valid = 0;
+    /* code from http://www.manpagez.com/man/3/strsep/
+     * You can make it better!
+     */
+    for (ap = argv; (*ap = strsep(&inputstring, ".")) != NULL;)	{
+        valid ++;
+        if (**ap != '\0') {
+            if (++ap >= &argv[2] || valid > 2) {
+                break;
+            }
+        }
+    }
+
+    if(valid != 2) {
+        return 1;
+    } else {
+        strncpy(protoattr->proto, argv[0], 256);
+        strncpy(protoattr->attribute, argv[1], 256);
+        return 0;
+    }
 }
 
 /** transforms "proto.attribute" into mmt_event_attribute_t 
@@ -483,9 +519,37 @@ int parse_dot_proto_attribute(char * inputstring, mmt_event_attribute_t * protoa
     }
 }
 
+int parse_condition_attribute(char * inputstring, mmt_condition_attribute_t * conditionattr) {
+
+    if(inputstring!= NULL){
+    strncpy(conditionattr->condition, inputstring, 256);
+    return 0;
+	}
+	return 1;
+}
+int parse_location_attribute(char * inputstring, mmt_condition_attribute_t * conditionattr) {
+
+    if(inputstring!= NULL){
+    strncpy(conditionattr->location, inputstring, 256);
+   // printf("conditionattr->location=%s\n",conditionattr->location);
+    return 0;
+	}
+	return 1;
+}
+
+int parse_handlers_attribute(char * inputstring, mmt_condition_attribute_t * handlersattr) {
+    if(inputstring!= NULL){
+    strncpy(handlersattr->handler, inputstring, 256);
+    //printf("conditionattr->handler=%s\n",handlersattr->handler);
+    return 0;
+	}
+	return 1;
+}
+
 int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
     int i, j;
     cfg_t *event_opts;
+    cfg_t *condition_opts;
 
     if (cfg) {
         mmt_conf->enable_proto_stats = 1; //enabled by default
@@ -582,6 +646,63 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
                 }
             }
         }
+
+
+        int condition_reports_nb = cfg_size(cfg, "condition_report");
+        int condition_attributes_nb = 0;
+        int condition_handlers_nb=0;
+        mmt_conf->condition_reports = NULL;
+        mmt_condition_report_t * temp_condn;
+        mmt_conf->condition_reports_nb = condition_reports_nb;
+
+        if (condition_reports_nb > 0) {
+            mmt_conf->condition_reports = calloc(sizeof(mmt_condition_report_t), condition_reports_nb);
+            for(j = 0; j < condition_reports_nb; j++) {
+                condition_opts = cfg_getnsec(cfg, "condition_report", j);
+                temp_condn = & mmt_conf->condition_reports[j];
+                temp_condn->id = cfg_getint(condition_opts, "id");
+
+                if (parse_condition_attribute((char *) cfg_getstr(condition_opts, "condition"), &temp_condn->condition)) {
+                    fprintf(stderr, "Error: invalid condition_report condition value '%s'\n", (char *) cfg_getstr(condition_opts, "condition"));
+                    exit(-1);
+                }
+
+                if (parse_location_attribute((char *) cfg_getstr(condition_opts, "location"), &temp_condn->condition)) {
+                    fprintf(stderr, "Error: invalid condition_report location value '%s'\n", (char *) cfg_getstr(condition_opts, "location"));
+                    exit(-1);
+                }
+
+                condition_attributes_nb = cfg_size(condition_opts, "attributes");
+                temp_condn->attributes_nb = condition_attributes_nb;
+
+                if(condition_attributes_nb > 0) {
+                    temp_condn->attributes = calloc(sizeof(mmt_condition_attribute_t), condition_attributes_nb);
+
+                    for(i = 0; i < condition_attributes_nb; i++) {
+                    	if (condition_parse_dot_proto_attribute(cfg_getnstr(condition_opts, "attributes", i), &temp_condn->attributes[i])) {
+                            fprintf(stderr, "Error: invalid condition_report attribute value '%s'\n", (char *) cfg_getnstr(condition_opts, "attributes", i));
+                            exit(-1);
+                        }
+                    }
+                }
+                condition_handlers_nb = cfg_size(condition_opts, "handlers");
+                temp_condn->handlers_nb = condition_handlers_nb;
+
+                if(condition_handlers_nb > 0) {
+                temp_condn->handlers = calloc(sizeof(mmt_condition_attribute_t), condition_handlers_nb);
+
+                    for(i = 0; i < condition_handlers_nb; i++) {
+                    	if (parse_handlers_attribute((char *) cfg_getnstr(condition_opts, "handlers",i), &temp_condn->handlers[i])) {
+                    		fprintf(stderr, "Error: invalid condition_report handler attribute value '%s'\n", (char *) cfg_getnstr(condition_opts, "handlers", i));
+                    	    exit(-1);
+                        }
+                    }
+                }
+
+            }
+        }
+
+
 
         cfg_free(cfg);
     }
@@ -1236,6 +1357,7 @@ int main(int argc, char **argv) {
             register_session_timeout_handler(mmt_probe.mmt_handler, classification_expiry_session, &mmt_probe.iprobe);
             flowstruct_init(mmt_probe.mmt_handler); // initialize our event handler
             event_reports_init(mmt_probe.mmt_handler); // initialize our event reports 
+            conditional_reports_init(mmt_probe.mmt_handler);// initialize our conditional reports
             radius_ext_init(mmt_probe.mmt_handler); // initialize radius extraction and attribute event handler
         }
 

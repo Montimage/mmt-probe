@@ -20,6 +20,8 @@ extern "C" {
 #define MMT_WEB_APP_REPORT_FORMAT       0x1
 #define MMT_SSL_APP_REPORT_FORMAT       0x2
 #define MMT_RTP_APP_REPORT_FORMAT       0x3
+#define MMT_FTP_PACKET_REPORT_FORMAT    200
+#define MMT_FTP_DOWNLOAD_REPORT_FORMAT       201
 #define MMT_SAMPLED_RTP_APP_REPORT_FORMAT       1003
 
 #define MMT_RADIUS_REPORT_ALL 0x0
@@ -110,6 +112,23 @@ extern "C" {
         char attribute[256 + 1];
     } mmt_event_attribute_t;
 
+    typedef struct mmt_condition_attribute_struct {
+           char condition[256 + 1];
+           char location[256 + 1];
+           char proto[256 + 1];
+           char attribute[256 + 1];
+           char handler[256 + 1];
+    } mmt_condition_attribute_t;
+
+    typedef struct mmt_condition_report_struct {
+          uint32_t id;
+          mmt_condition_attribute_t condition;
+          uint32_t attributes_nb;
+          uint32_t handlers_nb;
+          mmt_condition_attribute_t * attributes;
+          mmt_condition_attribute_t * handlers;
+    } mmt_condition_report_t;
+
     typedef struct mmt_event_report_struct {
       uint32_t id;
       mmt_event_attribute_t event;
@@ -152,7 +171,9 @@ extern "C" {
         uint32_t user_agent_parsing_threshold;
         uint32_t stats_reporting_period;
         uint32_t event_reports_nb;
+        uint32_t condition_reports_nb;
         mmt_event_report_t * event_reports;
+        mmt_condition_report_t * condition_reports;
         unsigned char *mac_address_host;	//
     } mmt_probe_context_t;
 
@@ -181,6 +202,50 @@ extern "C" {
         time_t last_report_time_sec;
         time_t last_report_time_usec;//jeevan
     } rtp_session_attr_t;
+
+    typedef struct ftp_command_struct{
+        uint16_t cmd;
+        char *str_cmd;
+        char *param;
+    }ftp_command_t;
+
+    /**
+     * FTP response structure
+     */
+    typedef struct ftp_response_struct{
+    	uint16_t code;
+        char *str_code;
+        char *value;
+    }ftp_response_t;
+
+
+    typedef struct ftp_session_attr_struct {
+        uint8_t session_conn_type;
+        uint8_t direction;
+        char * session_username;
+        char * session_password;
+        char * packet_request;
+        char * response_value;
+        uint32_t file_size;
+        char * location;
+        char * filename;
+        uint16_t response_code;
+        time_t file_download_starttime_sec;
+        time_t file_download_starttime_usec;
+        time_t file_download_finishtime_sec;
+        time_t file_download_finishtime_usec;
+
+    } ftp_session_attr_t;
+
+    typedef struct ftp_packet_attr_struct {
+        uint8_t packet_type;
+        char * request;
+        char * request_parameter;
+        uint16_t response;
+        char * response_value;
+        uint32_t data_len;
+
+    } ftp_packet_attr_t;
 
     typedef struct ethernet_statistics_session_struct {
     	unsigned char * src_mac;
@@ -260,6 +325,7 @@ extern "C" {
     void radius_ext_init(void * handler);
     void radius_ext_cleanup(void * handler);
     void event_reports_init(void * handler);
+    void conditional_reports_init(void * handler);
     void event_reports_cleanup(void * handler);
     void init_session_structs();
     void print_session_structs();
@@ -270,6 +336,7 @@ extern "C" {
     void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char * log_msg);
 
     int register_event_report_handle(void * handler, mmt_event_report_t * event_report);
+    int register_conditional_report_handle(void * handler, mmt_condition_report_t * condition_report);
 
     mmt_probe_context_t * get_probe_context_config();
 
