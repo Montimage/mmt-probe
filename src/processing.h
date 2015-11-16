@@ -9,17 +9,19 @@ extern "C" {
 #define OFFLINE_ANALYSIS 0x2
 #define OFFLINE_ANALYSIS_CONTINUOUS 0x3 
 
-#define MMT_STATISTICS_REPORT_FORMAT   		 0x63 //decimal 99
-#define MMT_STATISTICS_FLOW_REPORT_FORMAT    0x64 //decimal 100
-#define MMT_RADIUS_REPORT_FORMAT    		 0x9
-#define MMT_MICROFLOWS_STATS_FORMAT          0x8
-#define MMT_FLOW_REPORT_FORMAT               0x7
+#define MMT_STATISTICS_REPORT_FORMAT    0x63 //decimal 99
+#define MMT_RADIUS_REPORT_FORMAT    0x9
+#define MMT_MICROFLOWS_STATS_FORMAT 0x8
+#define MMT_FLOW_REPORT_FORMAT      0x7
 
 #define MMT_SKIP_APP_REPORT_FORMAT      0xFFFFFFFF //This is mainly to skip the reporting of flows of specific applications.
 #define MMT_DEFAULT_APP_REPORT_FORMAT   0x0
 #define MMT_WEB_APP_REPORT_FORMAT       0x1
 #define MMT_SSL_APP_REPORT_FORMAT       0x2
 #define MMT_RTP_APP_REPORT_FORMAT       0x3
+#define MMT_FTP_DATA_REPORT_FORMAT      0x4
+#define MMT_FTP_PACKET_REPORT_FORMAT    0x5
+#define MMT_FTP_APP_REPORT_FORMAT       0x6
 #define MMT_SAMPLED_RTP_APP_REPORT_FORMAT       1003
 
 #define MMT_RADIUS_REPORT_ALL 0x0
@@ -117,6 +119,23 @@ extern "C" {
       mmt_event_attribute_t * attributes; 
     } mmt_event_report_t;
 
+    typedef struct mmt_condition_attribute_struct {
+           char condition[256 + 1];
+           char location[256 + 1];
+           char proto[256 + 1];
+           char attribute[256 + 1];
+           char handler[256 + 1];
+    } mmt_condition_attribute_t;
+
+    typedef struct mmt_condition_report_struct {
+          uint32_t id;
+          mmt_condition_attribute_t condition;
+          uint32_t attributes_nb;
+          uint32_t handlers_nb;
+          mmt_condition_attribute_t * attributes;
+          mmt_condition_attribute_t * handlers;
+    } mmt_condition_report_t;
+
     typedef struct mmt_probe_context_struct {
         uint32_t thread_nb;
         uint32_t thread_nb_2_power;
@@ -127,6 +146,8 @@ extern "C" {
         char input_source[256 + 1];
         char log_file[256 + 1];
         char data_out[256 + 1];
+        char dir_out[256 + 1];
+        char properties_file[256 + 1];
         char radius_out[256 + 1];
         char input_f_name[256 + 1]; 
         char out_f_name[256 + 1];
@@ -152,8 +173,10 @@ extern "C" {
         uint32_t user_agent_parsing_threshold;
         uint32_t stats_reporting_period;
         uint32_t event_reports_nb;
+        uint32_t condition_reports_nb;
         mmt_event_report_t * event_reports;
-        unsigned char *mac_address_host;	//
+        mmt_condition_report_t * condition_reports;
+
     } mmt_probe_context_t;
 
     typedef struct microsessions_stats_struct {
@@ -182,30 +205,76 @@ extern "C" {
         time_t last_report_time_usec;//jeevan
     } rtp_session_attr_t;
 
-    typedef struct ethernet_statistics_session_struct {
-    	unsigned char * src_mac;
-        unsigned char * dst_mac;
-    } ethernet_statistics_session_t;
+    typedef struct ftp_command_struct{
+        uint16_t cmd;
+        char *str_cmd;
+        char *param;
+    }ftp_command_t;
 
-    typedef struct ethernet_proto_statistics_struct {
-        uint32_t touched; /**< Indicates if the statistics have been updated since the last reset */
-        uint64_t packets_count; /**< Total number of packets seen by the protocol */
-        uint64_t data_volume; /**< Total data volume seen by the protocol */
-        uint64_t payload_volume; /**< Total payload data volume seen by the protocol */
-        uint64_t packets_count_direction[2]; /**< Total number of UL/DL packets seen by the protocol */
-        uint64_t data_volume_direction[2]; /**< Total UL/DL data volume seen by the protocol */
-        uint64_t payload_volume_direction[2]; /**< Total UL/DL payload data volume seen by the protocol */
-        uint64_t sessions_count; /**< Total number of sessions seen by the protocol */
-        uint64_t timedout_sessions_count; /**< Total number of timedout sessions (this is the difference between sessions count and ative sessions count) */
-        struct timeval start_timestamp; /*Timestamp (seconds.micros) corresponding to the time when the flow was detected (first packet of the flow).*/
-        struct ethernet_proto_statistics_struct* next; /**< next instance of statistics for the same protocol */
-        proto_hierarchy_t *proto_hierarchy; /**< pointer to the protocol */
-    } ethernet_proto_statistics_t;
+    /**
+     * FTP response structure
+     */
+    typedef struct ftp_response_struct{
+    	uint16_t code;
+        char *str_code;
+        char *value;
+    }ftp_response_t;
 
-    typedef struct ethernet_statistics_struct {
-    	ethernet_proto_statistics_t *proto_stats;
-    	ethernet_statistics_session_t *session;
-    	struct ethernet_statistics_struct * next;
+
+    typedef struct ftp_session_attr_struct {
+        uint8_t session_conn_type;
+        char * session_username;
+        char * session_password;
+        char * packet_request;
+        char * response_value;
+        uint32_t file_size;
+        char * location;
+        char * filename;
+        uint16_t response_code;
+        time_t file_download_starttime_sec;
+        time_t file_download_starttime_usec;
+        time_t file_download_finishtime_sec;
+        time_t file_download_finishtime_usec;
+
+    } ftp_session_attr_t;
+
+    typedef struct ftp_packet_attr_struct {
+        uint8_t packet_type;
+        char * request;
+        char * request_parameter;
+        uint16_t response;
+        char * response_value;
+        uint32_t data_len;
+
+    } ftp_packet_attr_t;
+
+    /*typedef struct MAC_stat_attr_struct {
+        //unsigned char * hostMAC;
+    	unsigned char * sourceMAC;
+        unsigned char * destMAC;
+        void * app_data;
+    } MAC_stat_attr_t;
+    */
+    typedef struct ethernet_session__struct {
+    	//uint64_t total_inbound_packet_count;
+    	//uint64_t total_outbound_packet_count;
+        uint8_t touched;
+    	uint64_t unique_id;
+    	unsigned char * clientMAC;
+        unsigned char * sourceMAC;
+        unsigned char * destMAC;
+    	uint64_t total_packet_count[2];
+    	uint64_t payload_volume_direction[2];
+    	uint64_t data_volume_direction[2];
+    	time_t last_report_time_sec;
+    	time_t start_sec;
+    	time_t start_usec;
+    	uint64_t protocol_id[10];
+    	uint64_t protocol_data_volume[2][10];
+    	uint64_t proto_counter;
+
+
+    	struct ethernet_session__struct * next;
 
     } ethernet_statistics_t;
 
@@ -260,6 +329,7 @@ extern "C" {
     void radius_ext_init(void * handler);
     void radius_ext_cleanup(void * handler);
     void event_reports_init(void * handler);
+    void conditional_reports_init(void * handler);
     void event_reports_cleanup(void * handler);
     void init_session_structs();
     void print_session_structs();
@@ -270,6 +340,7 @@ extern "C" {
     void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char * log_msg);
 
     int register_event_report_handle(void * handler, mmt_event_report_t * event_report);
+    int register_conditional_report_handle(void * handler, mmt_condition_report_t * condition_report);
 
     mmt_probe_context_t * get_probe_context_config();
 
@@ -296,6 +367,19 @@ extern "C" {
     int time_diff(struct timeval t1, struct timeval t2);
 
     void classification_expiry_session(const mmt_session_t * expired_session, void * args);
+
+    typedef void (*condition_handler_function)(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+
+    typedef int register_condition_handler(
+		mmt_handler_t *mmt_handler,
+		const char * condition,
+        condition_handler_function handler_fct,
+		void * user_args
+
+    );
+
+
+
 #ifdef	__cplusplus
 }
 #endif

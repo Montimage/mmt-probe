@@ -5,6 +5,11 @@
  * Created on 31 mai 2011, 14:09
  */
 
+
+//TODO:
+//Debug MMT_Security for multi-threads
+
+
 #define _GNU_SOURCE
 #ifdef linux
 #include <syscall.h>
@@ -38,11 +43,77 @@
 #define my_sched_setaffinity(a,b,c) sched_setaffinity(a, b, c)
 #endif /* RHEL3 */
 
+#define DLT_EN10MB 1    /* Ethernet (10Mb) */
 #define READ_PRIO	-15	/* niceness value for Reader thread */
-#define SNAP_LEN 65535		/* apparently what tcpdump uses for -s 0 */
+#define SNAP_LEN 65535	/* apparently what tcpdump uses for -s 0 */
 #define READER_CPU	0	/* assign Reader thread to this CPU */
 static int okcode  = EXIT_SUCCESS;
 static int errcode = EXIT_FAILURE;
+
+
+//For MMT_Security
+//Write result to an pseudo-XML file
+#define WRITE_TO_FILE
+
+static FILE * OutputFile = NULL; //XML results output file
+typedef void (*result_callback) (char *xml_string);
+
+static char errbuf[ 1024 ];
+
+//End for MMT_Security
+//MMT_SecurityLib function to initalise the MMT_SecurityLib library
+result_callback db_todo_at_start = NULL;
+result_callback db_todo_when_property_is_satisfied_or_not = NULL;
+extern void init_sec_lib (mmt_handler_t *mmt, char * property_file, short option_statisfied, short option_not_satisfied,
+        result_callback todo_when_property_is_satisfied_or_not, result_callback db_todo_at_start,
+        result_callback db_todo_when_property_is_satisfied_or_not);
+
+//MMT_SecurityLib function to recuperate the summary of results in XML format
+extern char * xml_summary();
+
+//Next three functions can be changed to do any necessary treatment of results.
+#ifdef WRITE_TO_FILE
+void todo_at_start(char *file_path){
+    char file_name[256];
+    //XML file that will contain the results (see bellow for more details)
+    sprintf(file_name,"%s/results.xml", file_path);
+    OutputFile = fopen ( file_name, "w" );
+    if( OutputFile == NULL ) {
+        perror( file_name );
+        exit( EXIT_FAILURE );
+    }
+    char *xml_string="<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n<?xml-stylesheet type=\"text/xsl\" href=\"results.xsl\"?>\n<results>\n<detail>\n";
+    fprintf(OutputFile, "%s\n", xml_string);
+}
+
+void todo_when_property_is_satisfied_or_not(char * xml_string){
+    //The xml_string contains the XML fragments describing the detected property and
+    //the list of events that lead to it (see bellow for more details)
+    fprintf(OutputFile, "%s\n", xml_string);
+    security_event(xml_string);
+    //fprintf(stdout, "%s\n", xml_string);
+};
+
+void todo_at_end(){
+    //The xml_string contains XML fragment with a summary of results
+    //(see bellow for more details)
+    char * xml_string;
+    xml_string = xml_summary();
+    fprintf(OutputFile, "%s\n", xml_string);
+    fclose(OutputFile);
+    free(xml_string);
+}
+#else
+void todo_at_start(char *file_path){}
+void todo_when_property_is_satisfied_or_not(char * xml_string){security_event(xml_string);}
+void todo_at_end(){if (xml_string!= NULL) free(xml_string);}
+#endif
+
+#define OPTION_SATISFIED 1 //if = 1 then yes, output when rule satisfied
+#define OPTION_NOT_SATISFIED 0 //if = 1 then yes, output when rule not satisfied
+
+//End for MMT_Security
+
 
 struct mmt_probe_struct {
     struct smp_thread *smp_threads;
@@ -276,6 +347,7 @@ static void *smp_thread_routine(void *arg) {
         register_session_timeout_handler(th->mmt_handler, classification_expiry_session, &th->iprobe);
         flowstruct_init(th->mmt_handler); // initialize our event handler
         event_reports_init(th->mmt_handler); // initialize our event reports
+        conditional_reports_init(th->mmt_handler);
         radius_ext_init(th->mmt_handler); // initialize radius extraction and attribute event handler
     }
     
@@ -328,6 +400,8 @@ void usage(const char * prg_name) {
     fprintf(stderr, "\t-t <trace file>  : Gives the trace file to analyse.\n");
     fprintf(stderr, "\t-i <interface>   : Gives the interface name for live traffic analysis.\n");
     fprintf(stderr, "\t-o <output file> : Gives the output file name. \n");
+    fprintf(stderr, "\t-R <output dir>  : Gives the security output folder name. \n");
+    fprintf(stderr, "\t-P <properties file> : Gives the security input properties file name. \n");
     fprintf(stderr, "\t-p <period>      : Gives the period in seconds for statistics reporting. \n");
     fprintf(stderr, "\t-s <0|1>         : Enables or disables protocol statistics reporting. \n");
     fprintf(stderr, "\t-f <0|1>         : Enables or disables flows reporting. \n");
@@ -402,6 +476,12 @@ cfg_t * parse_conf(const char *filename) {
         CFG_END()
     };
 
+    cfg_opt_t security_opts[] = {
+        CFG_STR("results-dir", 0, CFGF_NONE),
+        CFG_STR("properties-file", 0, CFGF_NONE),
+        CFG_END()
+    };
+
     cfg_opt_t radius_output_opts[] = {
         CFG_INT_CB("include-msg", MMT_RADIUS_REPORT_ALL, CFGF_NONE, conf_parse_radius_include_msg),
         CFG_INT_CB("include-condition", MMT_RADIUS_ANY_CONDITION, CFGF_NONE, conf_parse_radius_include_condition),
@@ -420,13 +500,23 @@ cfg_t * parse_conf(const char *filename) {
         CFG_STR("event", "", CFGF_NONE),
         CFG_STR_LIST("attributes", "{}", CFGF_NONE),
         CFG_END()
-    };    
+    };
+    cfg_opt_t condition_report_opts[] = {
+        CFG_INT("id", 0, CFGF_NONE),
+        CFG_STR("condition", "", CFGF_NONE),
+		CFG_STR("location", "", CFGF_NONE),
+		CFG_STR("event", "", CFGF_NONE),
+        CFG_STR_LIST("attributes", "{}", CFGF_NONE),
+		CFG_STR_LIST("handlers", "{}", CFGF_NONE),
+        CFG_END()
+    };
 
     cfg_opt_t opts[] = {
         CFG_SEC("micro-flows", micro_flows_opts, CFGF_NONE),
         CFG_SEC("output", output_opts, CFGF_NONE),
         CFG_SEC("redis-output", redis_output_opts, CFGF_NONE),
         CFG_SEC("data-output", data_output_opts, CFGF_NONE),
+        CFG_SEC("security", security_opts, CFGF_NONE),
         CFG_SEC("radius-output", radius_output_opts, CFGF_NONE),
         CFG_INT("stats-period", 60, CFGF_NONE),
         CFG_INT("thread-nb", 1, CFGF_NONE),
@@ -438,6 +528,7 @@ cfg_t * parse_conf(const char *filename) {
         CFG_STR("logfile", 0, CFGF_NONE),
         CFG_INT("loglevel", 2, CFGF_NONE),
         CFG_SEC("event_report", event_report_opts, CFGF_TITLE | CFGF_MULTI),
+		CFG_SEC("condition_report", condition_report_opts, CFGF_TITLE | CFGF_MULTI),
         CFG_END()
     };
 
@@ -457,6 +548,35 @@ cfg_t * parse_conf(const char *filename) {
 }
 
 /** transforms "proto.attribute" into mmt_event_attribute_t 
+ *  Raturns 0 on success, a positive value otherwise
+ **/
+int condition_parse_dot_proto_attribute(char * inputstring, mmt_condition_attribute_t * protoattr) {
+    char **ap, *argv[2];
+    int valid = 0;
+    /* code from http://www.manpagez.com/man/3/strsep/
+     * You can make it better!
+     */
+    for (ap = argv; (*ap = strsep(&inputstring, ".")) != NULL;)	{
+        valid ++;
+        if (**ap != '\0') {
+            if (++ap >= &argv[2] || valid > 2) {
+                break;
+            }
+        }
+    }
+
+    if(valid != 2) {
+        return 1;
+    } else {
+        strncpy(protoattr->proto, argv[0], 256);
+        strncpy(protoattr->attribute, argv[1], 256);
+        printf ("proto=%s,attr=%s\n",protoattr->proto,protoattr->attribute);
+        return 0;
+    }
+}
+
+
+/** transforms "proto.attribute" into mmt_event_attribute_t
  *  Raturns 0 on success, a positive value otherwise
  **/
 int parse_dot_proto_attribute(char * inputstring, mmt_event_attribute_t * protoattr) {
@@ -482,10 +602,40 @@ int parse_dot_proto_attribute(char * inputstring, mmt_event_attribute_t * protoa
         return 0;
     }
 }
+//jeevan
+int parse_condition_attribute(char * inputstring, mmt_condition_attribute_t * conditionattr) {
+
+	if(inputstring!= NULL){
+    strncpy(conditionattr->condition, inputstring, 256);
+    return 0;
+	}
+	return 1;
+}
+int parse_location_attribute(char * inputstring, mmt_condition_attribute_t * conditionattr) {
+
+	if(inputstring!= NULL){
+    strncpy(conditionattr->location, inputstring, 256);
+    printf("conditionattr->location=%s\n",conditionattr->location);
+    return 0;
+	}
+	return 1;
+}
+
+int parse_handlers_attribute(char * inputstring, mmt_condition_attribute_t * handlersattr) {
+
+	if(inputstring!= NULL){
+    strncpy(handlersattr->handler, inputstring, 256);
+    printf("conditionattr->handler=%s\n",handlersattr->handler);
+    return 0;
+	}
+	return 1;
+}
+
 
 int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
     int i, j;
     cfg_t *event_opts;
+    cfg_t *condition_opts;
 
     if (cfg) {
         mmt_conf->enable_proto_stats = 1; //enabled by default
@@ -522,6 +672,12 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
             } else {
                 mmt_conf->combine_radius = 0;
             }
+        }
+
+        if (cfg_size(cfg, "security")) {
+            cfg_t *output = cfg_getnsec(cfg, "security", 0);
+            strncpy(mmt_conf->dir_out, (char *) cfg_getstr(output, "results-dir"), 256);
+            strncpy(mmt_conf->properties_file, (char *) cfg_getstr(output, "properties-file"), 256);
         }
 
         if (cfg_size(cfg, "redis-output")) {
@@ -569,7 +725,6 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
                 }
                 event_attributes_nb = cfg_size(event_opts, "attributes");
                 temp_er->attributes_nb = event_attributes_nb;
-
                 if(event_attributes_nb > 0) {
                     temp_er->attributes = calloc(sizeof(mmt_event_attribute_t), event_attributes_nb);
  
@@ -582,6 +737,76 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
                 }
             }
         }
+//jeevan
+
+        int condition_reports_nb = cfg_size(cfg, "condition_report");
+        int condition_attributes_nb = 0;
+        int condition_handlers_nb=0;
+        mmt_conf->condition_reports = NULL;
+        mmt_condition_report_t * temp_condn;
+        mmt_conf->condition_reports_nb = condition_reports_nb;
+
+
+
+        if (condition_reports_nb > 0) {
+            mmt_conf->condition_reports = calloc(sizeof(mmt_condition_report_t), condition_reports_nb);
+            for(j = 0; j < condition_reports_nb; j++) {
+                condition_opts = cfg_getnsec(cfg, "condition_report", j);
+                temp_condn = & mmt_conf->condition_reports[j];
+                temp_condn->id = cfg_getint(condition_opts, "id");
+
+                if (parse_condition_attribute((char *) cfg_getstr(condition_opts, "condition"), &temp_condn->condition)) {
+                    fprintf(stderr, "Error: invalid condition_report condition value '%s'\n", (char *) cfg_getstr(condition_opts, "condition"));
+                    exit(-1);
+                }
+
+                if (parse_location_attribute((char *) cfg_getstr(condition_opts, "location"), &temp_condn->condition)) {
+                    fprintf(stderr, "Error: invalid condition_report location value '%s'\n", (char *) cfg_getstr(condition_opts, "location"));
+                    exit(-1);
+                }
+                if ((char *) cfg_getstr(condition_opts, "event")!=NULL){
+                if (condition_parse_dot_proto_attribute((char *) cfg_getstr(condition_opts, "event"), &temp_condn->condition)) {
+                   fprintf(stderr, "Error: invalid condition_report events value '%s'\n", (char *) cfg_getstr(condition_opts, "event"));
+                   exit(-1);
+               }
+               }
+
+
+                condition_attributes_nb = cfg_size(condition_opts, "attributes");
+                temp_condn->attributes_nb = condition_attributes_nb;
+
+                if(condition_attributes_nb > 0) {
+                    temp_condn->attributes = calloc(sizeof(mmt_condition_attribute_t), condition_attributes_nb);
+
+                    for(i = 0; i < condition_attributes_nb; i++) {
+                    	if (condition_parse_dot_proto_attribute(cfg_getnstr(condition_opts, "attributes", i), &temp_condn->attributes[i])) {
+                            fprintf(stderr, "Error: invalid event_report attribute value '%s'\n", (char *) cfg_getnstr(condition_opts, "attributes", i));
+                            exit(-1);
+                        }
+                    }
+                }
+
+                condition_handlers_nb = cfg_size(condition_opts, "handlers");
+                temp_condn->handlers_nb = condition_handlers_nb;
+
+                if(condition_handlers_nb > 0) {
+                temp_condn->handlers = calloc(sizeof(mmt_condition_attribute_t), condition_handlers_nb);
+
+                    for(i = 0; i < condition_handlers_nb; i++) {
+                    	if (parse_handlers_attribute((char *) cfg_getnstr(condition_opts, "handlers",i), &temp_condn->handlers[i])) {
+                    		fprintf(stderr, "Error: invalid handler attribute value '%s'\n", (char *) cfg_getnstr(condition_opts, "handlers", i));
+                    	    exit(-1);
+                        }
+                    }
+                }
+
+
+
+
+            }
+        }
+
+
 
         cfg_free(cfg);
     }
@@ -610,6 +835,12 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
     char lg_msg[1024];
 
     if (mmt_probe->mmt_conf->thread_nb == 1) {
+
+        //Initialise MMT_Security
+        init_sec_lib (mmt_probe->mmt_handler, mmt_probe->mmt_conf->properties_file, OPTION_SATISFIED, OPTION_NOT_SATISFIED, todo_when_property_is_satisfied_or_not,
+                  db_todo_at_start, db_todo_when_property_is_satisfied_or_not);
+        //End initialise MMT_Security
+
         pcap = pcap_open_offline(filename, errbuf); // open offline trace
 
         if (!pcap) { /* pcap error ? */
@@ -625,6 +856,12 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
             header.ts = pkthdr.ts;
             header.caplen = pkthdr.caplen;
             header.len = pkthdr.len;
+            header.user_args = NULL;
+
+            //Call mmt_core function that will parse the packet and analyse it.
+            //If MMT_Security is being used:
+            //   When a security property is satisfied or not, the callback
+            //   function todo_when_property_is_satisfied_or_not will be executed.
             if (!packet_process(mmt_probe->mmt_handler, &header, data)) {
                 sprintf(lg_msg, "MMT Extraction failure! Error while processing packet number %"PRIu64"", packets_count);
                 mmt_log(mmt_probe->mmt_conf, MMT_L_ERROR, MMT_E_PROCESS_ERROR, lg_msg);
@@ -698,6 +935,12 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
         header.ts = pkthdr->ts;
         header.caplen = pkthdr->caplen;
         header.len = pkthdr->len;
+        header.user_args = NULL;
+
+        //Call mmt_core function that will parse the packet and analyse it.
+        //If MMT_Security is being used:
+        //   When a security property is satisfied or not, the callback
+        //   function todo_when_property_is_satisfied_or_not will be executed.
         if (!packet_process(mmt_probe.mmt_handler, &header, data)) {
             fprintf(stderr, "MMT Extraction failure! Error while processing packet number %"PRIu64"", packets_count);
         }
@@ -714,6 +957,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
             smp_pkt_instance->pkt.header.len = pkthdr->len;
             smp_pkt_instance->pkt.header.caplen = pkthdr->caplen;
             smp_pkt_instance->pkt.header.ts = pkthdr->ts;
+            smp_pkt_instance->pkt.header.user_args = NULL;
             smp_pkt_instance->pkt.data = (unsigned char *) (&smp_pkt_instance[1]);
             memcpy(smp_pkt_instance->pkt.data, data, pkthdr->caplen);
             /* get thread destination structure */
@@ -779,6 +1023,12 @@ void *Reader(void *arg) {
         mask = 0;
     }
 
+    //TODO: need to fix MMT_Security using multithreads
+    //Initialise MMT_Security
+    //init_sec_lib (mmt_probe->mmt_handler, mmt_probe->mmt_conf->properties_file, OPTION_SATISFIED, OPTION_NOT_SATISFIED, todo_when_property_is_satisfied_or_not,
+    //              db_todo_at_start, db_todo_when_property_is_satisfied_or_not);
+    //End initialise MMT_Security
+
     /* open capture device */
     handle = pcap_open_live(mmt_probe->mmt_conf->input_source, d_snap_len, 1, 0, errbuf);
 
@@ -809,6 +1059,8 @@ void *Reader(void *arg) {
 
     /* now we can set our callback function */
     pcap_loop(handle, num_packets, got_packet, NULL);
+
+
 
     fprintf(stderr, "\n%d packets captured\n", captured);
     if (ignored > 0) {
@@ -888,6 +1140,7 @@ static void *process_tracefile_thread_routine(void *arg) {
                 smp_pkt->pkt.header.len = pkthdr.len;
                 smp_pkt->pkt.header.caplen = pkthdr.caplen;
                 smp_pkt->pkt.header.ts = pkthdr.ts;
+                smp_pkt->pkt.header.user_args = NULL;
                 smp_pkt->pkt.data = (unsigned char *) (&smp_pkt[1]);
                 memcpy(smp_pkt->pkt.data, data, pkthdr.caplen);
                 /* get thread destination structure */
@@ -926,7 +1179,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
     if (mmt_conf->thread_nb == 1) {
         //One thread for processing packets
         //Cleanup the MMT handler
-    	proto_stats_cleanup(mmt_probe.mmt_handler);
         flowstruct_cleanup(mmt_probe.mmt_handler); // cleanup our event handler
         radius_ext_cleanup(mmt_probe.mmt_handler); // cleanup our event handler for RADIUS initializations
         mmt_close_handler(mmt_probe.mmt_handler);
@@ -967,7 +1219,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
             for (i = 0; i < mmt_conf->thread_nb; i++) {
                 //pthread_join(mmt_probe.smp_threads[i].handle, NULL);
                 if (mmt_probe.smp_threads[i].mmt_handler != NULL) {
-                	proto_stats_cleanup(mmt_probe.smp_threads[i].mmt_handler);
                     flowstruct_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler
                     radius_ext_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler for RADIUS initializations
                     mmt_close_handler(mmt_probe.smp_threads[i].mmt_handler);
@@ -987,6 +1238,14 @@ void terminate_probe_processing(int wait_thread_terminate) {
         }
         sprintf(lg_msg, "Closing output results file");
         mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_P_CLOSE_OUTPUT, lg_msg);
+
+        //For MMT_Security
+        //To finish results file (e.g. write summary in the XML file)
+#ifdef WRITE_TO_FILE
+        todo_at_end();
+#endif
+        //End for MMT_Security
+
     } else if (mmt_conf->input_mode == OFFLINE_ANALYSIS_CONTINUOUS) {
         if (mmt_conf->data_out_file) {
             fclose(mmt_conf->data_out_file);
@@ -1002,6 +1261,14 @@ void terminate_probe_processing(int wait_thread_terminate) {
         }
         sprintf(lg_msg, "Closing output results file");
         mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_P_CLOSE_OUTPUT, lg_msg);
+
+        //For MMT_Security
+        //To finish results file (e.g. write summary in the XML file)
+#ifdef WRITE_TO_FILE
+        todo_at_end();
+#endif
+        //End for MMT_Security
+
     }
 
     close_extraction();
@@ -1107,11 +1374,13 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
     char * config_file = "/etc/mmtprobe/mmt.conf";
     char * input = NULL;
     char * output = NULL;
+    char * output_dir = NULL;
+    char * properties_file = NULL;
     int period = 0;
     int proto_stats = 1;
     int probe_id_number = 0;
     int flow_stats = 1;
-    while ((opt = getopt(argc, argv, "c:t:i:o:p:s:n:f:h")) != EOF) {
+    while ((opt = getopt(argc, argv, "c:t:i:o:R:P:p:s:n:f:h")) != EOF) {
         switch (opt) {
             case 'c':
                 config_file = optarg;
@@ -1132,6 +1401,12 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
                 break;
             case 'o':
                 output = optarg;
+                break;
+            case 'R':
+                output_dir = optarg;
+                break;
+            case 'P':
+                properties_file = optarg;
                 break;
             case 'p':
                 period = atoi(optarg);
@@ -1166,6 +1441,14 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
         strncpy(mmt_conf->data_out, output, 256);
     }
     
+    if(output_dir) {
+        strncpy(mmt_conf->dir_out, output_dir, 256);
+    }
+    
+    if(properties_file) {
+        strncpy(mmt_conf->properties_file, properties_file, 256);
+    }
+    
     if(period) {
         mmt_conf->stats_reporting_period = period;
     } 
@@ -1193,17 +1476,18 @@ int main(int argc, char **argv) {
 
     mmt_probe_context_t * mmt_conf = get_probe_context_config();
     mmt_probe.mmt_conf = mmt_conf;
+    //gethostMACaddress();
     
     parseOptions(argc, argv, mmt_conf);
 
     mmt_conf->log_output = fopen(mmt_conf->log_file, "a");
 
     sigfillset(&signal_set);
-    signal(SIGINT,  signal_handler);
+    signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
     signal(SIGSEGV, signal_handler);
     signal(SIGABRT, signal_handler);
-
+    
     mmt_log(mmt_conf, MMT_L_INFO, MMT_P_INIT, "MMT Probe started!");
 
     if (!init_extraction()) { // general ixE initialization
@@ -1211,6 +1495,12 @@ int main(int argc, char **argv) {
         mmt_log(mmt_conf, MMT_L_ERROR, MMT_E_INIT_ERROR, "MMT Extraction engine initialization error! Exiting!");
         return EXIT_FAILURE;
     }
+
+//For MMT_Security
+#ifdef WRITE_TO_FILE
+    todo_at_start(mmt_conf->dir_out);
+#endif
+//End for MMT_Security
 
     //Initialization
     if (mmt_conf->thread_nb == 1) {
@@ -1235,7 +1525,8 @@ int main(int argc, char **argv) {
         if(mmt_probe.mmt_conf->enable_flow_stats) {
             register_session_timeout_handler(mmt_probe.mmt_handler, classification_expiry_session, &mmt_probe.iprobe);
             flowstruct_init(mmt_probe.mmt_handler); // initialize our event handler
-            event_reports_init(mmt_probe.mmt_handler); // initialize our event reports 
+            event_reports_init(mmt_probe.mmt_handler);
+            conditional_reports_init(mmt_probe.mmt_handler);// initialize our event reports
             radius_ext_init(mmt_probe.mmt_handler); // initialize radius extraction and attribute event handler
         }
 
@@ -1289,6 +1580,14 @@ int main(int argc, char **argv) {
                     fclose(mmt_conf->data_out_file);
                     sprintf(lg_msg, "Closing output results file");
                     mmt_log(mmt_conf, MMT_L_INFO, MMT_P_CLOSE_OUTPUT, lg_msg);
+
+                    //For MMT_Security
+                    //To finish results file (e.g. write summary in the XML file)
+#ifdef WRITE_TO_FILE
+                    todo_at_end();
+#endif
+                    //End for MMT_Security
+
                     FILE * csv_index = fopen(mmt_conf->out_f_name_index, "w");
                     if (csv_index) {
                         fprintf(csv_index, "%s\n", mmt_conf->out_f_name);
@@ -1342,9 +1641,6 @@ int main(int argc, char **argv) {
         }
     }
     if (mmt_conf->input_mode == ONLINE_ANALYSIS) {
-    	//if( get_host_mac_address(& mmt_conf->mac_address_host, mmt_conf->input_source ) != 0)
-    	//	mmt_conf->mac_address_host = NULL;
-
         mmt_conf->data_out_file = fopen(mmt_conf->data_out, "w");
         sprintf(lg_msg, "Open output results file: %s", mmt_conf->data_out);
         mmt_log(mmt_conf, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
