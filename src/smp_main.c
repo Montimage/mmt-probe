@@ -1023,7 +1023,7 @@ void *Reader(void *arg) {
         mask = 0;
     }
 
-    //TODO: need to fix MMT_Security using multithreads
+    //HUU TODO: need to fix MMT_Security using multithreads
     //Initialise MMT_Security
     //init_sec_lib (mmt_probe->mmt_handler, mmt_probe->mmt_conf->properties_file, OPTION_SATISFIED, OPTION_NOT_SATISFIED, todo_when_property_is_satisfied_or_not,
     //              db_todo_at_start, db_todo_when_property_is_satisfied_or_not);
