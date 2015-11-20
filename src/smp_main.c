@@ -1179,6 +1179,11 @@ void terminate_probe_processing(int wait_thread_terminate) {
     mmt_probe_context_t * mmt_conf = mmt_probe.mmt_conf;
     int i;
 
+    //For MMT_Security
+	//To finish results file (e.g. write summary in the XML file)
+	todo_at_end();
+	//End for MMT_Security
+
     //Cleanup
     if (mmt_conf->thread_nb == 1) {
         //One thread for processing packets
@@ -1244,11 +1249,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
         sprintf(lg_msg, "Closing output results file");
         mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_P_CLOSE_OUTPUT, lg_msg);
 
-        //For MMT_Security
-        //To finish results file (e.g. write summary in the XML file)
-        todo_at_end();
-        //End for MMT_Security
-
     } else if (mmt_conf->input_mode == OFFLINE_ANALYSIS_CONTINUOUS) {
         if (mmt_conf->data_out_file) {
             fclose(mmt_conf->data_out_file);
@@ -1264,12 +1264,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
         }
         sprintf(lg_msg, "Closing output results file");
         mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_P_CLOSE_OUTPUT, lg_msg);
-
-        //For MMT_Security
-        //To finish results file (e.g. write summary in the XML file)
-        todo_at_end();
-        //End for MMT_Security
-
     }
 
     close_extraction();
@@ -1579,11 +1573,6 @@ int main(int argc, char **argv) {
                     fclose(mmt_conf->data_out_file);
                     sprintf(lg_msg, "Closing output results file");
                     mmt_log(mmt_conf, MMT_L_INFO, MMT_P_CLOSE_OUTPUT, lg_msg);
-
-                    //For MMT_Security
-                    //To finish results file (e.g. write summary in the XML file)
-                    todo_at_end();
-                    //End for MMT_Security
 
                     FILE * csv_index = fopen(mmt_conf->out_f_name_index, "w");
                     if (csv_index) {
