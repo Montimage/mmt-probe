@@ -10,6 +10,10 @@ extern "C" {
 #define OFFLINE_ANALYSIS_CONTINUOUS 0x3 
 
 #define MMT_STATISTICS_REPORT_FORMAT    0x63 //decimal 99
+//HN
+#define MMT_STATISTICS_FLOW_REPORT_FORMAT    0x64 //decimal 100
+#define MMT_SECURITY_REPORT_FORMAT  0xa
+
 #define MMT_RADIUS_REPORT_FORMAT    0x9
 #define MMT_MICROFLOWS_STATS_FORMAT 0x8
 #define MMT_FLOW_REPORT_FORMAT      0x7
@@ -248,35 +252,34 @@ extern "C" {
 
     } ftp_packet_attr_t;
 
-    /*typedef struct MAC_stat_attr_struct {
-        //unsigned char * hostMAC;
-    	unsigned char * sourceMAC;
-        unsigned char * destMAC;
-        void * app_data;
-    } MAC_stat_attr_t;
-    */
-    typedef struct ethernet_session__struct {
-    	//uint64_t total_inbound_packet_count;
-    	//uint64_t total_outbound_packet_count;
-        uint8_t touched;
-    	uint64_t unique_id;
-    	unsigned char * clientMAC;
-        unsigned char * sourceMAC;
-        unsigned char * destMAC;
-    	uint64_t total_packet_count[2];
-    	uint64_t payload_volume_direction[2];
-    	uint64_t data_volume_direction[2];
-    	time_t last_report_time_sec;
-    	time_t start_sec;
-    	time_t start_usec;
-    	uint64_t protocol_id[10];
-    	uint64_t protocol_data_volume[2][10];
-    	uint64_t proto_counter;
+    //HN: reports id = 100
+    typedef struct ethernet_statistics_session_struct {
+    	unsigned char * src_mac;
+    	unsigned char * dst_mac;
+    } ethernet_statistics_session_t;
 
+    typedef struct ethernet_proto_statistics_struct {
+    	uint32_t touched; /**< Indicates if the statistics have been updated since the last reset */
+    	uint64_t packets_count; /**< Total number of packets seen by the protocol */
+    	uint64_t data_volume; /**< Total data volume seen by the protocol */
+    	uint64_t payload_volume; /**< Total payload data volume seen by the protocol */
+    	uint64_t packets_count_direction[2]; /**< Total number of UL/DL packets seen by the protocol */
+    	uint64_t data_volume_direction[2]; /**< Total UL/DL data volume seen by the protocol */
+    	uint64_t payload_volume_direction[2]; /**< Total UL/DL payload data volume seen by the protocol */
+    	uint64_t sessions_count; /**< Total number of sessions seen by the protocol */
+    	uint64_t timedout_sessions_count; /**< Total number of timedout sessions (this is the difference between sessions count and ative sessions count) */
+    	struct timeval start_timestamp; /*Timestamp (seconds.micros) corresponding to the time when the flow was detected (first packet of the flow).*/
+    	struct ethernet_proto_statistics_struct* next; /**< next instance of statistics for the same protocol */
+    	proto_hierarchy_t *proto_hierarchy; /**< pointer to the protocol */
+    } ethernet_proto_statistics_t;
 
-    	struct ethernet_session__struct * next;
+    typedef struct ethernet_statistics_struct {
+    	ethernet_proto_statistics_t *proto_stats;
+    	ethernet_statistics_session_t *session;
+    	struct ethernet_statistics_struct * next;
 
     } ethernet_statistics_t;
+    //END HN
 
     typedef struct web_session_attr_struct {
         struct timeval first_request_time;
