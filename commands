@@ -29,3 +29,9 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../mmt-sdk/sdk/lib
 ./probe -c ./mmt.conf
 ./probe -c ./mmt_offline.conf
 ./probe -c ./mmt_online.conf
+
+
+/usr/bin/redis-server
+node app.js -d mongo
+./probe -c mmt_offline_p1p1.conf
+./execute 2

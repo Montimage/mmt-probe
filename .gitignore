@@ -35,3 +35,4 @@ src/examples/simple_probe/mmt_online
 src/examples/simple_probe/mmt_probe
 src/examples/simple_probe/smp_mmt
 src/examples/proto_attributes_iterator
+/Debug/

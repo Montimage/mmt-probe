@@ -1,4 +1,0 @@
-{"_id":"SAN_IDS","_rev":"1-9405f221c6d6391d7950c28b268f767d",
-    "sys":{"10.43.46.30":0,"10.82.140.154":0,"10.43.123.57":0,"10.47.243.99":0,"10.47.252.163":0,"10.40.29.120":0},
-    "src":"->{color:#aa9}\n\n6 -> 5 {dash:0}\n5 -> 6 {dash:0}\n6 -> 1 {dash:0}\n1 -> 6 {dash:0}\n6 -> 3 {dash:0}\n3 -> 6 {dash:0}\n2 -> 6 {dash:0}\n6 -> 2 {dash:0}\n1 -> 2 {dash:0}\n2 -> 1 {dash:0}\n1 -> 3 {dash:0}\n3 -> 1 {dash:0}\n1 -> 4 {dash:0}\n4 -> 1 {dash:0}\n2 -> 4 {dash:0}\n4 -> 2 {dash:0}\n3 -> 4 {dash:0}\n4 -> 3 {dash:0}\n3 -> 5 {dash:0}\n5 -> 3 {dash:0}\n\n1 {color:#95cde5,shape:dot,label:10.43.46.30} \n2 {color:#95cde5,shape:dot,label:10.82.140.154} \n3 {color:#95cde5,shape:dot,label:10.43.123.57} \n4 {color:#95cde5,shape:dot,label:10.47.243.99} \n5 {color:#95cde5,shape:dot,label:10.47.252.163}\n6{color:#abcdef,shape:dot,label:10.40.29.120}\n\n",
-    "example":"doodle","title":"SAN_IDS"}
