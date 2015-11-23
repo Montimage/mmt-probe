@@ -37,13 +37,13 @@ void main(){
 	 * Provide expiry date of the license in year,month and date
 	 * */
 	char year[5]="2015";
-	char month[3]="11";
+	char month[3]="12";
 	char day[3]="24";
 	/*
      * Provide number of mac address and the MAC address separated by "-" of the machine for the license
 	 */
-	char no_of_mac_address[3]= "004";
-	char * write_mac_address ="B8CA3ACD58D9-5E9665942FEE-9C2A70246CDB-4645672A1B71";
+	char no_of_mac_address[3]= "002";
+	char * write_mac_address ="080027749053-0800271C0485";
 	int offset=0;
 	/*
 	 * This blocks contains no information but are used to make he license key difficult to read
@@ -81,7 +81,7 @@ void main(){
     int no_of_mac;
 
     no_of_mac=atoi(no_of_mac_address);
-    //printf("no_of_mac=%d\n",no_of_mac);
+    printf("no_of_mac=%d\n",no_of_mac);
     int j=0;
     int offset_mac_read=0;
     int offset_mac_write=0;
@@ -95,14 +95,14 @@ void main(){
     	offset_mac_write+=12;
     	offset_mac_read+=13;
     }
-
+    mac_address[no_of_mac*12]='\0';
     offset+=fwrite(mac_address,1,no_of_mac*12,license_key);
     int count_mac_len= strlen(mac_address);
-    //printf("count_mac_len=%d\n",count_mac_len);
+    printf("count_mac_len=%d\n",count_mac_len);
 
     if (count_mac_len!=(no_of_mac*12)){
     	printf ("ERROR length of MAC address do not match \n");
-    	exit(0);
+    	//exit(0);
 
     }
 
