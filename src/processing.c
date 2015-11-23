@@ -77,6 +77,7 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt) {
 
 #define MAX_MESS 2000
 
+
 ethernet_statistics_t *eth_stats;
 
 /**
@@ -194,6 +195,36 @@ typedef struct http_line_struct {
 
 void send_message (FILE * out_file, char *channel, char * message) {
 
+    time_t present_time;
+    static time_t last_reporting_time=0;
+	present_time=time(0);
+	int MAX=200;
+	int valid=0;
+	static char file [256+1]={0};
+	static FILE * sampled_file;
+
+
+	if (last_reporting_time==0){
+		valid=snprintf(file,MAX,"%lu_%s",present_time,probe_context.data_out);
+		file[valid]='\0';
+		last_reporting_time=present_time;
+		sampled_file= fopen(file, "w");
+	    //printf ("file_name=%s\n",file);
+
+	}
+
+
+	if(present_time-last_reporting_time>=probe_context.sampled_report_period){
+		fclose(sampled_file);
+		valid=snprintf(file,MAX,"%lu_%s",present_time,probe_context.data_out);
+		file[valid]='\0';
+	    //printf ("file_name=%s\n",file);
+	    last_reporting_time=present_time;
+	    sampled_file= fopen(file, "w");
+
+	}
+
+	fprintf (sampled_file, "%s\n", message);
 	fprintf (out_file, "%s\n", message);
 
 	// Publish to redis if it is enabled
@@ -260,6 +291,62 @@ char * get_prety_mac_address( const uint8_t *ea ){
  * @return a string containing MAC address, e.g., ABCDEFGHIJKL
  * return null if fail
  */
+
+int gethostMACaddress(char *read_mac_address,int no_of_mac){
+    struct ifreq ifr;
+    struct ifconf ifc;
+    char buf[1024];
+    int success = 0;
+    int j=0;
+    unsigned char * mac_address;
+    char * message;
+    int number=0;
+    message=malloc(sizeof(char)*12);
+
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock == -1) { /* handle error*/ };
+
+    ifc.ifc_len = sizeof(buf);
+    ifc.ifc_buf = buf;
+    if (ioctl(sock, SIOCGIFCONF, &ifc) == -1) { /* handle error */ }
+
+    struct ifreq* it = ifc.ifc_req;
+    const struct ifreq* const end = it + (ifc.ifc_len / sizeof(struct ifreq));
+    //int i=0;
+    int offset=0;
+    int valid=0;
+    for (; it != end; ++it) {
+        strcpy(ifr.ifr_name, it->ifr_name);
+        mac_address= (unsigned char*)malloc(7);
+        memset(mac_address,'0',7);
+   	    //printf("%s\n",it->ifr_name);
+        char licensed_MAC[12];
+
+   	    if (ioctl(sock, SIOCGIFFLAGS, &ifr) == 0) {
+            if (! (ifr.ifr_flags & IFF_LOOPBACK)) { // don't count loopback
+                if (ioctl(sock, SIOCGIFHWADDR, &ifr) == 0) {
+                    success = 1;
+                    memcpy(mac_address, ifr.ifr_hwaddr.sa_data, 6);
+                    mac_address[6]='\0';
+                    valid=snprintf(message,13,"%.2X%.2X%.2X%.2X%.2X%.2X", mac_address[0],mac_address[1],mac_address[2],mac_address[3],mac_address[4],mac_address[5]);
+                    message[valid]='\0';
+                    for (j=0;j<no_of_mac;j++){
+                    	memcpy(licensed_MAC,&read_mac_address[offset],12);
+                        licensed_MAC[12]='\0';
+                        //printf("licensed_MAC=%s\n",licensed_MAC);
+                    	    if(strncmp(message,licensed_MAC,12)==0) return 1;
+                    	    offset+=12;
+                       }
+                    offset=0;
+                }
+            }
+        }
+        else { /* handle error */ }
+    }
+    return 0;
+}
+
+/*
 int get_host_mac_address(unsigned char **mac_address, char *interfaceName)
 {
 	struct ifreq ifr;
@@ -278,7 +365,7 @@ int get_host_mac_address(unsigned char **mac_address, char *interfaceName)
 	}
 	return 1;
 }
-
+*/
 
 /**
  * Compare two MAC addresses. Each of them is an array having length = 6
@@ -1383,6 +1470,13 @@ void proto_stats_cleanup(void * handler) {
 	iterate_through_mac( handler );
 }
 
+int calc_expiry_days(unsigned char *mac,long int days){
+
+	return 1;
+
+}
+
+
 void event_reports_init(void * handler) {
 	int i;
 	for(i = 0; i < probe_context.event_reports_nb; i++) {
@@ -1403,8 +1497,6 @@ void conditional_reports_init(void * handler) {
         }
     }
 }
-
-
 
 void flowstruct_init(void * handler) {
 	int i = 1;
@@ -1553,6 +1645,7 @@ void * get_handler_by_name(char * func_name){
 	if (strcmp(func_name,"ftp_response_code_handle")==0){
 	    return ftp_response_code_handle;
 	}
+	return 0;
 }
 
 int register_conditional_report_handle(void * handler, mmt_condition_report_t * condition_report) {

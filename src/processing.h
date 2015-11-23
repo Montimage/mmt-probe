@@ -170,6 +170,7 @@ extern "C" {
         uint32_t microf_report_fthreshold;
         uint32_t user_agent_parsing_threshold;
         uint32_t stats_reporting_period;
+        uint32_t sampled_report_period;
         uint32_t event_reports_nb;
         uint32_t condition_reports_nb;
         mmt_event_report_t * event_reports;
@@ -336,6 +337,8 @@ extern "C" {
     void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char * log_msg);
 
     int register_event_report_handle(void * handler, mmt_event_report_t * event_report);
+    typedef void (* license_expiry_function)(time_t present_time);
+
     int register_conditional_report_handle(void * handler, mmt_condition_report_t * condition_report);
 
     mmt_probe_context_t * get_probe_context_config();
@@ -363,6 +366,18 @@ extern "C" {
     int time_diff(struct timeval t1, struct timeval t2);
 
     void classification_expiry_session(const mmt_session_t * expired_session, void * args);
+
+    MMTAPI int register_license_expiry_handle(
+        //unsigned char * mac,
+		//long int days,
+    	mmt_handler_t *mmt_handler,
+    	time_t present_time,
+		license_expiry_function handler_fct
+
+	);
+
+
+
 #ifdef	__cplusplus
 }
 #endif
