@@ -51,66 +51,70 @@ static int okcode  = EXIT_SUCCESS;
 static int errcode = EXIT_FAILURE;
 
 
-//For MMT_Security
-//Write result to an pseudo-XML file
-#define WRITE_TO_FILE
+//Begin for MMT_Security
+#define OPTION_SATISFIED     1 //if = 1 then yes, output when rule satisfied
+#define OPTION_NOT_SATISFIED 0 //if = 1 then yes, output when rule not satisfied
 
 static FILE * OutputFile = NULL; //XML results output file
-typedef void (*result_callback) (char *xml_string);
+typedef void (*result_callback) (int prop_id, char *verdict, char *type, char *cause, char *history);
 
-static char errbuf[ 1024 ];
 
-//End for MMT_Security
 //MMT_SecurityLib function to initalise the MMT_SecurityLib library
 result_callback db_todo_at_start = NULL;
 result_callback db_todo_when_property_is_satisfied_or_not = NULL;
+
 extern void init_sec_lib (mmt_handler_t *mmt, char * property_file, short option_statisfied, short option_not_satisfied,
         result_callback todo_when_property_is_satisfied_or_not, result_callback db_todo_at_start,
         result_callback db_todo_when_property_is_satisfied_or_not);
 
-//MMT_SecurityLib function to recuperate the summary of results in XML format
-extern char * xml_summary();
-
 //Next three functions can be changed to do any necessary treatment of results.
-#ifdef WRITE_TO_FILE
 void todo_at_start(char *file_path){
+	if( file_path == NULL )
+		return;
+
     char file_name[256];
     //XML file that will contain the results (see bellow for more details)
-    sprintf(file_name,"%s/results.xml", file_path);
+    sprintf(file_name,"%s/results.json", file_path);
     OutputFile = fopen ( file_name, "w" );
     if( OutputFile == NULL ) {
         perror( file_name );
         exit( EXIT_FAILURE );
     }
-    char *xml_string="<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n<?xml-stylesheet type=\"text/xsl\" href=\"results.xsl\"?>\n<results>\n<detail>\n";
-    fprintf(OutputFile, "%s\n", xml_string);
+    fprintf(OutputFile, "{\n");
 }
 
-void todo_when_property_is_satisfied_or_not(char * xml_string){
-    //The xml_string contains the XML fragments describing the detected property and
-    //the list of events that lead to it (see bellow for more details)
-    fprintf(OutputFile, "%s\n", xml_string);
-    security_event(xml_string);
-    //fprintf(stdout, "%s\n", xml_string);
+void todo_when_property_is_satisfied_or_not (int prop_id, char *verdict, char *type, char *cause, char *history){
+
+	security_event( prop_id, verdict, type, cause, history );
+
+
+    if( OutputFile != NULL ){
+    	struct timeval ts;
+    	gettimeofday( &ts, NULL );
+
+    	fprintf( OutputFile, "{\"timestamp\":%lu.%lu,\"pid\":%d,\"verdict\":\"%s\",\"type\":\"%s\",\"cause\":\"%s\",\"history\":%s},\n",
+    			ts.tv_sec, ts.tv_usec,
+    			prop_id, verdict, type, cause, history);
+    }
+
 };
 
 void todo_at_end(){
-    //The xml_string contains XML fragment with a summary of results
-    //(see bellow for more details)
-    char * xml_string;
-    xml_string = xml_summary();
-    fprintf(OutputFile, "%s\n", xml_string);
-    fclose(OutputFile);
-    free(xml_string);
+	if( OutputFile != NULL ){
+		fprintf(OutputFile, "}");
+		fclose(OutputFile);
+	}
 }
-#else
-void todo_at_start(char *file_path){}
-void todo_when_property_is_satisfied_or_not(char * xml_string){security_event(xml_string);}
-void todo_at_end(){if (xml_string!= NULL) free(xml_string);}
-#endif
 
-#define OPTION_SATISFIED 1 //if = 1 then yes, output when rule satisfied
-#define OPTION_NOT_SATISFIED 0 //if = 1 then yes, output when rule not satisfied
+
+void init_mmt_security(mmt_handler_t *mmt_handler, char * property_file){
+	//return;
+	init_sec_lib( mmt_handler, property_file,
+			OPTION_SATISFIED, OPTION_NOT_SATISFIED,
+			todo_when_property_is_satisfied_or_not,
+	        db_todo_at_start,
+			db_todo_when_property_is_satisfied_or_not);
+}
 
 //End for MMT_Security
 
@@ -837,8 +841,7 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
     if (mmt_probe->mmt_conf->thread_nb == 1) {
 
         //Initialise MMT_Security
-        init_sec_lib (mmt_probe->mmt_handler, mmt_probe->mmt_conf->properties_file, OPTION_SATISFIED, OPTION_NOT_SATISFIED, todo_when_property_is_satisfied_or_not,
-                  db_todo_at_start, db_todo_when_property_is_satisfied_or_not);
+        init_mmt_security( mmt_probe->mmt_handler, mmt_probe->mmt_conf->properties_file );
         //End initialise MMT_Security
 
         pcap = pcap_open_offline(filename, errbuf); // open offline trace
@@ -1170,10 +1173,16 @@ static void *process_tracefile_thread_routine(void *arg) {
     return &okcode;
 }
 
+
 void terminate_probe_processing(int wait_thread_terminate) {
     char lg_msg[1024];
     mmt_probe_context_t * mmt_conf = mmt_probe.mmt_conf;
     int i;
+
+    //For MMT_Security
+	//To finish results file (e.g. write summary in the XML file)
+	todo_at_end();
+	//End for MMT_Security
 
     //Cleanup
     if (mmt_conf->thread_nb == 1) {
@@ -1181,6 +1190,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
         //Cleanup the MMT handler
         flowstruct_cleanup(mmt_probe.mmt_handler); // cleanup our event handler
         radius_ext_cleanup(mmt_probe.mmt_handler); // cleanup our event handler for RADIUS initializations
+
         mmt_close_handler(mmt_probe.mmt_handler);
         //Now report the microflows!
         report_all_protocols_microflows_stats(&mmt_probe.iprobe);
@@ -1239,13 +1249,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
         sprintf(lg_msg, "Closing output results file");
         mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_P_CLOSE_OUTPUT, lg_msg);
 
-        //For MMT_Security
-        //To finish results file (e.g. write summary in the XML file)
-#ifdef WRITE_TO_FILE
-        todo_at_end();
-#endif
-        //End for MMT_Security
-
     } else if (mmt_conf->input_mode == OFFLINE_ANALYSIS_CONTINUOUS) {
         if (mmt_conf->data_out_file) {
             fclose(mmt_conf->data_out_file);
@@ -1261,14 +1264,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
         }
         sprintf(lg_msg, "Closing output results file");
         mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_P_CLOSE_OUTPUT, lg_msg);
-
-        //For MMT_Security
-        //To finish results file (e.g. write summary in the XML file)
-#ifdef WRITE_TO_FILE
-        todo_at_end();
-#endif
-        //End for MMT_Security
-
     }
 
     close_extraction();
@@ -1497,9 +1492,7 @@ int main(int argc, char **argv) {
     }
 
 //For MMT_Security
-#ifdef WRITE_TO_FILE
     todo_at_start(mmt_conf->dir_out);
-#endif
 //End for MMT_Security
 
     //Initialization
@@ -1580,13 +1573,6 @@ int main(int argc, char **argv) {
                     fclose(mmt_conf->data_out_file);
                     sprintf(lg_msg, "Closing output results file");
                     mmt_log(mmt_conf, MMT_L_INFO, MMT_P_CLOSE_OUTPUT, lg_msg);
-
-                    //For MMT_Security
-                    //To finish results file (e.g. write summary in the XML file)
-#ifdef WRITE_TO_FILE
-                    todo_at_end();
-#endif
-                    //End for MMT_Security
 
                     FILE * csv_index = fopen(mmt_conf->out_f_name_index, "w");
                     if (csv_index) {
