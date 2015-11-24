@@ -156,6 +156,7 @@ extern "C" {
         char radius_out[256 + 1];
         char input_f_name[256 + 1]; 
         char out_f_name[256 + 1];
+        char output_location[256 + 1];
 
         char out_f_name_index[256 + 1];
         FILE * data_out_file;

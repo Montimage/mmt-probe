@@ -215,38 +215,35 @@ void send_message (FILE * out_file, char *channel, char * message) {
 	static char file [256+1]={0};
 
 
-
-
-
-
 	if (last_reporting_time==0){
-		valid=snprintf(file,MAX,"%lu_%s",present_time,probe_context.data_out);
-		file[valid]='\0';
-		last_reporting_time=present_time;
-		sampled_file= fopen(file, "w");
-	    //printf ("file_name=%s\n",file);
 
-		lock_valid=snprintf(lock_file,MAX,"%lu_%s.lock",present_time,probe_context.data_out);
+
+		lock_valid=snprintf(lock_file,MAX,"%s%lu_%s.lock",probe_context.output_location,present_time,probe_context.data_out);
 		lock_file[lock_valid]='\0';
 		temp_lock_file= fopen(lock_file, "w");
+
+		valid=snprintf(file,MAX,"%s%lu_%s",probe_context.output_location,present_time,probe_context.data_out);
+		file[valid]='\0';
+	    last_reporting_time=present_time;
+		sampled_file= fopen(file, "w");
 	}
 
 
 	if(present_time-last_reporting_time>=probe_context.sampled_report_period){
 		remove_lock_file();
-		valid=snprintf(file,MAX,"%lu_%s",present_time,probe_context.data_out);
-		file[valid]='\0';
-	    //printf ("file_name=%s\n",file);
-	    last_reporting_time=present_time;
-	    sampled_file= fopen(file, "w");
-		lock_valid=snprintf(lock_file,MAX,"%lu_%s.lock",present_time,probe_context.data_out);
+
+		lock_valid=snprintf(lock_file,MAX,"%s%lu_%s.lock",probe_context.output_location,present_time,probe_context.data_out);
 		lock_file[lock_valid]='\0';
 		temp_lock_file=fopen(lock_file, "w");
 
+		valid=snprintf(file,MAX,"%s%lu_%s",probe_context.output_location,present_time,probe_context.data_out);
+		file[valid]='\0';
+	    last_reporting_time=present_time;
+	    sampled_file= fopen(file, "w");
 	}
 
 	fprintf (sampled_file, "%s\n", message);
-	fprintf (out_file, "%s\n", message);
+	//fprintf (out_file, "%s\n", message);
 
     // Publish to redis if it is enabled
     if (redis != NULL) {
@@ -364,60 +361,6 @@ char * get_prety_mac_address( const uint8_t *ea ){
  * @return a string containing MAC address, e.g., ABCDEFGHIJKL
  * return null if fail
  */
-
-int gethostMACaddress(char *read_mac_address,int no_of_mac){
-    struct ifreq ifr;
-    struct ifconf ifc;
-    char buf[1024];
-    int success = 0;
-    int j=0;
-    unsigned char * mac_address;
-    char * message;
-    int number=0;
-    message=malloc(sizeof(char)*12);
-
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sock == -1) { /* handle error*/ };
-
-    ifc.ifc_len = sizeof(buf);
-    ifc.ifc_buf = buf;
-    if (ioctl(sock, SIOCGIFCONF, &ifc) == -1) { /* handle error */ }
-
-    struct ifreq* it = ifc.ifc_req;
-    const struct ifreq* const end = it + (ifc.ifc_len / sizeof(struct ifreq));
-    //int i=0;
-    int offset=0;
-    int valid=0;
-    for (; it != end; ++it) {
-        strcpy(ifr.ifr_name, it->ifr_name);
-        mac_address= (unsigned char*)malloc(7);
-        memset(mac_address,'0',7);
-   	    //printf("%s\n",it->ifr_name);
-        char licensed_MAC[12];
-
-   	    if (ioctl(sock, SIOCGIFFLAGS, &ifr) == 0) {
-            if (! (ifr.ifr_flags & IFF_LOOPBACK)) { // don't count loopback
-                if (ioctl(sock, SIOCGIFHWADDR, &ifr) == 0) {
-                    success = 1;
-                    memcpy(mac_address, ifr.ifr_hwaddr.sa_data, 6);
-                    mac_address[6]='\0';
-                    valid=snprintf(message,13,"%.2X%.2X%.2X%.2X%.2X%.2X", mac_address[0],mac_address[1],mac_address[2],mac_address[3],mac_address[4],mac_address[5]);
-                    message[valid]='\0';
-                    for (j=0;j<no_of_mac;j++){
-                    	memcpy(licensed_MAC,&read_mac_address[offset],12);
-                        licensed_MAC[12]='\0';
-                        //printf("licensed_MAC=%s\n",licensed_MAC);
-                    	    if(strncmp(message,licensed_MAC,12)==0) return 1;
-                    	    offset+=12;
-                       }
-                    offset=0;
-                }
-            }
-        }
-        else { /* handle error */ }
-    }
-    return 0;
-}
 
 /*
 int get_host_mac_address(unsigned char **mac_address, char *interfaceName)
@@ -905,7 +848,7 @@ void packet_handler(const ipacket_t * ipacket, void * args) {
             //ftp_packet_events(ipacket);
         }
     }
-
+    printf("---------------------------------------------packet_id=%lu\n",ipacket->packet_id);
     if ((ipacket->p_hdr->ts.tv_sec - last_report_time) >= probe_context.stats_reporting_period) {
         iterate_through_protocols(protocols_stats_iterator, (void *) ipacket->mmt_handler);
 

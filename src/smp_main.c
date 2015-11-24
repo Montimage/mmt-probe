@@ -323,168 +323,6 @@ static void free_packet_element(void * packet) {
     free(packet);
 }
 
-int license_expiry_check(){
-    struct tm *tm;
-    time_t now;
-    now=time(0);
-    FILE * license_key;
-    int MAX=50;
-    char message[MAX];
-    int valid=0;
-    char year[5];
-    char month[3];
-    char day[3];
-    char no_of_mac_address[3];
-    char *read_mac_address;
-    int no_of_mac;
-    int offset=0;
-	char block1[10];
-	char block2[10];
-	char block3[10];
-	char block4[10];
-
-
-    tm=localtime(&now);
-
-    static char file [256+1]={0};
-    strcpy(file,"License_key.txt");
-
-    if((fopen("License_key.txt","r"))!=NULL) {
-       	license_key= fopen(file, "r");
-
-       	offset=10;
-
-        fseek(license_key,offset,SEEK_SET);
-        offset+=fread(year,1,4,license_key);
-        year[4]='\0';
-
-        fseek(license_key,offset,SEEK_SET);
-        offset+=fread(month,1,2,license_key);
-        month[2]='\0';
-
-        fseek(license_key,offset,SEEK_SET);
-        offset+=fread(day,1,2,license_key);
-        day[2]='\0';
-
-        long int date = atoi(year)*atoi(month)*atoi(day);
-
-        valid=snprintf(message,MAX,"%lu",date);
-        message[MAX]='\0';
-
-        char * key;
-        key=malloc(valid*sizeof(char));
-
-        offset=offset+10;
-
-        fseek(license_key,offset,SEEK_SET);
-        offset+=fread(key,1,valid,license_key);
-        key[valid]='\0';
-
-        int mn_dy=atoi(month)* atoi (day);
-        int yr_dy=atoi(year) * atoi(day);
-        int mn_yr=atoi (month) * atoi (year);
-
-      	int yr =  atoi(key)/mn_dy;
-      	int mn= atoi(key)/yr_dy;
-      	int dy= atoi(key)/mn_yr;
-
-      	offset=offset+10;
-
-    	fseek(license_key,offset,SEEK_SET);
-    	offset+=fread(no_of_mac_address,1,3,license_key);
-    	no_of_mac_address[3]='\0';
-        no_of_mac=atoi(no_of_mac_address);
-
-        read_mac_address=malloc(sizeof(char)* no_of_mac*12);
-        memset(read_mac_address,'\0',no_of_mac*12);
-        fseek(license_key,offset,SEEK_SET);
-        offset+=fread(read_mac_address,1,no_of_mac*12,license_key);
-        read_mac_address[no_of_mac*12]='\0';
-
-        offset=offset+10;
-
-        long int  sum_mac=0;
-        int i;
-        int valid1=0;
-
-        for (i=0;i<(no_of_mac*12);i++){
-
-            sum_mac+=read_mac_address[i];
-
-        }
-
-        char * sum_mac_str;
-
-        sum_mac_str= malloc(sizeof(char)*10);
-
-        memset(sum_mac_str,'\0',10);
-        valid1=snprintf(sum_mac_str,10,"%lu",sum_mac);
-        sum_mac_str[valid]='\0';
-
-        char * read_sum_mac;
-        read_sum_mac=malloc(sizeof(char)* valid1);
-        fseek(license_key,offset,SEEK_SET);
-        fread(read_sum_mac,1,valid1,license_key);
-        read_sum_mac[valid1]='\0';
-
-        fclose (license_key);
-
-      	if (strncmp(key,message,valid)==0 && yr==atoi(year) && mn==atoi(month) && dy==atoi(day) && strncmp(read_sum_mac,sum_mac_str,valid1)==0){
-      	    if (tm->tm_year+1900>=yr && tm->tm_mon+1>=mn && tm->tm_mday>=dy){
-
-      		    printf("\n\t*************************************\n"
-      		    	        		"\t* MMT LICENSE EXPIRED ON %04d-%02d-%02d *\n"
-      		    		            "\t*          BUY MMT LICENSE          *\n"
-      		    	        		"\t*   Website: http://montimage.com   *\n"
-      		    	        		"\t*   Contact: contact@montimage.com  *\n"
-      		    	        		"\t**************************************\n\n",yr,mn,dy);
-      		    return 1;
-            }
-      		if ( dy-tm->tm_mday<=7 && dy-tm->tm_mday>0){
-
-      		    printf("\n\t***********************************************\n"
-      		    	        		"\t*  MMT LICENSE WILL BE EXPIRED ON %04d-%02d-%02d  *\n"
-      		    		            "\t*              BUY MMT LICENSE                *\n"
-      		    	        		"\t*        Website: http://montimage.com        *\n"
-      		    	        		"\t*        Contact: contact@montimage.com       *\n"
-      		    	        		"\t************************************************\n\n",yr,mn,dy);
-            }
-
-      	}else{
-
-      		printf("\n\t*************************************\n"
-      				                            "\t*          BUY MMT LICENSE          *\n"
-      		      		    	        		"\t*   Website: http://montimage.com   *\n"
-      		      		    	        		"\t*   Contact: contact@montimage.com  *\n"
-      		      		    	        		"\t**************************************\n\n");
-      	    return 1;
-      	}
-
-	}else{
-		printf("\n\t*************************************\n"
-		      		      		    	        		"\t*  MMT LICENSE KEY DOES-NOT EXIST   *\n"
-				                                        "\t*          BUY MMT LICENSE          *\n"
-		      		      		    	        		"\t*   Website: http://montimage.com   *\n"
-		      		      		    	        		"\t*   Contact: contact@montimage.com  *\n"
-		      		      		    	        		"\t**************************************\n\n");
-		return 1;
-
-	}
-
-
-    int valid_mac = gethostMACaddress(read_mac_address,no_of_mac);
-
-    if (valid_mac==0){
-    	printf("\n\t*************************************\n"
-    		"\t*          BUY MMT LICENSE          *\n"
-    		"\t*   Website: http://montimage.com   *\n"
-    		"\t*   Contact: contact@montimage.com  *\n"
-    		"\t**************************************\n\n");
-    return 1;
-    }
-
-	return 0;
-}
 
 static void *smp_thread_routine(void *arg) {
     struct timeval tv;
@@ -644,6 +482,7 @@ cfg_t * parse_conf(const char *filename) {
     cfg_opt_t output_opts[] = {
         CFG_STR("data-file", 0, CFGF_NONE),
         CFG_STR("radius-file", 0, CFGF_NONE),
+		CFG_STR("location", 0, CFGF_NONE),
         CFG_END()
     };
 
@@ -835,6 +674,8 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
             cfg_t *output = cfg_getnsec(cfg, "output", 0);
             strncpy(mmt_conf->data_out, (char *) cfg_getstr(output, "data-file"), 256);
             strncpy(mmt_conf->radius_out, (char *) cfg_getstr(output, "radius-file"), 256);
+            strncpy(mmt_conf->output_location, (char *) cfg_getstr(output, "location"), 256);
+            printf("location=%s",mmt_conf->output_location);
             if (strcmp(mmt_conf->radius_out, "") == 0) {
                 mmt_conf->combine_radius = 1;
             } else {
@@ -1015,11 +856,6 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
         mmt_log(mmt_probe->mmt_conf, MMT_L_INFO, MMT_P_START_PROCESS_TRACE, lg_msg);
         //One thread for reading packets and processing them
         while ((data = pcap_next(pcap, &pkthdr))) {
-        	if(day!=day_now){
-        		if (license_expiry_check()==1) break;//pcap_next
-        		day=day_now;
-        	}
-
             header.ts = pkthdr.ts;
             header.caplen = pkthdr.caplen;
             header.len = pkthdr.len;
@@ -1109,11 +945,6 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
     if (mmt_probe.mmt_conf->thread_nb == 1) {
         //One thread for reading packets and processing them
 
-    	if(day!=day_now){
-    		if (license_expiry_check()==1) exit(0);//pcap_next
-    		day=day_now;
-    	}
-
         header.ts = pkthdr->ts;
         header.caplen = pkthdr->caplen;
         header.len = pkthdr->len;
@@ -1136,10 +967,6 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
             sleep(1); //Sleep 1 second.
         } else {
             /* fill smp_pkt fields and copy packet data from pcap buffer */
-        	if(day!=day_now){
-        		if (license_expiry_check()==1) exit(0);//pcap_next
-        		day=day_now;
-        	}
 
             smp_pkt_instance->pkt.header.len = pkthdr->len;
             smp_pkt_instance->pkt.header.caplen = pkthdr->caplen;
@@ -1320,11 +1147,6 @@ static void *process_tracefile_thread_routine(void *arg) {
     /* read packets */
     int p_hash;
     while ((data = pcap_next(pcap, &pkthdr))) {
-    	if(day!=day_now){
-    		if (license_expiry_check()==1) break;//pcap_next
-    		day=day_now;
-    	}
-
         packets_count++;
         p_hash = hash_packet(data, pkthdr.caplen);
         if ((dispatcher->nb & p_hash) == (dispatcher->nb || (p_hash & 1))) {
