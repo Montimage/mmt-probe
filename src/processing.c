@@ -242,7 +242,7 @@ void send_message (FILE * out_file, char *channel, char * message) {
 		temp_lock_file= fopen(lock_file, "w");
 
 		if (temp_lock_file==NULL){
-			printf("Error: LOCK file creation failed\n");
+			printf("Error: LOCK file creation failed,also verify the location in configuration file\n");
 			exit(0);
 
 		}
@@ -253,7 +253,7 @@ void send_message (FILE * out_file, char *channel, char * message) {
 		sampled_file= fopen(file, "w");
 
 		if (sampled_file==NULL){
-		    printf("Error: sampled output file creation failed\n");
+		    printf("Error: sampled output file creation failed, also verify the location in configuration file\n");
 		    exit(0);
 	   }
 	}
@@ -270,7 +270,7 @@ void send_message (FILE * out_file, char *channel, char * message) {
 		temp_lock_file=fopen(lock_file, "w");
 
 		if (temp_lock_file==NULL){
-			printf("Error: LOCK file creation failed\n");
+			printf("Error: LOCK file creation failed,also verify the location in configuration file\n");
 			exit(0);
 
 		}
@@ -281,7 +281,7 @@ void send_message (FILE * out_file, char *channel, char * message) {
 	    sampled_file= fopen(file, "w");
 
 		if (sampled_file==NULL){
-		    printf("Error: sampled output file creation failed\n");
+		    printf("Error: sampled output file creation failed, also verify the location in configuration file\n");
 		    exit(0);
 	   }
 	}
