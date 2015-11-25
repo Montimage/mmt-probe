@@ -204,19 +204,19 @@ int remove_lock_file(){
         //fprintf ( stderr , "\n[e] Error %d closing of sampled_file failed: %s" , errno ,strerror( errno ) );
 
 		printf("Error: sampled_file closing failed");
-		exit(0);
+		exit(1);
 
 	}
 
 	if (fclose(temp_lock_file)!=0){
 		printf("Error: lock_file closing failed");
-		exit(0);
+		exit(1);
 
 	}
 
 	if (remove( lock_file )!=0){
 		printf("Error: lock_file deletion failed");
-		exit(0);
+		exit(1);
 
 	}
 
@@ -242,7 +242,7 @@ void send_message (FILE * out_file, char *channel, char * message) {
 
 		if (temp_lock_file==NULL){
 	        fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , lock_file , strerror( errno ) );
-			exit(0);
+			exit(1);
 		}
 
 		valid=snprintf(file,MAX,"%s%lu_%s",probe_context.output_location,present_time,probe_context.data_out);
@@ -252,7 +252,7 @@ void send_message (FILE * out_file, char *channel, char * message) {
 
 		if (sampled_file==NULL){
 		    fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , file , strerror( errno ) );
-		    exit(0);
+		    exit(1);
 	   }
 	}
 
@@ -260,7 +260,7 @@ void send_message (FILE * out_file, char *channel, char * message) {
 	if(present_time-last_reporting_time>=probe_context.sampled_report_period){
 	    if (remove_lock_file()!=1){
 	       printf("Error: Removing and closing output file errors: check function remove_lock_file\n");
-		    exit(0);
+		    exit(1);
 		}
 
 		lock_valid=snprintf(lock_file,MAX,"%s%lu_%s.lock",probe_context.output_location,present_time,probe_context.data_out);
@@ -268,8 +268,8 @@ void send_message (FILE * out_file, char *channel, char * message) {
 		temp_lock_file=fopen(lock_file, "w");
 
 		if (temp_lock_file==NULL){
-			fprintf ( stderr , "\n[e] Error: %d creation of \"%s\" failed: %s\n" , errno , lock_file , strerror( errno ) );
-			exit(0);
+			fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , lock_file , strerror( errno ) );
+			exit(1);
 
 	   }
 
@@ -280,7 +280,7 @@ void send_message (FILE * out_file, char *channel, char * message) {
 
 		if (sampled_file==NULL){
 		    fprintf ( stderr , "\n[e] Error: %d creation of \"%s\" failed: %s\n" , errno , file , strerror( errno ) );
-		    exit(0);
+		    exit(1);
 	   }
 	}
 
@@ -764,7 +764,7 @@ void write_data_to_file (const ipacket_t * ipacket,const char * path, const char
 
 
     if ( (fd = open ( filename , O_CREAT | O_WRONLY | O_APPEND | O_NOFOLLOW , S_IRWXU | S_IRWXG | S_IRWXO )) < 0 ){
-        fprintf ( stderr , "\n[e] Error %d writting data to \"%s\": %s" , errno , path , strerror( errno ) );
+        fprintf ( stderr , "\n Error %d writting data to \"%s\": %s" , errno , path , strerror( errno ) );
         return;
     }
 

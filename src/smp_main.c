@@ -1265,7 +1265,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
     //TODO: If the files are not created this will return error,remove_lock_file();
     if (remove_lock_file()!=1){
         printf("Error: Removing and closing output file errors when probe is terminating\n");
-        exit(0);
+        exit(1);
     }
 
     close_extraction();
