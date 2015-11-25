@@ -347,7 +347,7 @@ extern "C" {
     void report_microflows_stats(microsessions_stats_t * stats, FILE * out_file);
     void reset_microflows_stats(microsessions_stats_t * stats);
     void report_all_protocols_microflows_stats(probe_internal_t * iprobe);
-
+    void security_event( int prop_id, char *verdict, char *type, char *cause, char *history );
     void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char * log_msg);
 
     int register_event_report_handle(void * handler, mmt_event_report_t * event_report);

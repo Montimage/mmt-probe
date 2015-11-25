@@ -281,7 +281,7 @@ void send_message (FILE * out_file, char *channel, char * message) {
 	    sampled_file= fopen(file, "w");
 
 		if (sampled_file==NULL){
-		    printf("Error: sampled output file creation failed, also verify the location in configuration file\n");
+		    printf("Error: sampled output file creation failed,also verify the location in configuration file \n");
 		    exit(0);
 	   }
 	}
@@ -612,7 +612,6 @@ void update_proto_stat_info( ethernet_proto_statistics_t *proto_stats, const ipa
 }
 
 void update_proto_stat (ethernet_statistics_t *eth_stat, const ipacket_t * ipacket, int direction){
-	int j;
 
 	ethernet_proto_statistics_t *root;
 	root = eth_stat->proto_stats;
@@ -744,8 +743,6 @@ char * str_replace_all_char(const char *str,int c1, int c2){
 void write_data_to_file (const ipacket_t * ipacket,const char * path, const char * content, int len, uint32_t * file_size,mmt_condition_report_t * condition_report) {
     int fd = 0,MAX=200;
     char filename[len];
-    static time_t now;
-    now=time(0);
 
     static uint32_t total_len=0;
     static time_t download_start_time_sec =0, download_start_time_usec=0;
@@ -785,8 +782,6 @@ void write_data_to_file (const ipacket_t * ipacket,const char * path, const char
 }
 
 void reconstruct_data(const ipacket_t * ipacket, mmt_condition_report_t * condition_report ){
-	char message[MAX_MESS + 1];
-	FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
 
     uint8_t * data_type = (uint8_t *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_DATA_TYPE);
     	int d_type = -1;
@@ -794,17 +789,11 @@ void reconstruct_data(const ipacket_t * ipacket, mmt_condition_report_t * condit
     		d_type = *data_type;
     	}
 
-    char * user_name = (char *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_USERNAME);
     char * file_name = (char *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_FILE_NAME);
-    char * data_transfer_type = (char *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_DATA_TRANSFER_TYPE);
-
-    uint8_t * data_mode = (uint8_t *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_DATA_MODE);
-    uint8_t * data_direction = (uint8_t *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_DATA_DIRECTION);
 
 	uint32_t * data_len = (uint32_t *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_PACKET_DATA_LEN);
 
 	uint32_t * file_size = (uint32_t *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_FILE_SIZE);
-    char * file_last_modified = (char *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_FILE_LAST_MODIFIED);
 
 
 
@@ -847,13 +836,10 @@ void ftp_packet_events(const ipacket_t * ipacket){
 	if(response_code!=NULL){
 	    packet_attr->response = * response_code;
     }
-	int value;
-
 
 	//printf("value=%d, packet_id =%lu\n",value,ipacket->packet_id);
 
 	packet_attr->response_value = (char *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_PACKET_RESPONSE_VALUE);
-	printf(" PACKET EVENT :value=%s, packet_id =%lu\n",packet_attr->response_value,ipacket->packet_id);
 
     uint32_t * data_len = (uint32_t *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_PACKET_DATA_LEN);
 
@@ -1350,7 +1336,6 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
     char message[MAX_MESS + 1];
     char * location;
     int i;
-    int MAX=200;
     char ip_src_str[46];
     char ip_dst_str[46];
 
@@ -1411,7 +1396,6 @@ void ftp_file_size_handle(const ipacket_t * ipacket, attribute_t * attribute, vo
 void ftp_file_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     if(ipacket->session == NULL) return;
     session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
-    int MAX=200;
     //int valid;
     //char * name;
     //name= (char*)malloc(sizeof(char)*200);
@@ -1647,7 +1631,7 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
 
     FILE * out_file = (probe_context.radius_out_file != NULL) ? probe_context.radius_out_file : stdout;
     mmt_event_report_t * event_report = (mmt_event_report_t *) user_args;
-    session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
+    //session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
 
 
    valid= snprintf(message, MAX_MESS,

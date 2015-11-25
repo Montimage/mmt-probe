@@ -831,6 +831,7 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
 
     if (mmt_probe->mmt_conf->thread_nb == 1) {
 
+
         //Initialise MMT_Security
         init_mmt_security( mmt_probe->mmt_handler, mmt_probe->mmt_conf->properties_file );
         //End initialise MMT_Security
