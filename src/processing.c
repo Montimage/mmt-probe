@@ -199,23 +199,23 @@ FILE * temp_lock_file;
 char lock_file [256+1]={0};
 
 int remove_lock_file(){
-	//fclose(sampled_file);
+
 	if (fclose(sampled_file)!=0){
-		printf("Error 5: sampled_file closing failed");
+        //fprintf ( stderr , "\n[e] Error %d closing of sampled_file failed: %s" , errno ,strerror( errno ) );
+
+		printf("Error: sampled_file closing failed");
 		exit(0);
 
 	}
 
-	//fclose(temp_lock_file);
 	if (fclose(temp_lock_file)!=0){
-		printf("Error 6: lock_file closing failed");
+		printf("Error: lock_file closing failed");
 		exit(0);
 
 	}
 
-	//remove( lock_file );
 	if (remove( lock_file )!=0){
-		printf("Error 7: lock_file removing failed");
+		printf("Error: lock_file deletion failed");
 		exit(0);
 
 	}
@@ -233,7 +233,6 @@ void send_message (FILE * out_file, char *channel, char * message) {
 	int lock_valid=0;
 	static char file [256+1]={0};
 
-
 	if (last_reporting_time==0){
 
 
@@ -242,9 +241,8 @@ void send_message (FILE * out_file, char *channel, char * message) {
 		temp_lock_file= fopen(lock_file, "w");
 
 		if (temp_lock_file==NULL){
-			printf("Error: LOCK file creation failed,also verify the location in configuration file\n");
+	        fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , lock_file , strerror( errno ) );
 			exit(0);
-
 		}
 
 		valid=snprintf(file,MAX,"%s%lu_%s",probe_context.output_location,present_time,probe_context.data_out);
@@ -253,15 +251,15 @@ void send_message (FILE * out_file, char *channel, char * message) {
 		sampled_file= fopen(file, "w");
 
 		if (sampled_file==NULL){
-		    printf("Error: sampled output file creation failed, also verify the location in configuration file\n");
+		    fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , file , strerror( errno ) );
 		    exit(0);
 	   }
 	}
 
 
 	if(present_time-last_reporting_time>=probe_context.sampled_report_period){
-		if (remove_lock_file()!=1){
-		    printf("Error: Removing and closing output file errors: check function remove_lock_file\n");
+	    if (remove_lock_file()!=1){
+	       printf("Error: Removing and closing output file errors: check function remove_lock_file\n");
 		    exit(0);
 		}
 
@@ -270,10 +268,10 @@ void send_message (FILE * out_file, char *channel, char * message) {
 		temp_lock_file=fopen(lock_file, "w");
 
 		if (temp_lock_file==NULL){
-			printf("Error: LOCK file creation failed,also verify the location in configuration file\n");
+			fprintf ( stderr , "\n[e] Error: %d creation of \"%s\" failed: %s\n" , errno , lock_file , strerror( errno ) );
 			exit(0);
 
-		}
+	   }
 
 		valid=snprintf(file,MAX,"%s%lu_%s",probe_context.output_location,present_time,probe_context.data_out);
 		file[valid]='\0';
@@ -281,14 +279,19 @@ void send_message (FILE * out_file, char *channel, char * message) {
 	    sampled_file= fopen(file, "w");
 
 		if (sampled_file==NULL){
-		    printf("Error: sampled output file creation failed,also verify the location in configuration file \n");
+		    fprintf ( stderr , "\n[e] Error: %d creation of \"%s\" failed: %s\n" , errno , file , strerror( errno ) );
 		    exit(0);
 	   }
 	}
 
 	fprintf (sampled_file, "%s\n", message);
-	// If you want a single trace file, uncomment the line below
+
+
+
+	/****If you want a single trace file, uncomment the line below**/
+
 	//fprintf (out_file, "%s\n", message);
+
 
     // Publish to redis if it is enabled
     if (redis != NULL) {
