@@ -847,11 +847,19 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
         sprintf(lg_msg, "Start processing trace file: %s", filename);
         mmt_log(mmt_probe->mmt_conf, MMT_L_INFO, MMT_P_START_PROCESS_TRACE, lg_msg);
         //One thread for reading packets and processing them
+        int counter=0;
+
         while ((data = pcap_next(pcap, &pkthdr))) {
             header.ts = pkthdr.ts;
             header.caplen = pkthdr.caplen;
             header.len = pkthdr.len;
             header.user_args = NULL;
+            counter++;
+            if (counter>1000){
+                //printf ("Sleeping................\n");
+            	sleep(1);
+            	counter=0;
+            }
 
             //Call mmt_core function that will parse the packet and analyse it.
             //If MMT_Security is being used:
