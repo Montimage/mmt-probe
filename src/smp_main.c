@@ -52,7 +52,7 @@
 static int okcode  = EXIT_SUCCESS;
 static int errcode = EXIT_FAILURE;
 
-extern void remove_lock_file();
+extern int remove_lock_file();
 
 
 //Begin for MMT_Security
@@ -675,7 +675,6 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
             strncpy(mmt_conf->data_out, (char *) cfg_getstr(output, "data-file"), 256);
             strncpy(mmt_conf->radius_out, (char *) cfg_getstr(output, "radius-file"), 256);
             strncpy(mmt_conf->output_location, (char *) cfg_getstr(output, "location"), 256);
-            printf("location=%s",mmt_conf->output_location);
             if (strcmp(mmt_conf->radius_out, "") == 0) {
                 mmt_conf->combine_radius = 1;
             } else {
@@ -829,14 +828,6 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
     //char mmt_errbuf[1024];
     char lg_msg[1024];
 
-    static int day=0;
-    int day_now;
-    time_t now;
-    now=time(0);
-    struct tm *tm;
-    tm= localtime(&now);
-    day_now= tm->tm_mday;
-
 
     if (mmt_probe->mmt_conf->thread_nb == 1) {
 
@@ -933,13 +924,6 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
     static uint64_t packets_count = 0;
     char lg_msg[1024];
     int p_hash;
-    static int day=0;
-    int day_now;
-    time_t now;
-    now=time(0);
-    struct tm *tm;
-    tm= localtime(&now);
-    day_now= tm->tm_mday;
 
 
     if (mmt_probe.mmt_conf->thread_nb == 1) {
@@ -1121,14 +1105,6 @@ static void *process_tracefile_thread_routine(void *arg) {
     struct smp_pkt *smp_pkt;
     struct smp_thread *th;
 
-    static int day=0;
-    int day_now;
-    time_t now;
-    now=time(0);
-    struct tm *tm;
-    tm= localtime(&now);
-    day_now= tm->tm_mday;
-
     pcap = pcap_open_offline(dispatcher->filename, errbuf); // open offline trace
 
     if (!pcap) { /* pcap error ? */
@@ -1285,7 +1261,12 @@ void terminate_probe_processing(int wait_thread_terminate) {
         mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_P_CLOSE_OUTPUT, lg_msg);
     }
 
-    remove_lock_file();
+    //TODO: If the files are not created this will return error,remove_lock_file();
+    if (remove_lock_file()!=1){
+        printf("Error 9: Removing and closing output file errors when probe is terminating\n");
+        exit(0);
+    }
+
     close_extraction();
 
 

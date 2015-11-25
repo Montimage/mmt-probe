@@ -198,10 +198,29 @@ FILE * sampled_file;
 FILE * temp_lock_file;
 char lock_file [256+1]={0};
 
-void remove_lock_file(){
-	fclose(sampled_file);
-	fclose(temp_lock_file);
-	remove( lock_file );
+int remove_lock_file(){
+	//fclose(sampled_file);
+	if (fclose(sampled_file)!=0){
+		printf("Error 5: sampled_file closing failed");
+		exit(0);
+
+	}
+
+	//fclose(temp_lock_file);
+	if (fclose(temp_lock_file)!=0){
+		printf("Error 6: lock_file closing failed");
+		exit(0);
+
+	}
+
+	//remove( lock_file );
+	if (remove( lock_file )!=0){
+		printf("Error 7: lock_file removing failed");
+		exit(0);
+
+	}
+
+return 1;
 
 }
 void send_message (FILE * out_file, char *channel, char * message) {
@@ -222,27 +241,53 @@ void send_message (FILE * out_file, char *channel, char * message) {
 		lock_file[lock_valid]='\0';
 		temp_lock_file= fopen(lock_file, "w");
 
+		if (temp_lock_file==NULL){
+			printf("Error: LOCK file creation failed\n");
+			exit(0);
+
+		}
+
 		valid=snprintf(file,MAX,"%s%lu_%s",probe_context.output_location,present_time,probe_context.data_out);
 		file[valid]='\0';
 	    last_reporting_time=present_time;
 		sampled_file= fopen(file, "w");
+
+		if (sampled_file==NULL){
+		    printf("Error: sampled output file creation failed\n");
+		    exit(0);
+	   }
 	}
 
 
 	if(present_time-last_reporting_time>=probe_context.sampled_report_period){
-		remove_lock_file();
+		if (remove_lock_file()!=1){
+		    printf("Error: Removing and closing output file errors: check function remove_lock_file\n");
+		    exit(0);
+		}
 
 		lock_valid=snprintf(lock_file,MAX,"%s%lu_%s.lock",probe_context.output_location,present_time,probe_context.data_out);
 		lock_file[lock_valid]='\0';
 		temp_lock_file=fopen(lock_file, "w");
 
+		if (temp_lock_file==NULL){
+			printf("Error: LOCK file creation failed\n");
+			exit(0);
+
+		}
+
 		valid=snprintf(file,MAX,"%s%lu_%s",probe_context.output_location,present_time,probe_context.data_out);
 		file[valid]='\0';
 	    last_reporting_time=present_time;
 	    sampled_file= fopen(file, "w");
+
+		if (sampled_file==NULL){
+		    printf("Error: sampled output file creation failed\n");
+		    exit(0);
+	   }
 	}
 
 	fprintf (sampled_file, "%s\n", message);
+	// If you want a single trace file, uncomment the line below
 	//fprintf (out_file, "%s\n", message);
 
     // Publish to redis if it is enabled
@@ -848,7 +893,7 @@ void packet_handler(const ipacket_t * ipacket, void * args) {
             //ftp_packet_events(ipacket);
         }
     }
-    printf("---------------------------------------------packet_id=%lu\n",ipacket->packet_id);
+    //printf("---------------------------------------------packet_id=%lu\n",ipacket->packet_id);
     if ((ipacket->p_hdr->ts.tv_sec - last_report_time) >= probe_context.stats_reporting_period) {
         iterate_through_protocols(protocols_stats_iterator, (void *) ipacket->mmt_handler);
 
