@@ -483,6 +483,8 @@ cfg_t * parse_conf(const char *filename) {
         CFG_STR("data-file", 0, CFGF_NONE),
         CFG_STR("radius-file", 0, CFGF_NONE),
 		CFG_STR("location", 0, CFGF_NONE),
+		CFG_INT("sampled_report", 0, CFGF_NONE),
+
         CFG_END()
     };
 
@@ -675,6 +677,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
             strncpy(mmt_conf->data_out, (char *) cfg_getstr(output, "data-file"), 256);
             strncpy(mmt_conf->radius_out, (char *) cfg_getstr(output, "radius-file"), 256);
             strncpy(mmt_conf->output_location, (char *) cfg_getstr(output, "location"), 256);
+            mmt_conf->sampled_report = (uint32_t) cfg_getint(output, "sampled_report");
             if (strcmp(mmt_conf->radius_out, "") == 0) {
                 mmt_conf->combine_radius = 1;
             } else {
@@ -843,23 +846,15 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
             mmt_log(mmt_probe->mmt_conf, MMT_L_ERROR, MMT_P_TRACE_ERROR, lg_msg);
             return;
         }
-
         sprintf(lg_msg, "Start processing trace file: %s", filename);
         mmt_log(mmt_probe->mmt_conf, MMT_L_INFO, MMT_P_START_PROCESS_TRACE, lg_msg);
         //One thread for reading packets and processing them
-        int counter=0;
-
         while ((data = pcap_next(pcap, &pkthdr))) {
-            header.ts = pkthdr.ts;
+
+        	header.ts = pkthdr.ts;
             header.caplen = pkthdr.caplen;
             header.len = pkthdr.len;
             header.user_args = NULL;
-            counter++;
-            if (counter>1000){
-                //printf ("Sleeping................\n");
-            	sleep(1);
-            	counter=0;
-            }
 
             //Call mmt_core function that will parse the packet and analyse it.
             //If MMT_Security is being used:
@@ -871,7 +866,6 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
             }
             packets_count++;
         }
-
         pcap_close(pcap);
         sprintf(lg_msg, "End processing trace file: %s", filename);
         mmt_log(mmt_probe->mmt_conf, MMT_L_INFO, MMT_P_END_PROCESS_TRACE, lg_msg);
@@ -1271,9 +1265,11 @@ void terminate_probe_processing(int wait_thread_terminate) {
     }
 
     //TODO: If the files are not created this will return error,remove_lock_file();
-    if (remove_lock_file()!=1){
-        printf("Error: Removing and closing output file errors when probe is terminating\n");
-        exit(1);
+    if(mmt_conf->sampled_report==1){
+        if (remove_lock_file()!=1){
+            printf("Error: Removing and closing output file errors when probe is terminating\n");
+            exit(1);
+        }
     }
 
     close_extraction();
@@ -1529,7 +1525,7 @@ int main(int argc, char **argv) {
         if(mmt_probe.mmt_conf->enable_flow_stats) {
             register_session_timeout_handler(mmt_probe.mmt_handler, classification_expiry_session, &mmt_probe.iprobe);
             flowstruct_init(mmt_probe.mmt_handler); // initialize our event handler
-            event_reports_init(mmt_probe.mmt_handler); // initialize our event reports 
+            event_reports_init(mmt_probe.mmt_handler); // initialize our event reports
             conditional_reports_init(mmt_probe.mmt_handler);// initialize our conditional reports
             radius_ext_init(mmt_probe.mmt_handler); // initialize radius extraction and attribute event handler
         }
@@ -1557,96 +1553,17 @@ int main(int argc, char **argv) {
             pthread_create(&mmt_probe.smp_threads[i].handle, NULL,
                     smp_thread_routine, &mmt_probe.smp_threads[i]);
         }
-        sprintf(lg_msg, "MMT Extraction engine! successfully initialized in a multi threaded operation (%i threads)", mmt_conf->thread_nb);
+        sprintf(lg_msg, "MnMT Extraction engine! successfully initialized in a multi threaded operation (%i threads)", mmt_conf->thread_nb);
         mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, lg_msg);
     }
 
     //Offline or Online processing
     if (mmt_conf->input_mode == OFFLINE_ANALYSIS) {
-        mmt_conf->data_out_file = fopen(mmt_conf->data_out, "w");
 
-        sprintf(lg_msg, "Open output results file: %s", mmt_conf->data_out);
-        mmt_log(mmt_conf, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
-
-        if (mmt_conf->combine_radius) {
-            mmt_conf->radius_out_file = mmt_conf->data_out_file;
-        } else {
-            mmt_conf->radius_out_file = fopen(mmt_conf->radius_out, "w");
-        }
         process_trace_file(mmt_conf->input_source, &mmt_probe); //Process single offline trace
         //We don't close the files here because they will be used when the handler is closed to report still to timeout flows
-    } else if (mmt_conf->input_mode == OFFLINE_ANALYSIS_CONTINUOUS) {
+    }else if (mmt_conf->input_mode == ONLINE_ANALYSIS) {
 
-        while (1) {
-            char filename[512] = "";
-            if (get_next_trace_file(mmt_conf->input_source, filename)) {
-                if (mmt_conf->data_out_file) {
-                    fclose(mmt_conf->data_out_file);
-                    sprintf(lg_msg, "Closing output results file");
-                    mmt_log(mmt_conf, MMT_L_INFO, MMT_P_CLOSE_OUTPUT, lg_msg);
-
-                    FILE * csv_index = fopen(mmt_conf->out_f_name_index, "w");
-                    if (csv_index) {
-                        fprintf(csv_index, "%s\n", mmt_conf->out_f_name);
-                        if (csv_index) fclose(csv_index);
-                    }
-                }
-
-                if (mmt_conf->combine_radius == 0) {
-                    if (mmt_conf->radius_out_file) fclose(mmt_conf->radius_out_file);
-                }
-
-                char trace_file_name[512] = "";
-                strcpy(trace_file_name, mmt_conf->input_source);
-                strcat(trace_file_name, "/");
-                strcat(trace_file_name, filename);
-
-
-                strcpy(mmt_conf->out_f_name, mmt_conf->data_out);
-                strcat(mmt_conf->out_f_name, "csv/");
-                strcat(mmt_conf->out_f_name, filename);
-                strcpy(mmt_conf->out_f_name_index, mmt_conf->data_out);
-                strcat(mmt_conf->out_f_name_index, "/");
-                strcat(mmt_conf->out_f_name_index, filename);
-
-                mmt_conf->data_out_file = fopen(mmt_conf->out_f_name, "w");
-                sprintf(lg_msg, "Open output results file: %s", mmt_conf->out_f_name);
-                mmt_log(mmt_conf, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
-
-                if (mmt_conf->combine_radius) {
-                    mmt_conf->radius_out_file = mmt_conf->data_out_file;
-                } else {
-                    mmt_conf->radius_out_file = fopen(mmt_conf->radius_out, "w");
-                }
-
-                strcpy(mmt_conf->input_f_name, trace_file_name);
-                process_trace_file(trace_file_name, &mmt_probe);
-
-                if (remove(trace_file_name) != 0) {
-                    //fprintf(stdout, "Trace Error deleting file\n");
-                    sprintf(lg_msg, "Error while deleting trace file: %s! File will remain on the system. Manual delete required!", trace_file_name);
-                    mmt_log(mmt_conf, MMT_L_ERROR, MMT_P_TRACE_DELETE, lg_msg);
-                } else {
-                    sprintf(lg_msg, "Trace file %s deleted after successful processing", trace_file_name);
-                    mmt_log(mmt_conf, MMT_L_INFO, MMT_P_TRACE_DELETE, lg_msg);
-                    //fprintf(stdout, "Trace File %s successfully deleted\n", trace_file_name);
-                }
-
-            } else {
-                sleep(1); //No file available yet! sleep one second
-            }
-        }
-    }
-    if (mmt_conf->input_mode == ONLINE_ANALYSIS) {
-        mmt_conf->data_out_file = fopen(mmt_conf->data_out, "w");
-        sprintf(lg_msg, "Open output results file: %s", mmt_conf->data_out);
-        mmt_log(mmt_conf, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
-
-        if (mmt_conf->combine_radius) {
-            mmt_conf->radius_out_file = mmt_conf->data_out_file;
-        } else {
-            mmt_conf->radius_out_file = fopen(mmt_conf->radius_out, "w");
-        }
         process_interface(mmt_conf->input_source, &mmt_probe); //Process single offline trace
         //We don't close the files here because they will be used when the handler is closed to report still to timeout flows
     }

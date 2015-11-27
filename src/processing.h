@@ -180,6 +180,7 @@ extern "C" {
         uint32_t user_agent_parsing_threshold;
         uint32_t stats_reporting_period;
         uint32_t sampled_report_period;
+        uint32_t sampled_report;
         uint32_t event_reports_nb;
         uint32_t condition_reports_nb;
         mmt_event_report_t * event_reports;
@@ -344,7 +345,7 @@ extern "C" {
     void event_reports_cleanup(void * handler);
     void init_session_structs();
     void print_session_structs();
-    void report_microflows_stats(microsessions_stats_t * stats, FILE * out_file);
+    void report_microflows_stats(microsessions_stats_t * stats);
     void reset_microflows_stats(microsessions_stats_t * stats);
     void report_all_protocols_microflows_stats(probe_internal_t * iprobe);
     void security_event( int prop_id, char *verdict, char *type, char *cause, char *history );

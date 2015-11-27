@@ -223,74 +223,107 @@ int remove_lock_file(){
 return 1;
 
 }
-void send_message (FILE * out_file, char *channel, char * message) {
+void send_message (char *channel, char * message) {
 
     time_t present_time;
-    static time_t last_reporting_time=0;
+    static time_t last_reporting_time_single=0;
+    static time_t last_reporting_time_multi=0;
 	present_time=time(0);
-	int MAX=200;
+	int MAX=256;
 	int valid=0;
 	int lock_valid=0;
-	static char file [256+1]={0};
+	static char multi_file [256+1]={0};
+	static char single_file [256+1]={0};
+	char lg_msg[1024];
 
-	if (last_reporting_time==0){
+	if(probe_context.sampled_report==1){
 
+	    if (last_reporting_time_multi==0){
 
-		lock_valid=snprintf(lock_file,MAX,"%s%lu_%s.lock",probe_context.output_location,present_time,probe_context.data_out);
-		lock_file[lock_valid]='\0';
-		temp_lock_file= fopen(lock_file, "w");
+		    lock_valid=snprintf(lock_file,MAX,"%s%lu_%s.lock",probe_context.output_location,present_time,probe_context.data_out);
+		    lock_file[lock_valid]='\0';
+		    temp_lock_file= fopen(lock_file, "w");
 
-		if (temp_lock_file==NULL){
-	        fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , lock_file , strerror( errno ) );
-			exit(1);
-		}
+	        sprintf(lg_msg, "Open output results file: %s", lock_file);
+	        mmt_log(&probe_context, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
 
-		valid=snprintf(file,MAX,"%s%lu_%s",probe_context.output_location,present_time,probe_context.data_out);
-		file[valid]='\0';
-	    last_reporting_time=present_time;
-		sampled_file= fopen(file, "w");
+		    if (temp_lock_file==NULL){
+	            fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , lock_file , strerror( errno ) );
+			    exit(1);
+		    }
 
-		if (sampled_file==NULL){
-		    fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , file , strerror( errno ) );
-		    exit(1);
-	   }
+		    valid=snprintf(multi_file,MAX,"%s%lu_%s",probe_context.output_location,present_time,probe_context.data_out);
+		    multi_file[valid]='\0';
+	        last_reporting_time_multi=present_time;
+		    sampled_file= fopen(multi_file, "w");
+
+	        sprintf(lg_msg, "Open output results file: %s", multi_file);
+	        mmt_log(&probe_context, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
+
+		    if (sampled_file==NULL){
+		        fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , multi_file , strerror( errno ) );
+		        exit(1);
+	        }
+
+	    }
+
+	    if(present_time-last_reporting_time_multi>=probe_context.sampled_report_period){
+	        if (remove_lock_file()!=1){
+	            printf("Error: Removing and closing output file errors: check function remove_lock_file\n");
+		        exit(1);
+		    }
+
+		    lock_valid=snprintf(lock_file,MAX,"%s%lu_%s.lock",probe_context.output_location,present_time,probe_context.data_out);
+		    lock_file[lock_valid]='\0';
+		    temp_lock_file=fopen(lock_file, "w");
+
+	        sprintf(lg_msg, "Open output results file: %s", lock_file);
+	        mmt_log(&probe_context, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
+
+		    if (temp_lock_file==NULL){
+			    fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , lock_file , strerror( errno ) );
+			    exit(1);
+
+	        }
+
+		    valid=snprintf(multi_file,MAX,"%s%lu_%s",probe_context.output_location,present_time,probe_context.data_out);
+		    multi_file[valid]='\0';
+	        last_reporting_time_multi=present_time;
+	        sampled_file= fopen(multi_file, "w");
+
+	        sprintf(lg_msg, "Open output results file: %s", multi_file);
+	        mmt_log(&probe_context, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
+
+		    if (sampled_file==NULL){
+		        fprintf ( stderr , "\n[e] Error: %d creation of \"%s\" failed: %s\n" , errno , multi_file , strerror( errno ) );
+		        exit(1);
+	        }
+	    }
+	    fprintf (sampled_file, "%s\n", message);
 	}
 
+	if (probe_context.sampled_report==0) {
 
-	if(present_time-last_reporting_time>=probe_context.sampled_report_period){
-	    if (remove_lock_file()!=1){
-	       printf("Error: Removing and closing output file errors: check function remove_lock_file\n");
-		    exit(1);
+        if (last_reporting_time_single==0){
+        	int len=0;
+            len=snprintf(single_file,MAX,"%s%s",probe_context.output_location,probe_context.data_out);
+            probe_context.data_out[len]='\0';
+
+        	probe_context.data_out_file = fopen(single_file, "w");
+
+        	sprintf(lg_msg, "Open output results file: %s", single_file);
+	        mmt_log(&probe_context, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
+
+        	last_reporting_time_single=present_time;
+
+        	if (probe_context.data_out_file==NULL){
+        	    fprintf ( stderr , "\n[e] Error: %d creation of \"%s\" failed: %s\n" , errno ,single_file, strerror( errno ) );
+        	    exit(1);
+            }
 		}
 
-		lock_valid=snprintf(lock_file,MAX,"%s%lu_%s.lock",probe_context.output_location,present_time,probe_context.data_out);
-		lock_file[lock_valid]='\0';
-		temp_lock_file=fopen(lock_file, "w");
-
-		if (temp_lock_file==NULL){
-			fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , lock_file , strerror( errno ) );
-			exit(1);
-
-	   }
-
-		valid=snprintf(file,MAX,"%s%lu_%s",probe_context.output_location,present_time,probe_context.data_out);
-		file[valid]='\0';
-	    last_reporting_time=present_time;
-	    sampled_file= fopen(file, "w");
-
-		if (sampled_file==NULL){
-		    fprintf ( stderr , "\n[e] Error: %d creation of \"%s\" failed: %s\n" , errno , file , strerror( errno ) );
-		    exit(1);
-	   }
+		fprintf (probe_context.data_out_file, "%s\n", message);
 	}
-
-	fprintf (sampled_file, "%s\n", message);
-
-
-
-	/****If you want a single trace file, uncomment the line below**/
-
-	//fprintf (out_file, "%s\n", message);
 
 
     // Publish to redis if it is enabled
@@ -316,7 +349,7 @@ void send_message (FILE * out_file, char *channel, char * message) {
 }
 
 void protocols_stats_iterator(uint32_t proto_id, void * args) {
-    FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
+    //FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
     char message[MAX_MESS + 1];
     mmt_handler_t * mmt_handler = (mmt_handler_t *) args;
     if (proto_id <= 1) return; //ignor META and UNknown protocols
@@ -373,7 +406,7 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
                 proto_stats->sessions_count,proto_stats->data_volume, proto_stats->payload_volume,proto_stats->packets_count);
 
             message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-            send_message (out_file, "protocol.stat", message);
+            send_message ("protocol.stat", message);
             /*
             fprintf(out_file, "%u,%lu.%lu,%u,%s,"
                 "%"PRIu64",%"PRIi64",%"PRIu64",%"PRIu64",%"PRIu64"\n", MMT_STATISTICS_REPORT_FORMAT, ts.tv_sec, ts.tv_usec, proto_id, path, 
@@ -500,7 +533,7 @@ void iterate_through_mac( mmt_handler_t *mmt_handler ){
 
 	ethernet_statistics_t *p;
 	ethernet_proto_statistics_t *proto_stats;
-	FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
+	//FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
 	char message[MAX_MESS + 1];
 	struct timeval ts = get_last_activity_time(mmt_handler);
 
@@ -540,7 +573,7 @@ void iterate_through_mac( mmt_handler_t *mmt_handler ){
 						src, dst);
 
 				message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-				send_message (out_file, "protocol.flow.stat", message);
+				send_message ("protocol.flow.stat", message);
 
 			}
 			reset_eth_proto_stat( proto_stats );
@@ -707,7 +740,7 @@ void eth_get_session_attr(const ipacket_t * ipacket){
  * it is called in smp_main.c when a security event was detected
  */
 void security_event( int prop_id, char *verdict, char *type, char *cause, char *history ) {
-	FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
+	//FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
 
 	struct timeval ts;
 	gettimeofday( &ts, NULL );
@@ -720,7 +753,7 @@ void security_event( int prop_id, char *verdict, char *type, char *cause, char *
 
 
 	message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-    send_message (out_file, "security.report", message);
+    send_message ("security.report", message);
 }
 
 //END HN
@@ -817,7 +850,7 @@ void reconstruct_data(const ipacket_t * ipacket, mmt_condition_report_t * condit
 
 void ftp_packet_events(const ipacket_t * ipacket){
     char message[MAX_MESS + 1];
-	FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
+	//FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
 	ftp_packet_attr_t * packet_attr = (ftp_packet_attr_t * )malloc(sizeof(ftp_packet_attr_t));
 
 	 if (packet_attr != NULL) {
@@ -856,7 +889,7 @@ void ftp_packet_events(const ipacket_t * ipacket){
         	//snprintf(message, MAX_MESS,"%s,%u,%u",file_name,data_type,data_len);
 
             message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-            send_message (out_file, "ftp.flow.report", message);
+            send_message ("ftp.flow.report", message);
 
 
 }
@@ -959,7 +992,7 @@ void rtp_jitter_handle(const ipacket_t * ipacket, attribute_t * attribute, void 
     mmt_session_t * rtp_session = get_session_from_packet(ipacket);
     if(rtp_session == NULL) return;
 
-    FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
+    //FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
     uint64_t session_id = get_session_id(rtp_session);
 
 
@@ -1030,7 +1063,7 @@ void rtp_jitter_handle(const ipacket_t * ipacket, attribute_t * attribute, void 
     	        	        );
 
         message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-        send_message (out_file, "rtp.flow.report", message);
+        send_message ("rtp.flow.report", message);
         reset(ipacket,rtp_session,temp_session);
 
     }
@@ -1342,7 +1375,7 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
     char ip_src_str[46];
     char ip_dst_str[46];
 
-    FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
+    //FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
 	mmt_session_t * ftp_session = get_session_from_packet(ipacket);
 	if(ftp_session == NULL) return;
 
@@ -1381,7 +1414,7 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
     						((ftp_session_attr_t*) temp_session->app_data)->file_download_starttime_usec
                    	    );
             message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-            send_message (out_file, "ftp.download.report", message);
+            send_message ("ftp.download.report", message);
             reset_ftp_parameters(ipacket,temp_session);
         }
     }
@@ -1632,7 +1665,7 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
     int offset = 0, valid;
     char message[MAX_MESS + 1];
 
-    FILE * out_file = (probe_context.radius_out_file != NULL) ? probe_context.radius_out_file : stdout;
+    //FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
     mmt_event_report_t * event_report = (mmt_event_report_t *) user_args;
     //session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
 
@@ -1674,7 +1707,7 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
     	}
     }
     message[ offset ] = '\0';
-    send_message (out_file, "radius.report", message);
+    send_message ("event.report", message);
 }
 /*
 void condition_report_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
@@ -1683,7 +1716,7 @@ void condition_report_handle(const ipacket_t * ipacket, attribute_t * attribute,
     int offset = 0, valid;
     char message[MAX_MESS + 1];
 
-    FILE * out_file = (probe_context.radius_out_file != NULL) ? probe_context.radius_out_file : stdout;
+    //FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
     mmt_condition_report_t * condition_report = (mmt_condition_report_t *) user_args;
     session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
 
@@ -1725,7 +1758,7 @@ void condition_report_handle(const ipacket_t * ipacket, attribute_t * attribute,
     	}
     }
     message[ offset ] = '\0';
-    send_message (out_file, "radius.report", message);
+    send_message ("radius.report", message);
 }
 */
 int register_event_report_handle(void * handler, mmt_event_report_t * event_report) {
@@ -1793,7 +1826,7 @@ void radius_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void
     //FILE * out_file = (user_args != NULL) ? (FILE *) user_args : stdout;
     if(ipacket->session == NULL) return;
     char message[MAX_MESS + 1];
-    FILE * out_file = (probe_context.radius_out_file != NULL) ? probe_context.radius_out_file : stdout;
+    //FILE * out_file = (probe_context.radius_out_file != NULL) ? probe_context.radius_out_file : stdout;
 
     //Mark this flow as SKIP REPORTING one! Yeah we don't want to report RADIUS flows 
     //Just report the RADIUS specific report
@@ -1858,7 +1891,7 @@ void radius_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void
                         (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_id) : 0
                     );
                     message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-                    send_message (out_file, "radius.report", message);
+                    send_message ("radius.report", message);
                     /* 
                     fprintf(out_file, "%i,%lu.%lu,%i,%s,%s,%i,%s,%s,%s,%s,%s,%s,%i,%s,%i,%i\n", MMT_RADIUS_REPORT_FORMAT, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec,
                         (int) code, (framed_ip_address != NULL) ? f_ipv4 : "",
@@ -1920,7 +1953,7 @@ void radius_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void
                     );
 
                 message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-                send_message (out_file, "radius.report", message);
+                send_message ("radius.report", message);
                 /* 
                 fprintf(out_file, "%i,%lu.%lu,%i,%s,%s,%i,%s,%s,%s,%s,%s,%s,%i,%s,%i,%i\n", MMT_RADIUS_REPORT_FORMAT, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec,
                     (int) code, (framed_ip_address != NULL) ? f_ipv4 : "",
@@ -2043,15 +2076,15 @@ void reset_microflows_stats(microsessions_stats_t * stats) {
 
 void report_all_protocols_microflows_stats(probe_internal_t * iprobe) {
     int i;
-    FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
+    //FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
     for (i = 0; i < PROTO_MAX_IDENTIFIER; i++) {
         if (iprobe->mf_stats[i].flows_nb) {
-            report_microflows_stats(&iprobe->mf_stats[i], out_file);
+            report_microflows_stats(&iprobe->mf_stats[i]);
         }
     }
 }
 
-void report_microflows_stats(microsessions_stats_t * stats, FILE * out_file) {
+void report_microflows_stats(microsessions_stats_t * stats) {
     //Format id, timestamp, App name, Nb of flows, DL Packet Count, UL Packet Count, DL Byte Count, UL Byte Count
     char message[MAX_MESS + 1];
     snprintf(message, MAX_MESS, 
@@ -2060,7 +2093,7 @@ void report_microflows_stats(microsessions_stats_t * stats, FILE * out_file) {
          stats->application_id, stats->flows_nb, stats->dl_pcount, stats->ul_pcount, stats->dl_bcount, stats->ul_bcount);
 
      message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-     send_message (out_file, "microflows.report", message);
+     send_message ("microflows.report", message);
      /* 
      fprintf(out_file, "%i,%lu.%lu,"
          //"%lu.%lu,"
@@ -2098,7 +2131,7 @@ void update_microflows_stats(microsessions_stats_t * stats, const mmt_session_t 
     stats->end_time = get_session_last_activity_time(expired_session);
 }
 
-void print_default_app_format(const mmt_session_t * expired_session, FILE * out_file, probe_internal_t * iprobe) {
+void print_default_app_format(const mmt_session_t * expired_session,probe_internal_t * iprobe) {
     int keep_direction = 1;
     session_struct_t * temp_session = get_user_session_context(expired_session);
     char message[MAX_MESS + 1];
@@ -2159,7 +2192,7 @@ void print_default_app_format(const mmt_session_t * expired_session, FILE * out_
     );
 
     message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-    send_message (out_file, "flow.report", message);
+    send_message ("flow.report", message);
     /* 
     fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,\n", // app specific 
         temp_session->app_format_id, end_time.tv_sec, end_time.tv_usec,
@@ -2181,7 +2214,7 @@ void print_default_app_format(const mmt_session_t * expired_session, FILE * out_
 
 //Response time, Transactions Nb, Interaction time, Hostname, MIME type, Referer, User agent, xcdn_seen
 
-void print_web_app_format(const mmt_session_t * expired_session, FILE * out_file, probe_internal_t * iprobe) {
+void print_web_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe) {
     int keep_direction = 1;
     session_struct_t * temp_session = get_user_session_context(expired_session);
     char path[128];
@@ -2255,7 +2288,7 @@ void print_web_app_format(const mmt_session_t * expired_session, FILE * out_file
     );
 
     message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-    send_message (out_file, "web.flow.report", message);
+    send_message ("web.flow.report", message);
     /* 
     fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,%u,%u,%u,%s,%s,%s,%s,"
         //"%s,"
@@ -2284,7 +2317,7 @@ void print_web_app_format(const mmt_session_t * expired_session, FILE * out_file
     */
 }
 
-void print_ssl_app_format(const mmt_session_t * expired_session, FILE * out_file, probe_internal_t * iprobe) {
+void print_ssl_app_format(const mmt_session_t * expired_session,probe_internal_t * iprobe) {
     int keep_direction = 1;
     session_struct_t * temp_session = get_user_session_context(expired_session);
     char message[MAX_MESS + 1];
@@ -2343,7 +2376,7 @@ void print_ssl_app_format(const mmt_session_t * expired_session, FILE * out_file
     );
 
     message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-    send_message (out_file, "ssl.flow.report", message);
+    send_message ("ssl.flow.report", message);
     /* 
     fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,%s,%u\n", // app specific
         (uint16_t) MMT_SSL_APP_REPORT_FORMAT, end_time.tv_sec, end_time.tv_usec,
@@ -2364,7 +2397,7 @@ void print_ssl_app_format(const mmt_session_t * expired_session, FILE * out_file
     */
 }
 
-void print_rtp_app_format(const mmt_session_t * expired_session, FILE * out_file, probe_internal_t * iprobe) {
+void print_rtp_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe) {
     int keep_direction = 1;
     session_struct_t * temp_session = get_user_session_context(expired_session);
     //common fields
@@ -2438,7 +2471,7 @@ void print_rtp_app_format(const mmt_session_t * expired_session, FILE * out_file
     );
 
     message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-    send_message (out_file, "rtp.flow.report", message);
+    send_message ("rtp.flow.report", message);
     /* 
     // Packet loss rate, Packet loss burstiness, max jitter, Order error rate 
     fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,%f,%f,%u,%f\n", // app specific 
@@ -2464,7 +2497,7 @@ void print_rtp_app_format(const mmt_session_t * expired_session, FILE * out_file
     */
 }
 /*
-void print_ftp_app_format(const mmt_session_t * expired_session, FILE * out_file, probe_internal_t * iprobe) {
+void print_ftp_app_format(const mmt_session_t * expired_session,probe_internal_t * iprobe) {
     int keep_direction = 1;
     session_struct_t * temp_session = get_user_session_context(expired_session);
     char message[MAX_MESS + 1];
@@ -2517,7 +2550,7 @@ void print_ftp_app_format(const mmt_session_t * expired_session, FILE * out_file
         			((ftp_session_attr_t*) temp_session->app_data)->filename, location
         	    );
         	    message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-        	    send_message (out_file, "ftp.flow.report", message);
+        	    send_message ("ftp.flow.report", message);
 
         }
     }
@@ -2533,7 +2566,7 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
     //FILE * out_file = (iprobe != NULL && iprobe->data_out != NULL) ? iprobe->data_out : stdout;
     //FILE * radius_out = (iprobe != NULL && iprobe->radius_out != NULL) ? iprobe->data_out : stdout;
     //FILE * out_file = stdout;
-    FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
+    //FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
 
     //printf("Temp session to delete %p\n", temp_session);
     int sslindex;
@@ -2542,7 +2575,7 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
         microsessions_stats_t * mf_stats = &iprobe->mf_stats[get_session_protocol_hierarchy(expired_session)->proto_path[(get_session_protocol_hierarchy(expired_session)->len <= 16)?(get_session_protocol_hierarchy(expired_session)->len - 1):(16 - 1)]];
         update_microflows_stats(mf_stats, expired_session);
         if (is_microflow_stats_reportable(mf_stats)) {
-            report_microflows_stats(mf_stats, out_file);
+            report_microflows_stats(mf_stats);
         }
     } else {
         //First we check if we should skip the reporting for this flow
@@ -2550,19 +2583,19 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
             //We should report this flow.
             switch (temp_session->app_format_id) {
                 case MMT_WEB_APP_REPORT_FORMAT:
-                    print_web_app_format(expired_session, out_file, iprobe);
+                    print_web_app_format(expired_session, iprobe);
                     break;
                 case MMT_SSL_APP_REPORT_FORMAT:
-                    print_ssl_app_format(expired_session, out_file, iprobe);
+                    print_ssl_app_format(expired_session, iprobe);
                     break;
                 case MMT_RTP_APP_REPORT_FORMAT:
-                    print_rtp_app_format(expired_session, out_file, iprobe);
+                    print_rtp_app_format(expired_session, iprobe);
                     break;
     			case MMT_FTP_DOWNLOAD_REPORT_FORMAT:
     				break;
                 default:
                     sslindex = get_protocol_index_from_session(get_session_protocol_hierarchy(expired_session), PROTO_SSL);
-                    if (sslindex != -1) print_ssl_app_format(expired_session, out_file, iprobe);
+                    if (sslindex != -1) print_ssl_app_format(expired_session, iprobe);
                     //else print_default_app_format(expired_session, out_file, iprobe);
                     break;
             }
