@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<?xml-stylesheet type="text/xsl" href="properties.xsl"?>
+<!-- MMT_Security Copyright (C) 2014  Montimage
+     Description: Detection of attacks in BGPost honeypot
+-->
+<beginning>
+
+<!-- Property 1: Several attempts to connect via ssh (brute force attack). Source address is either infected machine or attacker (no spoofing is possible).
+-->
+
+<property value="THEN" delay_units="m" delay_min="0+" delay_max="1" property_id="1" type_property="ATTACK" 
+    description="Several attempts to connect via ssh (brute force attack). Source address is either infected machine or attacker (no spoofing is possible)."
+    >
+    <!--if_satisfied="py_createstix(1_BGPOST_SSH_Brute_Force_Attack,ip.src.1)"-->
+    <operator value="THEN" delay_units="s" delay_min="0+" delay_max="1">
+      <event value="COMPUTE" event_id="1" 
+             description="SYN request"
+             boolean_expression="((tcp.flags == 2)&amp;&amp;(tcp.dest_port == 22))"/>
+      <event value="COMPUTE" event_id="2" 
+             description="SYN ACK reply"
+             boolean_expression="((tcp.flags == 18)&amp;&amp;((tcp.src_port == 22)&amp;&amp;((ip.dst == ip.src.1)&amp;&amp;(ip.src == ip.dst.1))))"/>
+    </operator>
+    <operator value="THEN" delay_units="s" delay_min="0+" delay_max="1">
+      <event value="COMPUTE" event_id="3" 
+             description="SYN request"
+             boolean_expression="((tcp.flags == 2)&amp;&amp;((tcp.dest_port == 22)&amp;&amp;((ip.src == ip.src.1)&amp;&amp;(ip.dst == ip.dst.1))))"/>
+      <event value="COMPUTE" event_id="4" 
+             description="SYN ACK reply"
+             boolean_expression="((tcp.flags == 18)&amp;&amp;((tcp.src_port == 22)&amp;&amp;((ip.dst == ip.src.1)&amp;&amp;(ip.src == ip.dst.1))))"/>
+    </operator>
+</property>
+
+<!-- Property 2: Attempted to connect via ssh but reseted immediately. Source address is spoofed, infected machine or attacker.
+-->
+
+<property value="THEN" delay_units="ms" delay_min="0+" delay_max="500" property_id="2" type_property="ATTACK" 
+    description="Attempted to connect via ssh but reseted immediately. Source address is either infected machine or attacker (no spoofing is possible)."
+    >
+    <!--if_satisfied="py_createstix(2_BGPOST_SSH_CONNECTION_BUT_IMMEDIATE_RESET,ip.src.5)"-->
+    <operator value="THEN" delay_units="s" delay_min="0+" delay_max="1">
+      <event value="COMPUTE" event_id="5" 
+             description="SYN request"
+             boolean_expression="((tcp.flags == 2)&amp;&amp;(tcp.dest_port == 22))"/>
+      <event value="COMPUTE" event_id="6" 
+             description="SYN ACK reply"
+             boolean_expression="((tcp.flags == 18)&amp;&amp;((tcp.src_port == 22)&amp;&amp;((ip.dst == ip.src.5)&amp;&amp;(ip.src == ip.dst.5))))"/>
+    </operator>
+    <event value="COMPUTE" event_id="7" 
+           description="RST reset"
+           boolean_expression="((tcp.flags == 4)&amp;&amp;((tcp.dest_port == 22)&amp;&amp;((ip.dst == ip.dst.5)&amp;&amp;(ip.src == ip.src.5))))"/>
+</property>
+
+<!-- Property 3: Several TCP SYN requests without SYN ACK. Source address is spoofed, infected machine or attacker. Note: done on port 445.-->
+
+<property value="THEN" delay_units="s" delay_min="0+" delay_max="6" property_id="3" type_property="ATTACK" 
+    description="TCP SYN requests on microsoft-ds port 445 with SYN ACK."
+    >
+    <!--if_not_satisfied="py_createstix(3_BGPOST_TCP_SYN_request_without_SYN_ACK_could_be_a_spoofed_address, ip.src.8)"-->
+    <event value="COMPUTE" event_id="8"
+           description="SYN request"
+           boolean_expression="((tcp.flags == 2)&amp;&amp;(tcp.dest_port == 445))"/>
+    <event value="COMPUTE" event_id="9" 
+           description="SYN ACK reply"
+           boolean_expression="((tcp.flags == 18)&amp;&amp;(ip.src == ip.dst.8))"/>
+</property>
+
+<!-- Property 4: Two successive TCP SYN requests but with different destnation addresses.-->
+
+<property value="THEN" delay_units="s" delay_min="0+" delay_max="1" property_id="4" type_property="ATTACK" 
+    description="Two successive TCP SYN requests but with different destnation addresses."
+    >
+    <!--if_satisfied="py_createstix(5_two_successive_TCP_SYN_requests_could_be_a_spoofed_address, ip.src.12)"-->
+    <event value="COMPUTE" event_id="12" 
+           description="SYN request"
+           boolean_expression="(tcp.flags == 2)"/>
+    <event value="COMPUTE" event_id="13" 
+           description="SYN request"
+           boolean_expression="((tcp.flags == 2)&amp;&amp;((ip.dst != ip.dst.12)&amp;&amp;(ip.src == ip.src.12)))"/>
+
+<!-- Property 5: TCP SYN requests with SYN ACK.-->
+<!--
+<property value="THEN" delay_units="m" delay_min="0+" delay_max="1" property_id="5" type_property="SECURITY_RULE" 
+          description="TCP SYN requests with SYN ACK.">
+          if_not_satisfied="py_createstix(4_TCP_SYN_request_without_SYN_ACK_could_be_a_spoofed_address, ip.src.10)"
+    <event value="COMPUTE" event_id="10"
+           description="SYN request"
+           boolean_expression="(tcp.flags == 2)"/>
+    <event value="COMPUTE" event_id="11" 
+           description="SYN ACK reply"
+           boolean_expression="((tcp.flags == 18)&amp;&amp;(ip.src == ip.dst.10))"/>
+</property>
+-->
+
+</property>
+</beginning>
