@@ -276,11 +276,13 @@ void send_message (char *channel, char * message) {
 	if (probe_context.sampled_report==0) {
 
         if (last_reporting_time_single==0){
+
         	int len=0;
             len=snprintf(single_file,MAX_FILE_NAME,"%s%s",probe_context.output_location,probe_context.data_out);
-            probe_context.data_out[len]='\0';
+            single_file[len]='\0';
 
         	probe_context.data_out_file = fopen(single_file, "w");
+
         	if (probe_context.data_out_file==NULL){
         	    fprintf ( stderr , "\n[e] Error: %d creation of \"%s\" failed: %s\n" , errno ,single_file, strerror( errno ) );
         	    exit(1);
@@ -291,10 +293,8 @@ void send_message (char *channel, char * message) {
 
         	last_reporting_time_single=present_time;
 
-
 		}
-
-		fprintf (probe_context.data_out_file, "%s\n", message);
+        fprintf (probe_context.data_out_file, "%s\n", message);
 	}
 
 
