@@ -625,7 +625,6 @@ int parse_location_attribute(char * inputstring, mmt_condition_attribute_t * con
 
     if(inputstring!= NULL){
     strncpy(conditionattr->location, inputstring, 256);
-   // printf("conditionattr->location=%s\n",conditionattr->location);
     return 0;
 	}
 	return 1;
@@ -634,7 +633,6 @@ int parse_location_attribute(char * inputstring, mmt_condition_attribute_t * con
 int parse_handlers_attribute(char * inputstring, mmt_condition_attribute_t * handlersattr) {
     if(inputstring!= NULL){
     strncpy(handlersattr->handler, inputstring, 256);
-    //printf("conditionattr->handler=%s\n",handlersattr->handler);
     return 0;
 	}
 	return 1;
@@ -684,6 +682,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
                 mmt_conf->combine_radius = 0;
             }
         }
+
 
         if (cfg_size(cfg, "security")) {
             cfg_t *output = cfg_getnsec(cfg, "security", 0);
@@ -832,12 +831,12 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
     char lg_msg[1024];
 
 
+    //Initialise MMT_Security
+    init_mmt_security( mmt_probe->mmt_handler, mmt_probe->mmt_conf->properties_file );
+    //End initialise MMT_Security
+
+
     if (mmt_probe->mmt_conf->thread_nb == 1) {
-
-
-        //Initialise MMT_Security
-        init_mmt_security( mmt_probe->mmt_handler, mmt_probe->mmt_conf->properties_file );
-        //End initialise MMT_Security
 
         pcap = pcap_open_offline(filename, errbuf); // open offline trace
 
@@ -1058,7 +1057,8 @@ void *Reader(void *arg) {
         fprintf(stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(handle));
         exit(EXIT_FAILURE);
     }
-
+    //Initialise MMT_Security
+    init_mmt_security( mmt_probe->mmt_handler, mmt_probe->mmt_conf->properties_file );
     /* now we can set our callback function */
     pcap_loop(handle, num_packets, got_packet, NULL);
 
@@ -1088,7 +1088,7 @@ void process_interface(char * ifname, struct mmt_probe_struct * mmt_probe) {
     int rc;
     rc = pthread_create(&reader_thread, NULL, &Reader, (void *) mmt_probe);
     if (rc) {
-        fprintf(stderr, "pthread_create error while creatin interface reader\n");
+        fprintf(stderr, "pthread_create error while creating interface reader\n");
         exit(1);
     }
 
@@ -1239,7 +1239,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
     }
     //Now close the reporting files.
     //Offline or Online processing
-    if (mmt_conf->input_mode == OFFLINE_ANALYSIS) {
+    if (mmt_conf->input_mode == OFFLINE_ANALYSIS||mmt_conf->input_mode == ONLINE_ANALYSIS) {
         if (mmt_conf->data_out_file) fclose(mmt_conf->data_out_file);
 
         if (mmt_conf->combine_radius == 0) {
@@ -1248,21 +1248,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
         sprintf(lg_msg, "Closing output results file");
         mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_P_CLOSE_OUTPUT, lg_msg);
 
-    } else if (mmt_conf->input_mode == OFFLINE_ANALYSIS_CONTINUOUS) {
-        if (mmt_conf->data_out_file) {
-            fclose(mmt_conf->data_out_file);
-            FILE * csv_index = fopen(mmt_conf->out_f_name_index, "w");
-            if (csv_index) {
-                fprintf(csv_index, "%s\n", mmt_conf->out_f_name);
-                if (csv_index) fclose(csv_index);
-            }
-        }
-
-        if (mmt_conf->combine_radius == 0) {
-            if (mmt_conf->radius_out_file) fclose(mmt_conf->radius_out_file);
-        }
-        sprintf(lg_msg, "Closing output results file");
-        mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_P_CLOSE_OUTPUT, lg_msg);
     }
 
     //TODO: If the files are not created this will return error,remove_lock_file();
