@@ -52,7 +52,7 @@
 static int okcode  = EXIT_SUCCESS;
 static int errcode = EXIT_FAILURE;
 
-extern int remove_lock_file();
+extern void end_file();
 
 
 //Begin for MMT_Security
@@ -184,7 +184,7 @@ int get_next_trace_file(char * dir_name, char * filename) {
         }
         closedir(traces_index_dir);
     }
-    if (retval && files_count > 1) {
+    if (retval && files_count > 0) {
         strcpy(filename, file_name);
     } else {
         strcpy(filename, "");
@@ -879,7 +879,7 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
             pthread_create(&dispatcher[i].handle, NULL, process_tracefile_thread_routine, &dispatcher[i]);
         }
 
-        /* wait for the dispatching threadds to complete */
+        /* wait for the dispatching threads to complete */
         for (i = 0; i < 2; i++) {
             pthread_join(dispatcher[i].handle, NULL);
         }
@@ -1148,7 +1148,7 @@ static void *process_tracefile_thread_routine(void *arg) {
                 /* get thread destination structure */
                 //printf("Hash of packet nb %i : %i\n", packets_count, hash_packet(data, pkthdr.caplen));
                 //th = &mmt_probe->smp_threads[packets_count & (mmt_probe->mmt_conf->thread_nb - 1)];
-                th = &mmt_probe.smp_threads[p_hash & (mmt_probe.mmt_conf->thread_nb - 1)];
+                th = &mmt_probe.smp_threads[p_hash & (mmt_probe.mmt_conf->thread_nb - 1)]; //get thread to assign a packet
                 pthread_spin_lock(&th->lock);
                 if (th->queue_blen > mmt_probe.mmt_conf->thread_queue_blen || th->queue_plen > mmt_probe.mmt_conf->thread_queue_plen) {
                     //The packet will be dropped from the analysis
@@ -1267,10 +1267,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 
     //TODO: If the files are not created this will return error,remove_lock_file();
     if(mmt_conf->sampled_report==1){
-        if (remove_lock_file()!=1){
-            printf("Error: Removing and closing output file errors when probe is terminating\n");
-            exit(1);
-        }
+        end_file();
     }
 
     close_extraction();
@@ -1554,7 +1551,7 @@ int main(int argc, char **argv) {
             pthread_create(&mmt_probe.smp_threads[i].handle, NULL,
                     smp_thread_routine, &mmt_probe.smp_threads[i]);
         }
-        sprintf(lg_msg, "MnMT Extraction engine! successfully initialized in a multi threaded operation (%i threads)", mmt_conf->thread_nb);
+        sprintf(lg_msg, "MMT Extraction engine! successfully initialized in a multi threaded operation (%i threads)", mmt_conf->thread_nb);
         mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, lg_msg);
     }
 

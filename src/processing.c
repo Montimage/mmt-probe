@@ -195,107 +195,78 @@ typedef struct http_line_struct {
 } http_line_struct_t;
 
 FILE * sampled_file;
-FILE * temp_lock_file;
-char lock_file [256+1]={0};
+#define MAX_FILE_NAME 200
+static time_t last_reporting_time=0;
 
-int remove_lock_file(){
 
-	if (fclose(sampled_file)!=0){
-        //fprintf ( stderr , "\n[e] Error %d closing of sampled_file failed: %s" , errno ,strerror( errno ) );
-
-		printf("Error: sampled_file closing failed");
+void end_file(){
+    FILE * temp_sem_file;
+    char sem_file_str [256+1]={0};
+	int sem_valid=0;
+    int i=0;
+    if(sampled_file) i=fclose(sampled_file);
+	if (i!=0){
+        fprintf ( stderr , "\n1: Error %d closing of sampled_file failed: %s" , errno ,strerror( errno ) );
 		exit(1);
+	}
+    sem_valid=snprintf(sem_file_str, MAX_FILE_NAME, "%s%lu_%s.sem", probe_context.output_location, last_reporting_time, probe_context.data_out);
+	sem_file_str[sem_valid]='\0';
+	temp_sem_file= fopen(sem_file_str, "w");
 
+	if (temp_sem_file==NULL){
+        fprintf ( stderr , "\n2: Error: %d creation of \"%s\" failed: %s\n" , errno , sem_file_str , strerror( errno ) );
+		exit(1);
 	}
 
-	if (fclose(temp_lock_file)!=0){
-		printf("Error: lock_file closing failed");
+    if(temp_sem_file) i=fclose(temp_sem_file);
+	if (i!=0){
+        fprintf ( stderr , "\n4: Error %d closing of sampled_file failed: %s" , errno ,strerror( errno ) );
 		exit(1);
-
 	}
-
-	if (remove( lock_file )!=0){
-		printf("Error: lock_file deletion failed");
-		exit(1);
-
-	}
-
-return 1;
 
 }
+
 void send_message (char *channel, char * message) {
 
     time_t present_time;
     static time_t last_reporting_time_single=0;
-    static time_t last_reporting_time_multi=0;
 	present_time=time(0);
-	int MAX=256;
 	int valid=0;
-	int lock_valid=0;
-	static char multi_file [256+1]={0};
+	static char sampled_file_str [256+1]={0};
 	static char single_file [256+1]={0};
 	char lg_msg[1024];
 
 	if(probe_context.sampled_report==1){
 
-	    if (last_reporting_time_multi==0){
+	    if (last_reporting_time==0){
 
-		    lock_valid=snprintf(lock_file,MAX,"%s%lu_%s.lock",probe_context.output_location,present_time,probe_context.data_out);
-		    lock_file[lock_valid]='\0';
-		    temp_lock_file= fopen(lock_file, "w");
+	    	valid=snprintf(sampled_file_str, MAX_FILE_NAME, "%s%lu_%s", probe_context.output_location, present_time, probe_context.data_out);
+	    	sampled_file_str[valid] = '\0';
+	        last_reporting_time = present_time;
+	    	sampled_file = fopen(sampled_file_str, "w");
 
-	        sprintf(lg_msg, "Open output results file: %s", lock_file);
-	        mmt_log(&probe_context, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
-
-		    if (temp_lock_file==NULL){
-	            fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , lock_file , strerror( errno ) );
-			    exit(1);
-		    }
-
-		    valid=snprintf(multi_file,MAX,"%s%lu_%s",probe_context.output_location,present_time,probe_context.data_out);
-		    multi_file[valid]='\0';
-	        last_reporting_time_multi=present_time;
-		    sampled_file= fopen(multi_file, "w");
-
-	        sprintf(lg_msg, "Open output results file: %s", multi_file);
+	        sprintf(lg_msg, "Open output results file: %s", sampled_file_str);
 	        mmt_log(&probe_context, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
 
 		    if (sampled_file==NULL){
-		        fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , multi_file , strerror( errno ) );
+		        fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , sampled_file_str , strerror( errno ) );
 		        exit(1);
 	        }
 
 	    }
 
-	    if(present_time-last_reporting_time_multi>=probe_context.sampled_report_period){
-	        if (remove_lock_file()!=1){
-	            printf("Error: Removing and closing output file errors: check function remove_lock_file\n");
-		        exit(1);
-		    }
+	    if(present_time-last_reporting_time>=probe_context.sampled_report_period){
+	        end_file();
+	    	valid=snprintf(sampled_file_str, MAX_FILE_NAME,"%s%lu_%s", probe_context.output_location,present_time,probe_context.data_out);
+	    	sampled_file_str[valid] = '\0';
+	    	last_reporting_time = present_time;
+	    	sampled_file = fopen(sampled_file_str, "w");
 
-		    lock_valid=snprintf(lock_file,MAX,"%s%lu_%s.lock",probe_context.output_location,present_time,probe_context.data_out);
-		    lock_file[lock_valid]='\0';
-		    temp_lock_file=fopen(lock_file, "w");
-
-	        sprintf(lg_msg, "Open output results file: %s", lock_file);
-	        mmt_log(&probe_context, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
-
-		    if (temp_lock_file==NULL){
-			    fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , lock_file , strerror( errno ) );
-			    exit(1);
-
-	        }
-
-		    valid=snprintf(multi_file,MAX,"%s%lu_%s",probe_context.output_location,present_time,probe_context.data_out);
-		    multi_file[valid]='\0';
-	        last_reporting_time_multi=present_time;
-	        sampled_file= fopen(multi_file, "w");
-
-	        sprintf(lg_msg, "Open output results file: %s", multi_file);
+	        sprintf(lg_msg, "Open output results file: %s", sampled_file_str);
 	        mmt_log(&probe_context, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
 
 		    if (sampled_file==NULL){
-		        fprintf ( stderr , "\n[e] Error: %d creation of \"%s\" failed: %s\n" , errno , multi_file , strerror( errno ) );
+		        fprintf ( stderr , "\n[e] Error: %d creation of \"%s\" failed: %s\n" , errno , sampled_file_str , strerror( errno ) );
 		        exit(1);
 	        }
 	    }
@@ -306,20 +277,21 @@ void send_message (char *channel, char * message) {
 
         if (last_reporting_time_single==0){
         	int len=0;
-            len=snprintf(single_file,MAX,"%s%s",probe_context.output_location,probe_context.data_out);
+            len=snprintf(single_file,MAX_FILE_NAME,"%s%s",probe_context.output_location,probe_context.data_out);
             probe_context.data_out[len]='\0';
 
         	probe_context.data_out_file = fopen(single_file, "w");
+        	if (probe_context.data_out_file==NULL){
+        	    fprintf ( stderr , "\n[e] Error: %d creation of \"%s\" failed: %s\n" , errno ,single_file, strerror( errno ) );
+        	    exit(1);
+            }
 
         	sprintf(lg_msg, "Open output results file: %s", single_file);
 	        mmt_log(&probe_context, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
 
         	last_reporting_time_single=present_time;
 
-        	if (probe_context.data_out_file==NULL){
-        	    fprintf ( stderr , "\n[e] Error: %d creation of \"%s\" failed: %s\n" , errno ,single_file, strerror( errno ) );
-        	    exit(1);
-            }
+
 		}
 
 		fprintf (probe_context.data_out_file, "%s\n", message);
@@ -915,7 +887,8 @@ void packet_handler(const ipacket_t * ipacket, void * args) {
             //ftp_packet_events(ipacket);
         }
     }
-    //printf("---------------------------------------------packet_id=%lu\n",ipacket->packet_id);
+
+   // printf("---------------------------------------------packet_id=%lu\n",ipacket->packet_id);
     if ((ipacket->p_hdr->ts.tv_sec - last_report_time) >= probe_context.stats_reporting_period) {
         iterate_through_protocols(protocols_stats_iterator, (void *) ipacket->mmt_handler);
 
