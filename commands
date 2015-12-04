@@ -14,7 +14,7 @@ sudo make install
 
 #### Compile probes
 cd ../mmt-probe/
-gcc -I/opt/mmt/include -g -o probe src/smp_main.c src/processing.c src/thredis.c -L/opt/mmt/lib -lmmt_core -lmmt_tcpip -ldl -lpcap -lconfuse -lpthread -lhiredis
+gcc -gdwarf-2 -o probe src/smp_main.c src/processing.c src/thredis.c -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
 gcc -I/opt/mmt/include -g -o simple_probe src/main.c -L/opt/mmt/lib -lmmt_core -lmmt_tcpip -ldl -lpcap
 
 ####Create link to plugins
