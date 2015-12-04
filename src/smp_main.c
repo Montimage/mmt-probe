@@ -494,6 +494,12 @@ cfg_t * parse_conf(const char *filename) {
         CFG_END()
     };
 
+    cfg_opt_t behaviour_opts[] = {
+        CFG_INT("enable", 0, CFGF_NONE),
+        CFG_STR("location", 0, CFGF_NONE),
+        CFG_END()
+    };
+
     cfg_opt_t radius_output_opts[] = {
         CFG_INT_CB("include-msg", MMT_RADIUS_REPORT_ALL, CFGF_NONE, conf_parse_radius_include_msg),
         CFG_INT_CB("include-condition", MMT_RADIUS_ANY_CONDITION, CFGF_NONE, conf_parse_radius_include_condition),
@@ -530,6 +536,7 @@ cfg_t * parse_conf(const char *filename) {
         CFG_SEC("redis-output", redis_output_opts, CFGF_NONE),
         CFG_SEC("data-output", data_output_opts, CFGF_NONE),
         CFG_SEC("security", security_opts, CFGF_NONE),
+		CFG_SEC("behaviour", behaviour_opts, CFGF_NONE),
         CFG_SEC("radius-output", radius_output_opts, CFGF_NONE),
         CFG_INT("stats-period", 60, CFGF_NONE),
 		CFG_INT("file-output-period", 60, CFGF_NONE),
@@ -688,6 +695,12 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
             cfg_t *output = cfg_getnsec(cfg, "security", 0);
             strncpy(mmt_conf->dir_out, (char *) cfg_getstr(output, "results-dir"), 256);
             strncpy(mmt_conf->properties_file, (char *) cfg_getstr(output, "properties-file"), 256);
+        }
+
+        if (cfg_size(cfg, "behaviour")) {
+            cfg_t *behaviour = cfg_getnsec(cfg, "behaviour", 0);
+            mmt_conf->behaviour_enable = (uint32_t) cfg_getint(behaviour, "enable");
+            strncpy(mmt_conf->behaviour_output_location, (char *) cfg_getstr(behaviour, "location"), 256);
         }
 
         if (cfg_size(cfg, "redis-output")) {
@@ -1059,6 +1072,8 @@ void *Reader(void *arg) {
     }
     //Initialise MMT_Security
     init_mmt_security( mmt_probe->mmt_handler, mmt_probe->mmt_conf->properties_file );
+    //End initialise MMT_Security
+
     /* now we can set our callback function */
     pcap_loop(handle, num_packets, got_packet, NULL);
 

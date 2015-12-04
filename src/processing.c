@@ -90,7 +90,7 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt) {
 void init_redis (char * hostname, int port) {
     struct timeval timeout = { 1, 500000 }; // 1.5 seconds
 
-    // Connect ro redis if not yet done
+    // Connect to redis if not yet done
     if (redis == NULL){
         redis = redisConnectWithTimeout(hostname, port, timeout);
         if (redis == NULL || redis->err) {
@@ -195,19 +195,59 @@ typedef struct http_line_struct {
 } http_line_struct_t;
 
 FILE * sampled_file;
-#define MAX_FILE_NAME 200
+#define MAX_FILE_NAME 500
 static time_t last_reporting_time=0;
 
 
 void end_file(){
     FILE * temp_sem_file;
+    FILE * temp_behaviour_sem_file;
     char sem_file_str [256+1]={0};
 	int sem_valid=0;
     int i=0;
-    if(sampled_file) i=fclose(sampled_file);
+    char behaviour_command_str [500+1]={0};
+    int behaviour_valid=0;
+    char sem_behaviour_file_str [256+1]={0};
+    int sem_behaviour_valid=0;
+    int cr;
+
+    if(sampled_file)i=fclose(sampled_file);
+
 	if (i!=0){
         fprintf ( stderr , "\n1: Error %d closing of sampled_file failed: %s" , errno ,strerror( errno ) );
 		exit(1);
+	}
+	if (probe_context.behaviour_enable==1){
+
+		cr=system(NULL);
+		if (cr==0){
+			fprintf(stderr,"No processor available on the system,while running system() command");
+			exit(1);
+		}
+
+    	behaviour_valid=snprintf(behaviour_command_str, MAX_FILE_NAME, "cp %s%lu_%s %s", probe_context.output_location, last_reporting_time, probe_context.data_out, probe_context.behaviour_output_location);
+    	behaviour_command_str[behaviour_valid]='\0';
+    	cr=system(behaviour_command_str);
+    	if (cr!=0){
+    		fprintf(stderr,"\n5 Error code %d, while coping output file %s to %s ",cr, probe_context.output_location,probe_context.behaviour_output_location);
+    		exit(1);
+    	}
+
+    	sem_behaviour_valid=snprintf(sem_behaviour_file_str, MAX_FILE_NAME, "%s%lu_%s.sem", probe_context.behaviour_output_location, last_reporting_time, probe_context.data_out);
+    	sem_behaviour_file_str[sem_behaviour_valid]='\0';
+    	temp_behaviour_sem_file= fopen(sem_behaviour_file_str, "w");
+
+    	if (temp_behaviour_sem_file==NULL){
+    		fprintf ( stderr , "\n2: Error: %d creation of \"%s\" failed: %s\n" , errno , sem_behaviour_file_str , strerror( errno ) );
+    		exit(1);
+    	}
+
+        if(temp_behaviour_sem_file)i=fclose(temp_behaviour_sem_file);
+    	if (i!=0){
+            fprintf ( stderr , "\n4: Error %d closing of temp_behaviour_sem_file failed: %s" , errno ,strerror( errno ) );
+    		exit(1);
+    	}
+
 	}
     sem_valid=snprintf(sem_file_str, MAX_FILE_NAME, "%s%lu_%s.sem", probe_context.output_location, last_reporting_time, probe_context.data_out);
 	sem_file_str[sem_valid]='\0';
@@ -218,18 +258,20 @@ void end_file(){
 		exit(1);
 	}
 
-    if(temp_sem_file) i=fclose(temp_sem_file);
+    if(temp_sem_file)i=fclose(temp_sem_file);
 	if (i!=0){
-        fprintf ( stderr , "\n4: Error %d closing of sampled_file failed: %s" , errno ,strerror( errno ) );
+        fprintf ( stderr , "\n4: Error %d closing of temp_sem_file failed: %s" , errno ,strerror( errno ) );
 		exit(1);
 	}
+
+
 
 }
 
 void send_message (char *channel, char * message) {
 
     time_t present_time;
-    static time_t last_reporting_time_single=0;
+    //static time_t last_reporting_time_single=0;
 	present_time=time(0);
 	int valid=0;
 	static char sampled_file_str [256+1]={0};
@@ -257,6 +299,7 @@ void send_message (char *channel, char * message) {
 
 	    if(present_time-last_reporting_time>=probe_context.sampled_report_period){
 	        end_file();
+
 	    	valid=snprintf(sampled_file_str, MAX_FILE_NAME,"%s%lu_%s", probe_context.output_location,present_time,probe_context.data_out);
 	    	sampled_file_str[valid] = '\0';
 	    	last_reporting_time = present_time;
@@ -275,7 +318,7 @@ void send_message (char *channel, char * message) {
 
 	if (probe_context.sampled_report==0) {
 
-        if (last_reporting_time_single==0){
+        if (last_reporting_time==0){
 
         	int len=0;
             len=snprintf(single_file,MAX_FILE_NAME,"%s%s",probe_context.output_location,probe_context.data_out);
@@ -291,9 +334,10 @@ void send_message (char *channel, char * message) {
         	sprintf(lg_msg, "Open output results file: %s", single_file);
 	        mmt_log(&probe_context, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
 
-        	last_reporting_time_single=present_time;
+        	last_reporting_time=present_time;
 
 		}
+
         fprintf (probe_context.data_out_file, "%s\n", message);
 	}
 
@@ -401,11 +445,13 @@ ethernet_statistics_t *eth_stat_root = NULL;
 
 
 char * get_prety_mac_address( const uint8_t *ea ){
+	int valid=0;
 	if( ea == NULL )
 		return "null";
 
 	char *buff = (char *) malloc( sizeof(char ) * 18 );
-	snprintf( buff, 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
+	valid=snprintf( buff, 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
+	buff[valid]='\0';
 	return buff;
 }
 
@@ -746,8 +792,6 @@ char * str_replace_all_char(const char *str,int c1, int c2){
     return new_str;
 }
 
-
-
 void write_data_to_file (const ipacket_t * ipacket,const char * path, const char * content, int len, uint32_t * file_size,mmt_condition_report_t * condition_report) {
     int fd = 0,MAX=200;
     char filename[len];
@@ -888,9 +932,10 @@ void packet_handler(const ipacket_t * ipacket, void * args) {
         }
     }
 
-   // printf("---------------------------------------------packet_id=%lu\n",ipacket->packet_id);
+   //printf("---------------------------------------------packet_id=%lu\n",ipacket->packet_id);
     if ((ipacket->p_hdr->ts.tv_sec - last_report_time) >= probe_context.stats_reporting_period) {
         iterate_through_protocols(protocols_stats_iterator, (void *) ipacket->mmt_handler);
+
 
         //HN
         iterate_through_mac( ipacket->mmt_handler );
@@ -1618,7 +1663,7 @@ void flowstruct_init(void * handler) {
     
     if(!i) {
         //TODO: we need a sound error handling mechanism! Anyway, we should never get here :)
-        fprintf(stderr, "Error while initializing MMT handlers and etractions!\n");
+        fprintf(stderr, "Error while initializing MMT handlers and extractions!\n");
     }
 }
 
@@ -1682,58 +1727,7 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
     message[ offset ] = '\0';
     send_message ("event.report", message);
 }
-/*
-void condition_report_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-    int j;
-    attribute_t * attr_extract;
-    int offset = 0, valid;
-    char message[MAX_MESS + 1];
 
-    //FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
-    mmt_condition_report_t * condition_report = (mmt_condition_report_t *) user_args;
-    session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
-
-
-   valid= snprintf(message, MAX_MESS,
-        "%u,%u,\"%s\",%lu.%lu",
-        condition_report->id, probe_context.probe_id_number, probe_context.input_source, ipacket->p_hdr->ts.tv_sec,ipacket->p_hdr->ts.tv_usec);
-   if(valid > 0) {
-       offset += valid;
-   }else {
-        return;
-   }
-
-   message[offset] = ',';
-
-    valid = mmt_attr_sprintf(&message[offset+1], MAX_MESS - offset+1, attribute);
-
-    if(valid > 0) {
-    	offset += valid+1;
-    }else {
-    	return;
-    }
-
-    for(j = 0; j < condition_report->attributes_nb; j++) {
-    	mmt_condition_attribute_t * condition_attribute = &condition_report->attributes[j];
-    	attr_extract = get_extracted_attribute_by_name(ipacket,condition_attribute->proto, condition_attribute->attribute);
-		message[offset] = ',';
-    	if(attr_extract != NULL) {
-			valid = mmt_attr_sprintf(&message[offset + 1], MAX_MESS - offset+1, attr_extract);
-			if(valid > 0) {
-				offset += valid+1;
-			}else {
-
-				return;
-			}
-    	}else {
-
-    		offset += 1;
-    	}
-    }
-    message[ offset ] = '\0';
-    send_message ("radius.report", message);
-}
-*/
 int register_event_report_handle(void * handler, mmt_event_report_t * event_report) {
     int i = 1, j;
     i &= register_attribute_handler_by_name(handler, event_report->event.proto, event_report->event.attribute, event_report_handle, NULL, (void *) event_report);

@@ -157,6 +157,8 @@ extern "C" {
         char input_f_name[256 + 1]; 
         char out_f_name[256 + 1];
         char output_location[256 + 1];
+        char behaviour_output_location[256 + 1];
+        uint32_t behaviour_enable;
 
         char out_f_name_index[256 + 1];
         FILE * data_out_file;
@@ -299,6 +301,7 @@ extern "C" {
         char useragent[64];
         uint8_t has_referer : 1, has_useragent : 1, xcdn_seen : 1, seen_response : 1;
         uint8_t trans_nb;
+        time_t last_report_time_sec;
     } web_session_attr_t;
 
     typedef struct ssl_session_attr_struct {
