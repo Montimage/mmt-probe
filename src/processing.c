@@ -565,17 +565,18 @@ void iterate_through_ip( mmt_handler_t *mmt_handler ){
 		char ip_src_str[46]={0};
 	    char ip_dst_str[46]={0};
 
-		int len = strlen ((const char *)p->session->ipsrc);
+		//int len = strlen ((const char *)p->session->ipsrc);
 		proto_stats = p->proto_stats;
 
 
 		src_mac = get_prety_mac_address( proto_stats->src_mac );
 		dst_mac = get_prety_mac_address( proto_stats->dst_mac );
 
-	    if (len == 4) {
+
+	    if (p->session->ipversion==4) {
 	        inet_ntop(AF_INET, (void *) p->session->ipsrc, ip_src_str, INET_ADDRSTRLEN);
 	        inet_ntop(AF_INET, (void *) p->session->ipdst, ip_dst_str, INET_ADDRSTRLEN);
-	    } else {
+	    } else if (p->session->ipversion==6){
 	        inet_ntop(AF_INET6, (void *) p->session->ipsrc, ip_src_str, INET6_ADDRSTRLEN);
 	        inet_ntop(AF_INET6, (void *) p->session->ipdst, ip_dst_str, INET6_ADDRSTRLEN);
 	    }
@@ -749,20 +750,24 @@ ip_statistics_t * create_and_init_ip_stat (unsigned char *src, unsigned char *ds
 		    unsigned char *tmp;
 		    tmp = malloc( sizeof( unsigned char )*4 );
 		    memcpy(tmp, src, 4);
+		    tmp[4]='\0';
 		    ip_stat->session->ipsrc = tmp;
 
 		    tmp = malloc( sizeof( unsigned char )*4 );
 		    memcpy(tmp, dst, 4);
+		    tmp[4]='\0';
 		    ip_stat->session->ipdst = tmp;
         }
         if(ip_stat->session->ipversion==6){
  		    unsigned char *tmp;
  		    tmp = malloc( sizeof( unsigned char )*16 );
  		    memcpy(tmp, src, 16);
+ 		    tmp[16]='\0';
  		    ip_stat->session->ipsrc = tmp;
 
  		    tmp = malloc( sizeof( unsigned char )*16 );
  		    memcpy(tmp, dst, 16);
+ 		    tmp[16]='\0';
  		    ip_stat->session->ipdst = tmp;
          }
 
@@ -799,7 +804,6 @@ void ip_get_session_attr(const ipacket_t * ipacket){
 		//Process IPv4 flows
 		if (ipindex != -1) {
 			ipversion=4;
-
 		    unsigned char * ip_src = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_SRC);
 		    unsigned char * ip_dst = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_DST);
 		 	if( ip_src == NULL || ip_dst == NULL )
@@ -817,6 +821,7 @@ void ip_get_session_attr(const ipacket_t * ipacket){
 			}
 
 			update_ip_proto_stat( p, ipacket, direction );
+
 
 
 		} else {
