@@ -580,8 +580,8 @@ void iterate_through_ip( mmt_handler_t *mmt_handler ){
 	        inet_ntop(AF_INET6, (void *) p->session->ipsrc, ip_src_str, INET6_ADDRSTRLEN);
 	        inet_ntop(AF_INET6, (void *) p->session->ipdst, ip_dst_str, INET6_ADDRSTRLEN);
 	    }else{
-	    	strncpy(ip_src_str,(char *)p->session->ipsrc,13);
-	    	strncpy(ip_dst_str,(char *)p->session->ipdst,13);
+	    	strncpy(ip_src_str,(char *)p->session->ipsrc,9);
+	    	strncpy(ip_dst_str,(char *)p->session->ipdst,9);
 	    }
 
 
@@ -860,8 +860,8 @@ void ip_get_session_attr(const ipacket_t * ipacket){
         }
 	}else {
 		ipversion=0;
-	    char * ip_src = "UNDEFINED_SRC";
-		char * ip_dst = "UNDEFINED_DST";
+	    char * ip_src = "undefined_src";
+		char * ip_dst = "undefined_dst";
 	 	if( ip_src == NULL || ip_dst == NULL )
 		return;
 
@@ -1055,7 +1055,7 @@ void packet_handler(const ipacket_t * ipacket, void * args) {
             //ftp_packet_events(ipacket);
         }
     }
-
+   //printf("ipacket_id=%lu\n",ipacket->packet_id);
     if ((ipacket->p_hdr->ts.tv_sec - last_report_time) >= probe_context.stats_reporting_period) {
         iterate_through_protocols(protocols_stats_iterator, (void *) ipacket->mmt_handler);
 
