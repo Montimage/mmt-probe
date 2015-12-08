@@ -484,16 +484,29 @@ int get_host_mac_address(unsigned char **mac_address, char *interfaceName)
 
 
 /**
- * Compare two MAC addresses. Each of them is an array having length = 6
+ * Compare two ip addresses.
  */
-int compare_ip(unsigned char * a, unsigned char * b ){
+int compare_ip(unsigned char * a, unsigned char * b,int ipversion){
 	int i;
 	if( a == NULL || b == NULL )
 		return 1;
 	//segmentation fault if sizeof(a) or b is less than 6
-	for( i=0; i<6; i++ )
-		if( a[i] != b[i] )
-			return 1;
+	if (ipversion==4){
+		for( i=0; i<4; i++ ){
+			if( a[i] != b[i] )
+				return 1;
+		}
+	}else if (ipversion==6){
+		for( i=0; i<16; i++ ){
+			if( a[i] != b[i] )
+				return 1;
+		}
+	} else{
+		for( i=0; i<13; i++ ){
+			if( a[i] != b[i] )
+				return 1;
+		}
+	}
 
 	return 0;
 }
@@ -789,16 +802,16 @@ ip_statistics_t * create_and_init_ip_stat (unsigned char *src, unsigned char *ds
 	return ip_stat;
 }
 
-ip_statistics_t * get_ip_stat_for_pair_machine( unsigned char *src, unsigned char *dst, int *direction ){
+ip_statistics_t * get_ip_stat_for_pair_machine( unsigned char *src, unsigned char *dst, int *direction,int ipversion ){
 	ip_statistics_t *p = ip_stat_root;
 	while( p != NULL ){
-		if( compare_ip( p->session->ipsrc, src ) == 0 &&
-			compare_ip( p->session->ipdst, dst ) == 0){
+		if( compare_ip( p->session->ipsrc, src,ipversion ) == 0 &&
+			compare_ip( p->session->ipdst, dst,ipversion ) == 0){
 			*direction = 0;	//UL
 			return p;
 		}
-		if( compare_ip( p->session->ipsrc, dst ) == 0 &&
-		    compare_ip( p->session->ipdst, src ) == 0){
+		if( compare_ip( p->session->ipsrc, dst,ipversion ) == 0 &&
+		    compare_ip( p->session->ipdst, src,ipversion ) == 0){
 			*direction = 1;	//DL
 			return p;
 		}
@@ -823,7 +836,7 @@ void ip_get_session_attr(const ipacket_t * ipacket){
 			return;
 
 			int direction = 0;	//UL as default
-			ip_statistics_t * p = get_ip_stat_for_pair_machine(ip_src, ip_dst, &direction );
+			ip_statistics_t * p = get_ip_stat_for_pair_machine(ip_src, ip_dst, &direction,ipversion );
 
 			//the statistic for this pair (src, dst) does not exit => I create a new one for them
 			if( p == NULL ){
@@ -845,7 +858,7 @@ void ip_get_session_attr(const ipacket_t * ipacket){
 			return;
 
 			int direction = 0;	//UL as default
-			ip_statistics_t * p = get_ip_stat_for_pair_machine( ip_src, ip_dst, &direction );
+			ip_statistics_t * p = get_ip_stat_for_pair_machine( ip_src, ip_dst, &direction,ipversion );
 
 			//the statistic for this pair (src, dst) does not exit => I create a new one for them
 			if( p == NULL ){
@@ -866,7 +879,7 @@ void ip_get_session_attr(const ipacket_t * ipacket){
 		return;
 
 		int direction = 0;	//UL as default
-		ip_statistics_t * p = get_ip_stat_for_pair_machine( (unsigned char *)ip_src, (unsigned char *)ip_dst, &direction );
+		ip_statistics_t * p = get_ip_stat_for_pair_machine( (unsigned char *)ip_src, (unsigned char *)ip_dst, &direction,ipversion );
 
 		//the statistic for this pair (src, dst) does not exit => I create a new one for them
 		if( p == NULL ){
