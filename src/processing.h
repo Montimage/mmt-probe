@@ -262,13 +262,13 @@ extern "C" {
 
     } ftp_packet_attr_t;
 
+    typedef struct ip_statistics_session_struct {
+    	unsigned char * ipsrc;
+    	unsigned char * ipdst;
+        uint8_t ipversion;
+    } ip_statistics_session_t;
 
-    typedef struct ethernet_statistics_session_struct {
-    	unsigned char * src_mac;
-    	unsigned char * dst_mac;
-    } ethernet_statistics_session_t;
-
-    typedef struct ethernet_proto_statistics_struct {
+    typedef struct ip_proto_statistics_struct {
     	uint32_t touched; /**< Indicates if the statistics have been updated since the last reset */
     	uint64_t packets_count; /**< Total number of packets seen by the protocol */
     	uint64_t data_volume; /**< Total data volume seen by the protocol */
@@ -279,17 +279,18 @@ extern "C" {
     	uint64_t sessions_count; /**< Total number of sessions seen by the protocol */
     	uint64_t timedout_sessions_count; /**< Total number of timedout sessions (this is the difference between sessions count and ative sessions count) */
     	struct timeval start_timestamp; /*Timestamp (seconds.micros) corresponding to the time when the flow was detected (first packet of the flow).*/
-    	struct ethernet_proto_statistics_struct* next; /**< next instance of statistics for the same protocol */
+    	struct ip_proto_statistics_struct* next; /**< next instance of statistics for the same protocol */
     	proto_hierarchy_t *proto_hierarchy; /**< pointer to the protocol */
-    } ethernet_proto_statistics_t;
+    	unsigned char * src_mac;
+    	unsigned char * dst_mac;
+    } ip_proto_statistics_t;
 
-    typedef struct ethernet_statistics_struct {
-    	ethernet_proto_statistics_t *proto_stats;
-    	ethernet_statistics_session_t *session;
-    	struct ethernet_statistics_struct * next;
+    typedef struct ip_statistics_struct {
+    	ip_proto_statistics_t * proto_stats;
+    	ip_statistics_session_t * session;
+    	struct ip_statistics_struct * next;
 
-    } ethernet_statistics_t;
-    //END HN
+    } ip_statistics_t;
 
     typedef struct web_session_attr_struct {
         struct timeval first_request_time;
