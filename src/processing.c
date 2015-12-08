@@ -562,7 +562,7 @@ void iterate_through_ip( mmt_handler_t *mmt_handler ){
 	p = ip_stat_root;
 	//for each pair (src, dst)
 	while(p != NULL){
-		char ip_src_str[46]={0};
+	    char ip_src_str[46]={0};
 	    char ip_dst_str[46]={0};
 
 		//int len = strlen ((const char *)p->session->ipsrc);
@@ -579,6 +579,9 @@ void iterate_through_ip( mmt_handler_t *mmt_handler ){
 	    } else if (p->session->ipversion==6){
 	        inet_ntop(AF_INET6, (void *) p->session->ipsrc, ip_src_str, INET6_ADDRSTRLEN);
 	        inet_ntop(AF_INET6, (void *) p->session->ipdst, ip_dst_str, INET6_ADDRSTRLEN);
+	    }else{
+	    	strncpy(ip_src_str,(char *)p->session->ipsrc,13);
+	    	strncpy(ip_dst_str,(char *)p->session->ipdst,13);
 	    }
 
 
@@ -757,8 +760,7 @@ ip_statistics_t * create_and_init_ip_stat (unsigned char *src, unsigned char *ds
 		    memcpy(tmp, dst, 4);
 		    tmp[4]='\0';
 		    ip_stat->session->ipdst = tmp;
-        }
-        if(ip_stat->session->ipversion==6){
+        }else if(ip_stat->session->ipversion==6){
  		    unsigned char *tmp;
  		    tmp = malloc( sizeof( unsigned char )*16 );
  		    memcpy(tmp, src, 16);
@@ -769,6 +771,17 @@ ip_statistics_t * create_and_init_ip_stat (unsigned char *src, unsigned char *ds
  		    memcpy(tmp, dst, 16);
  		    tmp[16]='\0';
  		    ip_stat->session->ipdst = tmp;
+         }else{
+  		    unsigned char *tmp;
+  		    tmp = malloc( sizeof( unsigned char )*13 );
+  		    memcpy(tmp, src, 13);
+  		    tmp[13]='\0';
+  		    ip_stat->session->ipsrc = tmp;
+
+  		    tmp = malloc( sizeof( unsigned char )*13 );
+  		    memcpy(tmp, dst, 13);
+  		    tmp[13]='\0';
+  		    ip_stat->session->ipdst = tmp;
          }
 
 	}
@@ -845,6 +858,25 @@ void ip_get_session_attr(const ipacket_t * ipacket){
 			update_ip_proto_stat( p, ipacket, direction );
 
         }
+	}else {
+		ipversion=0;
+	    char * ip_src = "UNDEFINED_SRC";
+		char * ip_dst = "UNDEFINED_DST";
+	 	if( ip_src == NULL || ip_dst == NULL )
+		return;
+
+		int direction = 0;	//UL as default
+		ip_statistics_t * p = get_ip_stat_for_pair_machine( (unsigned char *)ip_src, (unsigned char *)ip_dst, &direction );
+
+		//the statistic for this pair (src, dst) does not exit => I create a new one for them
+		if( p == NULL ){
+			p = create_and_init_ip_stat( (unsigned char *)ip_src, (unsigned char *)ip_dst,ipversion );
+			//add p to head of eth_stats;
+			p->next       = ip_stat_root;
+			ip_stat_root = p;
+		}
+
+		update_ip_proto_stat( p, ipacket, direction );
 	}
 }
 
@@ -1024,7 +1056,6 @@ void packet_handler(const ipacket_t * ipacket, void * args) {
         }
     }
 
-   //printf("---------------------------------------------packet_id=%lu\n",ipacket->packet_id);
     if ((ipacket->p_hdr->ts.tv_sec - last_report_time) >= probe_context.stats_reporting_period) {
         iterate_through_protocols(protocols_stats_iterator, (void *) ipacket->mmt_handler);
 
