@@ -200,24 +200,24 @@ static time_t last_reporting_time=0;
 
 
 void end_file(){
-    FILE * temp_sem_file;
-    FILE * temp_behaviour_sem_file;
-    char sem_file_str [256+1]={0};
+	FILE * temp_sem_file;
+	FILE * temp_behaviour_sem_file;
+	char sem_file_str [256+1]={0};
 	int sem_valid=0;
-    int i=0;
-    char behaviour_command_str [500+1]={0};
-    int behaviour_valid=0;
-    char sem_behaviour_file_str [256+1]={0};
-    int sem_behaviour_valid=0;
-    int cr;
+	int i=0;
+	char behaviour_command_str [500+1]={0};
+	int behaviour_valid=0;
+	char sem_behaviour_file_str [256+1]={0};
+	int sem_behaviour_valid=0;
+	int cr;
 
-    if(sampled_file)i=fclose(sampled_file);
+	if(sampled_file)i=fclose(sampled_file);
 
 	if (i!=0){
-        fprintf ( stderr , "\n1: Error %d closing of sampled_file failed: %s" , errno ,strerror( errno ) );
+		fprintf ( stderr , "\n1: Error %d closing of sampled_file failed: %s" , errno ,strerror( errno ) );
 		exit(1);
 	}
-	if (probe_context.behaviour_enable==1){
+	if (probe_context.behaviour_enable==1 && sampled_file!=NULL){
 
 		cr=system(NULL);
 		if (cr==0){
@@ -225,47 +225,44 @@ void end_file(){
 			exit(1);
 		}
 
-    	behaviour_valid=snprintf(behaviour_command_str, MAX_FILE_NAME, "cp %s%lu_%s %s", probe_context.output_location, last_reporting_time, probe_context.data_out, probe_context.behaviour_output_location);
-    	behaviour_command_str[behaviour_valid]='\0';
-    	cr=system(behaviour_command_str);
-    	if (cr!=0){
-    		fprintf(stderr,"\n5 Error code %d, while coping output file %s to %s ",cr, probe_context.output_location,probe_context.behaviour_output_location);
-    		exit(1);
-    	}
+		behaviour_valid=snprintf(behaviour_command_str, MAX_FILE_NAME, "cp %s%lu_%s %s", probe_context.output_location, last_reporting_time, probe_context.data_out, probe_context.behaviour_output_location);
+		behaviour_command_str[behaviour_valid]='\0';
+		cr=system(behaviour_command_str);
+		if (cr!=0){
+			fprintf(stderr,"\n5 Error code %d, while coping output file %s to %s ",cr, probe_context.output_location,probe_context.behaviour_output_location);
+			exit(1);
+		}
 
-    	sem_behaviour_valid=snprintf(sem_behaviour_file_str, MAX_FILE_NAME, "%s%lu_%s.sem", probe_context.behaviour_output_location, last_reporting_time, probe_context.data_out);
-    	sem_behaviour_file_str[sem_behaviour_valid]='\0';
-    	temp_behaviour_sem_file= fopen(sem_behaviour_file_str, "w");
+		sem_behaviour_valid=snprintf(sem_behaviour_file_str, MAX_FILE_NAME, "%s%lu_%s.sem", probe_context.behaviour_output_location, last_reporting_time, probe_context.data_out);
+		sem_behaviour_file_str[sem_behaviour_valid]='\0';
+		temp_behaviour_sem_file= fopen(sem_behaviour_file_str, "w");
 
-    	if (temp_behaviour_sem_file==NULL){
-    		fprintf ( stderr , "\n2: Error: %d creation of \"%s\" failed: %s\n" , errno , sem_behaviour_file_str , strerror( errno ) );
-    		exit(1);
-    	}
+		if (temp_behaviour_sem_file==NULL){
+			fprintf ( stderr , "\n2: Error: %d creation of \"%s\" failed: %s\n" , errno , sem_behaviour_file_str , strerror( errno ) );
+			exit(1);
+		}
 
-        if(temp_behaviour_sem_file)i=fclose(temp_behaviour_sem_file);
-    	if (i!=0){
-            fprintf ( stderr , "\n4: Error %d closing of temp_behaviour_sem_file failed: %s" , errno ,strerror( errno ) );
-    		exit(1);
-    	}
+		if(temp_behaviour_sem_file)i=fclose(temp_behaviour_sem_file);
+		if (i!=0){
+			fprintf ( stderr , "\n4: Error %d closing of temp_behaviour_sem_file failed: %s" , errno ,strerror( errno ) );
+			exit(1);
+		}
 
 	}
-    sem_valid=snprintf(sem_file_str, MAX_FILE_NAME, "%s%lu_%s.sem", probe_context.output_location, last_reporting_time, probe_context.data_out);
+	sem_valid=snprintf(sem_file_str, MAX_FILE_NAME, "%s%lu_%s.sem", probe_context.output_location, last_reporting_time, probe_context.data_out);
 	sem_file_str[sem_valid]='\0';
 	temp_sem_file= fopen(sem_file_str, "w");
 
 	if (temp_sem_file==NULL){
-        fprintf ( stderr , "\n2: Error: %d creation of \"%s\" failed: %s\n" , errno , sem_file_str , strerror( errno ) );
+		fprintf ( stderr , "\n2: Error: %d creation of \"%s\" failed: %s\n" , errno , sem_file_str , strerror( errno ) );
 		exit(1);
 	}
 
-    if(temp_sem_file)i=fclose(temp_sem_file);
+	if(temp_sem_file)i=fclose(temp_sem_file);
 	if (i!=0){
-        fprintf ( stderr , "\n4: Error %d closing of temp_sem_file failed: %s" , errno ,strerror( errno ) );
+		fprintf ( stderr , "\n4: Error %d closing of temp_sem_file failed: %s" , errno ,strerror( errno ) );
 		exit(1);
 	}
-
-
-
 }
 
 void send_message (char *channel, char * message) {
@@ -569,14 +566,14 @@ void iterate_through_ip( mmt_handler_t *mmt_handler ){
 	char message[MAX_MESS + 1];
 	struct timeval ts = get_last_activity_time(mmt_handler);
 
-    char * src_mac, * dst_mac;
+	char * src_mac, * dst_mac;
 	uint64_t number_flows=get_number_active_flows_from_ip();
 
 	p = ip_stat_root;
-	//for each pair (src, dst)
+	//for each pair (ip src, ip dst)
 	while(p != NULL){
-	    char ip_src_str[46]={0};
-	    char ip_dst_str[46]={0};
+		char ip_src_str[46]={0};
+		char ip_dst_str[46]={0};
 
 		//int len = strlen ((const char *)p->session->ipsrc);
 		proto_stats = p->proto_stats;
@@ -586,16 +583,16 @@ void iterate_through_ip( mmt_handler_t *mmt_handler ){
 		dst_mac = get_prety_mac_address( proto_stats->dst_mac );
 
 
-	    if (p->session->ipversion==4) {
-	        inet_ntop(AF_INET, (void *) p->session->ipsrc, ip_src_str, INET_ADDRSTRLEN);
-	        inet_ntop(AF_INET, (void *) p->session->ipdst, ip_dst_str, INET_ADDRSTRLEN);
-	    } else if (p->session->ipversion==6){
-	        inet_ntop(AF_INET6, (void *) p->session->ipsrc, ip_src_str, INET6_ADDRSTRLEN);
-	        inet_ntop(AF_INET6, (void *) p->session->ipdst, ip_dst_str, INET6_ADDRSTRLEN);
-	    }else{
-	    	strncpy(ip_src_str,(char *)p->session->ipsrc,9);
-	    	strncpy(ip_dst_str,(char *)p->session->ipdst,9);
-	    }
+		if (p->session->ipversion==4) {
+			inet_ntop(AF_INET, (void *) p->session->ipsrc, ip_src_str, INET_ADDRSTRLEN);
+			inet_ntop(AF_INET, (void *) p->session->ipdst, ip_dst_str, INET_ADDRSTRLEN);
+		} else if (p->session->ipversion==6){
+			inet_ntop(AF_INET6, (void *) p->session->ipsrc, ip_src_str, INET6_ADDRSTRLEN);
+			inet_ntop(AF_INET6, (void *) p->session->ipdst, ip_dst_str, INET6_ADDRSTRLEN);
+		}else{
+			strncpy(ip_src_str,(char *)p->session->ipsrc,9);
+			strncpy(ip_dst_str,(char *)p->session->ipdst,9);
+		}
 
 
 		//for each protocol of the pair
@@ -617,7 +614,7 @@ void iterate_through_ip( mmt_handler_t *mmt_handler ){
 						proto_stats->data_volume_direction[1], proto_stats->payload_volume_direction[1],proto_stats->packets_count_direction[1],
 						//Timestamp (seconds.micros) corresponding to the time when the flow was detected (first packet of the flow).
 						proto_stats->start_timestamp.tv_sec, proto_stats->start_timestamp.tv_usec,
-						//MAC addresses
+						//IP and MAC addresses
 						ip_src_str, ip_dst_str,src_mac,dst_mac);
 
 				message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
@@ -640,30 +637,30 @@ void get_MAC_address_from_ip(const ipacket_t * ipacket,ip_proto_statistics_t *pr
 	unsigned char * temp;
 
 
-    if(direction==0){
+	if(direction==0){
 		if (src) {
 			temp= (unsigned char *) malloc(sizeof (unsigned char)*6);
-		    memcpy(temp, src, 6);
-		    proto_stats->src_mac=temp;
+			memcpy(temp, src, 6);
+			proto_stats->src_mac=temp;
 		}
-	    if (dst) {
-	    	temp= (unsigned char *) malloc(sizeof (unsigned char)*6);
-	    	memcpy(temp, dst, 6);
-		    proto_stats->dst_mac=temp;
+		if (dst) {
+			temp= (unsigned char *) malloc(sizeof (unsigned char)*6);
+			memcpy(temp, dst, 6);
+			proto_stats->dst_mac=temp;
 		}
-    }else if (direction==1){
-	    if (src) {
-	    	temp= (unsigned char *) malloc(sizeof (unsigned char)*6);
-	    	memcpy(temp, src, 6);
-		    proto_stats->dst_mac=temp;
-	    }
-	    if (dst) {
-	    	temp= (unsigned char *) malloc(sizeof (unsigned char)*6);
-		    memcpy(temp, dst, 6);
-		    proto_stats->src_mac=temp;
-	    }
+	}else if (direction==1){
+		if (src) {
+			temp= (unsigned char *) malloc(sizeof (unsigned char)*6);
+			memcpy(temp, src, 6);
+			proto_stats->dst_mac=temp;
+		}
+		if (dst) {
+			temp= (unsigned char *) malloc(sizeof (unsigned char)*6);
+			memcpy(temp, dst, 6);
+			proto_stats->src_mac=temp;
+		}
 
-    }
+	}
 
 }
 
@@ -697,7 +694,7 @@ void update_ip_proto_stat_info( ip_proto_statistics_t *proto_stats, const ipacke
 		proto_stats->start_timestamp = get_last_activity_time( ipacket->mmt_handler );
 		proto_stats->touched         = 1;
 	}
-    get_MAC_address_from_ip(ipacket,proto_stats,direction);
+	get_MAC_address_from_ip(ipacket,proto_stats,direction);
 
 	proto_stats->data_volume    += p_data;
 	proto_stats->payload_volume += p_payload;
@@ -730,7 +727,7 @@ void update_ip_proto_stat (ip_statistics_t *ip_stat, const ipacket_t * ipacket, 
 	ip_proto_statistics_t *root;
 	root = ip_stat->proto_stats;
 
-	//update only leaf
+	//update only the leaf
 	ip_proto_statistics_t *p = get_ip_proto_stat_for_proto_path( root, ipacket->proto_hierarchy);
 
 	//well, the stat for this proto path does not exist => I will create it
@@ -762,40 +759,40 @@ ip_statistics_t * create_and_init_ip_stat (unsigned char *src, unsigned char *ds
 
 		ip_stat->session->ipversion=ipversion;
 
-        if(ip_stat->session->ipversion==4){
-		    unsigned char *tmp;
-		    tmp = malloc( sizeof( unsigned char )*4 );
-		    memcpy(tmp, src, 4);
-		    tmp[4]='\0';
-		    ip_stat->session->ipsrc = tmp;
+		if(ip_stat->session->ipversion==4){
+			unsigned char *tmp;
+			tmp = malloc( sizeof( unsigned char )*4 );
+			memcpy(tmp, src, 4);
+			tmp[4]='\0';
+			ip_stat->session->ipsrc = tmp;
 
-		    tmp = malloc( sizeof( unsigned char )*4 );
-		    memcpy(tmp, dst, 4);
-		    tmp[4]='\0';
-		    ip_stat->session->ipdst = tmp;
-        }else if(ip_stat->session->ipversion==6){
- 		    unsigned char *tmp;
- 		    tmp = malloc( sizeof( unsigned char )*16 );
- 		    memcpy(tmp, src, 16);
- 		    tmp[16]='\0';
- 		    ip_stat->session->ipsrc = tmp;
+			tmp = malloc( sizeof( unsigned char )*4 );
+			memcpy(tmp, dst, 4);
+			tmp[4]='\0';
+			ip_stat->session->ipdst = tmp;
+		}else if(ip_stat->session->ipversion==6){
+			unsigned char *tmp;
+			tmp = malloc( sizeof( unsigned char )*16 );
+			memcpy(tmp, src, 16);
+			tmp[16]='\0';
+			ip_stat->session->ipsrc = tmp;
 
- 		    tmp = malloc( sizeof( unsigned char )*16 );
- 		    memcpy(tmp, dst, 16);
- 		    tmp[16]='\0';
- 		    ip_stat->session->ipdst = tmp;
-         }else{
-  		    unsigned char *tmp;
-  		    tmp = malloc( sizeof( unsigned char )*13 );
-  		    memcpy(tmp, src, 13);
-  		    tmp[13]='\0';
-  		    ip_stat->session->ipsrc = tmp;
+			tmp = malloc( sizeof( unsigned char )*16 );
+			memcpy(tmp, dst, 16);
+			tmp[16]='\0';
+			ip_stat->session->ipdst = tmp;
+		}else{
+			unsigned char *tmp;
+			tmp = malloc( sizeof( unsigned char )*13 );
+			memcpy(tmp, src, 13);
+			tmp[13]='\0';
+			ip_stat->session->ipsrc = tmp;
 
-  		    tmp = malloc( sizeof( unsigned char )*13 );
-  		    memcpy(tmp, dst, 13);
-  		    tmp[13]='\0';
-  		    ip_stat->session->ipdst = tmp;
-         }
+			tmp = malloc( sizeof( unsigned char )*13 );
+			memcpy(tmp, dst, 13);
+			tmp[13]='\0';
+			ip_stat->session->ipdst = tmp;
+		}
 
 	}
 
@@ -823,17 +820,17 @@ ip_statistics_t * get_ip_stat_for_pair_machine( unsigned char *src, unsigned cha
 
 void ip_get_session_attr(const ipacket_t * ipacket){
 
-    int ipversion;
+	int ipversion;
 
 	if(ipacket->proto_hierarchy->proto_path[2]==178 || ipacket->proto_hierarchy->proto_path[2]==182){
-        int ipindex = get_protocol_index_by_id(ipacket, PROTO_IP);
+		int ipindex = get_protocol_index_by_id(ipacket, PROTO_IP);
 		//Process IPv4 flows
 		if (ipindex != -1) {
 			ipversion=4;
-		    unsigned char * ip_src = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_SRC);
-		    unsigned char * ip_dst = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_DST);
-		 	if( ip_src == NULL || ip_dst == NULL )
-			return;
+			unsigned char * ip_src = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_SRC);
+			unsigned char * ip_dst = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_DST);
+			if( ip_src == NULL || ip_dst == NULL )
+				return;
 
 			int direction = 0;	//UL as default
 			ip_statistics_t * p = get_ip_stat_for_pair_machine(ip_src, ip_dst, &direction,ipversion );
@@ -852,10 +849,10 @@ void ip_get_session_attr(const ipacket_t * ipacket){
 
 		} else {
 			ipversion=6;
-		    unsigned char * ip_src = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SRC);
+			unsigned char * ip_src = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SRC);
 			unsigned char * ip_dst = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_DST);
-		 	if( ip_src == NULL || ip_dst == NULL )
-			return;
+			if( ip_src == NULL || ip_dst == NULL )
+				return;
 
 			int direction = 0;	//UL as default
 			ip_statistics_t * p = get_ip_stat_for_pair_machine( ip_src, ip_dst, &direction,ipversion );
@@ -870,13 +867,13 @@ void ip_get_session_attr(const ipacket_t * ipacket){
 
 			update_ip_proto_stat( p, ipacket, direction );
 
-        }
+		}
 	}else {
 		ipversion=0;
-	    char * ip_src = "undefined_src";
+		char * ip_src = "undefined_src";
 		char * ip_dst = "undefined_dst";
-	 	if( ip_src == NULL || ip_dst == NULL )
-		return;
+		if( ip_src == NULL || ip_dst == NULL )
+			return;
 
 		int direction = 0;	//UL as default
 		ip_statistics_t * p = get_ip_stat_for_pair_machine( (unsigned char *)ip_src, (unsigned char *)ip_dst, &direction,ipversion );
@@ -1051,31 +1048,31 @@ void ftp_packet_events(const ipacket_t * ipacket){
 
 
 void packet_handler(const ipacket_t * ipacket, void * args) {
-    static time_t last_report_time = 0;
-    int i;
+	static time_t last_report_time = 0;
+	int i;
 
-      ip_get_session_attr( ipacket );
+	ip_get_session_attr( ipacket );
 
-    if (last_report_time == 0) {
-        last_report_time = ipacket->p_hdr->ts.tv_sec;
-    	return;
-    }
+	if (last_report_time == 0) {
+		last_report_time = ipacket->p_hdr->ts.tv_sec;
+		return;
+	}
 
-    for(i = 0; i < probe_context.condition_reports_nb; i++) {
-        mmt_condition_report_t * condition_report = &probe_context.condition_reports[i];
-        if (strcmp(condition_report->condition.condition,"FTP")==0){
-            reconstruct_data(ipacket,condition_report);
-            //ftp_packet_events(ipacket);
-        }
-    }
-   //printf("ipacket_id=%lu\n",ipacket->packet_id);
-    if ((ipacket->p_hdr->ts.tv_sec - last_report_time) >= probe_context.stats_reporting_period) {
-        iterate_through_protocols(protocols_stats_iterator, (void *) ipacket->mmt_handler);
+	for(i = 0; i < probe_context.condition_reports_nb; i++) {
+		mmt_condition_report_t * condition_report = &probe_context.condition_reports[i];
+		if (strcmp(condition_report->condition.condition,"FTP")==0){
+			reconstruct_data(ipacket,condition_report);
+			//ftp_packet_events(ipacket);
+		}
+	}
+	//printf("ipacket_id=%lu\n",ipacket->packet_id);
+	if ((ipacket->p_hdr->ts.tv_sec - last_report_time) >= probe_context.stats_reporting_period) {
+		iterate_through_protocols(protocols_stats_iterator, (void *) ipacket->mmt_handler);
 
-        iterate_through_ip( ipacket->mmt_handler );
+		iterate_through_ip( ipacket->mmt_handler );
 
-        last_report_time = ipacket->p_hdr->ts.tv_sec;
-    }
+		last_report_time = ipacket->p_hdr->ts.tv_sec;
+	}
 }
 /*Reset rtp_session_attr_t structure rtp metrics in order to facilitate sampling*/
 

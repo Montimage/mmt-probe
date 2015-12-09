@@ -49,6 +49,7 @@
 #define READ_PRIO	-15	/* niceness value for Reader thread */
 #define SNAP_LEN 65535	/* apparently what tcpdump uses for -s 0 */
 #define READER_CPU	0	/* assign Reader thread to this CPU */
+#define MAX_FILE_NAME 500
 static int okcode  = EXIT_SUCCESS;
 static int errcode = EXIT_FAILURE;
 
@@ -1198,6 +1199,10 @@ void terminate_probe_processing(int wait_thread_terminate) {
 	todo_at_end();
 	//End for MMT_Security
 
+    // Report the statistics if any (this case appears: statistics reporting time is greater than packet interval time(functions in the packet_handler)) before probe termination
+    iterate_through_ip( mmt_probe.mmt_handler );
+    iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.mmt_handler);
+
     //Cleanup
     if (mmt_conf->thread_nb == 1) {
         //One thread for processing packets
@@ -1267,8 +1272,8 @@ void terminate_probe_processing(int wait_thread_terminate) {
     char behaviour_command_str [500+1]={0};
     int behaviour_valid=0;
     int cr;
-   #define MAX_FILE_NAME 500
-    //TODO: If the files are not created this will return error,remove_lock_file();
+
+    //If the files are not created this will return error,remove_lock_file();
     if(mmt_conf->sampled_report==1){
         end_file();
     }else if (mmt_conf->sampled_report==0){
