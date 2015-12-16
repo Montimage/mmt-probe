@@ -1,5 +1,8 @@
 /*
  * File:   main.c
+ *  gcc -gdwarf-2 -o probe src/smp_main.c  src/processing.c src/web_session_report.c src/thredis.c src/send_msg_to_file.c src/send_msg_to_redis.c src/ip_statics.c src/rtp_session_report.c src/ftp_session_report.c src/event_based_reporting.c src/protocols_report.c src/ssl_session_report.c src/default_app_session_report.c src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c src/parseoptions.c -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
+
+
  * Author: montimage
  *
  * Created on 31 mai 2011, 14:09
@@ -31,9 +34,6 @@
 
 #include "mmt_core.h"
 #include "processing.h"
-#include "confuse.h"
-
-#include <fcntl.h>
 
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
@@ -52,77 +52,7 @@
 #define MAX_FILE_NAME 500
 static int okcode  = EXIT_SUCCESS;
 static int errcode = EXIT_FAILURE;
-
 extern void end_file();
-
-
-//Begin for MMT_Security
-#define OPTION_SATISFIED     1 //if = 1 then yes, output when rule satisfied
-#define OPTION_NOT_SATISFIED 0 //if = 1 then yes, output when rule not satisfied
-
-static FILE * OutputFile = NULL; //XML results output file
-typedef void (*result_callback) (int prop_id, char *verdict, char *type, char *cause, char *history);
-
-
-//MMT_SecurityLib function to initalise the MMT_SecurityLib library
-result_callback db_todo_at_start = NULL;
-result_callback db_todo_when_property_is_satisfied_or_not = NULL;
-
-extern void init_sec_lib (mmt_handler_t *mmt, char * property_file, short option_statisfied, short option_not_satisfied,
-        result_callback todo_when_property_is_satisfied_or_not, result_callback db_todo_at_start,
-        result_callback db_todo_when_property_is_satisfied_or_not);
-
-//Next three functions can be changed to do any necessary treatment of results.
-void todo_at_start(char *file_path){
-	if( file_path == NULL )
-		return;
-
-    char file_name[256];
-    //XML file that will contain the results (see bellow for more details)
-    sprintf(file_name,"%s/results.json", file_path);
-    OutputFile = fopen ( file_name, "w" );
-    if( OutputFile == NULL ) {
-        perror( file_name );
-        exit( EXIT_FAILURE );
-    }
-    fprintf(OutputFile, "{\n");
-}
-
-void todo_when_property_is_satisfied_or_not (int prop_id, char *verdict, char *type, char *cause, char *history){
-
-	security_event( prop_id, verdict, type, cause, history );
-
-
-    if( OutputFile != NULL ){
-    	struct timeval ts;
-    	gettimeofday( &ts, NULL );
-
-    	fprintf( OutputFile, "{\"timestamp\":%lu.%lu,\"pid\":%d,\"verdict\":\"%s\",\"type\":\"%s\",\"cause\":\"%s\",\"history\":%s},\n",
-    			ts.tv_sec, ts.tv_usec,
-    			prop_id, verdict, type, cause, history);
-    }
-
-};
-
-void todo_at_end(){
-	if( OutputFile != NULL ){
-		fprintf(OutputFile, "}");
-		fclose(OutputFile);
-	}
-}
-
-
-void init_mmt_security(mmt_handler_t *mmt_handler, char * property_file){
-	//return;
-	init_sec_lib( mmt_handler, property_file,
-			OPTION_SATISFIED, OPTION_NOT_SATISFIED,
-			todo_when_property_is_satisfied_or_not,
-	        db_todo_at_start,
-			db_todo_when_property_is_satisfied_or_not);
-}
-
-//End for MMT_Security
-
 
 struct mmt_probe_struct {
     struct smp_thread *smp_threads;
@@ -146,7 +76,7 @@ int ignored = 0; /* number of packets !decapsulated for stats */
 
 static void terminate_probe_processing(int wait_thread_terminate);
 
-int get_next_trace_file(char * dir_name, char * filename) {
+/*int get_next_trace_file(char * dir_name, char * filename) {
     int files_count = 0;
     int retval = 0;
     DIR * traces_index_dir = NULL;
@@ -192,7 +122,7 @@ int get_next_trace_file(char * dir_name, char * filename) {
         retval = 0;
     }
     return retval;
-}
+}*/
 
 uint32_t get_2_power(uint32_t nb) {
     uint32_t ret = -1;
@@ -356,15 +286,15 @@ static void *smp_thread_routine(void *arg) {
     if(mmt_probe.mmt_conf->enable_flow_stats) {
         register_session_timeout_handler(th->mmt_handler, classification_expiry_session, &th->iprobe);
         flowstruct_init(th->mmt_handler); // initialize our event handler
-        event_reports_init(th->mmt_handler); // initialize our event reports
-        conditional_reports_init(th->mmt_handler);// initialize our condition reports
-        radius_ext_init(th->mmt_handler); // initialize radius extraction and attribute event handler
+        if(mmt_probe.mmt_conf->event_based_reporting_enable==1)event_reports_init(th->mmt_handler); // initialize our event reports
+        if(mmt_probe.mmt_conf->condition_based_reporting_enable==1)conditional_reports_init(th->mmt_handler);// initialize our condition reports
+        if(mmt_probe.mmt_conf->radius_enable==1)radius_ext_init(th->mmt_handler); // initialize radius extraction and attribute event handler
     }
-    
+
     if(mmt_probe.mmt_conf->enable_proto_stats) {
         proto_stats_init(th->mmt_handler);
     }
-    
+
     while (!quit) {
         pthread_spin_lock(&th->lock);
         /* if no packet has arrived sleep 2.50 ms */
@@ -403,426 +333,6 @@ static void *smp_thread_routine(void *arg) {
     return NULL;
 }
 
-void usage(const char * prg_name) {
-    fprintf(stderr, "%s [<option>]\n", prg_name);
-    fprintf(stderr, "Option:\n");
-    fprintf(stderr, "\t-c <config file> : Gives the path to the config file (default: /etc/mmtprobe/mmt.conf).\n");
-    fprintf(stderr, "\t-t <trace file>  : Gives the trace file to analyse.\n");
-    fprintf(stderr, "\t-i <interface>   : Gives the interface name for live traffic analysis.\n");
-    fprintf(stderr, "\t-o <output file> : Gives the output file name. \n");
-    fprintf(stderr, "\t-R <output dir>  : Gives the security output folder name. \n");
-    fprintf(stderr, "\t-P <properties file> : Gives the security input properties file name. \n");
-    fprintf(stderr, "\t-p <period>      : Gives the period in seconds for statistics reporting. \n");
-    fprintf(stderr, "\t-s <0|1>         : Enables or disables protocol statistics reporting. \n");
-    fprintf(stderr, "\t-f <0|1>         : Enables or disables flows reporting. \n");
-    fprintf(stderr, "\t-n <probe number>: Unique probe id number. \n");
-    fprintf(stderr, "\t-h               : Prints this help.\n");
-    exit(1);
-}
-
-/* parse values for the input-mode option */
-int conf_parse_input_mode(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
-    if (strcmp(value, "online") == 0)
-        *(int *) result = ONLINE_ANALYSIS;
-    else if (strcmp(value, "offline") == 0)
-        *(int *) result = OFFLINE_ANALYSIS;
-    else if (strcmp(value, "offline_cont") == 0)
-        *(int *) result = OFFLINE_ANALYSIS_CONTINUOUS;
-    else {
-        cfg_error(cfg, "invalid value for option '%s': %s", cfg_opt_name(opt), value);
-        return -1;
-    }
-    return 0;
-}
-
-/* parse values for the input-mode option */
-int conf_parse_radius_include_msg(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
-    if (strcmp(value, "ANY") == 0)
-        *(int *) result = MMT_RADIUS_REPORT_ALL;
-    else if (strcmp(value, "acct-req") == 0)
-        *(int *) result = 4;
-    else {
-        cfg_error(cfg, "invalid value for option '%s': %s", cfg_opt_name(opt), value);
-        return -1;
-    }
-    return 0;
-}
-
-/* parse values for the input-mode option */
-int conf_parse_radius_include_condition(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
-    if (strcmp(value, "IP-MSISDN") == 0)
-        *(int *) result = MMT_RADIUS_IP_MSISDN_PRESENT;
-    else if (strcmp(value, "NONE") == 0)
-        *(int *) result = MMT_RADIUS_ANY_CONDITION;
-    else if (strcmp(value, "") == 0)
-        *(int *) result = MMT_RADIUS_ANY_CONDITION;
-    else {
-        cfg_error(cfg, "invalid value for option '%s': %s", cfg_opt_name(opt), value);
-        return -1;
-    }
-    return 0;
-}
-
-cfg_t * parse_conf(const char *filename) {
-    cfg_opt_t micro_flows_opts[] = {
-        CFG_INT("include-packet-count", 10, CFGF_NONE),
-        CFG_INT("include-byte-count", 5, CFGF_NONE),
-        CFG_INT("report-packet-count", 10000, CFGF_NONE),
-        CFG_INT("report-byte-count", 5000, CFGF_NONE),
-        CFG_INT("report-flow-count", 1000, CFGF_NONE),
-        CFG_END()
-    };
-
-    cfg_opt_t redis_output_opts[] = {
-        CFG_STR("hostname", "localhost", CFGF_NONE),
-        CFG_INT("port", 6379, CFGF_NONE),
-        CFG_INT("enabled", 0, CFGF_NONE),
-        CFG_END()
-    };
-
-    cfg_opt_t output_opts[] = {
-        CFG_STR("data-file", 0, CFGF_NONE),
-        CFG_STR("radius-file", 0, CFGF_NONE),
-		CFG_STR("location", 0, CFGF_NONE),
-		CFG_INT("sampled_report", 0, CFGF_NONE),
-
-        CFG_END()
-    };
-
-    cfg_opt_t security_opts[] = {
-        CFG_STR("results-dir", 0, CFGF_NONE),
-        CFG_STR("properties-file", 0, CFGF_NONE),
-        CFG_END()
-    };
-
-    cfg_opt_t behaviour_opts[] = {
-        CFG_INT("enable", 0, CFGF_NONE),
-        CFG_STR("location", 0, CFGF_NONE),
-        CFG_END()
-    };
-
-    cfg_opt_t radius_output_opts[] = {
-        CFG_INT_CB("include-msg", MMT_RADIUS_REPORT_ALL, CFGF_NONE, conf_parse_radius_include_msg),
-        CFG_INT_CB("include-condition", MMT_RADIUS_ANY_CONDITION, CFGF_NONE, conf_parse_radius_include_condition),
-        //CFG_STR("include-msg", 0, CFGF_NONE),
-        //CFG_STR("include-condition", 0, CFGF_NONE),
-        CFG_END()
-    };
-
-    cfg_opt_t data_output_opts[] = {
-        CFG_INT("include-user-agent", MMT_USER_AGENT_THRESHOLD, CFGF_NONE),
-        CFG_END()
-    };
-
-    cfg_opt_t event_report_opts[] = {
-        CFG_INT("id", 0, CFGF_NONE),
-        CFG_STR("event", "", CFGF_NONE),
-        CFG_STR_LIST("attributes", "{}", CFGF_NONE),
-        CFG_END()
-    };
-
-    cfg_opt_t condition_report_opts[] = {
-        CFG_INT("id", 0, CFGF_NONE),
-        CFG_STR("condition", "", CFGF_NONE),
-        CFG_STR("location", "", CFGF_NONE),
-        CFG_STR_LIST("attributes", "{}", CFGF_NONE),
-        CFG_STR_LIST("handlers", "{}", CFGF_NONE),
-        CFG_END()
-    };
-   
-
-    cfg_opt_t opts[] = {
-        CFG_SEC("micro-flows", micro_flows_opts, CFGF_NONE),
-        CFG_SEC("output", output_opts, CFGF_NONE),
-        CFG_SEC("redis-output", redis_output_opts, CFGF_NONE),
-        CFG_SEC("data-output", data_output_opts, CFGF_NONE),
-        CFG_SEC("security", security_opts, CFGF_NONE),
-		CFG_SEC("behaviour", behaviour_opts, CFGF_NONE),
-        CFG_SEC("radius-output", radius_output_opts, CFGF_NONE),
-        CFG_INT("stats-period", 60, CFGF_NONE),
-		CFG_INT("file-output-period", 60, CFGF_NONE),
-        CFG_INT("thread-nb", 1, CFGF_NONE),
-        CFG_INT("thread-queue", 0, CFGF_NONE),
-        CFG_INT("thread-data", 0, CFGF_NONE),
-        CFG_INT_CB("input-mode", ONLINE_ANALYSIS, CFGF_NONE, conf_parse_input_mode),
-        CFG_STR("input-source", 0, CFGF_NONE),
-        CFG_INT("probe-id-number", 0, CFGF_NONE),
-        CFG_STR("logfile", 0, CFGF_NONE),
-        CFG_INT("loglevel", 2, CFGF_NONE),
-        CFG_SEC("event_report", event_report_opts, CFGF_TITLE | CFGF_MULTI),
-        CFG_SEC("condition_report", condition_report_opts, CFGF_TITLE | CFGF_MULTI),
-
-        CFG_END()
-    };
-
-    cfg_t *cfg = cfg_init(opts, CFGF_NONE);
-
-    switch (cfg_parse(cfg, filename)) {
-        case CFG_FILE_ERROR:
-            fprintf(stderr, "warning: configuration file '%s' could not be read: %s\n", filename, strerror(errno));
-            return 0;
-        case CFG_SUCCESS:
-            break;
-        case CFG_PARSE_ERROR:
-            return 0;
-    }
-
-    return cfg;
-}
-
-int condition_parse_dot_proto_attribute(char * inputstring, mmt_condition_attribute_t * protoattr) {
-    char **ap, *argv[2];
-    int valid = 0;
-    /* code from http://www.manpagez.com/man/3/strsep/
-     * You can make it better!
-     */
-    for (ap = argv; (*ap = strsep(&inputstring, ".")) != NULL;)	{
-        valid ++;
-        if (**ap != '\0') {
-            if (++ap >= &argv[2] || valid > 2) {
-                break;
-            }
-        }
-    }
-
-    if(valid != 2) {
-        return 1;
-    } else {
-        strncpy(protoattr->proto, argv[0], 256);
-        strncpy(protoattr->attribute, argv[1], 256);
-        return 0;
-    }
-}
-
-/** transforms "proto.attribute" into mmt_event_attribute_t
- *  Raturns 0 on success, a positive value otherwise
- **/
-int parse_dot_proto_attribute(char * inputstring, mmt_event_attribute_t * protoattr) {
-    char **ap, *argv[2];
-    int valid = 0;
-    /* code from http://www.manpagez.com/man/3/strsep/ 
-     * You can make it better!
-     */
-    for (ap = argv; (*ap = strsep(&inputstring, ".")) != NULL;)	{
-        valid ++;
-        if (**ap != '\0') {
-            if (++ap >= &argv[2] || valid > 2) {
-                break;
-            }
-        }
-    }
-
-    if(valid != 2) {
-        return 1;
-    } else {
-        strncpy(protoattr->proto, argv[0], 256);
-        strncpy(protoattr->attribute, argv[1], 256);
-        return 0;
-    }
-}
-
-int parse_condition_attribute(char * inputstring, mmt_condition_attribute_t * conditionattr) {
-
-    if(inputstring!= NULL){
-    strncpy(conditionattr->condition, inputstring, 256);
-    return 0;
-	}
-	return 1;
-}
-int parse_location_attribute(char * inputstring, mmt_condition_attribute_t * conditionattr) {
-
-    if(inputstring!= NULL){
-    strncpy(conditionattr->location, inputstring, 256);
-    return 0;
-	}
-	return 1;
-}
-
-int parse_handlers_attribute(char * inputstring, mmt_condition_attribute_t * handlersattr) {
-    if(inputstring!= NULL){
-    strncpy(handlersattr->handler, inputstring, 256);
-    return 0;
-	}
-	return 1;
-}
-
-int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
-    int i, j;
-    cfg_t *event_opts;
-    cfg_t *condition_opts;
-
-    if (cfg) {
-        mmt_conf->enable_proto_stats = 1; //enabled by default
-        mmt_conf->enable_flow_stats = 1;  //enabled by default
-        mmt_conf->stats_reporting_period = (uint32_t) cfg_getint(cfg, "stats-period");
-        mmt_conf->sampled_report_period = (uint32_t) cfg_getint(cfg, "file-output-period");
-        mmt_conf->thread_nb = (uint32_t) cfg_getint(cfg, "thread-nb");
-        mmt_conf->thread_nb_2_power = get_2_power(mmt_conf->thread_nb);
-        //fprintf(stdout, "thread nb is 2^%i\n", mmt_conf->thread_nb_2_power);
-        mmt_conf->thread_queue_plen = (uint32_t) cfg_getint(cfg, "thread-queue");
-        mmt_conf->thread_queue_blen = (uint32_t) cfg_getint(cfg, "thread-data");
-        if (mmt_conf->thread_queue_plen == 0) mmt_conf->thread_queue_plen = 0xFFFFFFFF; //No limitation
-        if (mmt_conf->thread_queue_blen == 0) mmt_conf->thread_queue_blen = 0xFFFFFFFF; //No limitation
-        mmt_conf->input_mode = (uint32_t) cfg_getint(cfg, "input-mode");
-        strncpy(mmt_conf->input_source, (char *) cfg_getstr(cfg, "input-source"), 256);
-        mmt_conf->probe_id_number = (uint32_t) cfg_getint(cfg, "probe-id-number");
-        strncpy(mmt_conf->log_file, (char *) cfg_getstr(cfg, "logfile"), 256);
-        mmt_conf->log_level = (uint32_t) cfg_getint(cfg, "loglevel");
-
-        if (cfg_size(cfg, "micro-flows")) {
-            cfg_t *microflows = cfg_getnsec(cfg, "micro-flows", 0);
-            mmt_conf->microf_pthreshold = (uint32_t) cfg_getint(microflows, "include-packet-count");
-            mmt_conf->microf_bthreshold = (uint32_t) cfg_getint(microflows, "include-byte-count")*1000/*in Bytes*/;
-            mmt_conf->microf_report_pthreshold = (uint32_t) cfg_getint(microflows, "report-packet-count");
-            mmt_conf->microf_report_bthreshold = (uint32_t) cfg_getint(microflows, "report-byte-count")*1000/*in Bytes*/;
-            mmt_conf->microf_report_fthreshold = (uint32_t) cfg_getint(microflows, "report-flow-count");
-        }
-
-        if (cfg_size(cfg, "output")) {
-            cfg_t *output = cfg_getnsec(cfg, "output", 0);
-            strncpy(mmt_conf->data_out, (char *) cfg_getstr(output, "data-file"), 256);
-            strncpy(mmt_conf->radius_out, (char *) cfg_getstr(output, "radius-file"), 256);
-            strncpy(mmt_conf->output_location, (char *) cfg_getstr(output, "location"), 256);
-            mmt_conf->sampled_report = (uint32_t) cfg_getint(output, "sampled_report");
-            if (strcmp(mmt_conf->radius_out, "") == 0) {
-                mmt_conf->combine_radius = 1;
-            } else {
-                mmt_conf->combine_radius = 0;
-            }
-        }
-
-
-        if (cfg_size(cfg, "security")) {
-            cfg_t *output = cfg_getnsec(cfg, "security", 0);
-            strncpy(mmt_conf->dir_out, (char *) cfg_getstr(output, "results-dir"), 256);
-            strncpy(mmt_conf->properties_file, (char *) cfg_getstr(output, "properties-file"), 256);
-        }
-
-        if (cfg_size(cfg, "behaviour")) {
-            cfg_t *behaviour = cfg_getnsec(cfg, "behaviour", 0);
-            mmt_conf->behaviour_enable = (uint32_t) cfg_getint(behaviour, "enable");
-            strncpy(mmt_conf->behaviour_output_location, (char *) cfg_getstr(behaviour, "location"), 256);
-        }
-
-        if (cfg_size(cfg, "redis-output")) {
-            cfg_t *redis_output = cfg_getnsec(cfg, "redis-output", 0);
-            char hostname[256 + 1];
-            int port = (uint32_t) cfg_getint(redis_output, "port");
-            int enabled = (uint32_t) cfg_getint(redis_output, "enabled");
-            strncpy(hostname, (char *) cfg_getstr(redis_output, "hostname"), 256);
-            if (enabled) {
-                init_redis(hostname, port);
-            }
-        }
-
-        if (cfg_size(cfg, "radius-output")) {
-            cfg_t *routput = cfg_getnsec(cfg, "radius-output", 0);
-            if (cfg_getint(routput, "include-msg") == MMT_RADIUS_REPORT_ALL) {
-                mmt_conf->radius_starategy = MMT_RADIUS_REPORT_ALL;
-            } else {
-                mmt_conf->radius_starategy = MMT_RADIUS_REPORT_MSG;
-                mmt_conf->radius_message_id = (uint32_t) cfg_getint(routput, "include-msg");
-            }
-            mmt_conf->radius_condition_id = (uint32_t) cfg_getint(routput, "include-condition");
-        }
-
-        if (cfg_size(cfg, "data-output")) {
-            cfg_t *doutput = cfg_getnsec(cfg, "data-output", 0);
-            mmt_conf->user_agent_parsing_threshold = (uint32_t) cfg_getint(doutput, "include-user-agent")*1000;
-        }
-
-        int event_reports_nb = cfg_size(cfg, "event_report");
-        int event_attributes_nb = 0;
-        mmt_conf->event_reports = NULL;
-        mmt_event_report_t * temp_er;
-        mmt_conf->event_reports_nb = event_reports_nb;
-
-        if (event_reports_nb > 0) {
-            mmt_conf->event_reports = calloc(sizeof(mmt_event_report_t), event_reports_nb);
-            for(j = 0; j < event_reports_nb; j++) {
-                event_opts = cfg_getnsec(cfg, "event_report", j);
-                temp_er = & mmt_conf->event_reports[j];
-                temp_er->id = cfg_getint(event_opts, "id");
-                if (parse_dot_proto_attribute((char *) cfg_getstr(event_opts, "event"), &temp_er->event)) {
-                    fprintf(stderr, "Error: invalid event_report event value '%s'\n", (char *) cfg_getstr(event_opts, "event"));
-                    exit(-1);
-                }
-                event_attributes_nb = cfg_size(event_opts, "attributes");
-                temp_er->attributes_nb = event_attributes_nb;
-                if(event_attributes_nb > 0) {
-                    temp_er->attributes = calloc(sizeof(mmt_event_attribute_t), event_attributes_nb);
- 
-                    for(i = 0; i < event_attributes_nb; i++) {
-                        if (parse_dot_proto_attribute(cfg_getnstr(event_opts, "attributes", i), &temp_er->attributes[i])) {
-                            fprintf(stderr, "Error: invalid event_report attribute value '%s'\n", (char *) cfg_getnstr(event_opts, "attributes", i));
-                            exit(-1);
-                        }
-                    }
-                }
-            }
-        }
-
-        int condition_reports_nb = cfg_size(cfg, "condition_report");
-        int condition_attributes_nb = 0;
-        int condition_handlers_nb=0;
-        mmt_conf->condition_reports = NULL;
-        mmt_condition_report_t * temp_condn;
-        mmt_conf->condition_reports_nb = condition_reports_nb;
-
-        if (condition_reports_nb > 0) {
-            mmt_conf->condition_reports = calloc(sizeof(mmt_condition_report_t), condition_reports_nb);
-            for(j = 0; j < condition_reports_nb; j++) {
-                condition_opts = cfg_getnsec(cfg, "condition_report", j);
-                temp_condn = & mmt_conf->condition_reports[j];
-                temp_condn->id = cfg_getint(condition_opts, "id");
-
-                if (parse_condition_attribute((char *) cfg_getstr(condition_opts, "condition"), &temp_condn->condition)) {
-                    fprintf(stderr, "Error: invalid condition_report condition value '%s'\n", (char *) cfg_getstr(condition_opts, "condition"));
-                    exit(-1);
-                }
-
-                if (parse_location_attribute((char *) cfg_getstr(condition_opts, "location"), &temp_condn->condition)) {
-                    fprintf(stderr, "Error: invalid condition_report location value '%s'\n", (char *) cfg_getstr(condition_opts, "location"));
-                    exit(-1);
-                }
-
-                condition_attributes_nb = cfg_size(condition_opts, "attributes");
-                temp_condn->attributes_nb = condition_attributes_nb;
-
-                if(condition_attributes_nb > 0) {
-                    temp_condn->attributes = calloc(sizeof(mmt_condition_attribute_t), condition_attributes_nb);
-
-                    for(i = 0; i < condition_attributes_nb; i++) {
-                    	if (condition_parse_dot_proto_attribute(cfg_getnstr(condition_opts, "attributes", i), &temp_condn->attributes[i])) {
-                            fprintf(stderr, "Error: invalid condition_report attribute value '%s'\n", (char *) cfg_getnstr(condition_opts, "attributes", i));
-                            exit(-1);
-                        }
-                    }
-                }
-                condition_handlers_nb = cfg_size(condition_opts, "handlers");
-                temp_condn->handlers_nb = condition_handlers_nb;
-
-                if(condition_handlers_nb > 0) {
-                temp_condn->handlers = calloc(sizeof(mmt_condition_attribute_t), condition_handlers_nb);
-
-                    for(i = 0; i < condition_handlers_nb; i++) {
-                    	if (parse_handlers_attribute((char *) cfg_getnstr(condition_opts, "handlers",i), &temp_condn->handlers[i])) {
-                    		fprintf(stderr, "Error: invalid condition_report handler attribute value '%s'\n", (char *) cfg_getnstr(condition_opts, "handlers", i));
-                    	    exit(-1);
-                        }
-                    }
-                }
-
-            }
-        }
-
-
-
-        cfg_free(cfg);
-    }
-    return 1;
-}
-
 struct dispatcher_struct {
     char * filename;
     pthread_t handle;
@@ -846,7 +356,8 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
 
 
     //Initialise MMT_Security
-    init_mmt_security( mmt_probe->mmt_handler, mmt_probe->mmt_conf->properties_file );
+    if(mmt_probe->mmt_conf->security_enable==1)
+        init_mmt_security( mmt_probe->mmt_handler, mmt_probe->mmt_conf->properties_file );
     //End initialise MMT_Security
 
 
@@ -856,6 +367,7 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
 
         if (!pcap) { /* pcap error ? */
             sprintf(lg_msg, "Error while opening pcap file: %s --- error msg: %s", filename, errbuf);
+            printf("Error: Verify the name and the location of the trace file to be analysed \n ");
             mmt_log(mmt_probe->mmt_conf, MMT_L_ERROR, MMT_P_TRACE_ERROR, lg_msg);
             return;
         }
@@ -865,7 +377,7 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
 
         while ((data = pcap_next(pcap, &pkthdr))) {
 
-        	header.ts = pkthdr.ts;
+            header.ts = pkthdr.ts;
             header.caplen = pkthdr.caplen;
             header.len = pkthdr.len;
             header.user_args = NULL;
@@ -991,6 +503,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
             pthread_spin_unlock(&th->lock);
         }
     }
+
 }
 
 /*
@@ -1072,7 +585,8 @@ void *Reader(void *arg) {
         exit(EXIT_FAILURE);
     }
     //Initialise MMT_Security
-    init_mmt_security( mmt_probe->mmt_handler, mmt_probe->mmt_conf->properties_file );
+    if(mmt_probe->mmt_conf->security_enable==1)
+        init_mmt_security( mmt_probe->mmt_handler, mmt_probe->mmt_conf->properties_file );
     //End initialise MMT_Security
 
     /* now we can set our callback function */
@@ -1129,6 +643,7 @@ static void *process_tracefile_thread_routine(void *arg) {
 
     if (!pcap) { /* pcap error ? */
         sprintf(lg_msg, "Error while opening pcap file in dispatcher nb %i: %s --- error msg: %s", dispatcher->nb, dispatcher->filename, errbuf);
+        printf("Error: Verify the name and the location of the trace file to be analysed \n ");
         mmt_log(mmt_probe.mmt_conf, MMT_L_ERROR, MMT_P_TRACE_ERROR, lg_msg);
         return &errcode;
     }
@@ -1180,7 +695,6 @@ static void *process_tracefile_thread_routine(void *arg) {
             }
         }
     }
-
     pcap_close(pcap);
     sprintf(lg_msg, "End dispatching packets from trace file: %s --- Dispatcher %i", dispatcher->filename, dispatcher->nb);
     mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_P_END_PROCESS_TRACE, lg_msg);
@@ -1195,18 +709,20 @@ void terminate_probe_processing(int wait_thread_terminate) {
     int i;
 
     //For MMT_Security
-	//To finish results file (e.g. write summary in the XML file)
-	todo_at_end();
-	//End for MMT_Security
-
-    // Report the statistics if any (this case appears: statistics reporting time is greater than packet interval time(functions in the packet_handler)) before probe termination
-    iterate_through_ip( mmt_probe.mmt_handler );
-    iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.mmt_handler);
+    //To finish results file (e.g. write summary in the XML file)
+    todo_at_end();
+    //End for MMT_Security
 
     //Cleanup
     if (mmt_conf->thread_nb == 1) {
         //One thread for processing packets
         //Cleanup the MMT handler
+
+        // Report the statistics if any (this case appears: statistics reporting time is greater than packet interval time(functions in the packet_handler)) before probe termination
+        iterate_through_ip( mmt_probe.mmt_handler );
+        iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.mmt_handler);
+
+
         flowstruct_cleanup(mmt_probe.mmt_handler); // cleanup our event handler
         radius_ext_cleanup(mmt_probe.mmt_handler); // cleanup our event handler for RADIUS initializations
 
@@ -1214,6 +730,12 @@ void terminate_probe_processing(int wait_thread_terminate) {
         //Now report the microflows!
         report_all_protocols_microflows_stats(&mmt_probe.iprobe);
     } else {
+        for (i = 0; i < mmt_conf->thread_nb; i++) {
+            // Report the statistics if any (this case appears: statistics reporting time is greater than packet interval time(functions in the packet_handler)) before probe termination
+            iterate_through_ip( mmt_probe.smp_threads[i].mmt_handler );
+            iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.smp_threads[i].mmt_handler);
+        }
+
         if (wait_thread_terminate) {
             /* Add a dummy packet at each thread packet list tail */
             for (i = 0; i < mmt_conf->thread_nb; i++) {
@@ -1248,6 +770,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
             for (i = 0; i < mmt_conf->thread_nb; i++) {
                 //pthread_join(mmt_probe.smp_threads[i].handle, NULL);
                 if (mmt_probe.smp_threads[i].mmt_handler != NULL) {
+                    // Report the statistics if any (this case appears: statistics reporting time is greater than packet interval time(functions in the packet_handler)) before probe termination
                     flowstruct_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler
                     radius_ext_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler for RADIUS initializations
                     mmt_close_handler(mmt_probe.smp_threads[i].mmt_handler);
@@ -1257,14 +780,11 @@ void terminate_probe_processing(int wait_thread_terminate) {
             }
         }
     }
+
     //Now close the reporting files.
     //Offline or Online processing
     if (mmt_conf->input_mode == OFFLINE_ANALYSIS||mmt_conf->input_mode == ONLINE_ANALYSIS) {
         if (mmt_conf->data_out_file) fclose(mmt_conf->data_out_file);
-
-        if (mmt_conf->combine_radius == 0) {
-            if (mmt_conf->radius_out_file) fclose(mmt_conf->radius_out_file);
-        }
         sprintf(lg_msg, "Closing output results file");
         mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_P_CLOSE_OUTPUT, lg_msg);
 
@@ -1277,15 +797,15 @@ void terminate_probe_processing(int wait_thread_terminate) {
     if(mmt_conf->sampled_report==1){
         end_file();
     }else if (mmt_conf->sampled_report==0){
-    	if (mmt_conf->behaviour_enable==1){
-       	    behaviour_valid=snprintf(behaviour_command_str, MAX_FILE_NAME, "cp %s%s %s", mmt_conf->output_location,mmt_conf->data_out,mmt_conf->behaviour_output_location);
+        if (mmt_conf->behaviour_enable==1){
+            behaviour_valid=snprintf(behaviour_command_str, MAX_FILE_NAME, "cp %s%s %s", mmt_conf->output_location,mmt_conf->data_out,mmt_conf->behaviour_output_location);
             behaviour_command_str[behaviour_valid]='\0';
             cr=system(behaviour_command_str);
-        	if (cr!=0){
-        	    fprintf(stderr,"\n5 Error code %d, while coping output file %s to %s ",cr, mmt_conf->output_location,mmt_conf->behaviour_output_location);
-        		exit(1);
-        	}
-    	}
+            if (cr!=0){
+                fprintf(stderr,"\n5 Error code %d, while coping output file %s to %s ",cr, mmt_conf->output_location,mmt_conf->behaviour_output_location);
+                exit(1);
+            }
+        }
     }
 
     close_extraction();
@@ -1340,12 +860,12 @@ void signal_handler(int type) {
     }
 
     switch (type) {
-        case SIGSEGV:
-            mmt_log(mmt_probe.mmt_conf, MMT_L_EMERGENCY, MMT_P_SEGV_ERROR, "Segv signal received! cleaning up!");
-            //terminate_probe_processing();
-            //fprintf(stdout, "SEGMENTATION FAULT!!!! Exiting!!! \n");
-            //Now delete the last input file if it is available. This is to avoid blocking situation in continuous trace file processing
-            /*
+    case SIGSEGV:
+        mmt_log(mmt_probe.mmt_conf, MMT_L_EMERGENCY, MMT_P_SEGV_ERROR, "Segv signal received! cleaning up!");
+        //terminate_probe_processing();
+        //fprintf(stdout, "SEGMENTATION FAULT!!!! Exiting!!! \n");
+        //Now delete the last input file if it is available. This is to avoid blocking situation in continuous trace file processing
+        /*
                         if(strlen(mmt_probe.mmt_conf->input_f_name) > 1) {
                             if (remove(mmt_probe.mmt_conf->input_f_name) != 0) {
                                 //fprintf(stdout, "Trace Error deleting file\n");
@@ -1357,133 +877,34 @@ void signal_handler(int type) {
                                 //fprintf(stdout, "Trace File %s successfully deleted\n", trace_file_name);
                             }
                         }
-             */
-            exit(0);
-        case SIGTERM:
-            mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_TERMINATION, "Termination signal received! Cleaning up before exiting!");
-            //terminate_probe_processing();
-            //fprintf(stdout, "Terminating\n");
-            exit(0);
-        case SIGABRT:
-            mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_TERMINATION, "Abort signal received! Cleaning up before exiting!");
-            //terminate_probe_processing();
-            //fprintf(stdout, "Terminating\n");
-            exit(0);
-        case SIGINT:
-            mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_TERMINATION, "Interruption Termination signal received! Cleaning up before exiting!");
-            //terminate_probe_processing();
-            //fprintf(stdout, "Terminating\n");
-            exit(0);
+         */
+        exit(0);
+    case SIGTERM:
+        mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_TERMINATION, "Termination signal received! Cleaning up before exiting!");
+        //terminate_probe_processing();
+        //fprintf(stdout, "Terminating\n");
+        exit(0);
+    case SIGABRT:
+        mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_TERMINATION, "Abort signal received! Cleaning up before exiting!");
+        //terminate_probe_processing();
+        //fprintf(stdout, "Terminating\n");
+        exit(0);
+    case SIGINT:
+        mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_TERMINATION, "Interruption Termination signal received! Cleaning up before exiting!");
+        //terminate_probe_processing();
+        //fprintf(stdout, "Terminating\n");
+        exit(0);
 #ifndef _WIN32
-        case SIGKILL:
-            mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_TERMINATION, "Kill signal received! Cleaning up before exiting!");
-            //terminate_probe_processing();
-            //fprintf(stdout, "Terminating\n");
-            exit(0);
+    case SIGKILL:
+        mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_TERMINATION, "Kill signal received! Cleaning up before exiting!");
+        //terminate_probe_processing();
+        //fprintf(stdout, "Terminating\n");
+        exit(0);
 #endif
-        default:
-            mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_TERMINATION, "Received an unexpected signal!");
-            exit(0);
+    default:
+        mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_TERMINATION, "Received an unexpected signal!");
+        exit(0);
     }
-}
-
-void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
-    int opt, optcount = 0;
-    char * config_file = "/etc/mmtprobe/mmt.conf";
-    char * input = NULL;
-    char * output = NULL;
-    char * output_dir = NULL;
-    char * properties_file = NULL;
-    int period = 0;
-    int proto_stats = 1;
-    int probe_id_number = 0;
-    int flow_stats = 1;
-    while ((opt = getopt(argc, argv, "c:t:i:o:R:P:p:s:n:f:h")) != EOF) {
-        switch (opt) {
-            case 'c':
-                config_file = optarg;
-                break;
-            case 't':
-                optcount++;
-                if (optcount > 1) {
-                    usage(argv[0]);
-                }
-                input = optarg;
-                break;
-            case 'i':
-                optcount++;
-                if (optcount > 1) {
-                    usage(argv[0]);
-                }
-                input = optarg;
-                break;
-            case 'o':
-                output = optarg;
-                break;
-            case 'R':
-                output_dir = optarg;
-                break;
-            case 'P':
-                properties_file = optarg;
-                break;
-            case 'p':
-                period = atoi(optarg);
-                break;
-            case 's':
-                proto_stats = atoi(optarg);
-                break;
-            case 'n':
-                probe_id_number = atoi(optarg);
-                break;
-            case 'f':
-                flow_stats = atoi(optarg);
-                break;
-            case 'h':
-            default: usage(argv[0]);
-        }
-    }
-
-    cfg_t *cfg = parse_conf(config_file);
-    if(cfg == NULL) {
-        fprintf(stderr, "Configuration file not found: use -c <config file> or create default file /etc/mmtprobe/mmt.conf\n");
-        exit(EXIT_FAILURE);
-    }
-       
-    process_conf_result(cfg, mmt_conf);
-
-    if (input) {
-        strncpy(mmt_conf->input_source, input, 256);
-    }
-    
-    if(output) {
-        strncpy(mmt_conf->data_out, output, 256);
-    }
-    
-    if(output_dir) {
-        strncpy(mmt_conf->dir_out, output_dir, 256);
-    }
-    
-    if(properties_file) {
-        strncpy(mmt_conf->properties_file, properties_file, 256);
-    }
-    
-    if(period) {
-        mmt_conf->stats_reporting_period = period;
-    } 
-    
-    if(!proto_stats) {
-        mmt_conf->enable_proto_stats = 0;
-    }
-    
-    if(probe_id_number) {
-        mmt_conf->probe_id_number = probe_id_number;
-    }
-    
-    if(!flow_stats) {
-        mmt_conf->enable_flow_stats = 0;
-    }
-
-    return;
 }
 
 int main(int argc, char **argv) {
@@ -1494,8 +915,7 @@ int main(int argc, char **argv) {
 
     mmt_probe_context_t * mmt_conf = get_probe_context_config();
     mmt_probe.mmt_conf = mmt_conf;
-    //gethostMACaddress();
-    
+
     parseOptions(argc, argv, mmt_conf);
 
     mmt_conf->log_output = fopen(mmt_conf->log_file, "a");
@@ -1505,7 +925,7 @@ int main(int argc, char **argv) {
     signal(SIGTERM, signal_handler);
     signal(SIGSEGV, signal_handler);
     signal(SIGABRT, signal_handler);
-    
+
     mmt_log(mmt_conf, MMT_L_INFO, MMT_P_INIT, "MMT Probe started!");
 
     if (!init_extraction()) { // general ixE initialization
@@ -1514,9 +934,10 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-//For MMT_Security
-    todo_at_start(mmt_conf->dir_out);
-//End for MMT_Security
+    //For MMT_Security
+    if (mmt_conf->security_enable==1)
+        todo_at_start(mmt_conf->dir_out);
+    //End for MMT_Security
 
     //Initialization
     if (mmt_conf->thread_nb == 1) {
@@ -1541,9 +962,9 @@ int main(int argc, char **argv) {
         if(mmt_probe.mmt_conf->enable_flow_stats) {
             register_session_timeout_handler(mmt_probe.mmt_handler, classification_expiry_session, &mmt_probe.iprobe);
             flowstruct_init(mmt_probe.mmt_handler); // initialize our event handler
-            event_reports_init(mmt_probe.mmt_handler); // initialize our event reports
-            conditional_reports_init(mmt_probe.mmt_handler);// initialize our conditional reports
-            radius_ext_init(mmt_probe.mmt_handler); // initialize radius extraction and attribute event handler
+            if(mmt_conf->event_based_reporting_enable==1)event_reports_init(mmt_probe.mmt_handler); // initialize our event reports
+            if(mmt_conf->condition_based_reporting_enable==1)conditional_reports_init(mmt_probe.mmt_handler);// initialize our conditional reports
+            if(mmt_conf->radius_enable==1)radius_ext_init(mmt_probe.mmt_handler); // initialize radius extraction and attribute event handler
         }
 
         if(mmt_probe.mmt_conf->enable_proto_stats) {
@@ -1584,7 +1005,6 @@ int main(int argc, char **argv) {
         //We don't close the files here because they will be used when the handler is closed to report still to timeout flows
     }
 
-    //Cleanup
     terminate_probe_processing(1);
 
     //printf("Process Terimated successfully\n");

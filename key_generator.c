@@ -1,6 +1,6 @@
 /*
 	 gcc -o license_key_generator key_generator.c
-* */
+ * */
 
 
 #include<stdio.h>
@@ -29,29 +29,29 @@ unsigned long hex2dec(char *str){
 }
 
 void main(){
-	FILE * license_key;
-	int MAX=50;
-	char message[50];
-	int valid=0;
-	/*
-	 * Provide expiry date of the license in year,month and date
-	 * */
-	char year[5]="2015";
-	char month[3]="12";
-	char day[3]="24";
-	/*
+    FILE * license_key;
+    int MAX=50;
+    char message[50];
+    int valid=0;
+    /*
+     * Provide expiry date of the license in year,month and date
+     * */
+    char year[4]="2016";
+    char month[2]="12";
+    char day[2]="24";
+    /*
      * Provide number of mac address and the MAC address separated by "-" of the machine for the license
-	 */
-	char no_of_mac_address[3]= "002";
-	char * write_mac_address ="080027749053-0800271C0485";
-	int offset=0;
-	/*
-	 * This blocks contains no information but are used to make he license key difficult to read
-	*/
-	char block1[10]="627G639FB5";
-	char block2[10]="70258TYG60";
-	char block3[10]="2SD574G689";
-	char block4[10]="24689G5K79";
+     */
+    char no_of_mac_address[3]= "004";
+    char * write_mac_address ="080027749053-0800271C04a5-9C2A70246CDB-B8CA3ACD58D9";
+    int offset=0;
+    /*
+     * This blocks contains no information but are used to make the license key difficult to read
+     */
+    char block1[10]="627G639FB5";
+    char block2[10]="70258TYG60";
+    char block3[10]="2SD574G689";
+    char block4[10]="24689G5K79";
     static char file [256+1]={0};
 
     strcpy(file,"License_key.txt");
@@ -81,7 +81,7 @@ void main(){
     int no_of_mac;
 
     no_of_mac=atoi(no_of_mac_address);
-    printf("no_of_mac=%d\n",no_of_mac);
+    //printf("no_of_mac=%d\n",no_of_mac);
     int j=0;
     int offset_mac_read=0;
     int offset_mac_write=0;
@@ -90,19 +90,19 @@ void main(){
     mac_address=malloc(sizeof(char)*no_of_mac*12);
 
     for (j=0;j<no_of_mac;j++){
-    	strncpy(&mac_address[offset_mac_write],&write_mac_address[offset_mac_read],12);
-    	//mac_address[offset_mac_write]='\0';
-    	offset_mac_write+=12;
-    	offset_mac_read+=13;
+        strncpy(&mac_address[offset_mac_write],&write_mac_address[offset_mac_read],12);
+        //mac_address[offset_mac_write]='\0';
+        offset_mac_write+=12;
+        offset_mac_read+=13;
     }
     mac_address[no_of_mac*12]='\0';
     offset+=fwrite(mac_address,1,no_of_mac*12,license_key);
     int count_mac_len= strlen(mac_address);
-    printf("count_mac_len=%d\n",count_mac_len);
+    //printf("count_mac_len=%d\n",count_mac_len);
 
     if (count_mac_len!=(no_of_mac*12)){
-    	printf ("ERROR length of MAC address do not match \n");
-    	//exit(0);
+        printf ("ERROR length of MAC address do not match \n");
+        //exit(0);
 
     }
 
@@ -113,10 +113,11 @@ void main(){
 
     for (i=0;i<(no_of_mac*12);i++){
 
-    	sum_mac+=mac_address[i];
+        sum_mac+=mac_address[i];
 
 
     }
+    printf("sum_mac=%lu\n", sum_mac);
 
     char * sum_mac_str;
 
@@ -126,6 +127,8 @@ void main(){
     valid=snprintf(sum_mac_str,10,"%lu",sum_mac);
     sum_mac_str[valid]='\0';
 
+    printf ("block_sum=%s\n",sum_mac_str);
+
     int k=0;
     unsigned long int  sum_of_blocks=0;
 
@@ -133,7 +136,7 @@ void main(){
 
         sum_of_blocks+=block1[k]+block2[k]+block3[k]+block4[k];
 
-        }
+    }
     printf("sum_of_blocks=%lu\n",sum_of_blocks);
 
     char * sum_of_blocks_str;

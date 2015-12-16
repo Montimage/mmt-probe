@@ -29,21 +29,21 @@ typedef int socklen_t;
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
-    typedef struct ipv4_ipv6_id_struct {
-        union {
-            uint32_t ipv4;
-            uint8_t ipv6[16];
-        };
-    } ipv4_ipv6_id_t;
+typedef struct ipv4_ipv6_id_struct {
+    union {
+        uint32_t ipv4;
+        uint8_t ipv6[16];
+    };
+} ipv4_ipv6_id_t;
 
-    typedef struct internal_session_struct {
-        ipv4_ipv6_id_t ipclient;
-        ipv4_ipv6_id_t ipserver;
-        uint16_t clientport;
-        uint16_t serverport;
-        uint8_t proto;
-        uint8_t ipversion;
-    } internal_session_struct_t;
+typedef struct internal_session_struct {
+    ipv4_ipv6_id_t ipclient;
+    ipv4_ipv6_id_t ipserver;
+    uint16_t clientport;
+    uint16_t serverport;
+    uint8_t proto;
+    uint8_t ipversion;
+} internal_session_struct_t;
 
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
 
@@ -169,7 +169,7 @@ void session_expiry_handle(const mmt_session_t * expired_session, void * args) {
     struct timeval init_time = get_session_init_time(expired_session);
     struct timeval end_time = get_session_last_activity_time(expired_session);
     const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
-    
+
     fprintf(out_file, "%"PRIu64",%lu.%lu,%lu.%lu,"
             "%u,%s,%s,%hu,%hu,%hu,"
             "%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%s,%s,%s"
@@ -181,14 +181,14 @@ void session_expiry_handle(const mmt_session_t * expired_session, void * args) {
             ip_dst_str, ip_src_str,
             temp_session->serverport, temp_session->clientport, (unsigned short) temp_session->proto,
             (keep_direction)?get_session_ul_packet_count(expired_session):get_session_dl_packet_count(expired_session),
-            (keep_direction)?get_session_dl_packet_count(expired_session):get_session_ul_packet_count(expired_session),
-            (keep_direction)?get_session_ul_byte_count(expired_session):get_session_dl_byte_count(expired_session),
-            (keep_direction)?get_session_dl_byte_count(expired_session):get_session_ul_byte_count(expired_session),
-            rtt_ms, get_session_retransmission_count(expired_session),
-            
-            get_application_class_name_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
-            path, get_protocol_name_by_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16) ? (proto_hierarchy->len - 1) : (16 - 1)])
-            );
+                    (keep_direction)?get_session_dl_packet_count(expired_session):get_session_ul_packet_count(expired_session),
+                            (keep_direction)?get_session_ul_byte_count(expired_session):get_session_dl_byte_count(expired_session),
+                                    (keep_direction)?get_session_dl_byte_count(expired_session):get_session_ul_byte_count(expired_session),
+                                            rtt_ms, get_session_retransmission_count(expired_session),
+
+                                            get_application_class_name_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
+                                            path, get_protocol_name_by_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16) ? (proto_hierarchy->len - 1) : (16 - 1)])
+    );
 }
 
 int main(int argc, const char **argv) {
