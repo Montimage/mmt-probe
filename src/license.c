@@ -261,7 +261,7 @@ int license_expiry_check(){
 
                 license_message[ MAX_MESS ] = '\0';
                 if (probe_context->output_to_file_enable==1)send_message_to_file (license_message);
-                if (probe_context->redis_enable==1)send_message_to_redis ("license.flow.stat", license_message);
+                if (probe_context->redis_enable==1)send_message_to_redis ("license.stat", license_message);
                 printf("\n\t*************************************\n"
                         "\t*          BUY MMT LICENSE          *\n"
                         "\t*   Website: http://montimage.com   *\n"
@@ -275,7 +275,7 @@ int license_expiry_check(){
                 snprintf(license_message, MAX_MESS,"%u,%d,%04d/%02d/%02d,%d,%s",30,MMT_LICENSE_EXPIRED,yr,mn,dy,no_of_mac,mac_address);
                 license_message[ MAX_MESS ] = '\0';
                 if (probe_context->output_to_file_enable==1)send_message_to_file (license_message);
-                if (probe_context->redis_enable==1)send_message_to_redis ("license.flow.stat", license_message);
+                if (probe_context->redis_enable==1)send_message_to_redis ("license.stat", license_message);
 
                 printf("\n\t*************************************\n"
                         "\t* MMT LICENSE EXPIRED ON %04d-%02d-%02d *\n"
@@ -288,13 +288,13 @@ int license_expiry_check(){
             snprintf(license_message, MAX_MESS,"%u,%d,%04d/%02d/%02d,%d,%s",30,MMT_LICENSE_INFO,yr,mn,dy,no_of_mac,mac_address);
             license_message[ MAX_MESS ] = '\0';
             if (probe_context->output_to_file_enable==1)send_message_to_file (license_message);
-            if (probe_context->redis_enable==1)send_message_to_redis ("license.flow.stat", license_message);
+            if (probe_context->redis_enable==1)send_message_to_redis ("license.stat", license_message);
             //Seven days =7*24*60*60
             if ( seconds<=604800 && seconds>0){
                 snprintf(license_message, MAX_MESS,"%u,%d,%04d/%02d/%02d,%d,%s",30,MMT_LICENSE_WILL_EXPIRE_SOON,yr,mn,dy,no_of_mac,mac_address);
                 license_message[ MAX_MESS ] = '\0';
                 if (probe_context->output_to_file_enable==1)send_message_to_file (license_message);
-                if (probe_context->redis_enable==1)send_message_to_redis ("license.flow.stat", license_message);
+                if (probe_context->redis_enable==1)send_message_to_redis ("license.stat", license_message);
 
                 printf("\n\t***********************************************\n"
                         "\t*  MMT LICENSE WILL EXPIRE ON %04d-%02d-%02d  *\n"
@@ -308,7 +308,7 @@ int license_expiry_check(){
             snprintf(license_message, MAX_MESS,"%u,%d,%04d/%02d/%02d,%d,%s",30,MMT_LICENSE_MODIFIED,0,0,0,0,"0");
             license_message[ MAX_MESS ] = '\0';
             if (probe_context->output_to_file_enable==1)send_message_to_file (license_message);
-            if (probe_context->redis_enable==1)send_message_to_redis ("license.flow.stat", license_message);
+            if (probe_context->redis_enable==1)send_message_to_redis ("license.stat", license_message);
 
             printf("\n\t*************************************\n"
                     "\t*        MMT LICENSE MODIFIED       *\n"
@@ -323,7 +323,7 @@ int license_expiry_check(){
         snprintf(license_message, MAX_MESS,"%u,%d,%04d/%02d/%02d,%d,%s",30,MMT_LICENSE_KEY_DOES_NOT_EXIST,0,0,0,0,"0");
         license_message[ MAX_MESS ] = '\0';
         if (probe_context->output_to_file_enable==1)send_message_to_file (license_message);
-        if (probe_context->redis_enable==1)send_message_to_redis ("license.flow.stat", license_message);
+        if (probe_context->redis_enable==1)send_message_to_redis ("license.stat", license_message);
         printf("\n\t*************************************\n"
                 "\t*  MMT LICENSE KEY DOES-NOT EXIST   *\n"
                 "\t*          BUY MMT LICENSE          *\n"
