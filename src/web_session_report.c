@@ -11,7 +11,7 @@
 #include "mmt/tcpip/mmt_tcpip.h"
 #include "processing.h"
 
-#define MAX_MESS 2000
+
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
 
 static struct timeval mmt_time_diff(struct timeval tstart, struct timeval tend) {
@@ -32,12 +32,14 @@ typedef struct http_line_struct {
 
 void mime_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     if(ipacket->session == NULL) return;
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+
     http_line_struct_t * mime = (http_line_struct_t *) attribute->data;
     session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
     if (temp_session == NULL || temp_session->app_data == NULL) {
         return;
     }
-    if (mime != NULL && temp_session->app_format_id == MMT_WEB_APP_REPORT_FORMAT) {
+    if (mime != NULL && temp_session->app_format_id == probe_context->web_id) {
         int max = (mime->len > 63) ? 63 : mime->len;
 
         strncpy(((web_session_attr_t *) temp_session->app_data)->mimetype, (char *) mime->ptr, max);
@@ -53,12 +55,14 @@ void mime_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user
 
 void host_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     if(ipacket->session == NULL) return;
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+
     http_line_struct_t * host = (http_line_struct_t *) attribute->data;
     session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
     if (temp_session == NULL || temp_session->app_data == NULL) {
         return;
     }
-    if (host != NULL && temp_session->app_format_id == MMT_WEB_APP_REPORT_FORMAT) {
+    if (host != NULL && temp_session->app_format_id == probe_context->web_id) {
         int max = (host->len > 95) ? 95 : host->len;
 
         strncpy(((web_session_attr_t *) temp_session->app_data)->hostname, (char *) host->ptr, max);
@@ -85,7 +89,7 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
             web_session_attr_t * http_data = (web_session_attr_t *) malloc(sizeof (web_session_attr_t));
             if (http_data != NULL) {
                 memset(http_data, '\0', sizeof (web_session_attr_t));
-                temp_session->app_format_id = MMT_WEB_APP_REPORT_FORMAT;
+                temp_session->app_format_id = probe_context->web_id;
                 temp_session->app_data = (void *) http_data;
             } else {
                 mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating HTTP reporting context");
@@ -104,12 +108,14 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 
 void referer_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     if(ipacket->session == NULL) return;
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+
     http_line_struct_t * referer = (http_line_struct_t *) attribute->data;
     session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
     if (temp_session == NULL || temp_session->app_data == NULL) {
         return;
     }
-    if ((referer != NULL) && temp_session->app_format_id == MMT_WEB_APP_REPORT_FORMAT && (((web_session_attr_t *) temp_session->app_data)->has_referer == 0)) {
+    if ((referer != NULL) && temp_session->app_format_id == probe_context->web_id && (((web_session_attr_t *) temp_session->app_data)->has_referer == 0)) {
         int max = (referer->len > 63) ? 63 : referer->len;
 
         strncpy(((web_session_attr_t *) temp_session->app_data)->referer, (char *) referer->ptr, max);
@@ -125,12 +131,14 @@ void referer_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 
 void useragent_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     if(ipacket->session == NULL) return;
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+
     http_line_struct_t * user_agent = (http_line_struct_t *) attribute->data;
     session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
     if (temp_session == NULL || temp_session->app_data == NULL) {
         return;
     }
-    if ((user_agent != NULL) && temp_session->app_format_id == MMT_WEB_APP_REPORT_FORMAT && (((web_session_attr_t *) temp_session->app_data)->has_useragent == 0)) {
+    if ((user_agent != NULL) && temp_session->app_format_id == probe_context->web_id && (((web_session_attr_t *) temp_session->app_data)->has_useragent == 0)) {
         int max = (user_agent->len > 63) ? 63 : user_agent->len;
 
         strncpy(((web_session_attr_t *) temp_session->app_data)->useragent, (char *) user_agent->ptr, max);
@@ -141,9 +149,11 @@ void useragent_handle(const ipacket_t * ipacket, attribute_t * attribute, void *
 
 void xcdn_seen_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     if(ipacket->session == NULL) return;
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+
     uint8_t * xcdn_seen = (uint8_t *) attribute->data;
     session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
-    if (xcdn_seen != NULL && temp_session != NULL && temp_session->app_data != NULL && temp_session->app_format_id == MMT_WEB_APP_REPORT_FORMAT) {
+    if (xcdn_seen != NULL && temp_session != NULL && temp_session->app_data != NULL && temp_session->app_format_id == probe_context->web_id) {
         ((web_session_attr_t *) temp_session->app_data)->xcdn_seen = 1;
     }
 }
@@ -157,7 +167,7 @@ void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, vo
             web_session_attr_t * http_data = (web_session_attr_t *) malloc(sizeof (web_session_attr_t));
             if (http_data != NULL) {
                 memset(http_data, '\0', sizeof (web_session_attr_t));
-                temp_session->app_format_id = MMT_WEB_APP_REPORT_FORMAT;
+                temp_session->app_format_id = probe_context->web_id;
                 temp_session->app_data = (void *) http_data;
             } else {
                 mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating HTTP reporting context");
@@ -165,7 +175,7 @@ void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, vo
                 return;
             }
         }
-        if(temp_session->app_format_id == MMT_WEB_APP_REPORT_FORMAT) {
+        if(temp_session->app_format_id == probe_context->web_id) {
             if (((web_session_attr_t *) temp_session->app_data)->trans_nb == 1) {
                 ((web_session_attr_t *) temp_session->app_data)->response_time = mmt_time_diff(((web_session_attr_t *) temp_session->app_data)->response_time, ipacket->p_hdr->ts);
                 ((web_session_attr_t *) temp_session->app_data)->seen_response = 1;
@@ -174,24 +184,6 @@ void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, vo
         }
     }
 }
-
-void register_web_attributes(void * handler){
-    int i = 1;
-    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_METHOD, http_method_handle, NULL, NULL);
-    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_RESPONSE, http_response_handle, NULL, NULL);
-    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_CONTENT_TYPE, mime_handle, NULL, NULL);
-    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_HOST, host_handle, NULL, NULL);
-    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_REFERER, referer_handle, NULL, NULL);
-    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_USER_AGENT, useragent_handle, NULL, NULL);
-    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_XCDN_SEEN, xcdn_seen_handle, NULL, NULL);
-
-    if(!i) {
-        //TODO: we need a sound error handling mechanism! Anyway, we should never get here :)
-        fprintf(stderr, "Error while initializing MMT handlers and extractions!\n");
-    }
-}
-
-//Response time, Transactions Nb, Interaction time, Hostname, MIME type, Referer, User agent, xcdn_seen
 
 void print_web_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe) {
     int keep_direction = 1;
@@ -271,6 +263,26 @@ void print_web_app_format(const mmt_session_t * expired_session, probe_internal_
 
     message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
     if (probe_context->output_to_file_enable==1)send_message_to_file (message);
-    if (probe_context->redis_enable==0)send_message_to_redis ("web.flow.report", message);
+    if (probe_context->redis_enable==1)send_message_to_redis ("web.flow.report", message);
 
 }
+
+/*
+void register_web_attributes(void * handler){
+    int i = 1;
+    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_METHOD, http_method_handle, NULL, NULL);
+    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_RESPONSE, http_response_handle, NULL, NULL);
+    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_CONTENT_TYPE, mime_handle, NULL, NULL);
+    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_HOST, host_handle, NULL, NULL);
+    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_REFERER, referer_handle, NULL, NULL);
+    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_USER_AGENT, useragent_handle, NULL, NULL);
+    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_XCDN_SEEN, xcdn_seen_handle, NULL, NULL);
+
+    if(!i) {
+        //TODO: we need a sound error handling mechanism! Anyway, we should never get here :)
+        fprintf(stderr, "Error while initializing MMT handlers and extractions!\n");
+    }
+
+}*/
+
+

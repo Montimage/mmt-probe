@@ -29,7 +29,7 @@ void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, 
             ssl_session_attr_t * ssl_data = (ssl_session_attr_t *) malloc(sizeof (ssl_session_attr_t));
             if (ssl_data != NULL) {
                 memset(ssl_data, '\0', sizeof (ssl_session_attr_t));
-                temp_session->app_format_id = MMT_SSL_APP_REPORT_FORMAT;
+                temp_session->app_format_id = probe_context->ssl_id;
                 temp_session->app_data = (void *) ssl_data;
             } else {
                 mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating SSL reporting context");
@@ -38,23 +38,13 @@ void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, 
             }
         }
         http_line_struct_t * server_name = (http_line_struct_t *) attribute->data;
-        if (server_name != NULL && temp_session->app_format_id == MMT_SSL_APP_REPORT_FORMAT) {
+        if (server_name != NULL && temp_session->app_format_id == probe_context->ssl_id) {
             uint16_t max = ((uint16_t) server_name->len > 63) ? 63 : server_name->len;
             strncpy(((ssl_session_attr_t *) temp_session->app_data)->hostname, (char *) server_name->ptr, max);
             ((ssl_session_attr_t *) temp_session->app_data)->hostname[max] = '\0';
         }
     }
-}
-
-void register_ssl_attributes(void *handler){
-    int i=1;
-
-    i &= register_attribute_handler(handler, PROTO_SSL, SSL_SERVER_NAME, ssl_server_name_handle, NULL, NULL);
-
-    if(!i) {
-        //TODO: we need a sound error handling mechanism! Anyway, we should never get here :)
-        fprintf(stderr, "Error while initializing MMT handlers and extractions!\n");
-    }
+    temp_session->contentclass = get_content_class_by_content_flags(get_session_content_flags(ipacket->session));
 }
 
 void print_ssl_app_format(const mmt_session_t * expired_session,probe_internal_t * iprobe) {
@@ -139,3 +129,16 @@ void print_ssl_app_format(const mmt_session_t * expired_session,probe_internal_t
     );
      */
 }
+
+/*
+void register_ssl_attributes(void *handler){
+    int i=1;
+
+    i &= register_attribute_handler(handler, PROTO_SSL, SSL_SERVER_NAME, ssl_server_name_handle, NULL, NULL);
+
+    if(!i) {
+        //TODO: we need a sound error handling mechanism! Anyway, we should never get here :)
+        fprintf(stderr, "Error while initializing MMT handlers and extractions!\n");
+    }
+}
+*/

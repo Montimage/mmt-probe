@@ -12,8 +12,8 @@
 #define MAX_MESS 2000
 
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
-
-void reset (const ipacket_t * ipacket, mmt_session_t * rtp_session, session_struct_t *temp_session){
+/*
+void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session){
     ((rtp_session_attr_t*) temp_session->app_data)->jitter= 0;
     ((rtp_session_attr_t*) temp_session->app_data)->nb_lost= 0;
     ((rtp_session_attr_t*) temp_session->app_data)->nb_loss_bursts= 0;
@@ -26,7 +26,7 @@ void reset (const ipacket_t * ipacket, mmt_session_t * rtp_session, session_stru
     ((rtp_session_attr_t*) temp_session->app_data)->last_report_time_sec = ipacket->p_hdr->ts.tv_sec;
     ((rtp_session_attr_t*) temp_session->app_data)->last_report_time_usec = ipacket->p_hdr->ts.tv_usec;
 }
-
+*/
 void rtp_version_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     if(ipacket->session == NULL) return;
     session_struct_t * temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
@@ -37,7 +37,7 @@ void rtp_version_handle(const ipacket_t * ipacket, attribute_t * attribute, void
             if (rtp_attr != NULL) {
                 memset(rtp_attr, '\0', sizeof (rtp_session_attr_t));
                 temp_session->app_data = (void *) rtp_attr;
-                temp_session->app_format_id = MMT_RTP_APP_REPORT_FORMAT;
+                temp_session->app_format_id = probe_context->rtp_id;
                 rtp_attr->packets_nb += 1;
                 ((rtp_session_attr_t*) temp_session->app_data)->last_report_time_sec = ipacket->p_hdr->ts.tv_sec;
                 ((rtp_session_attr_t*) temp_session->app_data)->last_report_time_usec = ipacket->p_hdr->ts.tv_usec;
@@ -45,7 +45,7 @@ void rtp_version_handle(const ipacket_t * ipacket, attribute_t * attribute, void
                 mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating RTP reporting context");
                 //fprintf(stderr, "Out of memory error when creating RTP specific data structure!\n");
             }
-        } else if(temp_session->app_format_id == MMT_RTP_APP_REPORT_FORMAT) {
+        } else if(temp_session->app_format_id == probe_context->rtp_id) {
             ((rtp_session_attr_t*) temp_session->app_data)->packets_nb += 1;
         }
     }
@@ -53,11 +53,12 @@ void rtp_version_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 
 void rtp_jitter_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     if(ipacket->session == NULL) return;
+    mmt_probe_context_t * probe_context = get_probe_context_config();
 
     session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
     if (temp_session != NULL && temp_session->app_data != NULL) {
         uint32_t * jitter = (uint32_t *) attribute->data;
-        if (jitter != NULL && temp_session->app_format_id == MMT_RTP_APP_REPORT_FORMAT) {
+        if (jitter != NULL && temp_session->app_format_id == probe_context->rtp_id) {
             if (*jitter > ((rtp_session_attr_t*) temp_session->app_data)->jitter) {
                 ((rtp_session_attr_t*) temp_session->app_data)->jitter = *jitter;
             }
@@ -66,7 +67,7 @@ void rtp_jitter_handle(const ipacket_t * ipacket, attribute_t * attribute, void 
 
 
     //sampling RTP
-
+    /*
     char path[128];
     char message[MAX_MESS + 1];
 
@@ -154,17 +155,19 @@ void rtp_jitter_handle(const ipacket_t * ipacket, attribute_t * attribute, void 
         if (probe_context->output_to_file_enable==1)send_message_to_file (message);
         if (probe_context->redis_enable==1)send_message_to_redis ("rtp.flow.report", message);
 
-        reset(ipacket,rtp_session,temp_session);
+        reset_rtp(ipacket,rtp_session,temp_session);
 
-    }
+    }*/
 }
 
 void rtp_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     if(ipacket->session == NULL) return;
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+
     session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
     if (temp_session != NULL && temp_session->app_data != NULL) {
         uint16_t * loss = (uint16_t *) attribute->data;
-        if (loss != NULL && temp_session->app_format_id == MMT_RTP_APP_REPORT_FORMAT) {
+        if (loss != NULL && temp_session->app_format_id == probe_context->rtp_id) {
             ((rtp_session_attr_t*) temp_session->app_data)->nb_lost += *loss;
         }
     }
@@ -172,10 +175,12 @@ void rtp_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * 
 
 void rtp_order_error_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     if(ipacket->session == NULL) return;
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+
     session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
     if (temp_session != NULL && temp_session->app_data != NULL) {
         uint16_t * order_error = (uint16_t *) attribute->data;
-        if (order_error != NULL && temp_session->app_format_id == MMT_RTP_APP_REPORT_FORMAT) {
+        if (order_error != NULL && temp_session->app_format_id == probe_context->rtp_id) {
             ((rtp_session_attr_t*) temp_session->app_data)->nb_order_error += *order_error;
         }
     }
@@ -183,26 +188,14 @@ void rtp_order_error_handle(const ipacket_t * ipacket, attribute_t * attribute, 
 
 void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     if(ipacket->session == NULL) return;
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+
     session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
     if (temp_session != NULL && temp_session->app_data != NULL) {
         uint16_t * burst_loss = (uint16_t *) attribute->data;
-        if (burst_loss != NULL && temp_session->app_format_id == MMT_RTP_APP_REPORT_FORMAT) {
+        if (burst_loss != NULL && temp_session->app_format_id == probe_context->rtp_id) {
             ((rtp_session_attr_t*) temp_session->app_data)->nb_loss_bursts += 1;
         }
-    }
-}
-
-void register_rtp_attributes(void * handler){
-    int i=1;
-    i &= register_attribute_handler(handler, PROTO_RTP, RTP_VERSION, rtp_version_handle, NULL, NULL);
-    i &= register_attribute_handler(handler, PROTO_RTP, RTP_JITTER, rtp_jitter_handle, NULL, NULL);
-    i &= register_attribute_handler(handler, PROTO_RTP, RTP_LOSS, rtp_loss_handle, NULL, NULL);
-    i &= register_attribute_handler(handler, PROTO_RTP, RTP_UNORDER, rtp_order_error_handle, NULL, NULL);
-    i &= register_attribute_handler(handler, PROTO_RTP, RTP_ERROR_ORDER, rtp_order_error_handle, NULL, NULL);
-    i &= register_attribute_handler(handler, PROTO_RTP, RTP_BURST_LOSS, rtp_burst_loss_handle, NULL, NULL);
-    if(!i) {
-        //TODO: we need a sound error handling mechanism! Anyway, we should never get here :)
-        fprintf(stderr, "Error while initializing MMT handlers and extractions!\n");
     }
 }
 
@@ -308,3 +301,20 @@ void print_rtp_app_format(const mmt_session_t * expired_session, probe_internal_
     );
      */
 }
+
+
+/*
+void register_rtp_attributes(void * handler){
+    int i=1;
+    i &= register_attribute_handler(handler, PROTO_RTP, RTP_VERSION, rtp_version_handle, NULL, NULL);
+    i &= register_attribute_handler(handler, PROTO_RTP, RTP_JITTER, rtp_jitter_handle, NULL, NULL);
+    i &= register_attribute_handler(handler, PROTO_RTP, RTP_LOSS, rtp_loss_handle, NULL, NULL);
+    i &= register_attribute_handler(handler, PROTO_RTP, RTP_UNORDER, rtp_order_error_handle, NULL, NULL);
+    i &= register_attribute_handler(handler, PROTO_RTP, RTP_ERROR_ORDER, rtp_order_error_handle, NULL, NULL);
+    i &= register_attribute_handler(handler, PROTO_RTP, RTP_BURST_LOSS, rtp_burst_loss_handle, NULL, NULL);
+    if(!i) {
+        //TODO: we need a sound error handling mechanism! Anyway, we should never get here :)
+        fprintf(stderr, "Error while initializing MMT handlers and extractions!\n");
+    }
+}
+*/

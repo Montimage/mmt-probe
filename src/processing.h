@@ -20,13 +20,14 @@ extern "C" {
 
 #define MMT_SKIP_APP_REPORT_FORMAT      0xFFFFFFFF //This is mainly to skip the reporting of flows of specific applications.
 #define MMT_DEFAULT_APP_REPORT_FORMAT   0x0
-#define MMT_WEB_APP_REPORT_FORMAT       0x1
-#define MMT_SSL_APP_REPORT_FORMAT       0x2
-#define MMT_RTP_APP_REPORT_FORMAT       0x3
+//#define MMT_WEB_APP_REPORT_FORMAT       0x1
+//#define MMT_SSL_APP_REPORT_FORMAT       0x2
+//#define MMT_RTP_APP_REPORT_FORMAT       0x3
 
-#define MMT_FTP_PACKET_REPORT_FORMAT    200
+#define MMT_FTP_APP_REPORT_FORMAT    0xc8
+
 #define MMT_FTP_DOWNLOAD_REPORT_FORMAT       201
-#define MMT_SAMPLED_RTP_APP_REPORT_FORMAT       1003
+//#define MMT_SAMPLED_RTP_APP_REPORT_FORMAT       1003
 
 #define MMT_RADIUS_REPORT_ALL 0x0
 #define MMT_RADIUS_REPORT_MSG 0x1
@@ -35,6 +36,7 @@ extern "C" {
 #define MMT_RADIUS_IP_MSISDN_PRESENT 0x1
 
 #define MMT_USER_AGENT_THRESHOLD 0x20 //32KB
+#define MAX_MESS 2000
 
 enum os_id {
     OS_UKN, //Unknown
@@ -133,7 +135,8 @@ typedef struct mmt_condition_attribute_struct {
 } mmt_condition_attribute_t;
 
 typedef struct mmt_condition_report_struct {
-    uint32_t id;
+    uint32_t enable;
+    uint16_t id;
     mmt_condition_attribute_t condition;
     uint32_t attributes_nb;
     uint32_t handlers_nb;
@@ -159,6 +162,14 @@ typedef struct mmt_probe_context_struct {
     char output_location[256 + 1];
     char behaviour_output_location[256 + 1];
     char ftp_reconstruct_output_location[256 + 1];
+    uint32_t ftp_enable;
+    uint32_t web_enable;
+    uint32_t rtp_enable;
+    uint32_t ssl_enable;
+    uint16_t ftp_id;
+    uint16_t web_id;
+    uint16_t rtp_id;
+    uint16_t ssl_id;
     uint32_t behaviour_enable;
     uint32_t security_enable;
     uint32_t event_based_reporting_enable;
@@ -274,6 +285,10 @@ typedef struct ftp_packet_attr_struct {
 typedef struct ip_statistics_session_struct {
     unsigned char * ipsrc;
     unsigned char * ipdst;
+    uint32_t touched;
+    uint16_t clientport;
+    uint16_t serverport;
+    uint64_t session_id;
     uint8_t ipversion;
 } ip_statistics_session_t;
 
@@ -318,6 +333,10 @@ typedef struct ssl_session_attr_struct {
     char hostname[64];
 } ssl_session_attr_t;
 
+typedef struct session_expiry_check_struct {
+    uint32_t expired_session_id;
+} session_expiry_check_struct_t;
+
 typedef struct session_struct {
     uint16_t format_id;
     uint16_t app_format_id;
@@ -334,7 +353,27 @@ typedef struct session_struct {
     uint32_t contentclass;
 
     void * app_data;
+
 } session_struct_t;
+
+
+typedef struct session_attributes_struct{
+    struct timeval start_time;
+    struct timeval last_activity_time;
+    uint64_t packet_count[2];
+    uint64_t byte_count[2];
+    uint64_t retransmission_count;
+    uint32_t rtt_ms;
+    uint32_t sslindex;
+    uint32_t content_flags;
+
+}session_attributes_t;
+typedef struct reset_attributes_struct{
+    uint64_t reset_packet_count[2];
+    uint64_t reset_byte_count[2];
+    uint64_t reset_retransmission_count;
+
+}reset_attributes_t;
 
 typedef struct probe_internal_struct {
     uint32_t instance_id;
@@ -366,16 +405,12 @@ void iterate_through_ip( mmt_handler_t *mmt_handler );
 void protocols_stats_iterator(uint32_t proto_id, void * args);
 void send_message_to_file (char * message);
 void send_message_to_redis (char *channel, char * message);
-void print_web_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe);
 int proto_hierarchy_ids_to_str(const proto_hierarchy_t * proto_hierarchy, char * dest);
 int is_local_net(int addr);
 
 uint32_t get_2_power(uint32_t nb);
 const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt);
 void write_data_to_file (const ipacket_t * ipacket,const char * path, const char * content, int len, uint32_t * file_size);
-void print_default_app_format(const mmt_session_t * expired_session,probe_internal_t * iprobe);
-void print_ssl_app_format(const mmt_session_t * expired_session,probe_internal_t * iprobe);
-void print_rtp_app_format(const mmt_session_t * expired_session,probe_internal_t * iprobe);
 uint32_t is_microflow(const mmt_session_t * expired_session);
 uint32_t is_microflow_stats_reportable(microsessions_stats_t * stats);
 void reset_microflows_stats(microsessions_stats_t * stats);
@@ -389,17 +424,50 @@ void todo_at_start(char *file_path);
 void reconstruct_data(const ipacket_t * ipacket );
 void todo_at_end();
 void init_mmt_security(mmt_handler_t *mmt_handler, char * property_file);
+char * get_prety_mac_address( const uint8_t *ea );
 
 
 
-void register_web_attributes(void * handler);
+//void register_web_attributes(void * handler);
 void register_rtp_attributes(void * handler);
 void register_ftp_attributes(void * handler);
 void register_ssl_attributes(void *handler);
 
+//handlers
+void ftp_file_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void ftp_response_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void ftp_file_size_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void ftp_packet_request_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void ftp_password_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void ftp_user_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void ftp_data_direction_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void ftp_session_connection_type_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void xcdn_seen_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void useragent_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void referer_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void host_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void mime_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void rtp_version_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void rtp_jitter_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void rtp_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void rtp_order_error_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session);
+
 int register_event_report_handle(void * handler, mmt_event_report_t * event_report);
+void print_web_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe);
+void print_ssl_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe);
+void print_rtp_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe);
+void print_ftp_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe);
+void print_default_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe);
 
 //typedef void (* license_expiry_function)(time_t present_time);
+
+int get_protocol_index_from_session(const proto_hierarchy_t * proto_hierarchy, uint32_t proto_id);
 
 
 int register_conditional_report_handle(void * handler, mmt_condition_report_t * condition_report);
@@ -429,19 +497,6 @@ inline int encode_str(const char *infile, char *outfile);
 int time_diff(struct timeval t1, struct timeval t2);
 
 void classification_expiry_session(const mmt_session_t * expired_session, void * args);
-
-/*
-    MMTAPI int register_license_expiry_handle(
-        //unsigned char * mac,
-		//long int days,
-    	mmt_handler_t *mmt_handler,
-    	time_t present_time,
-		license_expiry_function handler_fct
-
-	);
-
- */
-
 
 #ifdef	__cplusplus
 }

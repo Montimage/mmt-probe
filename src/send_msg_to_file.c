@@ -4,6 +4,7 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <signal.h>
 
 #include "mmt_core.h"
 #include "processing.h"
@@ -26,13 +27,16 @@ void end_file(){
     int cr;
     mmt_probe_context_t * probe_context_msg = get_probe_context_config();
 
-    if(sampled_file)i=fclose(sampled_file);
+    if(sampled_file){
+        i=fclose(sampled_file);
+        sampled_file=NULL;
+    }
 
     if (i!=0){
         fprintf ( stderr , "\n1: Error %d closing of sampled_file failed: %s" , errno ,strerror( errno ) );
         exit(1);
     }
-    if (probe_context_msg->behaviour_enable==1 && sampled_file!=NULL){
+    if (probe_context_msg->behaviour_enable==1){
 
         cr=system(NULL);
         if (cr==0){
@@ -58,7 +62,10 @@ void end_file(){
             exit(1);
         }
 
-        if(temp_behaviour_sem_file)i=fclose(temp_behaviour_sem_file);
+        if(temp_behaviour_sem_file){
+            i=fclose(temp_behaviour_sem_file);
+            temp_behaviour_sem_file=NULL;
+        }
         if (i!=0){
             fprintf ( stderr , "\n4: Error %d closing of temp_behaviour_sem_file failed: %s" , errno ,strerror( errno ) );
             exit(1);

@@ -19,18 +19,8 @@
 
 //JP reports having id = 100 is for IP  traffic
 
-ip_statistics_t *ip_stat_root = NULL;
+ip_statistics_t * ip_stat_root = NULL;
 
-char * get_prety_mac_address( const uint8_t *ea ){
-    int valid=0;
-    if( ea == NULL )
-        return "null";
-
-    char *buff = (char *) malloc( sizeof(char ) * 18 );
-    valid=snprintf( buff, 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
-    buff[valid]='\0';
-    return buff;
-}
 
 /*
  * Get MAC address of an internet interface of the machine running this program
@@ -65,7 +55,7 @@ int compare_ip(unsigned char * a, unsigned char * b,int ipversion){
     int i;
     if( a == NULL || b == NULL )
         return 1;
-    //segmentation fault if sizeof(a) or b is less than 6
+    //segmentation fault if sizeof(a) or b is not according to the protocol ipv4=4, ipv6=16 and no session protocols= 13
     if (ipversion==4){
         for( i=0; i<4; i++ ){
             if( a[i] != b[i] )
@@ -143,46 +133,41 @@ void iterate_through_ip( mmt_handler_t *mmt_handler ){
     //FILE * out_file = (probe_context->data_out_file != NULL) ? probe_context->data_out_file : stdout;
     char message[MAX_MESS + 1];
     struct timeval ts = get_last_activity_time(mmt_handler);
-    char * src_mac, * dst_mac;
     uint64_t number_flows=get_number_active_flows_from_ip();
+    //uint64_t number_flows=0;
     mmt_probe_context_t * probe_context = get_probe_context_config();
 
     p = ip_stat_root;
     //for each pair (ip src, ip dst)
     while(p != NULL){
-        char ip_src_str[46]={0};
-        char ip_dst_str[46]={0};
 
-        //int len = strlen ((const char *)p->session->ipsrc);
         proto_stats = p->proto_stats;
-        src_mac = get_prety_mac_address( proto_stats->src_mac );
-        dst_mac = get_prety_mac_address( proto_stats->dst_mac );
-
-
-        if (p->session->ipversion==4) {
-            inet_ntop(AF_INET, (void *) p->session->ipsrc, ip_src_str, INET_ADDRSTRLEN);
-            inet_ntop(AF_INET, (void *) p->session->ipdst, ip_dst_str, INET_ADDRSTRLEN);
-        } else if (p->session->ipversion==6){
-            inet_ntop(AF_INET6, (void *) p->session->ipsrc, ip_src_str, INET6_ADDRSTRLEN);
-            inet_ntop(AF_INET6, (void *) p->session->ipdst, ip_dst_str, INET6_ADDRSTRLEN);
-        }else{
-            strncpy(ip_src_str,(char *)p->session->ipsrc,9);
-            strncpy(ip_dst_str,(char *)p->session->ipdst,9);
-        }
-
-
         //for each protocol of the pair
-        while( proto_stats != NULL ){
+        while( proto_stats != NULL){
+            char path[128];
+            char ip_src_str[46]={0};
+            char ip_dst_str[46]={0};
+            char * src_mac, * dst_mac;
+            src_mac = get_prety_mac_address( proto_stats->src_mac );
+            dst_mac = get_prety_mac_address( proto_stats->dst_mac );
+            if (p->session->ipversion==4) {
+                inet_ntop(AF_INET, (void *) p->session->ipsrc, ip_src_str, INET_ADDRSTRLEN);
+                inet_ntop(AF_INET, (void *) p->session->ipdst, ip_dst_str, INET_ADDRSTRLEN);
+            } else if (p->session->ipversion==6){
+                inet_ntop(AF_INET6, (void *) p->session->ipsrc, ip_src_str, INET6_ADDRSTRLEN);
+                inet_ntop(AF_INET6, (void *) p->session->ipdst, ip_dst_str, INET6_ADDRSTRLEN);
+            }else{
+                strncpy(ip_src_str,(char *)p->session->ipsrc,9);
+                strncpy(ip_dst_str,(char *)p->session->ipdst,9);
+            }
+            int proto_id = proto_stats->proto_hierarchy->proto_path[ proto_stats->proto_hierarchy->len - 1 ];
+            proto_hierarchy_ids_to_str(proto_stats->proto_hierarchy, path);
+
             if (proto_stats->touched == 1){
-                char path[128];
-                int proto_id = proto_stats->proto_hierarchy->proto_path[ proto_stats->proto_hierarchy->len - 1 ];
-                proto_hierarchy_ids_to_str(proto_stats->proto_hierarchy, path);
-
-
                 snprintf(message, MAX_MESS,
-                        "%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIi64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\"",
+                        "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%u,\"%s\",%"PRIu64",%"PRIi64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",%"PRIu16",%"PRIu16",\"%s\",\"%s\"",
                         MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, ts.tv_sec, ts.tv_usec,
-                        proto_id, path, number_flows,
+                        p->session->session_id,proto_id, path, number_flows,
                         //Total
                         proto_stats->data_volume, proto_stats->payload_volume,proto_stats->packets_count,
                         //UL
@@ -192,7 +177,7 @@ void iterate_through_ip( mmt_handler_t *mmt_handler ){
                         //Timestamp (seconds.micros) corresponding to the time when the flow was detected (first packet of the flow).
                         proto_stats->start_timestamp.tv_sec, proto_stats->start_timestamp.tv_usec,
                         //IP and MAC addresses
-                        ip_src_str, ip_dst_str,src_mac,dst_mac);
+                        ip_dst_str,ip_src_str,p->session->serverport, p->session->clientport,src_mac,dst_mac);
 
                 message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
                 //send_message_to_file ("protocol.flow.stat", message);
@@ -206,7 +191,6 @@ void iterate_through_ip( mmt_handler_t *mmt_handler ){
         }
         p = p->next;
     }
-
 }
 
 void get_MAC_address_from_ip(const ipacket_t * ipacket,ip_proto_statistics_t *proto_stats, int direction){
@@ -302,7 +286,6 @@ ip_proto_statistics_t * get_ip_proto_stat_for_proto_path(ip_proto_statistics_t *
 }
 
 void update_ip_proto_stat (ip_statistics_t *ip_stat, const ipacket_t * ipacket, int direction){
-
     ip_proto_statistics_t *root;
     root = ip_stat->proto_stats;
 
@@ -325,7 +308,7 @@ void update_ip_proto_stat (ip_statistics_t *ip_stat, const ipacket_t * ipacket, 
     update_ip_proto_stat_info( p, ipacket, direction );
 }
 
-ip_statistics_t * create_and_init_ip_stat (unsigned char *src, unsigned char *dst, int ipversion ){
+ip_statistics_t * create_and_init_ip_stat (const ipacket_t * ipacket,unsigned char *src, unsigned char *dst, uint64_t session_id,int ipversion ){
 
     ip_statistics_t * ip_stat = malloc( sizeof( ip_statistics_t ));
 
@@ -335,6 +318,7 @@ ip_statistics_t * create_and_init_ip_stat (unsigned char *src, unsigned char *ds
 
         //init session information
         ip_stat->session = malloc( sizeof( ip_statistics_session_t ));
+        memset(ip_stat->session,0,sizeof( ip_statistics_session_t )); //jeevan
 
         ip_stat->session->ipversion=ipversion;
 
@@ -349,6 +333,17 @@ ip_statistics_t * create_and_init_ip_stat (unsigned char *src, unsigned char *ds
             memcpy(tmp, dst, 4);
             tmp[4]='\0';
             ip_stat->session->ipdst = tmp;
+            ip_stat->session->session_id=session_id;
+
+            uint16_t * cport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_CLIENT_PORT);
+            uint16_t * dport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_SERVER_PORT);
+            if (cport) {
+                ip_stat->session->clientport = *cport;
+            }
+            if (dport) {
+                ip_stat->session->serverport = *dport;
+            }
+
         }else if(ip_stat->session->ipversion==6){
             unsigned char *tmp;
             tmp = malloc( sizeof( unsigned char )*16 );
@@ -360,6 +355,16 @@ ip_statistics_t * create_and_init_ip_stat (unsigned char *src, unsigned char *ds
             memcpy(tmp, dst, 16);
             tmp[16]='\0';
             ip_stat->session->ipdst = tmp;
+            ip_stat->session->session_id=session_id;
+            uint16_t * cport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_CLIENT_PORT);
+            uint16_t * dport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SERVER_PORT);
+            if (cport) {
+                ip_stat->session->clientport = *cport;
+            }
+            if (dport) {
+                ip_stat->session->serverport = *dport;
+            }
+
         }else{
             unsigned char *tmp;
             tmp = malloc( sizeof( unsigned char )*13 );
@@ -371,6 +376,9 @@ ip_statistics_t * create_and_init_ip_stat (unsigned char *src, unsigned char *ds
             memcpy(tmp, dst, 13);
             tmp[13]='\0';
             ip_stat->session->ipdst = tmp;
+            ip_stat->session->session_id = session_id;
+            ip_stat->session->clientport = 0;
+            ip_stat->session->serverport = 0;
         }
 
     }
@@ -378,21 +386,20 @@ ip_statistics_t * create_and_init_ip_stat (unsigned char *src, unsigned char *ds
     return ip_stat;
 }
 
-ip_statistics_t * get_ip_stat_for_pair_machine( unsigned char *src, unsigned char *dst, int *direction,int ipversion ){
+ip_statistics_t * get_ip_stat_for_pair_machine( unsigned char *src, unsigned char *dst,uint64_t session_id, int *direction,int ipversion ){
     ip_statistics_t *p = ip_stat_root;
-    while( p != NULL ){
-        if( compare_ip( p->session->ipsrc, src,ipversion ) == 0 &&
-                compare_ip( p->session->ipdst, dst,ipversion ) == 0){
-            *direction = 0;	//UL
-            return p;
-        }
-        if( compare_ip( p->session->ipsrc, dst,ipversion ) == 0 &&
-                compare_ip( p->session->ipdst, src,ipversion ) == 0){
-            *direction = 1;	//DL
-            return p;
+    while( p != NULL){
+        if(  p->session->session_id==session_id){
+            if( compare_ip( p->session->ipsrc, src,ipversion ) == 0 &&
+                    compare_ip( p->session->ipdst, dst,ipversion ) == 0){
+                *direction = 0; //UL
+                return p;
+            }else{
+                *direction = 1; //DL
+                return p;
+            }
         }
         p = p->next;
-
     }
     return NULL;
 }
@@ -400,45 +407,46 @@ ip_statistics_t * get_ip_stat_for_pair_machine( unsigned char *src, unsigned cha
 void ip_get_session_attr(const ipacket_t * ipacket){
 
     int ipversion;
+    mmt_session_t * session = get_session_from_packet(ipacket);
 
-    if(ipacket->proto_hierarchy->proto_path[2]==178 || ipacket->proto_hierarchy->proto_path[2]==182){
+    //if(ipacket->proto_hierarchy->proto_path[2]==178 || ipacket->proto_hierarchy->proto_path[2]==182){
+    if(session != NULL){
         int ipindex = get_protocol_index_by_id(ipacket, PROTO_IP);
         //Process IPv4 flows
         if (ipindex != -1) {
             ipversion=4;
+            uint64_t session_id = get_session_id(ipacket->session);
             unsigned char * ip_src = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_SRC);
             unsigned char * ip_dst = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_DST);
             if( ip_src == NULL || ip_dst == NULL )
                 return;
 
             int direction = 0;	//UL as default
-            ip_statistics_t * p = get_ip_stat_for_pair_machine(ip_src, ip_dst, &direction,ipversion );
+            ip_statistics_t * p = get_ip_stat_for_pair_machine(ip_src, ip_dst,session_id, &direction,ipversion );
 
             //the statistic for this pair (src, dst) does not exit => I create a new one for them
             if( p == NULL ){
-                p = create_and_init_ip_stat( ip_src, ip_dst,ipversion );
+                p = create_and_init_ip_stat( ipacket,ip_src, ip_dst,session_id,ipversion );
                 //add p to head of eth_stats;
                 p->next       = ip_stat_root;
                 ip_stat_root = p;
             }
-
             update_ip_proto_stat( p, ipacket, direction );
-
-
 
         } else {
             ipversion=6;
             unsigned char * ip_src = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SRC);
             unsigned char * ip_dst = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_DST);
+            uint64_t session_id = get_session_id(ipacket->session);
             if( ip_src == NULL || ip_dst == NULL )
                 return;
 
             int direction = 0;	//UL as default
-            ip_statistics_t * p = get_ip_stat_for_pair_machine( ip_src, ip_dst, &direction,ipversion );
+            ip_statistics_t * p = get_ip_stat_for_pair_machine( ip_src, ip_dst,session_id, &direction,ipversion );
 
             //the statistic for this pair (src, dst) does not exit => I create a new one for them
             if( p == NULL ){
-                p = create_and_init_ip_stat( ip_src, ip_dst,ipversion );
+                p = create_and_init_ip_stat( ipacket, ip_src, ip_dst,session_id,ipversion );
                 //add p to head of eth_stats;
                 p->next       = ip_stat_root;
                 ip_stat_root = p;
@@ -453,13 +461,12 @@ void ip_get_session_attr(const ipacket_t * ipacket){
         char * ip_dst = "undefined_dst";
         if( ip_src == NULL || ip_dst == NULL )
             return;
-
+        uint64_t session_id = 0;
         int direction = 0;	//UL as default
-        ip_statistics_t * p = get_ip_stat_for_pair_machine( (unsigned char *)ip_src, (unsigned char *)ip_dst, &direction,ipversion );
-
+        ip_statistics_t * p = get_ip_stat_for_pair_machine( (unsigned char *)ip_src, (unsigned char *)ip_dst, session_id, &direction,ipversion );
         //the statistic for this pair (src, dst) does not exit => I create a new one for them
         if( p == NULL ){
-            p = create_and_init_ip_stat( (unsigned char *)ip_src, (unsigned char *)ip_dst,ipversion );
+            p = create_and_init_ip_stat(ipacket, (unsigned char *)ip_src, (unsigned char *)ip_dst,session_id,ipversion );
             //add p to head of eth_stats;
             p->next       = ip_stat_root;
             ip_stat_root = p;
@@ -468,4 +475,143 @@ void ip_get_session_attr(const ipacket_t * ipacket){
         update_ip_proto_stat( p, ipacket, direction );
     }
 }
+void iterate_through_expired_session(ip_statistics_t *p){
+        ip_proto_statistics_t *proto_stats;
+        char message[MAX_MESS + 1];
+        //struct timeval ts = get_last_activity_time(mmt_handler);
+        time_t now;
+        now=time(0);
+        struct tm *tm;
+        tm= localtime(&now);
+        uint64_t number_flows=get_number_active_flows_from_ip();
+        mmt_probe_context_t * probe_context = get_probe_context_config();
+        proto_stats = p->proto_stats;
+        //for each protocol of the pair
+        while( proto_stats != NULL){
+            char path[128];
+            char ip_src_str[46]={0};
+            char ip_dst_str[46]={0};
+            char * src_mac, * dst_mac;
+            src_mac = get_prety_mac_address( proto_stats->src_mac );
+            dst_mac = get_prety_mac_address( proto_stats->dst_mac );
+            if (p->session->ipversion==4) {
+                inet_ntop(AF_INET, (void *) p->session->ipsrc, ip_src_str, INET_ADDRSTRLEN);
+                inet_ntop(AF_INET, (void *) p->session->ipdst, ip_dst_str, INET_ADDRSTRLEN);
+            } else if (p->session->ipversion==6){
+                inet_ntop(AF_INET6, (void *) p->session->ipsrc, ip_src_str, INET6_ADDRSTRLEN);
+                inet_ntop(AF_INET6, (void *) p->session->ipdst, ip_dst_str, INET6_ADDRSTRLEN);
+            }else{
+                strncpy(ip_src_str,(char *)p->session->ipsrc,9);
+                strncpy(ip_dst_str,(char *)p->session->ipdst,9);
+            }
+            int proto_id = proto_stats->proto_hierarchy->proto_path[ proto_stats->proto_hierarchy->len - 1 ];
+            proto_hierarchy_ids_to_str(proto_stats->proto_hierarchy, path);
 
+            if (proto_stats->touched == 1){
+                snprintf(message, MAX_MESS,
+                        "%u,%u,\"%s\",%u.%u,%"PRIu64",%u,\"%s\",%"PRIu64",%"PRIi64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",%"PRIu16",%"PRIu16",\"%s\",\"%s\"",
+                        MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, tm->tm_sec,tm->tm_sec,
+                        p->session->session_id,proto_id, path, number_flows,
+                        //Total
+                        proto_stats->data_volume, proto_stats->payload_volume,proto_stats->packets_count,
+                        //UL
+                        proto_stats->data_volume_direction[0], proto_stats->payload_volume_direction[0],proto_stats->packets_count_direction[0],
+                        //DL
+                        proto_stats->data_volume_direction[1], proto_stats->payload_volume_direction[1],proto_stats->packets_count_direction[1],
+                        //Timestamp (seconds.micros) corresponding to the time when the flow was detected (first packet of the flow).
+                        proto_stats->start_timestamp.tv_sec, proto_stats->start_timestamp.tv_usec,
+                        //IP and MAC addresses
+                        ip_dst_str,ip_src_str,p->session->serverport, p->session->clientport,src_mac,dst_mac);
+
+                message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
+                //send_message_to_file ("protocol.flow.stat", message);
+                if (probe_context->output_to_file_enable==1)send_message_to_file (message);
+                if (probe_context->redis_enable==1)send_message_to_redis ("protocol.flow.stat", message);
+
+            }
+            proto_stats = proto_stats->next;
+        }
+
+}
+void classification_expiry_session(const mmt_session_t * expired_session, void * args) {
+    session_struct_t * temp_session = get_user_session_context(expired_session);
+    if (temp_session == NULL) {
+        return;
+    }
+    probe_internal_t * iprobe = (probe_internal_t *) args;
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+
+    int sslindex;
+    uint64_t session_id = get_session_id(expired_session);
+
+    if (is_microflow(expired_session)) {
+        microsessions_stats_t * mf_stats = &iprobe->mf_stats[get_session_protocol_hierarchy(expired_session)->proto_path[(get_session_protocol_hierarchy(expired_session)->len <= 16)?(get_session_protocol_hierarchy(expired_session)->len - 1):(16 - 1)]];
+        update_microflows_stats(mf_stats, expired_session);
+        if (is_microflow_stats_reportable(mf_stats)) {
+            report_microflows_stats(mf_stats);
+        }
+    } else {
+        //First we check if we should skip the reporting for this flow
+        if (temp_session->app_format_id != MMT_SKIP_APP_REPORT_FORMAT) {
+            if (probe_context->web_enable==1 && temp_session->app_format_id==probe_context->web_id)print_web_app_format(expired_session, iprobe);
+            else if (probe_context->ssl_enable==1 && temp_session->app_format_id==probe_context->ssl_id)print_ssl_app_format(expired_session, iprobe);
+            else if(probe_context->rtp_enable==1 && temp_session->app_format_id==probe_context->rtp_id)print_rtp_app_format(expired_session, iprobe);
+            else if(probe_context->ftp_enable==1 &&temp_session->app_format_id==probe_context->ftp_id)print_rtp_app_format(expired_session, iprobe);
+            else{
+                sslindex = get_protocol_index_from_session(get_session_protocol_hierarchy(expired_session), PROTO_SSL);
+                if (sslindex != -1 && probe_context->ssl_enable==1 ) print_ssl_app_format(expired_session, iprobe);
+                else print_default_app_format(expired_session,iprobe);
+
+            }
+
+        }
+    }
+
+      ip_statistics_t *p;
+      ip_statistics_t *HEAD;
+      p = ip_stat_root;
+      HEAD = ip_stat_root;
+
+      while(p != NULL){
+          if (p->session->session_id == session_id){
+              iterate_through_expired_session(p);
+              if(p==ip_stat_root){
+                  if (p->proto_stats!= NULL) {
+                      //Free the protocol specific data
+                      free(p->proto_stats);
+                  }
+                  if (p->session!= NULL) {
+                      //Free the session specific data
+                      free(p->session);
+                  }
+                  ip_stat_root=p->next;
+                  free(p);
+                  break;
+              }
+              HEAD->next=p->next;
+
+              if (p->proto_stats!= NULL) {
+                  //Free the protocol specific data
+                  free(p->proto_stats);
+              }
+              if (p->session!= NULL) {
+                  //Free the session specific data
+                  free(p->session);
+              }
+              free(p);
+              //p=HEAD->next;
+              break;
+
+          }else{
+              HEAD=p;
+              p=p->next;
+          }
+
+      }
+
+      if (temp_session->app_data != NULL) {
+          //Free the application specific data
+          free(temp_session->app_data);
+      }
+      free(temp_session);
+}

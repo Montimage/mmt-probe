@@ -158,6 +158,7 @@ cfg_t * parse_conf(const char *filename) {
             CFG_SEC("reconstruct-ftp", reconstruct_ftp_opts, CFGF_NONE),
             CFG_SEC("radius-output", radius_output_opts, CFGF_NONE),
             CFG_INT("stats-period", 5, CFGF_NONE),
+            CFG_INT("enable-proto-stat", 0, CFGF_NONE),
             CFG_INT("file-output-period", 5, CFGF_NONE),
             CFG_INT("thread-nb", 1, CFGF_NONE),
             CFG_INT("thread-queue", 0, CFGF_NONE),
@@ -270,7 +271,8 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
     cfg_t *condition_opts;
 
     if (cfg) {
-        mmt_conf->enable_proto_stats = 1; //enabled by default
+        //mmt_conf->enable_proto_stats = 1; //enabled by default
+        mmt_conf->enable_proto_stats = (uint32_t) cfg_getint(cfg, "enable-proto-stat");;
         mmt_conf->enable_flow_stats = 1;  //enabled by default
         mmt_conf->stats_reporting_period = (uint32_t) cfg_getint(cfg, "stats-period");
         mmt_conf->sampled_report_period = (uint32_t) cfg_getint(cfg, "file-output-period");
@@ -404,7 +406,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
                 event_opts = cfg_getnsec(cfg, "event_report", j);
                 mmt_conf->event_based_reporting_enable = (uint32_t) cfg_getint(event_opts, "enable");
                 temp_er = & mmt_conf->event_reports[j];
-                temp_er->id = cfg_getint(event_opts, "id");
+                temp_er->id = (uint32_t)cfg_getint(event_opts, "id");
                 if (parse_dot_proto_attribute((char *) cfg_getstr(event_opts, "event"), &temp_er->event)) {
                     fprintf(stderr, "Error: invalid event_report event value '%s'\n", (char *) cfg_getstr(event_opts, "event"));
                     exit(-1);
@@ -434,9 +436,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
             mmt_conf->condition_reports = calloc(sizeof(mmt_condition_report_t), condition_reports_nb);
             for(j = 0; j < condition_reports_nb; j++) {
                 condition_opts = cfg_getnsec(cfg, "condition_report", j);
-                mmt_conf->condition_based_reporting_enable = (uint32_t) cfg_getint(condition_opts, "enable");
                 temp_condn = & mmt_conf->condition_reports[j];
-                temp_condn->id = cfg_getint(condition_opts, "id");
+                temp_condn->id = (uint16_t)cfg_getint(condition_opts, "id");
+                temp_condn->enable = (uint32_t)cfg_getint(condition_opts, "enable");
 
                 if (parse_condition_attribute((char *) cfg_getstr(condition_opts, "condition"), &temp_condn->condition)) {
                     fprintf(stderr, "Error: invalid condition_report condition value '%s'\n", (char *) cfg_getstr(condition_opts, "condition"));

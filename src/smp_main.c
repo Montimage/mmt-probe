@@ -1,5 +1,6 @@
 /*
  * File:   main.c
+
  *  gcc -gdwarf-2 -o probe src/smp_main.c  src/processing.c src/web_session_report.c src/thredis.c src/send_msg_to_file.c src/send_msg_to_redis.c src/ip_statics.c src/rtp_session_report.c src/ftp_session_report.c src/event_based_reporting.c src/protocols_report.c src/ssl_session_report.c src/default_app_session_report.c src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c src/parseoptions.c -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
 
 
@@ -76,53 +77,6 @@ int ignored = 0; /* number of packets !decapsulated for stats */
 
 static void terminate_probe_processing(int wait_thread_terminate);
 
-/*int get_next_trace_file(char * dir_name, char * filename) {
-    int files_count = 0;
-    int retval = 0;
-    DIR * traces_index_dir = NULL;
-    traces_index_dir = opendir(dir_name);
-    struct dirent * trace_fname = NULL;
-    char file_name[256] = "";
-    char lg_msg[256];
-    if (traces_index_dir != NULL) {
-        trace_fname = readdir(traces_index_dir);
-        while( trace_fname ) // while there is still something in the directory to list
-        {
-            if (trace_fname == NULL) //
-            {
-                sprintf(lg_msg, "Error while reading from trace files directory: %s\n", dir_name);
-                mmt_log(mmt_probe.mmt_conf, MMT_L_ERROR, MMT_P_ERROR, lg_msg);
-                strcpy(filename, "");
-                closedir(traces_index_dir);
-                return 0;
-            } else {
-                //if (strstr(trace_fname->d_name, "poc")) {
-                if (strlen(trace_fname->d_name) > 6) { //TODO:make this as a configuration option instead
-                    files_count++;
-                    if (strlen(file_name) == 0) {
-                        strcpy(file_name, trace_fname->d_name);
-                        retval = 1;
-                    } else {
-
-                        if (strcmp(file_name, trace_fname->d_name) > 0) {
-                            strcpy(file_name, trace_fname->d_name);
-                            retval = 1;
-                        }
-                    }
-                }
-            }
-            trace_fname = readdir(traces_index_dir);
-        }
-        closedir(traces_index_dir);
-    }
-    if (retval && files_count > 0) {
-        strcpy(filename, file_name);
-    } else {
-        strcpy(filename, "");
-        retval = 0;
-    }
-    return retval;
-}*/
 
 uint32_t get_2_power(uint32_t nb) {
     uint32_t ret = -1;
@@ -287,13 +241,13 @@ static void *smp_thread_routine(void *arg) {
         register_session_timeout_handler(th->mmt_handler, classification_expiry_session, &th->iprobe);
         flowstruct_init(th->mmt_handler); // initialize our event handler
         if(mmt_probe.mmt_conf->event_based_reporting_enable==1)event_reports_init(th->mmt_handler); // initialize our event reports
-        if(mmt_probe.mmt_conf->condition_based_reporting_enable==1)conditional_reports_init(th->mmt_handler);// initialize our condition reports
+        conditional_reports_init(th->mmt_handler);// initialize our condition reports
         if(mmt_probe.mmt_conf->radius_enable==1)radius_ext_init(th->mmt_handler); // initialize radius extraction and attribute event handler
     }
 
-    if(mmt_probe.mmt_conf->enable_proto_stats) {
+
         proto_stats_init(th->mmt_handler);
-    }
+
 
     while (!quit) {
         pthread_spin_lock(&th->lock);
@@ -354,6 +308,15 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
     //char mmt_errbuf[1024];
     char lg_msg[1024];
 
+    static int day=0;
+
+    int day_now;
+    time_t now;
+    now=time(0);
+    struct tm *tm;
+    tm= localtime(&now);
+    day_now= tm->tm_mday;
+
 
     //Initialise MMT_Security
     if(mmt_probe->mmt_conf->security_enable==1)
@@ -376,7 +339,11 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
         //One thread for reading packets and processing them
 
         while ((data = pcap_next(pcap, &pkthdr))) {
-
+            //Check for license
+            if(day!=day_now){
+                if (license_expiry_check()==1) exit(0);//pcap_next
+                    day=day_now;
+            }
             header.ts = pkthdr.ts;
             header.caplen = pkthdr.caplen;
             header.len = pkthdr.len;
@@ -454,9 +421,22 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
     char lg_msg[1024];
     int p_hash;
 
+    static int day=0;
+    int day_now;
+    time_t now;
+    now=time(0);
+    struct tm *tm;
+    tm= localtime(&now);
+    day_now= tm->tm_mday;
+
 
     if (mmt_probe.mmt_conf->thread_nb == 1) {
         //One thread for reading packets and processing them
+        // check for license
+        if(day!=day_now){
+            if (license_expiry_check()==1) exit(0);//pcap_next
+                day=day_now;
+        }
 
         header.ts = pkthdr->ts;
         header.caplen = pkthdr->caplen;
@@ -479,6 +459,12 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
             mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, lg_msg);
             sleep(1); //Sleep 1 second.
         } else {
+            //check for license
+            if(day!=day_now){
+                if (license_expiry_check()==1) exit(0);//pcap_next
+                    day=day_now;
+            }
+
             /* fill smp_pkt fields and copy packet data from pcap buffer */
 
             smp_pkt_instance->pkt.header.len = pkthdr->len;
@@ -639,6 +625,14 @@ static void *process_tracefile_thread_routine(void *arg) {
     struct smp_pkt *smp_pkt;
     struct smp_thread *th;
 
+    static int day=0;
+    int day_now;
+    time_t now;
+    now=time(0);
+    struct tm *tm;
+    tm= localtime(&now);
+    day_now= tm->tm_mday;
+
     pcap = pcap_open_offline(dispatcher->filename, errbuf); // open offline trace
 
     if (!pcap) { /* pcap error ? */
@@ -658,6 +652,12 @@ static void *process_tracefile_thread_routine(void *arg) {
     /* read packets */
     int p_hash;
     while ((data = pcap_next(pcap, &pkthdr))) {
+        //check for license
+        if(day!=day_now){
+            if (license_expiry_check()==1) exit(0);//pcap_next
+                day=day_now;
+        }
+
         packets_count++;
         p_hash = hash_packet(data, pkthdr.caplen);
         if ((dispatcher->nb & p_hash) == (dispatcher->nb || (p_hash & 1))) {
@@ -717,23 +717,20 @@ void terminate_probe_processing(int wait_thread_terminate) {
     if (mmt_conf->thread_nb == 1) {
         //One thread for processing packets
         //Cleanup the MMT handler
-
-        // Report the statistics if any (this case appears: statistics reporting time is greater than packet interval time(functions in the packet_handler)) before probe termination
         iterate_through_ip( mmt_probe.mmt_handler );
-        iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.mmt_handler);
-
-
+        //iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.mmt_handler);
         flowstruct_cleanup(mmt_probe.mmt_handler); // cleanup our event handler
         radius_ext_cleanup(mmt_probe.mmt_handler); // cleanup our event handler for RADIUS initializations
 
         mmt_close_handler(mmt_probe.mmt_handler);
         //Now report the microflows!
         report_all_protocols_microflows_stats(&mmt_probe.iprobe);
+
     } else {
         for (i = 0; i < mmt_conf->thread_nb; i++) {
             // Report the statistics if any (this case appears: statistics reporting time is greater than packet interval time(functions in the packet_handler)) before probe termination
             iterate_through_ip( mmt_probe.smp_threads[i].mmt_handler );
-            iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.smp_threads[i].mmt_handler);
+            //iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.smp_threads[i].mmt_handler);
         }
 
         if (wait_thread_terminate) {
@@ -841,7 +838,7 @@ void signal_handler(int type) {
                     }
          */
     } else {
-        sprintf(lg_msg, "eception of signal %i while processing a signal exiting!", type);
+        sprintf(lg_msg, "reception of signal %i while processing a signal exiting!", type);
         /*
                 mmt_log(mmt_probe.mmt_conf, MMT_L_EMERGENCY, MMT_P_TERMINATION, "Multi signal received! cleaning up!");
                     if(strlen(mmt_probe.mmt_conf->input_f_name) > 1) {
@@ -963,13 +960,13 @@ int main(int argc, char **argv) {
             register_session_timeout_handler(mmt_probe.mmt_handler, classification_expiry_session, &mmt_probe.iprobe);
             flowstruct_init(mmt_probe.mmt_handler); // initialize our event handler
             if(mmt_conf->event_based_reporting_enable==1)event_reports_init(mmt_probe.mmt_handler); // initialize our event reports
-            if(mmt_conf->condition_based_reporting_enable==1)conditional_reports_init(mmt_probe.mmt_handler);// initialize our conditional reports
+            conditional_reports_init(mmt_probe.mmt_handler);// initialize our conditional reports
             if(mmt_conf->radius_enable==1)radius_ext_init(mmt_probe.mmt_handler); // initialize radius extraction and attribute event handler
         }
 
-        if(mmt_probe.mmt_conf->enable_proto_stats) {
+
             proto_stats_init(mmt_probe.mmt_handler);
-        }
+
 
         mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, "MMT Extraction engine! successfully initialized in a single threaded operation.");
     } else {

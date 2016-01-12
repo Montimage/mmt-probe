@@ -66,6 +66,20 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt) {
 }
 #endif
 
+#define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
+#define MAX_MESS 2000
+
+char * get_prety_mac_address( const uint8_t *ea ){
+    int valid=0;
+    if( ea == NULL )
+        return "null";
+
+    char *buff = (char *) malloc( sizeof(char ) * 18 );
+    valid=snprintf( buff, 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
+    buff[valid]='\0';
+    return buff;
+}
+
 int is_localv6_net(char * addr) {
 
     if (strncmp(addr,"fec0",4)==0)return 1;
@@ -134,32 +148,6 @@ mmt_probe_context_t * get_probe_context_config() {
 }
 
 
-void packet_handler(const ipacket_t * ipacket, void * args) {
-    static time_t last_report_time = 0;
-
-    ip_get_session_attr( ipacket );
-
-    if (last_report_time == 0) {
-        last_report_time = ipacket->p_hdr->ts.tv_sec;
-        return;
-    }
-
-
-    if (probe_context.ftp_reconstruct_enable==1)
-        reconstruct_data(ipacket);
-
-    //ftp_packet_events(ipacket);
-
-    printf("ipacket_id=%lu\n",ipacket->packet_id);
-    if ((ipacket->p_hdr->ts.tv_sec - last_report_time) >= probe_context.stats_reporting_period) {
-        iterate_through_protocols(protocols_stats_iterator, (void *) ipacket->mmt_handler);
-
-        iterate_through_ip( ipacket->mmt_handler );
-
-        last_report_time = ipacket->p_hdr->ts.tv_sec;
-    }
-}
-
 void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     mmt_session_t * session = get_session_from_packet(ipacket);
     if(session == NULL) return;
@@ -168,6 +156,10 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
     if (attribute->data == NULL) {
         return; //This should never happen! check it anyway
     }
+
+    //uint64_t session_id = get_session_id(ipacket->session);
+
+    //printf ("session_id=%lu\n",session_id);
 
     session_struct_t *temp_session = malloc(sizeof (session_struct_t));
 
@@ -189,6 +181,7 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
     int ipindex = get_protocol_index_by_id(ipacket, PROTO_IP);
     //printf("IP index = %i\n", ipindex);
     //Process IPv4 flows
+
     if (ipindex != -1) {
 
         uint32_t * ip_src = (uint32_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_SRC);
@@ -246,19 +239,155 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
     }
 
     temp_session->isFlowExtracted = 1;
-
     set_user_session_context(session, temp_session);
 }
+
+void packet_handler(const ipacket_t * ipacket, void * args) {
+    static time_t last_report_time = 0;
+    ip_get_session_attr( ipacket );
+
+    if (last_report_time == 0) {
+        last_report_time = ipacket->p_hdr->ts.tv_sec;
+        return;
+    }
+
+    if (probe_context.ftp_reconstruct_enable==1)
+        reconstruct_data(ipacket);
+
+    printf("ipacket_id=%lu\n",ipacket->packet_id);
+    if ((ipacket->p_hdr->ts.tv_sec - last_report_time) >= probe_context.stats_reporting_period) {
+        if (probe_context.enable_proto_stats==1)iterate_through_protocols(protocols_stats_iterator, (void *) ipacket->mmt_handler);
+
+        iterate_through_ip( ipacket->mmt_handler );
+        last_report_time = ipacket->p_hdr->ts.tv_sec;
+    }
+}
+
 
 void proto_stats_init(void * handler) {
     register_packet_handler(handler, 5, packet_handler, NULL);
 }
 
 void proto_stats_cleanup(void * handler) {
-    iterate_through_protocols(protocols_stats_iterator, handler);
     (void) unregister_packet_handler((mmt_handler_t *) handler, 1);
 }
+void * get_handler_by_name(char * func_name){
 
+    if (strcmp(func_name,"ftp_file_name_handle")==0){
+        return ftp_file_name_handle;
+    }
+    if (strcmp(func_name,"ftp_session_connection_type_handle")==0){
+        return ftp_session_connection_type_handle;
+    }
+    if (strcmp(func_name,"ftp_user_name_handle")==0){
+        return ftp_user_name_handle;
+    }
+    if (strcmp(func_name,"ftp_password_handle")==0){
+        return ftp_password_handle;
+    }
+    if (strcmp(func_name,"ftp_response_value_handle")==0){
+        return ftp_response_value_handle;
+    }
+    if (strcmp(func_name,"ftp_file_size_handle")==0){
+        return ftp_file_size_handle;
+    }
+    if (strcmp(func_name,"ftp_packet_request_handle")==0){
+        return ftp_packet_request_handle;
+    }
+    if (strcmp(func_name,"ftp_data_direction_handle")==0){
+        return ftp_data_direction_handle;
+    }
+    if (strcmp(func_name,"ftp_response_code_handle")==0){
+        return ftp_response_code_handle;
+    }
+    if (strcmp(func_name,"http_method_handle")==0){
+        return http_method_handle;
+    }
+    if (strcmp(func_name,"http_response_handle")==0){
+        return http_response_handle;
+    }
+    if (strcmp(func_name,"mime_handle")==0){
+        return mime_handle;
+    }
+    if (strcmp(func_name,"host_handle")==0){
+        return host_handle;
+    }
+    if (strcmp(func_name,"useragent_handle")==0){
+        return useragent_handle;
+    }
+    if (strcmp(func_name,"referer_handle")==0){
+        return referer_handle;
+    }
+    if (strcmp(func_name,"xcdn_seen_handle")==0){
+        return xcdn_seen_handle;
+    }
+    if (strcmp(func_name,"rtp_version_handle")==0){
+        return rtp_version_handle;
+    }
+    if (strcmp(func_name,"rtp_jitter_handle")==0){
+        return rtp_jitter_handle;
+    }
+    if (strcmp(func_name,"rtp_loss_handle")==0){
+        return rtp_loss_handle;
+    }
+    if (strcmp(func_name,"rtp_order_error_handle")==0){
+        return rtp_order_error_handle;
+    }
+    if (strcmp(func_name,"rtp_burst_loss_handle")==0){
+        return rtp_burst_loss_handle;
+    }
+    if (strcmp(func_name,"ssl_server_name_handle")==0){
+        return ssl_server_name_handle;
+    }
+    return 0;
+}
+
+int register_conditional_report_handle(void * handler, mmt_condition_report_t * condition_report) {
+    int i = 1,j;
+
+    if(strcmp(condition_report->condition.condition,"FTP")==0 && condition_report->enable ==1 ){
+        probe_context.ftp_enable=1;
+        probe_context.ftp_id=condition_report->id;
+    }
+    if(strcmp(condition_report->condition.condition,"WEB")==0 && condition_report->enable ==1){
+        probe_context.web_enable=1;
+        probe_context.web_id=condition_report->id;
+    }
+    if(strcmp(condition_report->condition.condition,"RTP")==0 && condition_report->enable ==1){
+        probe_context.rtp_enable=1;
+        probe_context.rtp_id=condition_report->id;
+    }
+    if(strcmp(condition_report->condition.condition,"SSL")==0 && condition_report->enable ==1){
+        probe_context.ssl_enable=1;
+        probe_context.ssl_id=condition_report->id;
+    }
+
+    for(j = 0; j < condition_report->attributes_nb; j++) {
+        mmt_condition_attribute_t * condition_attribute = &condition_report->attributes[j];
+        mmt_condition_attribute_t * handler_attribute = &condition_report->handlers[j];
+        if (strcmp(handler_attribute->handler,"NULL")==0){
+            i &= register_extraction_attribute_by_name(handler, condition_attribute->proto, condition_attribute->attribute);
+
+        }else{
+            i &= register_attribute_handler_by_name(handler, condition_attribute->proto,condition_attribute->attribute, get_handler_by_name (handler_attribute->handler), NULL, NULL);
+        }
+    }
+
+
+    return i;
+}
+void conditional_reports_init(void * handler) {
+    int i;
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+
+    for(i = 0; i < probe_context->condition_reports_nb; i++) {
+        mmt_condition_report_t * condition_report = &probe_context->condition_reports[i];
+        if(register_conditional_report_handle(handler, condition_report) == 0) {
+            fprintf(stderr, "Error while initializing condition report number %i!\n", condition_report->id);
+            printf( "Error while initializing condition report number %i!\n", condition_report->id);
+        }
+    }
+}
 void flowstruct_init(void * handler) {
     int i = 1;
     i &= register_extraction_attribute(handler, PROTO_TCP, TCP_SRC_PORT);
@@ -282,12 +411,7 @@ void flowstruct_init(void * handler) {
 
     i &= register_attribute_handler(handler, PROTO_IP, PROTO_SESSION, flow_nb_handle, NULL, NULL);
     i &= register_attribute_handler(handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle, NULL, NULL);
-
-    register_web_attributes(handler);
-    register_rtp_attributes(handler);
     register_ftp_attributes(handler);
-    register_ssl_attributes(handler);
-
     if(!i) {
         //TODO: we need a sound error handling mechanism! Anyway, we should never get here :)
         fprintf(stderr, "Error while initializing MMT handlers and extractions!\n");
@@ -346,7 +470,7 @@ inline int encode_str(const char *infile, char *out_file) {
 int time_diff(struct timeval t1, struct timeval t2) {
     return (((t2.tv_sec - t1.tv_sec) * 1000000) + (t2.tv_usec - t1.tv_usec)) / 1000;
 }
-
+/*
 void classification_expiry_session(const mmt_session_t * expired_session, void * args) {
     session_struct_t * temp_session = get_user_session_context(expired_session);
     if (temp_session == NULL) {
@@ -355,6 +479,8 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
     probe_internal_t * iprobe = (probe_internal_t *) args;
 
     int sslindex;
+    uint64_t session_id = get_session_id(expired_session);
+
 
     if (is_microflow(expired_session)) {
         microsessions_stats_t * mf_stats = &iprobe->mf_stats[get_session_protocol_hierarchy(expired_session)->proto_path[(get_session_protocol_hierarchy(expired_session)->len <= 16)?(get_session_protocol_hierarchy(expired_session)->len - 1):(16 - 1)]];
@@ -365,25 +491,33 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
     } else {
         //First we check if we should skip the reporting for this flow
         if (temp_session->app_format_id != MMT_SKIP_APP_REPORT_FORMAT) {
-            //We should report this flow.
-            switch (temp_session->app_format_id) {
-            case MMT_WEB_APP_REPORT_FORMAT:
-                print_web_app_format(expired_session, iprobe);
-                break;
-            case MMT_SSL_APP_REPORT_FORMAT:
-                print_ssl_app_format(expired_session, iprobe);
-                break;
-            case MMT_RTP_APP_REPORT_FORMAT:
-                print_rtp_app_format(expired_session, iprobe);
-                break;
-            case MMT_FTP_DOWNLOAD_REPORT_FORMAT:
-                break;
-            default:
-                sslindex = get_protocol_index_from_session(get_session_protocol_hierarchy(expired_session), PROTO_SSL);
-                if (sslindex != -1) print_ssl_app_format(expired_session, iprobe);
-                else print_default_app_format(expired_session,iprobe);
-                break;
-            }
+               if (probe_context.web_enable==1 && temp_session->app_format_id==probe_context.web_id)print_web_app_format(expired_session, iprobe);
+                else if (probe_context.ssl_enable==1 && temp_session->app_format_id==probe_context.ssl_id)print_ssl_app_format(expired_session, iprobe);
+                else if(probe_context.rtp_enable==1 && temp_session->app_format_id==probe_context.rtp_id)print_rtp_app_format(expired_session, iprobe);
+                else if(probe_context.ftp_enable==1 &&temp_session->app_format_id==probe_context.ftp_id)print_rtp_app_format(expired_session, iprobe);
+                else{
+                    sslindex = get_protocol_index_from_session(get_session_protocol_hierarchy(expired_session), PROTO_SSL);
+                    if (sslindex != -1 && probe_context.ssl_enable==1 ) print_ssl_app_format(expired_session, iprobe);
+                    else print_default_app_format(expired_session,iprobe);
+
+                }
+
+        }
+    }
+    ip_statistics_t *p;
+    ip_statistics_t *HEAD;
+    p = ip_stat_root;
+    HEAD = ip_stat_root;
+
+    while(p != NULL){
+
+        if (p->session->session_id== session_id){
+            HEAD->next=p->next;
+            free(p);
+            p=HEAD;
+        }else{
+            //HEAD=p;
+            p=p->next;
         }
     }
 
@@ -393,6 +527,7 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
     }
     free(temp_session);
 }
+*/
 
 mmt_dev_properties_t get_dev_properties_from_user_agent(char * user_agent, uint32_t len) {
     mmt_dev_properties_t retval = {0};
