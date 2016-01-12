@@ -46,7 +46,6 @@ void print_default_app_format(const mmt_session_t * expired_session,probe_intern
         inet_ntop(AF_INET, (void *) &temp_session->ipclient.ipv4, ip_src_str, INET_ADDRSTRLEN);
         inet_ntop(AF_INET, (void *) &temp_session->ipserver.ipv4, ip_dst_str, INET_ADDRSTRLEN);
         keep_direction = is_local_net(temp_session->ipclient.ipv4);
-        is_local_net(temp_session->ipserver.ipv4);
     } else {
         inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
         inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);

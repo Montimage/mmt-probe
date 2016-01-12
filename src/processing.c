@@ -470,64 +470,6 @@ inline int encode_str(const char *infile, char *out_file) {
 int time_diff(struct timeval t1, struct timeval t2) {
     return (((t2.tv_sec - t1.tv_sec) * 1000000) + (t2.tv_usec - t1.tv_usec)) / 1000;
 }
-/*
-void classification_expiry_session(const mmt_session_t * expired_session, void * args) {
-    session_struct_t * temp_session = get_user_session_context(expired_session);
-    if (temp_session == NULL) {
-        return;
-    }
-    probe_internal_t * iprobe = (probe_internal_t *) args;
-
-    int sslindex;
-    uint64_t session_id = get_session_id(expired_session);
-
-
-    if (is_microflow(expired_session)) {
-        microsessions_stats_t * mf_stats = &iprobe->mf_stats[get_session_protocol_hierarchy(expired_session)->proto_path[(get_session_protocol_hierarchy(expired_session)->len <= 16)?(get_session_protocol_hierarchy(expired_session)->len - 1):(16 - 1)]];
-        update_microflows_stats(mf_stats, expired_session);
-        if (is_microflow_stats_reportable(mf_stats)) {
-            report_microflows_stats(mf_stats);
-        }
-    } else {
-        //First we check if we should skip the reporting for this flow
-        if (temp_session->app_format_id != MMT_SKIP_APP_REPORT_FORMAT) {
-               if (probe_context.web_enable==1 && temp_session->app_format_id==probe_context.web_id)print_web_app_format(expired_session, iprobe);
-                else if (probe_context.ssl_enable==1 && temp_session->app_format_id==probe_context.ssl_id)print_ssl_app_format(expired_session, iprobe);
-                else if(probe_context.rtp_enable==1 && temp_session->app_format_id==probe_context.rtp_id)print_rtp_app_format(expired_session, iprobe);
-                else if(probe_context.ftp_enable==1 &&temp_session->app_format_id==probe_context.ftp_id)print_rtp_app_format(expired_session, iprobe);
-                else{
-                    sslindex = get_protocol_index_from_session(get_session_protocol_hierarchy(expired_session), PROTO_SSL);
-                    if (sslindex != -1 && probe_context.ssl_enable==1 ) print_ssl_app_format(expired_session, iprobe);
-                    else print_default_app_format(expired_session,iprobe);
-
-                }
-
-        }
-    }
-    ip_statistics_t *p;
-    ip_statistics_t *HEAD;
-    p = ip_stat_root;
-    HEAD = ip_stat_root;
-
-    while(p != NULL){
-
-        if (p->session->session_id== session_id){
-            HEAD->next=p->next;
-            free(p);
-            p=HEAD;
-        }else{
-            //HEAD=p;
-            p=p->next;
-        }
-    }
-
-    if (temp_session->app_data != NULL) {
-        //Free the application specific data
-        free(temp_session->app_data);
-    }
-    free(temp_session);
-}
-*/
 
 mmt_dev_properties_t get_dev_properties_from_user_agent(char * user_agent, uint32_t len) {
     mmt_dev_properties_t retval = {0};
