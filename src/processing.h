@@ -18,7 +18,7 @@ extern "C" {
 #define MMT_MICROFLOWS_STATS_FORMAT 0x8
 #define MMT_FLOW_REPORT_FORMAT      0x7
 
-#define MMT_SKIP_APP_REPORT_FORMAT      0xFFFFFFFF //This is mainly to skip the reporting of flows of specific applications.
+#define MMT_SKIP_APP_REPORT_FORMAT      0xFF //This is mainly to skip the reporting of flows of specific applications.
 #define MMT_DEFAULT_APP_REPORT_FORMAT   0x0
 //#define MMT_WEB_APP_REPORT_FORMAT       0x1
 //#define MMT_SSL_APP_REPORT_FORMAT       0x2
@@ -309,9 +309,31 @@ typedef struct ip_proto_statistics_struct {
     unsigned char * dst_mac;
 } ip_proto_statistics_t;
 
+typedef struct session_struct {
+    uint16_t format_id;
+    uint16_t app_format_id;
+    //struct timeval start_time;
+    //struct timeval end_time;
+    mmt_ipv4_ipv6_id_t ipclient;
+    mmt_ipv4_ipv6_id_t ipserver;
+    uint16_t clientport;
+    uint16_t serverport;
+    uint8_t proto;
+    uint8_t isFlowExtracted;
+    uint8_t isClassified;
+    uint8_t ipversion;
+    uint32_t contentclass;
+
+    void * app_data;
+
+} session_struct_t;
 typedef struct ip_statistics_struct {
     ip_proto_statistics_t * proto_stats;
     ip_statistics_session_t * session;
+    session_struct_t * ip_temp_session;
+    mmt_session_t * mmt_session;
+    uint32_t counter;
+
     struct ip_statistics_struct * next;
 
 } ip_statistics_t;
@@ -337,24 +359,6 @@ typedef struct session_expiry_check_struct {
     uint32_t expired_session_id;
 } session_expiry_check_struct_t;
 
-typedef struct session_struct {
-    uint16_t format_id;
-    uint16_t app_format_id;
-    //struct timeval start_time;
-    //struct timeval end_time;
-    mmt_ipv4_ipv6_id_t ipclient;
-    mmt_ipv4_ipv6_id_t ipserver;
-    uint16_t clientport;
-    uint16_t serverport;
-    uint8_t proto;
-    uint8_t isFlowExtracted;
-    uint8_t isClassified;
-    uint8_t ipversion;
-    uint32_t contentclass;
-
-    void * app_data;
-
-} session_struct_t;
 
 
 typedef struct session_attributes_struct{
@@ -464,6 +468,13 @@ void print_ssl_app_format(const mmt_session_t * expired_session, probe_internal_
 void print_rtp_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe);
 void print_ftp_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe);
 void print_default_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe);
+
+void print_initial_web_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid);
+void print_initial_rtp_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid);
+void print_initial_ssl_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid);
+void print_initial_ftp_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid);
+void print_initial_default_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid);
+
 
 //typedef void (* license_expiry_function)(time_t present_time);
 

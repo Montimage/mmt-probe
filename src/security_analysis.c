@@ -6,10 +6,7 @@
 #include <inttypes.h>
 
 #include "mmt_core.h"
-//#include "mmt/tcpip/mmt_tcpip_protocols.h"
 #include "processing.h"
-
-#define MAX_MESS 2000
 
 //Begin for MMT_Security
 #define OPTION_SATISFIED     1 //if = 1 then yes, output when rule satisfied

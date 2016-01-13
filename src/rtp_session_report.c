@@ -9,8 +9,6 @@
 #include "processing.h"
 
 
-#define MAX_MESS 2000
-
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
 /*
 void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session){
@@ -299,6 +297,35 @@ void print_rtp_app_format(const mmt_session_t * expired_session, probe_internal_
         ((rtp_session_attr_t*) temp_session->app_data)->jitter, order_error
     );
      */
+}
+void print_initial_rtp_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid){
+    //case 1://missing dev_prop, cdn_flag
+
+    double loss_rate, loss_burstiness = 0, order_error = 0;
+
+
+    uint32_t app_class = PROTO_CLASS_STREAMING;
+    if(get_session_content_flags(p->mmt_session) & MMT_CONTENT_CONVERSATIONAL) {
+        app_class = PROTO_CLASS_CONVERSATIONAL;
+    }else if(get_session_ul_data_packet_count(p->mmt_session) &&  get_session_dl_data_packet_count(p->mmt_session)) {
+        app_class = PROTO_CLASS_CONVERSATIONAL;
+    }
+
+    loss_rate = (double) ((double) ((rtp_session_attr_t*) p->ip_temp_session->app_data)->nb_lost / (((rtp_session_attr_t*) p->ip_temp_session->app_data)->nb_lost + ((rtp_session_attr_t*) p->ip_temp_session->app_data)->packets_nb + 1));
+    if (((rtp_session_attr_t*) p->ip_temp_session->app_data)->nb_loss_bursts) {
+        loss_burstiness = (double) ((double) ((rtp_session_attr_t*) p->ip_temp_session->app_data)->nb_lost / ((rtp_session_attr_t*) p->ip_temp_session->app_data)->nb_loss_bursts);
+    }
+    order_error = (double) ((double) ((rtp_session_attr_t*) p->ip_temp_session->app_data)->nb_order_error / (((rtp_session_attr_t*) p->ip_temp_session->app_data)->packets_nb + 1));
+
+    snprintf(&message[valid], MAX_MESS-valid,
+            ",%u,%u,%u,%f,%f,%u,%f", // app specific
+            p->ip_temp_session->app_format_id,
+            p->ip_temp_session->contentclass,app_class,
+            loss_rate,
+            loss_burstiness,
+            ((rtp_session_attr_t*) p->ip_temp_session->app_data)->jitter, order_error
+    );
+    p->counter=1;
 }
 
 

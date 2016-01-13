@@ -8,7 +8,6 @@
 #include <inttypes.h>
 
 #include "mmt_core.h"
-//#include "mmt/tcpip/mmt_tcpip_protocols.h"
 #include "processing.h"
 
 #define MAX_MESS 2000
