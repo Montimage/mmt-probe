@@ -165,9 +165,9 @@ void iterate_through_ip( mmt_handler_t *mmt_handler ){
                 int valid=0;
                 int sslindex;
                 valid=snprintf(message, MAX_MESS,
-                        "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%u,\"%s\",%"PRIu64",%"PRIi64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",%"PRIu16",%"PRIu16",\"%s\",\"%s\"",
+                        "%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIi64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%"PRIu16",%"PRIu16"",
                         MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, ts.tv_sec, ts.tv_usec,
-                        p->session->session_id,proto_id, path, number_flows,
+                        proto_id, path, number_flows,
                         //Total
                         proto_stats->data_volume, proto_stats->payload_volume,proto_stats->packets_count,
                         //UL
@@ -177,7 +177,7 @@ void iterate_through_ip( mmt_handler_t *mmt_handler ){
                         //Timestamp (seconds.micros) corresponding to the time when the flow was detected (first packet of the flow).
                         proto_stats->start_timestamp.tv_sec, proto_stats->start_timestamp.tv_usec,
                         //IP and MAC addresses
-                        ip_dst_str,ip_src_str,p->session->serverport, p->session->clientport,src_mac,dst_mac);
+                        ip_dst_str,ip_src_str,src_mac,dst_mac,p->session->session_id,p->session->serverport, p->session->clientport);
                 if (p->session->session_id !=0) {
                     //We should report this only once at the beginning of the flow.
                     if (p->ip_temp_session->app_format_id==probe_context->web_id && p->counter==0) print_initial_web_report(p,message,valid);
@@ -529,20 +529,19 @@ void iterate_through_expired_session(ip_statistics_t *p){
             int valid=0;
             int sslindex;
             valid=snprintf(message, MAX_MESS,
-                    "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%u,\"%s\",%"PRIu64",%"PRIi64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",%"PRIu16",%"PRIu16",\"%s\",\"%s\"",
-                    MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, now.tv_sec,now.tv_usec,
-                    p->session->session_id,proto_id, path, number_flows,
-                    //Total
-                    proto_stats->data_volume, proto_stats->payload_volume,proto_stats->packets_count,
-                    //UL
-                    proto_stats->data_volume_direction[0], proto_stats->payload_volume_direction[0],proto_stats->packets_count_direction[0],
-                    //DL
-                    proto_stats->data_volume_direction[1], proto_stats->payload_volume_direction[1],proto_stats->packets_count_direction[1],
-                    //Timestamp (seconds.micros) corresponding to the time when the flow was detected (first packet of the flow).
-                    proto_stats->start_timestamp.tv_sec, proto_stats->start_timestamp.tv_usec,
-                    //IP and MAC addresses
-                    ip_dst_str,ip_src_str,p->session->serverport, p->session->clientport,src_mac,dst_mac);
-
+                                    "%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIi64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%"PRIu16",%"PRIu16"",
+                                    MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, now.tv_sec, now.tv_usec,
+                                    proto_id, path, number_flows,
+                                    //Total
+                                    proto_stats->data_volume, proto_stats->payload_volume,proto_stats->packets_count,
+                                    //UL
+                                    proto_stats->data_volume_direction[0], proto_stats->payload_volume_direction[0],proto_stats->packets_count_direction[0],
+                                    //DL
+                                    proto_stats->data_volume_direction[1], proto_stats->payload_volume_direction[1],proto_stats->packets_count_direction[1],
+                                    //Timestamp (seconds.micros) corresponding to the time when the flow was detected (first packet of the flow).
+                                    proto_stats->start_timestamp.tv_sec, proto_stats->start_timestamp.tv_usec,
+                                    //IP and MAC addresses
+                                    ip_dst_str,ip_src_str,src_mac,dst_mac,p->session->session_id,p->session->serverport, p->session->clientport);
             if (p->session->session_id !=0) {
                 if (p->ip_temp_session->app_format_id==probe_context->web_id && p->counter==0) print_initial_web_report(p,message,valid);
                 else if (p->ip_temp_session->app_format_id==probe_context->rtp_id && p->counter==0) print_initial_rtp_report(p,message,valid);

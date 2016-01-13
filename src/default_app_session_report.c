@@ -97,9 +97,9 @@ void print_default_app_format(const mmt_session_t * expired_session,probe_intern
 }
 void print_initial_default_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid){
     snprintf(&message[valid], MAX_MESS-valid,
-            ",%u,%u,%u,%u", // app specific
+            ",%u,%u,%u", // app specific
             p->ip_temp_session->app_format_id,get_application_class_by_protocol_id(p->proto_stats->proto_hierarchy->proto_path[(p->proto_stats->proto_hierarchy->len <= 16)?(p->proto_stats->proto_hierarchy->len - 1):(16 - 1)]),
-            get_content_class_by_content_flags(get_session_content_flags(p->mmt_session)),p->proto_stats->proto_hierarchy->proto_path[(p->proto_stats->proto_hierarchy->len <= 16)?(p->proto_stats->proto_hierarchy->len - 1):(16 - 1)]
+            get_content_class_by_content_flags(get_session_content_flags(p->mmt_session))
     );
     p->counter=1;
 }

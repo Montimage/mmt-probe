@@ -350,7 +350,7 @@ void print_ftp_app_format(const mmt_session_t * expired_session,probe_internal_t
         mmt_condition_report_t * condition_report = &probe_context->condition_reports[i];
         if (strcmp(condition_report->condition.condition,"FTP")==0 && ((ftp_session_attr_t*) temp_session->app_data)->file_size >1){
             snprintf(message, MAX_MESS,
-                    "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,%"PRIu8",%s,%s,%"PRIu32",%s",
+                    "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,\"%s\",%u,%"PRIu8",%s,%s,%"PRIu32",%s",
                     temp_session->app_format_id, probe_context->probe_id_number, probe_context->input_source, end_time.tv_sec, end_time.tv_usec,
                     session_id,
                     init_time.tv_sec, init_time.tv_usec,
@@ -362,8 +362,7 @@ void print_ftp_app_format(const mmt_session_t * expired_session,probe_internal_t
                                     (keep_direction)?get_session_ul_byte_count(expired_session):get_session_dl_byte_count(expired_session),
                                             (keep_direction)?get_session_dl_byte_count(expired_session):get_session_ul_byte_count(expired_session),
                                                     rtt_ms, get_session_retransmission_count(expired_session),
-                                                    get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
-                                                    temp_session->contentclass, path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)],
+                                                    path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)],
                     ((ftp_session_attr_t*) temp_session->app_data)->session_conn_type,
                     ((ftp_session_attr_t*) temp_session->app_data)->session_username,
                     ((ftp_session_attr_t*) temp_session->app_data)->session_password,
