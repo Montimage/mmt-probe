@@ -268,16 +268,6 @@ void print_web_app_format(const mmt_session_t * expired_session, probe_internal_
 
 void print_initial_web_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid){
     uint32_t cdn_flag = 0;
-    /*
-    if ((probe_context->user_agent_parsing_threshold) && ((temp_session->session_attr->byte_count[0]+temp_session->session_attr->byte_count[1]) > probe_context->user_agent_parsing_threshold)) {
-        mmt_dev_properties_t dev_p = get_dev_properties_from_user_agent(((web_session_attr_t *) temp_session->app_data)->useragent, 128);
-        sprintf(dev_prop, "%hu:%hu", dev_p.dev_id, dev_p.os_id);
-    } else {
-        dev_prop[0] = '\0';
-    }*/
-
-    //case 1://missing dev_prop, cdn_flag
-
     if (((web_session_attr_t *) p->ip_temp_session->app_data)->xcdn_seen) cdn_flag = ((web_session_attr_t *) p->ip_temp_session->app_data)->xcdn_seen;
     else if (get_session_content_flags(p->mmt_session) & MMT_CONTENT_CDN) cdn_flag = 2;
 

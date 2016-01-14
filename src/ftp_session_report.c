@@ -377,8 +377,9 @@ void print_ftp_app_format(const mmt_session_t * expired_session,probe_internal_t
 }
 void print_initial_ftp_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid){
     snprintf(&message[valid], MAX_MESS-valid,
-            ",%u,%"PRIu8",%s,%s,%"PRIu32",%s,%"PRIu8"",
-            p->ip_temp_session->app_format_id,((ftp_session_attr_t*) p->ip_temp_session->app_data)->session_conn_type,
+            ",%u,%u,%"PRIu8",%s,%s,%"PRIu32",%s,%"PRIu8"",
+            p->ip_temp_session->app_format_id,get_application_class_by_protocol_id(p->proto_stats->proto_hierarchy->proto_path[(p->proto_stats->proto_hierarchy->len <= 16)?(p->proto_stats->proto_hierarchy->len - 1):(16 - 1)]),
+            ((ftp_session_attr_t*) p->ip_temp_session->app_data)->session_conn_type,
             ((ftp_session_attr_t*) p->ip_temp_session->app_data)->session_username,
             ((ftp_session_attr_t*) p->ip_temp_session->app_data)->session_password,
             ((ftp_session_attr_t*) p->ip_temp_session->app_data)->file_size,

@@ -302,8 +302,6 @@ void print_initial_rtp_report(ip_statistics_t *p, char message [MAX_MESS + 1],in
     //case 1://missing dev_prop, cdn_flag
 
     double loss_rate, loss_burstiness = 0, order_error = 0;
-
-
     uint32_t app_class = PROTO_CLASS_STREAMING;
     if(get_session_content_flags(p->mmt_session) & MMT_CONTENT_CONVERSATIONAL) {
         app_class = PROTO_CLASS_CONVERSATIONAL;
@@ -320,7 +318,7 @@ void print_initial_rtp_report(ip_statistics_t *p, char message [MAX_MESS + 1],in
     snprintf(&message[valid], MAX_MESS-valid,
             ",%u,%u,%u,%f,%f,%u,%f", // app specific
             p->ip_temp_session->app_format_id,
-            p->ip_temp_session->contentclass,app_class,
+            app_class,p->ip_temp_session->contentclass,
             loss_rate,
             loss_burstiness,
             ((rtp_session_attr_t*) p->ip_temp_session->app_data)->jitter, order_error
