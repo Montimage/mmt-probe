@@ -179,12 +179,11 @@ void iterate_through_ip( mmt_handler_t *mmt_handler ){
                                         //IP and MAC addresses
                                         ip_dst_str,ip_src_str,src_mac,dst_mac,p->session->session_id,p->session->serverport, p->session->clientport);
                 if (p->session->session_id !=0) {
-                    //We should report this only once at the beginning of the flow.
-                    if (p->ip_temp_session->app_format_id==probe_context->web_id && p->counter==0) print_initial_web_report(p,message,valid);
-                    else if (p->ip_temp_session->app_format_id==probe_context->rtp_id && p->counter==0) print_initial_rtp_report(p,message,valid);
-                    else if (p->ip_temp_session->app_format_id==probe_context->ssl_id && p->counter==0) print_initial_ssl_report(p,message,valid);
-                    else if (p->ip_temp_session->app_format_id==probe_context->ftp_id && p->counter==0) print_initial_ftp_report(p,message,valid);
-                    else if(p->counter==0){
+                    if (p->ip_temp_session->app_format_id==probe_context->web_id && p->counter==0 && probe_context->web_enable==1) print_initial_web_report(p,message,valid);
+                    else if (p->ip_temp_session->app_format_id==probe_context->rtp_id && p->counter==0 && probe_context->rtp_enable==1) print_initial_rtp_report(p,message,valid);
+                    else if (p->ip_temp_session->app_format_id==probe_context->ssl_id && p->counter==0 && probe_context->ssl_enable==1) print_initial_ssl_report(p,message,valid);
+                    else if (p->ip_temp_session->app_format_id==probe_context->ftp_id && p->counter==0 && probe_context->ftp_enable==1) print_initial_ftp_report(p,message,valid);
+                    else if(p->counter==0 && p->session->session_id !=0){
                         sslindex = get_protocol_index_from_session(p->proto_stats->proto_hierarchy, PROTO_SSL);
                         if (sslindex != -1) print_initial_ssl_report(p,message,valid);
                         else print_initial_default_report(p,message,valid);
@@ -543,10 +542,10 @@ void iterate_through_expired_session(ip_statistics_t *p){
                     //IP and MAC addresses
                     ip_dst_str,ip_src_str,src_mac,dst_mac,p->session->session_id,p->session->serverport, p->session->clientport);
             if (p->session->session_id !=0) {
-                if (p->ip_temp_session->app_format_id==probe_context->web_id && p->counter==0) print_initial_web_report(p,message,valid);
-                else if (p->ip_temp_session->app_format_id==probe_context->rtp_id && p->counter==0) print_initial_rtp_report(p,message,valid);
-                else if (p->ip_temp_session->app_format_id==probe_context->ssl_id && p->counter==0) print_initial_ssl_report(p,message,valid);
-                else if (p->ip_temp_session->app_format_id==probe_context->ftp_id && p->counter==0) print_initial_ftp_report(p,message,valid);
+                if (p->ip_temp_session->app_format_id==probe_context->web_id && p->counter==0 && probe_context->web_enable==1) print_initial_web_report(p,message,valid);
+                else if (p->ip_temp_session->app_format_id==probe_context->rtp_id && p->counter==0 && probe_context->rtp_enable==1) print_initial_rtp_report(p,message,valid);
+                else if (p->ip_temp_session->app_format_id==probe_context->ssl_id && p->counter==0 && probe_context->ssl_enable==1) print_initial_ssl_report(p,message,valid);
+                else if (p->ip_temp_session->app_format_id==probe_context->ftp_id && p->counter==0 && probe_context->ftp_enable==1) print_initial_ftp_report(p,message,valid);
                 else if(p->counter==0 && p->session->session_id !=0){
                     sslindex = get_protocol_index_from_session(p->proto_stats->proto_hierarchy, PROTO_SSL);
                     if (sslindex != -1) print_initial_ssl_report(p,message,valid);
