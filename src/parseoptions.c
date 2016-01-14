@@ -99,6 +99,7 @@ cfg_t * parse_conf(const char *filename) {
 
     cfg_opt_t security_opts[] = {
             CFG_INT("enable", 0, CFGF_NONE),
+            CFG_INT("id", 0, CFGF_NONE),
             CFG_STR("results-dir", 0, CFGF_NONE),
             CFG_STR("properties-file", 0, CFGF_NONE),
             CFG_END()
@@ -336,6 +337,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
             cfg_t *security = cfg_getnsec(cfg, "security", 0);
             if (security->line!=0){
                 mmt_conf->security_enable = (uint32_t) cfg_getint(security, "enable");
+                mmt_conf->security_id = (uint16_t) cfg_getint(security, "id");
                 strncpy(mmt_conf->dir_out, (char *) cfg_getstr(security, "results-dir"), 256);
                 strncpy(mmt_conf->properties_file, (char *) cfg_getstr(security, "properties-file"), 256);
             }

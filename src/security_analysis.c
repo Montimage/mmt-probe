@@ -88,7 +88,7 @@ void security_event( int prop_id, char *verdict, char *type, char *cause, char *
     char message[MAX_MESS + 1];
     snprintf( message, MAX_MESS,
             "%u,%u,\"%s\",%lu.%lu,%d,\"%s\",\"%s\",\"%s\",%s",
-            MMT_SECURITY_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source,
+            probe_context->security_id, probe_context->probe_id_number, probe_context->input_source,
             ts.tv_sec, ts.tv_usec,
             prop_id, verdict, type, cause, history);
 

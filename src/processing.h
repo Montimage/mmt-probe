@@ -24,9 +24,9 @@ extern "C" {
 //#define MMT_SSL_APP_REPORT_FORMAT       0x2
 //#define MMT_RTP_APP_REPORT_FORMAT       0x3
 
-#define MMT_FTP_APP_REPORT_FORMAT    0xc8
+//#define MMT_FTP_APP_REPORT_FORMAT    0xc8
 
-#define MMT_FTP_DOWNLOAD_REPORT_FORMAT       201
+//#define MMT_FTP_DOWNLOAD_REPORT_FORMAT       201
 //#define MMT_SAMPLED_RTP_APP_REPORT_FORMAT       1003
 
 #define MMT_RADIUS_REPORT_ALL 0x0
@@ -171,6 +171,7 @@ typedef struct mmt_probe_context_struct {
     uint16_t rtp_id;
     uint16_t ssl_id;
     uint16_t ftp_reconstruct_id;
+    uint16_t security_id;
     uint32_t behaviour_enable;
     uint32_t security_enable;
     uint32_t event_based_reporting_enable;
