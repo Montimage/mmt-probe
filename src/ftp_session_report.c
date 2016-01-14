@@ -223,6 +223,7 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
     if(ftp_session == NULL) return;
 
     uint64_t session_id = get_session_id(ftp_session);
+    struct timeval end_time = get_session_last_activity_time(ipacket->session);
 
 
     if (temp_session->ipversion == 4) {
@@ -235,15 +236,15 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
 
     for(i = 0; i < probe_context->condition_reports_nb; i++) {
         mmt_condition_report_t * condition_report = &probe_context->condition_reports[i];
-        if (strcmp(((ftp_session_attr_t*) temp_session->app_data)->response_value,"Transfer complete.")==0 && strcmp(condition_report->condition.condition,"FTP")==0){
+        if (strcmp(((ftp_session_attr_t*) temp_session->app_data)->response_value,"Transfer complete.")==0 && strcmp(condition_report->condition.condition,"FTP")==0 && probe_context->ftp_reconstruct_enable ==1){
 
             ((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_sec= ipacket->p_hdr->ts.tv_sec;
             ((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_usec=ipacket->p_hdr->ts.tv_usec;
             snprintf(message, MAX_MESS,
-                    "%u,\"%s\",\"%s\",%hu,%hu,%"PRIu64",%"PRIu8",%"PRIu8",%s,%s,%"PRIu32",%s,%lu.%lu,%lu.%lu",
-                    MMT_FTP_DOWNLOAD_REPORT_FORMAT,
+                    "%u,%u,\"%s\",%lu.%lu,%"PRIu64",\"%s\",\"%s\",%hu,%hu,%"PRIu8",%"PRIu8",%s,%s,%"PRIu32",%s,%lu.%lu,%lu.%lu",
+                    probe_context->ftp_reconstruct_id,probe_context->probe_id_number, probe_context->input_source, end_time.tv_sec, end_time.tv_usec,session_id,
                     ip_dst_str, ip_src_str,
-                    temp_session->serverport, temp_session->clientport,session_id,
+                    temp_session->serverport, temp_session->clientport,
                     ((ftp_session_attr_t*) temp_session->app_data)->session_conn_type,
                     ((ftp_session_attr_t*) temp_session->app_data)->direction,
                     ((ftp_session_attr_t*) temp_session->app_data)->session_username,
@@ -350,7 +351,7 @@ void print_ftp_app_format(const mmt_session_t * expired_session,probe_internal_t
         mmt_condition_report_t * condition_report = &probe_context->condition_reports[i];
         if (strcmp(condition_report->condition.condition,"FTP")==0 && ((ftp_session_attr_t*) temp_session->app_data)->file_size >1){
             snprintf(message, MAX_MESS,
-                    "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,\"%s\",%u,%"PRIu8",%s,%s,%"PRIu32",%s",
+                    "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,\"%s\",%u",
                     temp_session->app_format_id, probe_context->probe_id_number, probe_context->input_source, end_time.tv_sec, end_time.tv_usec,
                     session_id,
                     init_time.tv_sec, init_time.tv_usec,
@@ -362,12 +363,12 @@ void print_ftp_app_format(const mmt_session_t * expired_session,probe_internal_t
                                     (keep_direction)?get_session_ul_byte_count(expired_session):get_session_dl_byte_count(expired_session),
                                             (keep_direction)?get_session_dl_byte_count(expired_session):get_session_ul_byte_count(expired_session),
                                                     rtt_ms, get_session_retransmission_count(expired_session),
-                                                    path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)],
-                    ((ftp_session_attr_t*) temp_session->app_data)->session_conn_type,
+                                                    path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]
+                    /*((ftp_session_attr_t*) temp_session->app_data)->session_conn_type,
                     ((ftp_session_attr_t*) temp_session->app_data)->session_username,
                     ((ftp_session_attr_t*) temp_session->app_data)->session_password,
                     ((ftp_session_attr_t*) temp_session->app_data)->file_size,
-                    ((ftp_session_attr_t*) temp_session->app_data)->filename
+                    ((ftp_session_attr_t*) temp_session->app_data)->filename*/
                 );
                 message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
                 if (probe_context->output_to_file_enable==1)send_message_to_file (message);

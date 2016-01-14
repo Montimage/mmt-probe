@@ -112,6 +112,7 @@ cfg_t * parse_conf(const char *filename) {
 
     cfg_opt_t reconstruct_ftp_opts[] = {
             CFG_INT("enable", 0, CFGF_NONE),
+            CFG_INT("id", 0, CFGF_NONE),
             CFG_STR("location", 0, CFGF_NONE),
             CFG_END()
     };
@@ -355,6 +356,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
             cfg_t *reconstruct_ftp = cfg_getnsec(cfg, "reconstruct-ftp", 0);
             if (reconstruct_ftp->line!=0){
                 mmt_conf->ftp_reconstruct_enable = (uint32_t) cfg_getint(reconstruct_ftp, "enable");
+                mmt_conf->ftp_reconstruct_id = (uint16_t) cfg_getint(reconstruct_ftp, "id");
                 strncpy(mmt_conf->ftp_reconstruct_output_location, (char *) cfg_getstr(reconstruct_ftp, "location"), 256);
             }
         }

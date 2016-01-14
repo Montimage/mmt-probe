@@ -170,6 +170,7 @@ typedef struct mmt_probe_context_struct {
     uint16_t web_id;
     uint16_t rtp_id;
     uint16_t ssl_id;
+    uint16_t ftp_reconstruct_id;
     uint32_t behaviour_enable;
     uint32_t security_enable;
     uint32_t event_based_reporting_enable;
