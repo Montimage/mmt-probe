@@ -341,7 +341,7 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
         while ((data = pcap_next(pcap, &pkthdr))) {
             //Check for license
             if(day!=day_now){
-                if (license_expiry_check()==1) exit(0);//pcap_next
+                if (license_expiry_check(1)==1) exit(0);//pcap_next
                     day=day_now;
             }
             header.ts = pkthdr.ts;
@@ -434,7 +434,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
         //One thread for reading packets and processing them
         // check for license
         if(day!=day_now){
-            if (license_expiry_check()==1) exit(0);//pcap_next
+            if (license_expiry_check(1)==1) exit(0);//pcap_next
                 day=day_now;
         }
 
@@ -461,7 +461,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
         } else {
             //check for license
             if(day!=day_now){
-                if (license_expiry_check()==1) exit(0);//pcap_next
+                if (license_expiry_check(1)==1) exit(0);//pcap_next
                     day=day_now;
             }
 
@@ -654,7 +654,7 @@ static void *process_tracefile_thread_routine(void *arg) {
     while ((data = pcap_next(pcap, &pkthdr))) {
         //check for license
         if(day!=day_now){
-            if (license_expiry_check()==1) exit(0);//pcap_next
+            if (license_expiry_check(1)==1) exit(0);//pcap_next
                 day=day_now;
         }
 
@@ -922,6 +922,7 @@ int main(int argc, char **argv) {
     signal(SIGTERM, signal_handler);
     signal(SIGSEGV, signal_handler);
     signal(SIGABRT, signal_handler);
+    if (license_expiry_check(0)==1) exit(0);
 
     mmt_log(mmt_conf, MMT_L_INFO, MMT_P_INIT, "MMT Probe started!");
 

@@ -424,7 +424,7 @@ void report_all_protocols_microflows_stats(probe_internal_t * iprobe);
 void report_microflows_stats(microsessions_stats_t * stats);
 void update_microflows_stats(microsessions_stats_t * stats, const mmt_session_t * expired_session);
 void ip_get_session_attr(const ipacket_t * ipacket);
-int license_expiry_check();
+int license_expiry_check(int status);
 void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf);
 void todo_at_start(char *file_path);
 void reconstruct_data(const ipacket_t * ipacket );
