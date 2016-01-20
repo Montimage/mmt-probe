@@ -47,8 +47,8 @@ void main(){
     /*
      * Provide number of mac address (3 digits) and 12 digit MAC addresses separated by "-" of the machine for the license
      */
-    char no_of_mac_address[3]= "004";//3-digits
-    char * write_mac_address ="080027749053-0800271C04a5-9C2A70246CDB-B8CA3ACD58D9";//12 digit MAC addresses separated by "-" in uppercase
+    char no_of_mac_address[3]= "002";//3-digits
+    char * write_mac_address ="B8CA3ACD5A27-001300000000";//12 digit MAC addresses separated by "-" in uppercase
     int offset=0;
     /*
      * This blocks contains no information but are used to make the license key difficult to read
@@ -67,21 +67,21 @@ void main(){
     offset+=fwrite(year,1,4,license_key);
     int len_yr=strlen(year);
     if (len_yr!=4){
-        printf("ERROR:year must have 4 digits i.e. 2014\n");
+       // printf("ERROR:year must have 4 digits i.e. 2014\n");
         exit(0);
     }
 
     offset+=fwrite(month,1,2,license_key);
     int len_mn=strlen(month);
     if (len_mn!=2){
-        printf("ERROR:month must have 2 digits i.e. 01 for January\n");
+        //printf("ERROR:month must have 2 digits i.e. 01 for January\n");
         exit(0);
     }
 
     offset+=fwrite(day,1,2,license_key);
     int len_dy=strlen(month);
     if (len_dy!=2){
-        printf("ERROR:day must have 2 digits i.e. 01 for day 1\n");
+       // printf("ERROR:day must have 2 digits i.e. 01 for day 1\n");
         exit(0);
     }
 
@@ -144,9 +144,11 @@ void main(){
 
     memset(sum_mac_str,'\0',10);
     valid=snprintf(sum_mac_str,10,"%lu",sum_mac);
+    //printf("valid=%d\n",valid);
     sum_mac_str[valid]='\0';
 
-    //printf ("block_sum=%s\n",sum_mac_str);
+    //printf ("mac_sum_str=%s\n",sum_mac_str);
+    offset+=fwrite(sum_mac_str,1,valid,license_key);
 
     int k=0;
     unsigned long int  sum_of_blocks=0;
@@ -168,7 +170,7 @@ void main(){
     //printf ("block_sum=%s\n",sum_of_blocks_str);
 
 
-    offset+=fwrite(sum_mac_str,1,valid,license_key);
+
     offset+=fwrite(sum_of_blocks_str,1,valid,license_key);
 
     fclose(license_key);
