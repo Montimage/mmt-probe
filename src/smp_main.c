@@ -1,7 +1,7 @@
 /*
  * File:   main.c
 
- *  gcc -gdwarf-2 -o probe src/smp_main.c  src/processing.c src/web_session_report.c src/thredis.c src/send_msg_to_file.c src/send_msg_to_redis.c src/ip_statics.c src/rtp_session_report.c src/ftp_session_report.c src/event_based_reporting.c src/protocols_report.c src/ssl_session_report.c src/default_app_session_report.c src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c src/parseoptions.c -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
+ *  gcc -gdwarf-2 -o probe src/smp_main.c  src/processing.c src/web_session_report.c src/thredis.c src/send_msg_to_file.c src/send_msg_to_redis.c src/ip_statics.c src/rtp_session_report.c src/ftp_session_report.c src/event_based_reporting.c src/protocols_report.c src/ssl_session_report.c src/default_app_session_report.c src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c src/parseoptions.c src/license.c -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
 
 
  * Author: montimage
