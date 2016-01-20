@@ -268,7 +268,7 @@ int license_expiry_check(){
             int valid_mac = gethostMACaddress(read_mac_address,no_of_mac);
 
             if (valid_mac==0){
-                snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,%d,%s,%lu.%lu",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,BUY_MMT_LICENSE_FOR_THIS_DEVICE,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec);
+                snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,%d,\"%s\",%lu.%lu",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,BUY_MMT_LICENSE_FOR_THIS_DEVICE,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec);
 
                 license_message[ MAX_MESS ] = '\0';
                 if (probe_context->output_to_file_enable==1)send_message_to_file (license_message);
@@ -282,7 +282,7 @@ int license_expiry_check(){
             }
 
             if (seconds <= 0){
-                snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,%d,%s,%lu.%lu",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_EXPIRED,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec);
+                snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,%d,\"%s\",%lu.%lu",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_EXPIRED,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec);
 
                 license_message[ MAX_MESS ] = '\0';
                 if (probe_context->output_to_file_enable==1)send_message_to_file (license_message);
@@ -296,14 +296,13 @@ int license_expiry_check(){
                         "\t**************************************\n\n",yr,mn,dy);
                 return 1;
             }
-            snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,%d,%s,%lu.%lu",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_INFO,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec);
+            snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,%d,\"%s\",%lu.%lu",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_INFO,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec);
             license_message[ MAX_MESS ] = '\0';
             if (probe_context->output_to_file_enable==1)send_message_to_file (license_message);
             if (probe_context->redis_enable==1)send_message_to_redis ("license.stat", license_message);
             //Seven days =7*24*60*60
             if ( seconds<=604800 && seconds>0){
-                //snprintf(license_message, MAX_MESS,"%u,%d,%04d/%02d/%02d,%d,%s",30,MMT_LICENSE_WILL_EXPIRE_SOON,yr,mn,dy,no_of_mac,mac_address);
-                snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,%d,%s,%lu.%lu",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_WILL_EXPIRE_SOON,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec);
+                snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,%d,\"%s\",%lu.%lu",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_WILL_EXPIRE_SOON,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec);
                 license_message[ MAX_MESS ] = '\0';
                 if (probe_context->output_to_file_enable==1)send_message_to_file (license_message);
                 if (probe_context->redis_enable==1)send_message_to_redis ("license.stat", license_message);
@@ -318,7 +317,7 @@ int license_expiry_check(){
 
         }else{
 
-            snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,%d,%s,%lu.%lu",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_MODIFIED,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec);
+            snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,%d,\"%s\",%lu.%lu",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_MODIFIED,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec);
 
             license_message[ MAX_MESS ] = '\0';
             if (probe_context->output_to_file_enable==1)send_message_to_file (license_message);
