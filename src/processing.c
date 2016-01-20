@@ -254,7 +254,7 @@ void packet_handler(const ipacket_t * ipacket, void * args) {
     if (probe_context.ftp_reconstruct_enable==1)
         reconstruct_data(ipacket);
 
-    //printf("ipacket_id=%lu\n",ipacket->packet_id);
+    printf("ipacket_id=%lu\n",ipacket->packet_id);
     if ((ipacket->p_hdr->ts.tv_sec - last_report_time) >= probe_context.stats_reporting_period) {
         if (probe_context.enable_proto_stats==1)iterate_through_protocols(protocols_stats_iterator, (void *) ipacket->mmt_handler);
         iterate_through_ip( ipacket->mmt_handler);

@@ -86,7 +86,7 @@ int gethostMACaddress(char *read_mac_address,int no_of_mac){
 }
 
 int license_expiry_check(int status){
-    //struct tm *tm;
+   //struct tm *tm;
     struct tm expiry_time;
     time_t now;
     now=time(0);
@@ -97,14 +97,14 @@ int license_expiry_check(int status){
     char year[5];
     char month[3];
     char day[3];
-    char no_of_mac_address[3];
+    char no_of_mac_address[4];
     char *read_mac_address;
     int no_of_mac;
     int offset=0;
-    char block1[10];
-    char block2[10];
-    char block3[10];
-    char block4[10];
+    char block1[11];
+    char block2[11];
+    char block3[11];
+    char block4[11];
     char license_message[MAX_MESS + 1];
 
     mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -139,10 +139,10 @@ int license_expiry_check(int status){
         long int date = atoi(year)*atoi(month)*atoi(day);
 
         valid=snprintf(message,MAX,"%lu",date);
-        message[MAX]='\0';
+        message[valid]='\0';
 
         char * key;
-        key=malloc(valid*sizeof(char));
+        key=malloc((valid+1)*sizeof(char));
 
         fseek(license_key,offset,SEEK_SET);
         offset+=fread(block2,1,10,license_key);
@@ -170,14 +170,19 @@ int license_expiry_check(int status){
         no_of_mac=atoi(no_of_mac_address);
         //printf("no_of_mac=%d\n",no_of_mac);
 
-        read_mac_address=malloc(sizeof(char)* no_of_mac*12);
-        memset(read_mac_address,'\0',no_of_mac*12);
+
+        int mac_length=0;
+        mac_length=no_of_mac*12;
+
+        read_mac_address=malloc(sizeof(char)* mac_length+1);
+        memset(read_mac_address,0,mac_length);
         fseek(license_key,offset,SEEK_SET);
-        offset+=fread(read_mac_address,1,no_of_mac*12,license_key);
-        read_mac_address[no_of_mac*12]='\0';
+        offset+=fread(read_mac_address,1,mac_length,license_key);
+        read_mac_address[mac_length]='\0';
+
 
         char * mac_address;
-        mac_address=malloc(sizeof(char)*no_of_mac*13);
+        mac_address=malloc(sizeof(char)*no_of_mac*13+1);
 
         int j=0;
         int offset_mac_read=0;
@@ -188,6 +193,7 @@ int license_expiry_check(int status){
             offset_mac_write+=13;
             offset_mac_read+=12;
         }
+        mac_address[no_of_mac*13]='\0';
         //printf("MAC address=%s",mac_address);
 
         fseek(license_key,offset,SEEK_SET);
@@ -206,14 +212,14 @@ int license_expiry_check(int status){
 
         char * sum_mac_str;
 
-        sum_mac_str= malloc(sizeof(char)*10);
+        sum_mac_str= malloc(sizeof(char)*20);
 
-        memset(sum_mac_str,'\0',10);
-        valid1=snprintf(sum_mac_str,10,"%lu",sum_mac);
+        memset(sum_mac_str,'0',10);
+        valid1=snprintf(sum_mac_str,20,"%lu",sum_mac);
         sum_mac_str[valid1]='\0';
 
         char * read_sum_mac;
-        read_sum_mac=malloc(sizeof(char)* valid1);
+        read_sum_mac=malloc(sizeof(char)* valid1+1);
         fseek(license_key,offset,SEEK_SET);
         offset+=fread(read_sum_mac,1,valid1,license_key);
         read_sum_mac[valid1]='\0';
@@ -230,16 +236,16 @@ int license_expiry_check(int status){
 
         char * sum_block_str;
 
-        sum_block_str= malloc(sizeof(char)*10);
+        sum_block_str= malloc(sizeof(char)*20);
 
-        memset(sum_block_str,'\0',10);
-        valid2=snprintf(sum_block_str,10,"%lu",sum_of_blocks);
+        memset(sum_block_str,'0',20);
+        valid2=snprintf(sum_block_str,20,"%lu",sum_of_blocks);
         sum_block_str[valid2]='\0';
 
         //printf("sum__blocks_str=%s\n",sum_block_str);
 
         char * read_sum_block;
-        read_sum_block=malloc(sizeof(char)* valid2);
+        read_sum_block=malloc(sizeof(char)* valid2+1);
         fseek(license_key,offset,SEEK_SET);
         fread(read_sum_block,1,valid2,license_key);
         read_sum_block[valid2]='\0';
@@ -247,6 +253,7 @@ int license_expiry_check(int status){
         //printf("sum_of_blocks_read=%s\n",read_sum_block);
 
         fclose (license_key);
+
         //calculate difference in seconds between two dates
         expiry_time = * localtime(&now);
         double seconds;
@@ -344,7 +351,6 @@ int license_expiry_check(int status){
                 "\t*   Contact: contact@montimage.com  *\n"
                 "\t**************************************\n\n");
         return 1;
-
     }
 
 
