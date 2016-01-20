@@ -241,7 +241,7 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
             ((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_sec= ipacket->p_hdr->ts.tv_sec;
             ((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_usec=ipacket->p_hdr->ts.tv_usec;
             snprintf(message, MAX_MESS,
-                    "%u,%u,\"%s\",%lu.%lu,%"PRIu64",\"%s\",\"%s\",%hu,%hu,%"PRIu8",%"PRIu8",%s,%s,%"PRIu32",%s,%lu.%lu,%lu.%lu",
+                    "%u,%u,\"%s\",%lu.%lu,%"PRIu64",\"%s\",\"%s\",%hu,%hu,%"PRIu8",%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%lu.%lu,%lu.%lu",
                     probe_context->ftp_reconstruct_id,probe_context->probe_id_number, probe_context->input_source, end_time.tv_sec, end_time.tv_usec,session_id,
                     ip_dst_str, ip_src_str,
                     temp_session->serverport, temp_session->clientport,
@@ -378,7 +378,7 @@ void print_ftp_app_format(const mmt_session_t * expired_session,probe_internal_t
 }
 void print_initial_ftp_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid){
     snprintf(&message[valid], MAX_MESS-valid,
-            ",%u,%u,%"PRIu8",%s,%s,%"PRIu32",%s,%"PRIu8"",
+            ",%u,%u,%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%"PRIu8"",
             p->ip_temp_session->app_format_id,get_application_class_by_protocol_id(p->proto_stats->proto_hierarchy->proto_path[(p->proto_stats->proto_hierarchy->len <= 16)?(p->proto_stats->proto_hierarchy->len - 1):(16 - 1)]),
             ((ftp_session_attr_t*) p->ip_temp_session->app_data)->session_conn_type,
             ((ftp_session_attr_t*) p->ip_temp_session->app_data)->session_username,
