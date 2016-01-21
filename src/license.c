@@ -182,18 +182,24 @@ int license_expiry_check(int status){
 
 
         char * mac_address;
-        mac_address=malloc(sizeof(char)*no_of_mac*13+1);
+        mac_address=malloc(sizeof(char)*no_of_mac*13);
 
         int j=0;
         int offset_mac_read=0;
         int offset_mac_write=0;
         for (j=1;j<=no_of_mac;j++){
             strncpy(&mac_address[offset_mac_write],&read_mac_address[offset_mac_read],12);
-            if (j!=no_of_mac)mac_address[12+offset_mac_write]=',';
-            offset_mac_write+=13;
-            offset_mac_read+=12;
+            if (j!=no_of_mac){
+            	mac_address[12+offset_mac_write]=',';
+                offset_mac_write+=13;
+                offset_mac_read+=12;
+            }else{
+            	offset_mac_write+=12;
+            	offset_mac_read+=12;
+            }
+
         }
-        mac_address[no_of_mac*13]='\0';
+        mac_address[offset_mac_write]='\0';
         //printf("MAC address=%s",mac_address);
 
         fseek(license_key,offset,SEEK_SET);
