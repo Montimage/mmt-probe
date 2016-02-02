@@ -500,75 +500,75 @@ void ip_get_session_attr(const ipacket_t * ipacket){
     }
 }
 void iterate_through_expired_session(ip_statistics_t *p){
-    ip_proto_statistics_t *proto_stats;
-    char message[MAX_MESS + 1];
-    //struct timeval ts = get_last_activity_time(mmt_handler);
+	ip_proto_statistics_t *proto_stats;
+	char message[MAX_MESS + 1];
+	//struct timeval ts = get_last_activity_time(mmt_handler);
 
-    struct timeval now;
-    gettimeofday(&now,NULL);
+	struct timeval now;
+	gettimeofday(&now,NULL);
 
-    uint64_t number_flows=get_number_active_flows_from_ip();
-    mmt_probe_context_t * probe_context = get_probe_context_config();
-    proto_stats = p->proto_stats;
-    //for each protocol of the pair
-    while( proto_stats != NULL){
-        char path[128];
-        char ip_src_str[46]={0};
-        char ip_dst_str[46]={0};
-        char * src_mac, * dst_mac;
-        src_mac = get_prety_mac_address( proto_stats->src_mac );
-        dst_mac = get_prety_mac_address( proto_stats->dst_mac );
-        if (p->session->ipversion==4) {
-            inet_ntop(AF_INET, (void *) p->session->ipsrc, ip_src_str, INET_ADDRSTRLEN);
-            inet_ntop(AF_INET, (void *) p->session->ipdst, ip_dst_str, INET_ADDRSTRLEN);
-        } else if (p->session->ipversion==6){
-            inet_ntop(AF_INET6, (void *) p->session->ipsrc, ip_src_str, INET6_ADDRSTRLEN);
-            inet_ntop(AF_INET6, (void *) p->session->ipdst, ip_dst_str, INET6_ADDRSTRLEN);
-        }else{
-            strncpy(ip_src_str,(char *)p->session->ipsrc,9);
-            strncpy(ip_dst_str,(char *)p->session->ipdst,9);
-        }
-        int proto_id = proto_stats->proto_hierarchy->proto_path[ proto_stats->proto_hierarchy->len - 1 ];
-        proto_hierarchy_ids_to_str(proto_stats->proto_hierarchy, path);
+	uint64_t number_flows=get_number_active_flows_from_ip();
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+	proto_stats = p->proto_stats;
+	//for each protocol of the pair
+	while( proto_stats != NULL){
+		char path[128];
+		char ip_src_str[46]={0};
+		char ip_dst_str[46]={0};
+		char * src_mac, * dst_mac;
+		src_mac = get_prety_mac_address( proto_stats->src_mac );
+		dst_mac = get_prety_mac_address( proto_stats->dst_mac );
+		if (p->session->ipversion==4) {
+			inet_ntop(AF_INET, (void *) p->session->ipsrc, ip_src_str, INET_ADDRSTRLEN);
+			inet_ntop(AF_INET, (void *) p->session->ipdst, ip_dst_str, INET_ADDRSTRLEN);
+		} else if (p->session->ipversion==6){
+			inet_ntop(AF_INET6, (void *) p->session->ipsrc, ip_src_str, INET6_ADDRSTRLEN);
+			inet_ntop(AF_INET6, (void *) p->session->ipdst, ip_dst_str, INET6_ADDRSTRLEN);
+		}else{
+			strncpy(ip_src_str,(char *)p->session->ipsrc,9);
+			strncpy(ip_dst_str,(char *)p->session->ipdst,9);
+		}
+		int proto_id = proto_stats->proto_hierarchy->proto_path[ proto_stats->proto_hierarchy->len - 1 ];
+		proto_hierarchy_ids_to_str(proto_stats->proto_hierarchy, path);
 
-        if (proto_stats->touched == 1){
-            int valid=0;
-            int sslindex;
-            valid=snprintf(message, MAX_MESS,
-                    "%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIi64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%"PRIu16",%"PRIu16"",
-                    MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, now.tv_sec, now.tv_usec,
-                    proto_id, path, number_flows,
-                    //Total
-                    proto_stats->data_volume, proto_stats->payload_volume,proto_stats->packets_count,
-                    //UL
-                    proto_stats->data_volume_direction[0], proto_stats->payload_volume_direction[0],proto_stats->packets_count_direction[0],
-                    //DL
-                    proto_stats->data_volume_direction[1], proto_stats->payload_volume_direction[1],proto_stats->packets_count_direction[1],
-                    //Timestamp (seconds.micros) corresponding to the time when the flow was detected (first packet of the flow).
-                    proto_stats->start_timestamp.tv_sec, proto_stats->start_timestamp.tv_usec,
-                    //IP and MAC addresses
-                    ip_dst_str,ip_src_str,src_mac,dst_mac,p->session->session_id,p->session->serverport, p->session->clientport);
-            if (p->session->session_id !=0) {
-                if (p->ip_temp_session->app_format_id==probe_context->web_id && p->counter==0 && probe_context->web_enable==1) print_initial_web_report(p,message,valid);
-                else if (p->ip_temp_session->app_format_id==probe_context->rtp_id && p->counter==0 && probe_context->rtp_enable==1) print_initial_rtp_report(p,message,valid);
-                else if (p->ip_temp_session->app_format_id==probe_context->ssl_id && p->counter==0 && probe_context->ssl_enable==1) print_initial_ssl_report(p,message,valid);
-                else if (p->ip_temp_session->app_format_id==probe_context->ftp_id && p->counter==0 && probe_context->ftp_enable==1) print_initial_ftp_report(p,message,valid);
-                else if(p->counter==0 && p->session->session_id !=0){
-                    sslindex = get_protocol_index_from_session(p->proto_stats->proto_hierarchy, PROTO_SSL);
-                    if (sslindex != -1) print_initial_ssl_report(p,message,valid);
-                    else print_initial_default_report(p,message,valid);
-                }
-            }
+		if (proto_stats->touched == 1){
+			int valid=0;
+			int sslindex;
+			valid=snprintf(message, MAX_MESS,
+					"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIi64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%"PRIi64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%"PRIu16",%"PRIu16"",
+					MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, now.tv_sec, now.tv_usec,
+					proto_id, path, number_flows,
+					//Total
+					proto_stats->data_volume, proto_stats->payload_volume,proto_stats->packets_count,
+					//UL
+					proto_stats->data_volume_direction[0], proto_stats->payload_volume_direction[0],proto_stats->packets_count_direction[0],
+					//DL
+					proto_stats->data_volume_direction[1], proto_stats->payload_volume_direction[1],proto_stats->packets_count_direction[1],
+					//Timestamp (seconds.micros) corresponding to the time when the flow was detected (first packet of the flow).
+					proto_stats->start_timestamp.tv_sec, proto_stats->start_timestamp.tv_usec,
+					//IP and MAC addresses
+					ip_dst_str,ip_src_str,src_mac,dst_mac,p->session->session_id,p->session->serverport, p->session->clientport);
+			if (p->session->session_id !=0) {
+				if (p->ip_temp_session->app_format_id==probe_context->web_id && p->counter==0 && probe_context->web_enable==1) print_initial_web_report(p,message,valid);
+				else if (p->ip_temp_session->app_format_id==probe_context->rtp_id && p->counter==0 && probe_context->rtp_enable==1) print_initial_rtp_report(p,message,valid);
+				else if (p->ip_temp_session->app_format_id==probe_context->ssl_id && p->counter==0 && probe_context->ssl_enable==1) print_initial_ssl_report(p,message,valid);
+				else if (p->ip_temp_session->app_format_id==probe_context->ftp_id && p->counter==0 && probe_context->ftp_enable==1) print_initial_ftp_report(p,message,valid);
+				else if(p->counter==0 && p->session->session_id !=0){
+					sslindex = get_protocol_index_from_session(p->proto_stats->proto_hierarchy, PROTO_SSL);
+					if (sslindex != -1) print_initial_ssl_report(p,message,valid);
+					else print_initial_default_report(p,message,valid);
+				}
+			}
 
-            message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-            //send_message_to_file ("protocol.flow.stat", message);
-            if (probe_context->output_to_file_enable==1)send_message_to_file (message);
-            if (probe_context->redis_enable==1)send_message_to_redis ("protocol.flow.stat", message);
+			message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
+			//send_message_to_file ("protocol.flow.stat", message);
+			if (probe_context->output_to_file_enable==1)send_message_to_file (message);
+			if (probe_context->redis_enable==1)send_message_to_redis ("protocol.flow.stat", message);
 
-        }
+		}
 
-        proto_stats = proto_stats->next;
-    }
+		proto_stats = proto_stats->next;
+	}
 
 }
 void classification_expiry_session(const mmt_session_t * expired_session, void * args) {

@@ -8,13 +8,6 @@
 #include "mmt_core.h"
 #include "processing.h"
 #define MAX_MESS 2000
-/*
-#define BUY_MMT_LICENSE_FOR_THIS_DEVICE 01
-#define MMT_LICENSE_EXPIRED 02
-#define MMT_LICENSE_WILL_EXPIRE 03
-#define MMT_LICENSE_MODIFIED 04
-#define MMT_LICENSE_KEY_DOES_NOT_EXIST 05
-*/
 
 enum license_messages {
     BUY_MMT_LICENSE_FOR_THIS_DEVICE=1,
@@ -71,16 +64,21 @@ int gethostMACaddress(char *read_mac_address,int no_of_mac){
                         memcpy(licensed_MAC,&read_mac_address[offset],12);
                         licensed_MAC[12]='\0';
                         //printf("licensed_MAC=%s\n",licensed_MAC);
-                        if(strncmp(message,licensed_MAC,12)==0) return 1;
+                        if(strncmp(message,licensed_MAC,12)==0){
+                        	free(message);
+                            free(mac_address);
+                        return 1;
+                        }
                         offset+=12;
                     }
-
                     offset=0;
                 }
             }
         }
         else {  /*handle error*/  }
     }
+    free(message);
+    free(mac_address);
     return 0;
 }
 
@@ -111,7 +109,6 @@ int license_expiry_check(int status){
     //convert timeval time into epoch time
     struct timeval current_time;
     gettimeofday (&current_time, NULL);
-
 
     static char file [256+1]={0};
     strcpy(file,"License_key.txt");
@@ -344,6 +341,12 @@ int license_expiry_check(int status){
                     "\t**************************************\n\n");
             return 1;
         }
+        free(mac_address);
+        free(key);
+        free(read_sum_mac);
+        free(sum_mac_str);
+        free(sum_block_str);
+        free(read_sum_block);
 
     }else{
         snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_KEY_DOES_NOT_EXIST);
@@ -358,6 +361,7 @@ int license_expiry_check(int status){
                 "\t**************************************\n\n");
         return 1;
     }
+free(read_mac_address);
 
 
     return 0;
