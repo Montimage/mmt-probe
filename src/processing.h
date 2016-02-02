@@ -36,7 +36,7 @@ extern "C" {
 #define MMT_RADIUS_IP_MSISDN_PRESENT 0x1
 
 #define MMT_USER_AGENT_THRESHOLD 0x20 //32KB
-#define MAX_MESS 2000
+#define MAX_MESS 3000
 
 enum os_id {
     OS_UKN, //Unknown

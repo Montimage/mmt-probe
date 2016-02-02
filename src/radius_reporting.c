@@ -8,8 +8,6 @@
 #include "mmt/tcpip/mmt_tcpip_protocols.h"
 #include "processing.h"
 
-#define MAX_MESS 2000
-
 struct mmt_location_info_struct {
     uint32_t field_len;
     uint32_t opaque;

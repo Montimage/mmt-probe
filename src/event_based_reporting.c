@@ -10,8 +10,6 @@
 #include "mmt_core.h"
 #include "processing.h"
 
-#define MAX_MESS 2000
-
 void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     int j;
     attribute_t * attr_extract;

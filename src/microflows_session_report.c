@@ -11,7 +11,6 @@
 #include "mmt/tcpip/mmt_tcpip_protocols.h"
 #include "processing.h"
 
-#define MAX_MESS 2000
 /**
  * Returns 1 if the given session is a microflow, O otherwise
  * @param expired_session pointer to the session context to check

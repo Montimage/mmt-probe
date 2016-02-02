@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include "mmt_core.h"
 #include "processing.h"
-#define MAX_MESS 2000
 
 enum license_messages {
     BUY_MMT_LICENSE_FOR_THIS_DEVICE=1,
@@ -72,13 +71,14 @@ int gethostMACaddress(char *read_mac_address,int no_of_mac){
                         offset+=12;
                     }
                     offset=0;
+                    free(message);
+                    free(mac_address);
                 }
             }
         }
         else {  /*handle error*/  }
     }
-    free(message);
-    free(mac_address);
+
     return 0;
 }
 

@@ -67,8 +67,6 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt) {
 #endif
 
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
-#define MAX_MESS 2000
-
 
 char * get_prety_mac_address( const uint8_t *ea ){
     int valid=0;

@@ -127,6 +127,7 @@ void reset_ip_proto_stat( ip_proto_statistics_t *stats ){
     stats->data_volume_direction[1]    = 0;
     stats->payload_volume_direction[0] = 0;
     stats->payload_volume_direction[1] = 0;
+
 }
 
 void iterate_through_ip( mmt_handler_t *mmt_handler ){
@@ -241,6 +242,7 @@ void get_MAC_address_from_ip(const ipacket_t * ipacket,ip_proto_statistics_t *pr
         }
 
     }
+
 
 }
 
@@ -617,10 +619,15 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
               if(p==ip_stat_root){
                   if (p->proto_stats!= NULL) {
                       //Free the protocol specific data
-                      free(p->proto_stats);
+                      free(p->proto_stats->src_mac);
+                      free(p->proto_stats->dst_mac);
+                      free(p->proto_stats->proto_hierarchy);
+                	  free(p->proto_stats);
                   }
                   if (p->session!= NULL) {
                       //Free the session specific data
+                	  free(p->session->ipsrc);
+                	  free(p->session->ipdst);
                       free(p->session);
                   }
                   ip_stat_root=p->next;
@@ -631,10 +638,15 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 
               if (p->proto_stats!= NULL) {
                   //Free the protocol specific data
+                  free(p->proto_stats->src_mac);
+                  free(p->proto_stats->dst_mac);
+                  free(p->proto_stats->proto_hierarchy);
                   free(p->proto_stats);
               }
               if (p->session!= NULL) {
                   //Free the session specific data
+            	  free(p->session->ipsrc);
+            	  free(p->session->ipdst);
                   free(p->session);
               }
               free(p);

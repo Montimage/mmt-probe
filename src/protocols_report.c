@@ -11,9 +11,6 @@
 #include "mmt/tcpip/mmt_tcpip_protocols.h"
 #include "processing.h"
 
-#define MAX_MESS 2000
-
-
 void protocols_stats_iterator(uint32_t proto_id, void * args) {
     //FILE * out_file = (probe_context->data_out_file != NULL) ? probe_context->data_out_file : stdout;
     char message[MAX_MESS + 1];
