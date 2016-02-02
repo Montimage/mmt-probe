@@ -76,9 +76,13 @@ int compare_ip(unsigned char * a, unsigned char * b,int ipversion){
 }
 
 void print_mac( unsigned char *m1, unsigned char *m2 ){
-    printf("%s - %s",
-            get_prety_mac_address( m1 ),
-            get_prety_mac_address( m2 ));
+    char *b1=NULL;
+    char *b2=NULL;
+    b1=get_prety_mac_address( m1 );
+    b2=get_prety_mac_address( m2 );
+	printf("%s - %s", b1, b2);
+    free(b1);
+    free(b2);
 }
 
 uint64_t get_number_active_flows_from_ip(){
@@ -140,14 +144,15 @@ void iterate_through_ip( mmt_handler_t *mmt_handler ){
     //for each pair (ip src, ip dst)
     while(p != NULL){
         proto_stats = p->proto_stats;
+        char * src_mac, * dst_mac;
+        src_mac = get_prety_mac_address( proto_stats->src_mac );
+        dst_mac = get_prety_mac_address( proto_stats->dst_mac );
         //for each protocol of the pair
         while( proto_stats != NULL){
             char path[128];
             char ip_src_str[46]={0};
             char ip_dst_str[46]={0};
-            char * src_mac, * dst_mac;
-            src_mac = get_prety_mac_address( proto_stats->src_mac );
-            dst_mac = get_prety_mac_address( proto_stats->dst_mac );
+
             if (p->session->ipversion==4) {
                 inet_ntop(AF_INET, (void *) p->session->ipsrc, ip_src_str, INET_ADDRSTRLEN);
                 inet_ntop(AF_INET, (void *) p->session->ipdst, ip_dst_str, INET_ADDRSTRLEN);
@@ -200,6 +205,8 @@ void iterate_through_ip( mmt_handler_t *mmt_handler ){
             proto_stats = proto_stats->next;
         }
         p = p->next;
+        if (src_mac!=NULL) free(src_mac);
+        if (dst_mac!=NULL) free(dst_mac);
     }
 }
 
@@ -335,12 +342,12 @@ ip_statistics_t * create_and_init_ip_stat (const ipacket_t * ipacket,unsigned ch
 
         if(ip_stat->session->ipversion==4){
             unsigned char *tmp;
-            tmp = malloc( sizeof( unsigned char )*4 );
+            tmp = malloc( sizeof( unsigned char )*5 );
             memcpy(tmp, src, 4);
             tmp[4]='\0';
             ip_stat->session->ipsrc = tmp;
 
-            tmp = malloc( sizeof( unsigned char )*4 );
+            tmp = malloc( sizeof( unsigned char )*5 );
             memcpy(tmp, dst, 4);
             tmp[4]='\0';
             ip_stat->session->ipdst = tmp;
@@ -360,12 +367,12 @@ ip_statistics_t * create_and_init_ip_stat (const ipacket_t * ipacket,unsigned ch
 
         }else if(ip_stat->session->ipversion==6){
             unsigned char *tmp;
-            tmp = malloc( sizeof( unsigned char )*16 );
+            tmp = malloc( sizeof( unsigned char )*17 );
             memcpy(tmp, src, 16);
             tmp[16]='\0';
             ip_stat->session->ipsrc = tmp;
 
-            tmp = malloc( sizeof( unsigned char )*16 );
+            tmp = malloc( sizeof( unsigned char )*17 );
             memcpy(tmp, dst, 16);
             tmp[16]='\0';
             ip_stat->session->ipdst = tmp;
@@ -383,12 +390,12 @@ ip_statistics_t * create_and_init_ip_stat (const ipacket_t * ipacket,unsigned ch
 
         }else{
             unsigned char *tmp;
-            tmp = malloc( sizeof( unsigned char )*13 );
+            tmp = malloc( sizeof( unsigned char )*14 );
             memcpy(tmp, src, 13);
             tmp[13]='\0';
             ip_stat->session->ipsrc = tmp;
 
-            tmp = malloc( sizeof( unsigned char )*13 );
+            tmp = malloc( sizeof( unsigned char )*14 );
             memcpy(tmp, dst, 13);
             tmp[13]='\0';
             ip_stat->session->ipdst = tmp;

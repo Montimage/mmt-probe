@@ -42,13 +42,13 @@ void main(){
      * Provide expiry date of the license in year,month and date
      * */
     char year[4]="2016";//4-digits
-    char month[2]="01";//2-digits
+    char month[2]="02";//2-digits
     char day[2]="30";//2-digits
     /*
      * Provide number of mac address (3 digits) and 12 digit MAC addresses separated by "-" of the machine for the license
      */
     char no_of_mac_address[3]= "002";//3-digits
-    char * write_mac_address ="B8CA3ACD5A27-001300000000";//12 digit MAC addresses separated by "-" in uppercase
+    char * write_mac_address ="001300000000-B8CA3ACD5A27";//12 digit MAC addresses separated by "-" in uppercase
     int offset=0;
     /*
      * This blocks contains no information but are used to make the license key difficult to read

@@ -34,6 +34,7 @@ char * str_replace_all_char(const char *str,int c1, int c2){
 void write_data_to_file (const ipacket_t * ipacket,const char * path, const char * content, int len, uint32_t * file_size) {
     int fd = 0,MAX=200;
     char filename[len];
+    char * path2=NULL;
 
     static uint32_t total_len=0;
     static time_t download_start_time_sec =0, download_start_time_usec=0;
@@ -47,16 +48,16 @@ void write_data_to_file (const ipacket_t * ipacket,const char * path, const char
 
     }
 
-    path = str_replace_all_char(path,'/','_');
+    path2 = str_replace_all_char(path2,'/','_');
     snprintf(filename,MAX, "%s%lu.%lu_%s",probe_context->ftp_reconstruct_output_location,download_start_time_sec,download_start_time_usec,path);
     filename[MAX]='\0';
 
 
     if ( (fd = open ( filename , O_CREAT | O_WRONLY | O_APPEND | O_NOFOLLOW , S_IRWXU | S_IRWXG | S_IRWXO )) < 0 ){
-        fprintf ( stderr , "\n Error %d writting data to \"%s\": %s" , errno , path , strerror( errno ) );
+        fprintf ( stderr , "\n Error %d writting data to \"%s\": %s" , errno , path2 , strerror( errno ) );
         return;
     }
-
+    if(path2 != NULL) free (path2);
     if(len>0){
         printf("Going to write to file: %s\n",filename);
         printf("Data len: %d\n",len);

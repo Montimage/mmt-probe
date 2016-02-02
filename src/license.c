@@ -36,7 +36,7 @@ int gethostMACaddress(char *read_mac_address,int no_of_mac){
     unsigned char * mac_address;
     char * message;
 
-    message=malloc(sizeof(char)*12);
+    message=malloc(sizeof(char)*13);
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
 
     if (sock == -1) {  /*handle error*/ };
@@ -50,7 +50,6 @@ int gethostMACaddress(char *read_mac_address,int no_of_mac){
 
     //int i=0;
     int offset=0;
-    int valid=0;
     for (; it != end; ++it) {
         strcpy(ifr.ifr_name, it->ifr_name);
         mac_address= (unsigned char*)malloc(7);
@@ -58,7 +57,7 @@ int gethostMACaddress(char *read_mac_address,int no_of_mac){
 
         //printf("%s\n",it->ifr_name);
 
-        char licensed_MAC[12];
+        char licensed_MAC[13];
 
         if (ioctl(sock, SIOCGIFFLAGS, &ifr) == 0) {
 
@@ -66,8 +65,8 @@ int gethostMACaddress(char *read_mac_address,int no_of_mac){
                 if (ioctl(sock, SIOCGIFHWADDR, &ifr) == 0) {
                     memcpy(mac_address, ifr.ifr_hwaddr.sa_data, 6);
                     mac_address[6]='\0';
-                    valid=snprintf(message,13,"%.2X%.2X%.2X%.2X%.2X%.2X", mac_address[0],mac_address[1],mac_address[2],mac_address[3],mac_address[4],mac_address[5]);
-                    message[valid]='\0';
+                    snprintf(message,13,"%.2X%.2X%.2X%.2X%.2X%.2X", mac_address[0],mac_address[1],mac_address[2],mac_address[3],mac_address[4],mac_address[5]);
+                    message[12]='\0';
                     for (j=0;j<no_of_mac;j++){
                         memcpy(licensed_MAC,&read_mac_address[offset],12);
                         licensed_MAC[12]='\0';
@@ -138,7 +137,7 @@ int license_expiry_check(int status){
 
         long int date = atoi(year)*atoi(month)*atoi(day);
 
-        valid=snprintf(message,MAX,"%lu",date);
+        valid=snprintf(message,MAX,"%li",date);
         message[valid]='\0';
 
         char * key;
@@ -220,12 +219,13 @@ int license_expiry_check(int status){
 
         sum_mac_str= malloc(sizeof(char)*20);
 
-        memset(sum_mac_str,'0',10);
-        valid1=snprintf(sum_mac_str,20,"%lu",sum_mac);
+        memset(sum_mac_str,'0',20);
+        valid1=snprintf(sum_mac_str,20,"%li",sum_mac);
+
         sum_mac_str[valid1]='\0';
 
         char * read_sum_mac;
-        read_sum_mac=malloc(sizeof(char)* valid1+1);
+        read_sum_mac=malloc(sizeof(char)* (valid1+1));
         fseek(license_key,offset,SEEK_SET);
         offset+=fread(read_sum_mac,1,valid1,license_key);
         read_sum_mac[valid1]='\0';
@@ -251,7 +251,7 @@ int license_expiry_check(int status){
         //printf("sum__blocks_str=%s\n",sum_block_str);
 
         char * read_sum_block;
-        read_sum_block=malloc(sizeof(char)* valid2+1);
+        read_sum_block=malloc(sizeof(char)* (valid2+1));
         fseek(license_key,offset,SEEK_SET);
         fread(read_sum_block,1,valid2,license_key);
         read_sum_block[valid2]='\0';

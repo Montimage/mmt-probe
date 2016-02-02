@@ -53,7 +53,6 @@
 #define MAX_FILE_NAME 500
 static int okcode  = EXIT_SUCCESS;
 static int errcode = EXIT_FAILURE;
-extern void end_file();
 
 struct mmt_probe_struct {
     struct smp_thread *smp_threads;
@@ -792,7 +791,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 
     //If the files are not created this will return error,remove_lock_file();
     if(mmt_conf->sampled_report==1){
-        end_file();
+    	flush_cache_and_exit_timers();
     }else if (mmt_conf->sampled_report==0){
         if (mmt_conf->behaviour_enable==1){
             behaviour_valid=snprintf(behaviour_command_str, MAX_FILE_NAME, "cp %s%s %s", mmt_conf->output_location,mmt_conf->data_out,mmt_conf->behaviour_output_location);

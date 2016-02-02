@@ -430,8 +430,11 @@ void todo_at_start(char *file_path);
 void reconstruct_data(const ipacket_t * ipacket );
 void todo_at_end();
 void init_mmt_security(mmt_handler_t *mmt_handler, char * property_file);
+void send_message (char * message);
 char * get_prety_mac_address( const uint8_t *ea );
-
+void flush_cache_and_exit_timers();
+void flush_messages_to_file( void * );
+int start_timer( uint32_t period, void *callback, void *user_data);
 
 
 //void register_web_attributes(void * handler);
@@ -476,9 +479,6 @@ void print_initial_rtp_report(ip_statistics_t *p, char message [MAX_MESS + 1],in
 void print_initial_ssl_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid);
 void print_initial_ftp_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid);
 void print_initial_default_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid);
-
-
-//typedef void (* license_expiry_function)(time_t present_time);
 
 int get_protocol_index_from_session(const proto_hierarchy_t * proto_hierarchy, uint32_t proto_id);
 

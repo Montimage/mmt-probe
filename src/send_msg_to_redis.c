@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
 #include "thredis.h"
@@ -16,11 +15,11 @@ static thredis_t* thredis = NULL;
  * @param hostname hostname of the redis server
  * @param port port number of the redis server
  *
- **/
+ *
 
-/**
- * In short, to subscribe to "localhost" channel:
- */
+*
+ * In short, to subscribe to "localhost" channel:*/
+
 
 void init_redis (char * hostname, int port) {
     struct timeval timeout = { 1, 500000 }; // 1.5 seconds

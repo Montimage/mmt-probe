@@ -69,6 +69,7 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt) {
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
 #define MAX_MESS 2000
 
+
 char * get_prety_mac_address( const uint8_t *ea ){
     int valid=0;
     if( ea == NULL )
@@ -146,7 +147,6 @@ static mmt_probe_context_t probe_context = {0};
 mmt_probe_context_t * get_probe_context_config() {
     return & probe_context;
 }
-
 
 void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     mmt_session_t * session = get_session_from_packet(ipacket);
@@ -242,8 +242,14 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
     set_user_session_context(session, temp_session);
 }
 
+static void iterate_packet( void *arg ){
+	if (probe_context.enable_proto_stats==1)iterate_through_protocols(protocols_stats_iterator, arg);
+	iterate_through_ip( (mmt_handler_t *)arg );
+}
+
 void packet_handler(const ipacket_t * ipacket, void * args) {
     static time_t last_report_time = 0;
+    static int is_start_timer = 0;
     ip_get_session_attr( ipacket );
 
     if (last_report_time == 0) {
@@ -254,12 +260,14 @@ void packet_handler(const ipacket_t * ipacket, void * args) {
     if (probe_context.ftp_reconstruct_enable==1)
         reconstruct_data(ipacket);
 
-    //printf("ipacket_id=%lu\n",ipacket->packet_id);
-    if ((ipacket->p_hdr->ts.tv_sec - last_report_time) >= probe_context.stats_reporting_period) {
-        if (probe_context.enable_proto_stats==1)iterate_through_protocols(protocols_stats_iterator, (void *) ipacket->mmt_handler);
-        iterate_through_ip( ipacket->mmt_handler);
-        last_report_time = ipacket->p_hdr->ts.tv_sec;
-    }
+	if( ! is_start_timer ){
+		start_timer(probe_context.stats_reporting_period, iterate_packet, ipacket->mmt_handler );
+		start_timer( probe_context.sampled_report_period, flush_messages_to_file, NULL );
+
+		is_start_timer = 1;
+	}
+
+
 }
 
 
