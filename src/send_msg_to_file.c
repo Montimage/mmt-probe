@@ -6,7 +6,6 @@
 #include <errno.h>
 #include <signal.h>
 #include <unistd.h>
-
 #include "mmt_core.h"
 #include "processing.h"
 #include <pthread.h>

@@ -76,10 +76,10 @@ int compare_ip(unsigned char * a, unsigned char * b,int ipversion){
 }
 
 void print_mac( unsigned char *m1, unsigned char *m2 ){
-    char *b1=NULL;
-    char *b2=NULL;
-    b1=get_prety_mac_address( m1 );
-    b2=get_prety_mac_address( m2 );
+    char *b1 = NULL;
+    char *b2 = NULL;
+    b1 = get_prety_mac_address( m1 );
+    b2 = get_prety_mac_address( m2 );
 	printf("%s - %s", b1, b2);
     free(b1);
     free(b2);
@@ -566,7 +566,8 @@ void iterate_through_expired_session(ip_statistics_t *p){
 			if (probe_context->redis_enable==1)send_message_to_redis ("protocol.flow.stat", message);
 
 		}
-
+        if (src_mac!=NULL) free(src_mac);
+        if (dst_mac!=NULL) free(dst_mac);
 		proto_stats = proto_stats->next;
 	}
 
