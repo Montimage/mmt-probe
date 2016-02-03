@@ -47,8 +47,8 @@ void main(){
     /*
      * Provide number of mac address (3 digits) and 12 digit MAC addresses separated by "-" of the machine for the license
      */
-    char no_of_mac_address[3]= "002";//3-digits
-    char * write_mac_address ="001300000000-B8CA3ACD5A27";//12 digit MAC addresses separated by "-" in uppercase
+    char no_of_mac_address[3]= "001";//3-digits
+    char * write_mac_address ="74867A6A9707";//12 digit MAC addresses separated by "-" in uppercase
     int offset=0;
     /*
      * This blocks contains no information but are used to make the license key difficult to read

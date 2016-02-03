@@ -42,34 +42,6 @@ int conf_parse_input_mode(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *r
     return 0;
 }
 
-/* parse values for the input-mode option */
-int conf_parse_radius_include_msg(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
-    if (strcmp(value, "ANY") == 0)
-        *(int *) result = MMT_RADIUS_REPORT_ALL;
-    else if (strcmp(value, "acct-req") == 0)
-        *(int *) result = 4;
-    else {
-        cfg_error(cfg, "invalid value for option '%s': %s", cfg_opt_name(opt), value);
-        return -1;
-    }
-    return 0;
-}
-
-/* parse values for the input-mode option */
-int conf_parse_radius_include_condition(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
-    if (strcmp(value, "IP-MSISDN") == 0)
-        *(int *) result = MMT_RADIUS_IP_MSISDN_PRESENT;
-    else if (strcmp(value, "NONE") == 0)
-        *(int *) result = MMT_RADIUS_ANY_CONDITION;
-    else if (strcmp(value, "") == 0)
-        *(int *) result = MMT_RADIUS_ANY_CONDITION;
-    else {
-        cfg_error(cfg, "invalid value for option '%s': %s", cfg_opt_name(opt), value);
-        return -1;
-    }
-    return 0;
-}
-
 cfg_t * parse_conf(const char *filename) {
     cfg_opt_t micro_flows_opts[] = {
             CFG_INT("enable", 0, CFGF_NONE),
@@ -120,10 +92,8 @@ cfg_t * parse_conf(const char *filename) {
 
     cfg_opt_t radius_output_opts[] = {
             CFG_INT("enable", 0, CFGF_NONE),
-            CFG_INT_CB("include-msg", MMT_RADIUS_REPORT_ALL, CFGF_NONE, conf_parse_radius_include_msg),
-            CFG_INT_CB("include-condition", MMT_RADIUS_ANY_CONDITION, CFGF_NONE, conf_parse_radius_include_condition),
-            //CFG_STR("include-msg", 0, CFGF_NONE),
-            //CFG_STR("include-condition", 0, CFGF_NONE),
+            CFG_INT("include-msg", 0, CFGF_NONE),
+            CFG_INT("include-condition", 0, CFGF_NONE),
             CFG_END()
     };
 

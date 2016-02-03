@@ -25,10 +25,11 @@ int gethostMACaddress(char *read_mac_address,int no_of_mac){
     struct ifconf ifc;
     char buf[1024];
     int j=0;
-    unsigned char * mac_address;
-    char * message;
+    unsigned char mac_address [7];
+    char message [13];
+    memset(mac_address,'0', 7);
+    memset(message, '0', 13);
 
-    message=malloc(sizeof(char)*13);
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
 
     if (sock == -1) {  /*handle error*/ };
@@ -44,8 +45,6 @@ int gethostMACaddress(char *read_mac_address,int no_of_mac){
     int offset=0;
     for (; it != end; ++it) {
         strcpy(ifr.ifr_name, it->ifr_name);
-        mac_address= (unsigned char*)malloc(7);
-        memset(mac_address,'0',7);
 
         //printf("%s\n",it->ifr_name);
 
@@ -64,21 +63,16 @@ int gethostMACaddress(char *read_mac_address,int no_of_mac){
                         licensed_MAC[12]='\0';
                         //printf("licensed_MAC=%s\n",licensed_MAC);
                         if(strncmp(message,licensed_MAC,12)==0){
-                        	free(message);
-                            free(mac_address);
-                        return 1;
+                            return 1;
                         }
                         offset+=12;
                     }
                     offset=0;
-                    free(message);
-                    free(mac_address);
                 }
             }
         }
         else {  /*handle error*/  }
     }
-
     return 0;
 }
 
@@ -113,8 +107,20 @@ int license_expiry_check(int status){
     static char file [256+1]={0};
     strcpy(file,"License_key.txt");
 
-    if((fopen("License_key.txt","r"))!=NULL) {
-        license_key= fopen(file, "r");
+    license_key= fopen(file, "r");
+    if(license_key == NULL) {
+        snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_KEY_DOES_NOT_EXIST);
+        license_message[ MAX_MESS ] = '\0';
+        if (probe_context->output_to_file_enable==1 && status ==0)send_message_to_file (license_message);
+        if (probe_context->redis_enable==1 && status ==0)send_message_to_redis ("license.stat", license_message);
+        printf("\n\t*************************************\n"
+                "\t*  MMT LICENSE KEY DOES-NOT EXIST   *\n"
+                "\t*          BUY MMT LICENSE          *\n"
+                "\t*   Website: http://montimage.com   *\n"
+                "\t*   Contact: contact@montimage.com  *\n"
+                "\t**************************************\n\n");
+        return 1;
+    }
 
         fseek(license_key,offset,SEEK_SET);
         offset+=fread(block1,1,10,license_key);
@@ -254,8 +260,7 @@ int license_expiry_check(int status){
         read_sum_block[valid2]='\0';
 
         //printf("sum_of_blocks_read=%s\n",read_sum_block);
-
-        fclose (license_key);
+        if(license_key != NULL) fclose (license_key);
 
         //calculate difference in seconds between two dates
         expiry_time = * localtime(&now);
@@ -272,6 +277,7 @@ int license_expiry_check(int status){
        struct timeval expired_date;
        expired_date.tv_sec=expiry_date;
        expired_date.tv_usec=0;
+       int return_ok = 0;
 
         if (strncmp(key,message,valid)==0 && yr==atoi(year) && mn==atoi(month) && dy==atoi(day) && strncmp(read_sum_mac,sum_mac_str,valid1)==0 && strncmp(read_sum_block,sum_block_str,valid2)==0){
 
@@ -288,7 +294,7 @@ int license_expiry_check(int status){
                         "\t*   Website: http://montimage.com   *\n"
                         "\t*   Contact: contact@montimage.com  *\n"
                         "\t**************************************\n\n");
-                return 1;
+                return_ok = 1;
             }
 
             if (seconds <= 0){
@@ -304,7 +310,7 @@ int license_expiry_check(int status){
                         "\t*   Website: http://montimage.com   *\n"
                         "\t*   Contact: contact@montimage.com  *\n"
                         "\t**************************************\n\n",yr,mn,dy);
-                return 1;
+                return_ok = 1;
             }
             snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,%d,\"%s\",%lu.%lu",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_INFO,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec);
             license_message[ MAX_MESS ] = '\0';
@@ -323,6 +329,7 @@ int license_expiry_check(int status){
                         "\t*        Website: http://montimage.com        *\n"
                         "\t*        Contact: contact@montimage.com       *\n"
                         "\t************************************************\n\n",yr,mn,dy);
+                return_ok = 0;
             }
 
         }else{
@@ -339,31 +346,17 @@ int license_expiry_check(int status){
                     "\t*   Website: http://montimage.com   *\n"
                     "\t*   Contact: contact@montimage.com  *\n"
                     "\t**************************************\n\n");
-            return 1;
+            return_ok = 1;
         }
+
         free(mac_address);
         free(key);
         free(read_sum_mac);
         free(sum_mac_str);
         free(sum_block_str);
         free(read_sum_block);
+        free(read_mac_address);
 
-    }else{
-        snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_KEY_DOES_NOT_EXIST);
-        license_message[ MAX_MESS ] = '\0';
-        if (probe_context->output_to_file_enable==1 && status ==0)send_message_to_file (license_message);
-        if (probe_context->redis_enable==1 && status ==0)send_message_to_redis ("license.stat", license_message);
-        printf("\n\t*************************************\n"
-                "\t*  MMT LICENSE KEY DOES-NOT EXIST   *\n"
-                "\t*          BUY MMT LICENSE          *\n"
-                "\t*   Website: http://montimage.com   *\n"
-                "\t*   Contact: contact@montimage.com  *\n"
-                "\t**************************************\n\n");
-        return 1;
-    }
-free(read_mac_address);
-
-
-    return 0;
+        return return_ok;
 }
 

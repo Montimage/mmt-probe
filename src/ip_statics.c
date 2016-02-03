@@ -75,16 +75,6 @@ int compare_ip(unsigned char * a, unsigned char * b,int ipversion){
     return 0;
 }
 
-void print_mac( unsigned char *m1, unsigned char *m2 ){
-    char *b1 = NULL;
-    char *b2 = NULL;
-    b1 = get_prety_mac_address( m1 );
-    b2 = get_prety_mac_address( m2 );
-	printf("%s - %s", b1, b2);
-    free(b1);
-    free(b2);
-}
-
 uint64_t get_number_active_flows_from_ip(){
     ip_statistics_t *p;
     ip_proto_statistics_t *proto_stats;
@@ -140,29 +130,32 @@ void iterate_through_ip( mmt_handler_t *mmt_handler ){
     uint64_t number_flows=get_number_active_flows_from_ip();
     //uint64_t number_flows=0;
     mmt_probe_context_t * probe_context = get_probe_context_config();
+    uint8_t *ea = 0;
+    char src_mac_pretty [18], dst_mac_pretty [18];
 
     p = ip_stat_root;
     //for each pair (ip src, ip dst)
     while(p != NULL){
         proto_stats = p->proto_stats;
-        char * src_mac, * dst_mac;
-        src_mac = get_prety_mac_address( proto_stats->src_mac );
-        dst_mac = get_prety_mac_address( proto_stats->dst_mac );
+        ea = proto_stats->src_mac;
+        snprintf(src_mac_pretty , 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
+        ea = proto_stats->dst_mac;
+        snprintf(dst_mac_pretty , 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
         //for each protocol of the pair
         while( proto_stats != NULL){
             char path[128];
             char ip_src_str[46]={0};
             char ip_dst_str[46]={0};
 
-            if (p->session->ipversion==4) {
+            if (p->session->ipversion == 4) {
                 inet_ntop(AF_INET, (void *) p->session->ipsrc, ip_src_str, INET_ADDRSTRLEN);
                 inet_ntop(AF_INET, (void *) p->session->ipdst, ip_dst_str, INET_ADDRSTRLEN);
-            } else if (p->session->ipversion==6){
+            } else if (p->session->ipversion == 6){
                 inet_ntop(AF_INET6, (void *) p->session->ipsrc, ip_src_str, INET6_ADDRSTRLEN);
                 inet_ntop(AF_INET6, (void *) p->session->ipdst, ip_dst_str, INET6_ADDRSTRLEN);
             }else{
-                strncpy(ip_src_str,(char *)p->session->ipsrc,9);
-                strncpy(ip_dst_str,(char *)p->session->ipdst,9);
+                strncpy(ip_src_str, (char *)p->session->ipsrc, 9);
+                strncpy(ip_dst_str, (char *)p->session->ipdst, 9);
             }
             int proto_id = proto_stats->proto_hierarchy->proto_path[ proto_stats->proto_hierarchy->len - 1 ];
             proto_hierarchy_ids_to_str(proto_stats->proto_hierarchy, path);
@@ -183,7 +176,7 @@ void iterate_through_ip( mmt_handler_t *mmt_handler ){
                                         //Timestamp (seconds.micros) corresponding to the time when the flow was detected (first packet of the flow).
                                         proto_stats->start_timestamp.tv_sec, proto_stats->start_timestamp.tv_usec,
                                         //IP and MAC addresses
-                                        ip_dst_str,ip_src_str,src_mac,dst_mac,p->session->session_id,p->session->serverport, p->session->clientport);
+                                        ip_dst_str,ip_src_str,src_mac_pretty,dst_mac_pretty,p->session->session_id,p->session->serverport, p->session->clientport);
                 if (p->session->session_id !=0) {
                     if (p->ip_temp_session->app_format_id==probe_context->web_id && p->counter==0 && probe_context->web_enable==1) print_initial_web_report(p,message,valid);
                     else if (p->ip_temp_session->app_format_id==probe_context->rtp_id && p->counter==0 && probe_context->rtp_enable==1) print_initial_rtp_report(p,message,valid);
@@ -206,8 +199,6 @@ void iterate_through_ip( mmt_handler_t *mmt_handler ){
             proto_stats = proto_stats->next;
         }
         p = p->next;
-        if (src_mac!=NULL) free(src_mac);
-        if (dst_mac!=NULL) free(dst_mac);
     }
 }
 
@@ -215,35 +206,26 @@ void get_MAC_address_from_ip(const ipacket_t * ipacket,ip_proto_statistics_t *pr
 
     unsigned char *src = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_SRC);
     unsigned char *dst = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_DST);
-    unsigned char * temp;
-
 
     if(direction==0){
         if (src) {
-            temp= (unsigned char *) malloc(sizeof (unsigned char)*6);
-            memcpy(temp, src, 6);
-            proto_stats->src_mac=temp;
+            memcpy(proto_stats->src_mac, src, 6);
+            proto_stats->src_mac [6] = '\0';
         }
         if (dst) {
-            temp= (unsigned char *) malloc(sizeof (unsigned char)*6);
-            memcpy(temp, dst, 6);
-            proto_stats->dst_mac=temp;
+            memcpy(proto_stats->dst_mac, dst, 6);
+            proto_stats->dst_mac [6] = '\0';
         }
     }else if (direction==1){
         if (src) {
-            temp= (unsigned char *) malloc(sizeof (unsigned char)*6);
-            memcpy(temp, src, 6);
-            proto_stats->dst_mac=temp;
+            memcpy(proto_stats->dst_mac, src, 6);
+            proto_stats->dst_mac [6] = '\0';
         }
         if (dst) {
-            temp= (unsigned char *) malloc(sizeof (unsigned char)*6);
-            memcpy(temp, dst, 6);
-            proto_stats->src_mac=temp;
+            memcpy(proto_stats->src_mac, dst, 6);
+            proto_stats->src_mac [6] = '\0';
         }
-
     }
-
-
 }
 
 ip_proto_statistics_t *create_and_init_ip_proto_stat( ){
@@ -343,16 +325,12 @@ ip_statistics_t * create_and_init_ip_stat (const ipacket_t * ipacket,unsigned ch
         ip_stat->session->ipversion=ipversion;
 
         if(ip_stat->session->ipversion==4){
-            unsigned char *tmp;
-            tmp = malloc( sizeof( unsigned char )*5 );
-            memcpy(tmp, src, 4);
-            tmp[4]='\0';
-            ip_stat->session->ipsrc = tmp;
+            memcpy(ip_stat->session->ipsrc, src, 4);
+            ip_stat->session->ipsrc [4] = '\0';
 
-            tmp = malloc( sizeof( unsigned char )*5 );
-            memcpy(tmp, dst, 4);
-            tmp[4]='\0';
-            ip_stat->session->ipdst = tmp;
+            memcpy(ip_stat->session->ipdst, dst, 4);
+            ip_stat->session->ipdst [4] = '\0';
+
             ip_stat->session->session_id=session_id;
             ip_stat->mmt_session=ipacket->session;
 
@@ -368,16 +346,12 @@ ip_statistics_t * create_and_init_ip_stat (const ipacket_t * ipacket,unsigned ch
             }
 
         }else if(ip_stat->session->ipversion==6){
-            unsigned char *tmp;
-            tmp = malloc( sizeof( unsigned char )*17 );
-            memcpy(tmp, src, 16);
-            tmp[16]='\0';
-            ip_stat->session->ipsrc = tmp;
+            memcpy(ip_stat->session->ipsrc, src, 16);
+            ip_stat->session->ipsrc [16] = '\0';
 
-            tmp = malloc( sizeof( unsigned char )*17 );
-            memcpy(tmp, dst, 16);
-            tmp[16]='\0';
-            ip_stat->session->ipdst = tmp;
+            memcpy(ip_stat->session->ipdst, dst, 16);
+            ip_stat->session->ipdst [16] = '\0';
+
             ip_stat->session->session_id=session_id;
             ip_stat->mmt_session=ipacket->session;
             ip_stat->ip_temp_session = get_user_session_context(ipacket->session);
@@ -391,16 +365,12 @@ ip_statistics_t * create_and_init_ip_stat (const ipacket_t * ipacket,unsigned ch
             }
 
         }else{
-            unsigned char *tmp;
-            tmp = malloc( sizeof( unsigned char )*14 );
-            memcpy(tmp, src, 13);
-            tmp[13]='\0';
-            ip_stat->session->ipsrc = tmp;
+            memcpy(ip_stat->session->ipsrc, src, 13);
+            ip_stat->session->ipsrc [13] = '\0';
 
-            tmp = malloc( sizeof( unsigned char )*14 );
-            memcpy(tmp, dst, 13);
-            tmp[13]='\0';
-            ip_stat->session->ipdst = tmp;
+            memcpy(ip_stat->session->ipdst, dst, 13);
+            ip_stat->session->ipdst [13] = '\0';
+
             ip_stat->session->session_id = session_id;
             ip_stat->session->clientport = 0;
             ip_stat->session->serverport = 0;
@@ -416,8 +386,7 @@ ip_statistics_t * get_ip_stat_for_pair_machine( unsigned char *src, unsigned cha
     ip_statistics_t *p = ip_stat_root;
     while( p != NULL){
         if(  p->session->session_id==session_id){
-            if( compare_ip( p->session->ipsrc, src,ipversion ) == 0 &&
-                    compare_ip( p->session->ipdst, dst,ipversion ) == 0){
+            if( compare_ip( p->session->ipsrc, src, ipversion ) == 0 && compare_ip( p->session->ipdst, dst, ipversion ) == 0){
                 *direction = 0; //UL
                 return p;
             }else{
@@ -505,6 +474,8 @@ void iterate_through_expired_session(ip_statistics_t *p){
 	ip_proto_statistics_t *proto_stats;
 	char message[MAX_MESS + 1];
 	//struct timeval ts = get_last_activity_time(mmt_handler);
+    uint8_t *ea = 0;
+    char src_mac_pretty [18], dst_mac_pretty [18];
 
 	struct timeval now;
 	gettimeofday(&now,NULL);
@@ -517,10 +488,13 @@ void iterate_through_expired_session(ip_statistics_t *p){
 		char path[128];
 		char ip_src_str[46]={0};
 		char ip_dst_str[46]={0};
-		char * src_mac, * dst_mac;
-		src_mac = get_prety_mac_address( proto_stats->src_mac );
-		dst_mac = get_prety_mac_address( proto_stats->dst_mac );
-		if (p->session->ipversion==4) {
+
+        ea = proto_stats->src_mac;
+        snprintf(src_mac_pretty , 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
+        ea = proto_stats->dst_mac;
+        snprintf(dst_mac_pretty , 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
+		
+        if (p->session->ipversion==4) {
 			inet_ntop(AF_INET, (void *) p->session->ipsrc, ip_src_str, INET_ADDRSTRLEN);
 			inet_ntop(AF_INET, (void *) p->session->ipdst, ip_dst_str, INET_ADDRSTRLEN);
 		} else if (p->session->ipversion==6){
@@ -549,7 +523,7 @@ void iterate_through_expired_session(ip_statistics_t *p){
 					//Timestamp (seconds.micros) corresponding to the time when the flow was detected (first packet of the flow).
 					proto_stats->start_timestamp.tv_sec, proto_stats->start_timestamp.tv_usec,
 					//IP and MAC addresses
-					ip_dst_str,ip_src_str,src_mac,dst_mac,p->session->session_id,p->session->serverport, p->session->clientport);
+					ip_dst_str, ip_src_str, src_mac_pretty, dst_mac_pretty, p->session->session_id,p->session->serverport, p->session->clientport);
 			if (p->session->session_id !=0) {
 				if (p->ip_temp_session->app_format_id==probe_context->web_id && p->counter==0 && probe_context->web_enable==1) print_initial_web_report(p,message,valid);
 				else if (p->ip_temp_session->app_format_id==probe_context->rtp_id && p->counter==0 && probe_context->rtp_enable==1) print_initial_rtp_report(p,message,valid);
@@ -568,8 +542,6 @@ void iterate_through_expired_session(ip_statistics_t *p){
 			if (probe_context->redis_enable==1)send_message_to_redis ("protocol.flow.stat", message);
 
 		}
-        if (src_mac!=NULL) free(src_mac);
-        if (dst_mac!=NULL) free(dst_mac);
 		proto_stats = proto_stats->next;
 	}
 
@@ -608,54 +580,42 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
         }
     }
 
-      ip_statistics_t *p;
-      ip_statistics_t *HEAD;
-      p = ip_stat_root;
-      HEAD = ip_stat_root;
+      ip_statistics_t *p = ip_stat_root;
+      ip_statistics_t *prev_p = ip_stat_root;
 
       while(p != NULL){
           if (p->session->session_id == session_id){
               iterate_through_expired_session(p);
-              if(p==ip_stat_root){
-                  if (p->proto_stats!= NULL) {
+              if(p == ip_stat_root){
+                  if (p->proto_stats != NULL) {
                       //Free the protocol specific data
-                      free(p->proto_stats->src_mac);
-                      free(p->proto_stats->dst_mac);
                       free(p->proto_stats->proto_hierarchy);
                 	  free(p->proto_stats);
                   }
                   if (p->session!= NULL) {
                       //Free the session specific data
-                	  free(p->session->ipsrc);
-                	  free(p->session->ipdst);
                       free(p->session);
                   }
                   ip_stat_root=p->next;
                   free(p);
                   break;
               }
-              HEAD->next=p->next;
+              prev_p->next=p->next;
 
               if (p->proto_stats!= NULL) {
                   //Free the protocol specific data
-                  free(p->proto_stats->src_mac);
-                  free(p->proto_stats->dst_mac);
                   free(p->proto_stats->proto_hierarchy);
                   free(p->proto_stats);
               }
               if (p->session!= NULL) {
                   //Free the session specific data
-            	  free(p->session->ipsrc);
-            	  free(p->session->ipdst);
                   free(p->session);
               }
               free(p);
-              //p=HEAD->next;
               break;
-
           }else{
-              HEAD=p;
-              p=p->next;
+              prev_p = p;
+              p = p->next;
           }
 
       }

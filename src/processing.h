@@ -285,8 +285,8 @@ typedef struct ftp_packet_attr_struct {
 } ftp_packet_attr_t;
 
 typedef struct ip_statistics_session_struct {
-    unsigned char * ipsrc;
-    unsigned char * ipdst;
+    unsigned char ipsrc [17];
+    unsigned char ipdst [17] ;
     uint32_t touched;
     uint16_t clientport;
     uint16_t serverport;
@@ -307,8 +307,8 @@ typedef struct ip_proto_statistics_struct {
     struct timeval start_timestamp; /*Timestamp (seconds.micros) corresponding to the time when the flow was detected (first packet of the flow).*/
     struct ip_proto_statistics_struct* next; /**< next instance of statistics for the same protocol */
     proto_hierarchy_t *proto_hierarchy; /**< pointer to the protocol */
-    unsigned char * src_mac;
-    unsigned char * dst_mac;
+    unsigned char src_mac [7];
+    unsigned char dst_mac [7];
 } ip_proto_statistics_t;
 
 typedef struct session_struct {
@@ -325,19 +325,16 @@ typedef struct session_struct {
     uint8_t isClassified;
     uint8_t ipversion;
     uint32_t contentclass;
-
     void * app_data;
-
 } session_struct_t;
+
 typedef struct ip_statistics_struct {
     ip_proto_statistics_t * proto_stats;
     ip_statistics_session_t * session;
     session_struct_t * ip_temp_session;
     mmt_session_t * mmt_session;
     uint32_t counter;
-
     struct ip_statistics_struct * next;
-
 } ip_statistics_t;
 
 typedef struct web_session_attr_struct {

@@ -68,17 +68,6 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt) {
 
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
 
-char * get_prety_mac_address( const uint8_t *ea ){
-    int valid=0;
-    if( ea == NULL )
-        return "null";
-
-    char *buff = (char *) malloc( sizeof(char ) * 18 );
-    valid=snprintf( buff, 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
-    buff[valid]='\0';
-    return buff;
-}
-
 int is_localv6_net(char * addr) {
 
     if (strncmp(addr,"fec0",4)==0)return 1;
