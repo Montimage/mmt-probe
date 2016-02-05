@@ -11,9 +11,6 @@
 #include "mmt/tcpip/mmt_tcpip.h"
 #include "processing.h"
 
-#define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
-
-
 void print_default_app_format(const mmt_session_t * expired_session,probe_internal_t * iprobe) {
     int keep_direction = 1;
     session_struct_t * temp_session = get_user_session_context(expired_session);
@@ -95,12 +92,13 @@ void print_default_app_format(const mmt_session_t * expired_session,probe_intern
     );
      */
 }
-void print_initial_default_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid){
-    snprintf(&message[valid], MAX_MESS-valid,
+void print_initial_default_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid){
+	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
+	snprintf(&message[valid], MAX_MESS-valid,
             ",%u,%u,%u", // app specific
-            p->ip_temp_session->app_format_id,get_application_class_by_protocol_id(p->proto_stats->proto_hierarchy->proto_path[(p->proto_stats->proto_hierarchy->len <= 16)?(p->proto_stats->proto_hierarchy->len - 1):(16 - 1)]),
-            get_content_class_by_content_flags(get_session_content_flags(p->mmt_session))
-    );
-    p->counter=1;
+            MMT_DEFAULT_APP_REPORT_FORMAT,get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
+            get_content_class_by_content_flags(get_session_content_flags(session))
+			);
+	 temp_session->session_attr->touched=1;
 }
 

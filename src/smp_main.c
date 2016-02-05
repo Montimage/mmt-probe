@@ -720,8 +720,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
     if (mmt_conf->thread_nb == 1) {
         //One thread for processing packets
         //Cleanup the MMT handler
-        iterate_through_ip( mmt_probe.mmt_handler );
-        //iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.mmt_handler);
         flowstruct_cleanup(mmt_probe.mmt_handler); // cleanup our event handler
         radius_ext_cleanup(mmt_probe.mmt_handler); // cleanup our event handler for RADIUS initializations
 
@@ -732,7 +730,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
     } else {
         for (i = 0; i < mmt_conf->thread_nb; i++) {
             // Report the statistics if any (this case appears: statistics reporting time is greater than packet interval time(functions in the packet_handler)) before probe termination
-            iterate_through_ip( mmt_probe.smp_threads[i].mmt_handler );
             //iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.smp_threads[i].mmt_handler);
         }
 

@@ -104,7 +104,7 @@ int start_timer( uint32_t period, void *callback, void *user_data){
 
 //start report messages
 #define MAX_FILE_NAME 500
-#define MAX_CACHE_SIZE 100002
+#define MAX_CACHE_SIZE 300002
 int cache_count = 0;
 char *cache_message_list[ MAX_CACHE_SIZE ];
 

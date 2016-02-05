@@ -10,8 +10,6 @@
 #include "mmt/tcpip/mmt_tcpip.h"
 #include "processing.h"
 
-#define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
-
 typedef struct http_line_struct {
     const uint8_t *ptr;
     uint16_t len;
@@ -126,19 +124,20 @@ void print_ssl_app_format(const mmt_session_t * expired_session,probe_internal_t
     );
      */
 }
-void print_initial_ssl_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid){
+void print_initial_ssl_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid){
 
     //case 1://missing dev_prop, cdn_flag
+	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
 
     snprintf(&message[valid], MAX_MESS-valid,//missing CDN
             ",%u,%u,%u,\"%s\",%u", // app specific
-            p->ip_temp_session->app_format_id,get_application_class_by_protocol_id(p->proto_stats->proto_hierarchy->proto_path[(p->proto_stats->proto_hierarchy->len <= 16)?(p->proto_stats->proto_hierarchy->len - 1):(16 - 1)]),
-            p->ip_temp_session->contentclass,
-            (((ssl_session_attr_t *) p->ip_temp_session->app_data) != NULL) ? ((ssl_session_attr_t *) p->ip_temp_session->app_data)->hostname : "",
-                    (get_session_content_flags(p->mmt_session) & MMT_CONTENT_CDN) ? 2 : 0
+            temp_session->app_format_id,get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
+            temp_session->contentclass,
+            (((ssl_session_attr_t *) temp_session->app_data) != NULL) ? ((ssl_session_attr_t *) temp_session->app_data)->hostname : "",
+                    (get_session_content_flags(session) & MMT_CONTENT_CDN) ? 2 : 0
 
     );
-    p->counter=1;
+    temp_session->session_attr->touched=1;
 
 }
 

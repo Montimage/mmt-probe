@@ -66,7 +66,15 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt) {
 }
 #endif
 
-#define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
+struct timeval mmt_time_diff(struct timeval tstart, struct timeval tend) {
+    tstart.tv_sec = tend.tv_sec - tstart.tv_sec;
+    tstart.tv_usec = tend.tv_usec - tstart.tv_usec;
+    if ((int) tstart.tv_usec < 0) {
+        tstart.tv_usec += 1000000;
+        tstart.tv_sec -= 1;
+    }
+    return tstart;
+}
 
 int is_localv6_net(char * addr) {
 
@@ -135,128 +143,136 @@ mmt_probe_context_t * get_probe_context_config() {
     return & probe_context;
 }
 
+
 void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-    mmt_session_t * session = get_session_from_packet(ipacket);
-    if(session == NULL) return;
-    //fprintf(stdout, "Test from new flow\n");
+	mmt_session_t * session = get_session_from_packet(ipacket);
+	if(session == NULL) return;
+	if (attribute->data == NULL) {
+		return; //This should never happen! check it anyway
+	}
 
-    if (attribute->data == NULL) {
-        return; //This should never happen! check it anyway
-    }
+	session_struct_t *temp_session = malloc(sizeof (session_struct_t));
 
-    //uint64_t session_id = get_session_id(ipacket->session);
+	if (temp_session == NULL) {
+		mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating new flow reporting context");
+		//fprintf(stderr, "Memory allocation failed when creating a new file reporting struct! This flow will be ignored! Sorry!");
+		return;
+	}
 
-    //printf ("session_id=%lu\n",session_id);
+	memset(temp_session, '\0', sizeof (session_struct_t));
 
-    session_struct_t *temp_session = malloc(sizeof (session_struct_t));
+	temp_session->format_id = MMT_FLOW_REPORT_FORMAT;
+	temp_session->app_format_id = MMT_DEFAULT_APP_REPORT_FORMAT;
 
-    if (temp_session == NULL) {
-        mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating new flow reporting context");
-        //fprintf(stderr, "Memory allocation failed when creating a new file reporting struct! This flow will be ignored! Sorry!");
-        return;
-    }
+	if (temp_session->isFlowExtracted)
+		return;
 
-    memset(temp_session, '\0', sizeof (session_struct_t));
+	// Flow extraction
+	int ipindex = get_protocol_index_by_id(ipacket, PROTO_IP);
 
-    temp_session->format_id = MMT_FLOW_REPORT_FORMAT;
-    temp_session->app_format_id = MMT_DEFAULT_APP_REPORT_FORMAT;
+	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(ipacket->session);
+	temp_session->application_class= get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]);
+	temp_session->proto_path=proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)];
 
-    if (temp_session->isFlowExtracted)
-        return;
+	unsigned char *src = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_SRC);
+	unsigned char *dst = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_DST);
 
-    // Flow extraction
-    int ipindex = get_protocol_index_by_id(ipacket, PROTO_IP);
-    //printf("IP index = %i\n", ipindex);
-    //Process IPv4 flows
+	if (src) {
+		memcpy(temp_session->src_mac, src, 6);
+		temp_session->src_mac [6] = '\0';
+	}
+	if (dst) {
+		memcpy(temp_session->dst_mac, dst, 6);
+		temp_session->dst_mac [6] = '\0';
+	}
 
-    if (ipindex != -1) {
+	if (ipindex != -1) {
 
-        uint32_t * ip_src = (uint32_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_SRC);
-        uint32_t * ip_dst = (uint32_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_DST);
+		uint32_t * ip_src = (uint32_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_SRC);
+		uint32_t * ip_dst = (uint32_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_DST);
 
-        if (ip_src) {
-            //printf("HAS IP ADDRESS \n");
-            temp_session->ipclient.ipv4 = (*ip_src);
-        }
-        if (ip_dst) {
-            temp_session->ipserver.ipv4 = (*ip_dst);
-        }
+		if (ip_src) {
+			//printf("HAS IP ADDRESS \n");
+			temp_session->ipclient.ipv4 = (*ip_src);
+		}
+		if (ip_dst) {
+			temp_session->ipserver.ipv4 = (*ip_dst);
+		}
 
-        uint8_t * proto_id = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_PROTO_ID);
-        if (proto_id != NULL) {
-            temp_session->proto = *proto_id;
-        } else {
-            temp_session->proto = 0;
-        }
-        temp_session->ipversion = 4;
-        uint16_t * cport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_CLIENT_PORT);
-        uint16_t * dport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_SERVER_PORT);
-        if (cport) {
-            temp_session->clientport = *cport;
-        }
-        if (dport) {
-            temp_session->serverport = *dport;
-        }
+		uint8_t * proto_id = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_PROTO_ID);
+		if (proto_id != NULL) {
+			temp_session->proto = *proto_id;
+		} else {
+			temp_session->proto = 0;
+		}
+		temp_session->ipversion = 4;
+		uint16_t * cport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_CLIENT_PORT);
+		uint16_t * dport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_SERVER_PORT);
+		if (cport) {
+			temp_session->clientport = *cport;
+		}
+		if (dport) {
+			temp_session->serverport = *dport;
+		}
 
-    } else {
-        void * ipv6_src = (void *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SRC);
-        void * ipv6_dst = (void *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_DST);
-        if (ipv6_src) {
-            memcpy(&temp_session->ipclient.ipv6, ipv6_src, 16);
-        }
-        if (ipv6_dst) {
-            memcpy(&temp_session->ipserver.ipv6, ipv6_dst, 16);
-        }
+	} else {
+		void * ipv6_src = (void *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SRC);
+		void * ipv6_dst = (void *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_DST);
+		if (ipv6_src) {
+			memcpy(&temp_session->ipclient.ipv6, ipv6_src, 16);
+		}
+		if (ipv6_dst) {
+			memcpy(&temp_session->ipserver.ipv6, ipv6_dst, 16);
+		}
 
-        uint8_t * proto_id = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_NEXT_PROTO);
-        if (proto_id != NULL) {
-            temp_session->proto = *proto_id;
-        } else {
-            temp_session->proto = 0;
-        }
-        temp_session->ipversion = 6;
-        uint16_t * cport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_CLIENT_PORT);
-        uint16_t * dport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SERVER_PORT);
-        if (cport) {
-            temp_session->clientport = *cport;
-        }
-        if (dport) {
-            temp_session->serverport = *dport;
-        }
-    }
+		uint8_t * proto_id = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_NEXT_PROTO);
+		if (proto_id != NULL) {
+			temp_session->proto = *proto_id;
+		} else {
+			temp_session->proto = 0;
+		}
+		temp_session->ipversion = 6;
+		uint16_t * cport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_CLIENT_PORT);
+		uint16_t * dport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SERVER_PORT);
+		if (cport) {
+			temp_session->clientport = *cport;
+		}
+		if (dport) {
+			temp_session->serverport = *dport;
+		}
+	}
 
-    temp_session->isFlowExtracted = 1;
-    set_user_session_context(session, temp_session);
+	temp_session->isFlowExtracted = 1;
+	set_user_session_context(session, temp_session);
 }
+
+mmt_session_t * current_session = NULL;
 
 static void iterate_packet( void *arg ){
 	if (probe_context.enable_proto_stats==1)iterate_through_protocols(protocols_stats_iterator, arg);
-	iterate_through_ip( (mmt_handler_t *)arg );
+	go_through_session(current_session);
 }
 
 void packet_handler(const ipacket_t * ipacket, void * args) {
     static time_t last_report_time = 0;
     static int is_start_timer = 0;
-    ip_get_session_attr( ipacket );
 
     if (last_report_time == 0) {
         last_report_time = ipacket->p_hdr->ts.tv_sec;
         return;
     }
-
     if (probe_context.ftp_reconstruct_enable==1)
         reconstruct_data(ipacket);
 
-	if( ! is_start_timer ){
-		start_timer(probe_context.stats_reporting_period, iterate_packet, ipacket->mmt_handler );
-		start_timer( probe_context.sampled_report_period, flush_messages_to_file, NULL );
+    if(ipacket->session!= NULL) current_session = get_session_from_packet(ipacket);
 
+	if( ! is_start_timer){
+		start_timer(probe_context.stats_reporting_period, iterate_packet,NULL );
+		start_timer( probe_context.sampled_report_period, flush_messages_to_file, NULL );
 		is_start_timer = 1;
 	}
 
-
 }
-
 
 void proto_stats_init(void * handler) {
     register_packet_handler(handler, 5, packet_handler, NULL);
@@ -530,4 +546,123 @@ mmt_dev_properties_t get_dev_properties_from_user_agent(char * user_agent, uint3
         }
     }
     return retval;
+}
+/*
+void print_ip_expired_session_report (const mmt_session_t * session){
+	char message[MAX_MESS + 1];
+	uint8_t *ea = 0;
+	char src_mac_pretty [18], dst_mac_pretty [18];
+	int keep_direction = 1;
+	int valid=0;
+	session_struct_t * temp_session =(session_struct_t *) get_user_session_context(session);
+
+	if (temp_session->session_attr == NULL) {
+		temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
+		memset(temp_session->session_attr, '\0', sizeof (temp_session_statistics_t));
+	}
+
+	ea = temp_session->src_mac;
+	snprintf(src_mac_pretty , 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
+	ea = temp_session->dst_mac;
+	snprintf(dst_mac_pretty , 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
+
+	char ip_src_str[46];
+	char ip_dst_str[46];
+	if (temp_session->ipversion == 4) {
+		inet_ntop(AF_INET, (void *) &temp_session->ipclient.ipv4, ip_src_str, INET_ADDRSTRLEN);
+		inet_ntop(AF_INET, (void *) &temp_session->ipserver.ipv4, ip_dst_str, INET_ADDRSTRLEN);
+		keep_direction = is_local_net(temp_session->ipclient.ipv4);
+	} else if(temp_session->ipversion == 6) {
+		inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
+		inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
+		keep_direction =is_localv6_net(ip_src_str);//to do
+	}
+
+	temp_session->session_attr->start_time = get_session_init_time(session);
+	temp_session->session_attr->rtt_ms = TIMEVAL_2_MSEC(get_session_rtt(session));
+	proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(session), temp_session->path);
+	temp_session->session_attr->last_activity_time = get_session_last_activity_time(session);
+	int sslindex;
+	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
+
+	valid=snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,\"%s\",\"%s\",\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu32",",
+			21, probe_context.probe_id_number, probe_context.input_source, temp_session->session_attr->start_time.tv_sec, temp_session->session_attr->start_time.tv_usec,
+			get_session_id(session),temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec,(int) temp_session->ipversion,
+			ip_src_str,ip_dst_str,temp_session->serverport, temp_session->clientport, src_mac_pretty, dst_mac_pretty,temp_session->path,
+			((keep_direction)?get_session_ul_packet_count(session):get_session_dl_packet_count(session) - temp_session->session_attr->packet_count[0]),
+			((keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session) - temp_session->session_attr->packet_count[1]),
+			((keep_direction)?get_session_ul_byte_count(session):get_session_dl_byte_count(session) - temp_session->session_attr->byte_count[0]),
+			((keep_direction)?get_session_dl_byte_count(session):get_session_ul_byte_count(session) - temp_session->session_attr->byte_count[1]),
+			(get_session_retransmission_count(session) - temp_session->session_attr->retransmission_count),
+			temp_session->session_attr->rtt_ms);
+
+	message[ valid ] = '\0'; // correct end of string in case of truncated message
+	if (probe_context.output_to_file_enable==1)send_message_to_file (message);
+	if (probe_context.redis_enable==1)send_message_to_redis ("session.flow.report", message);
+
+	temp_session->session_attr->packet_count[0] = (keep_direction)?get_session_ul_packet_count(session):get_session_dl_packet_count(session);
+	temp_session->session_attr->packet_count[1]=(keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session);
+	temp_session->session_attr->byte_count[0]=(keep_direction)?get_session_ul_byte_count(session):get_session_dl_byte_count(session);
+	temp_session->session_attr->byte_count[1]=(keep_direction)?get_session_dl_byte_count(session):get_session_ul_byte_count(session);
+	temp_session->session_attr->retransmission_count= get_session_retransmission_count(session);
+
+
+        if (temp_session->app_format_id==probe_context.web_id && temp_session->session_attr->touched==0 && probe_context.web_enable==1) print_initial_web_report(session,temp_session,message,valid);
+        else if (temp_session->app_format_id==probe_context.rtp_id && temp_session->session_attr->touched==0 && probe_context.rtp_enable==1) print_initial_rtp_report(session,temp_session,message,valid);
+        else if (temp_session->app_format_id==probe_context.ssl_id && temp_session->session_attr->touched==0 && probe_context.ssl_enable==1) print_initial_ssl_report(session,temp_session,message,valid);
+        else if (temp_session->app_format_id==probe_context.ftp_id && temp_session->session_attr->touched==0 && probe_context.ftp_enable==1) print_initial_ftp_report(session,temp_session,message,valid);
+        else if(temp_session->session_attr->touched==0){
+            sslindex = get_protocol_index_from_session(proto_hierarchy, PROTO_SSL);
+            if (sslindex != -1) print_initial_ssl_report(session,temp_session,message,valid);
+            else print_initial_default_report(session,temp_session,message,valid);
+        }
+
+}
+*/
+
+
+void classification_expiry_session(const mmt_session_t * expired_session, void * args) {
+    session_struct_t * temp_session = get_user_session_context(expired_session);
+    if (temp_session == NULL) {
+        return;
+    }
+    probe_internal_t * iprobe = (probe_internal_t *) args;
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+
+    int sslindex;
+    //uint64_t session_id = get_session_id(expired_session);
+    print_ip_session_report (expired_session);
+    if (is_microflow(expired_session)) {
+        microsessions_stats_t * mf_stats = &iprobe->mf_stats[get_session_protocol_hierarchy(expired_session)->proto_path[(get_session_protocol_hierarchy(expired_session)->len <= 16)?(get_session_protocol_hierarchy(expired_session)->len - 1):(16 - 1)]];
+        update_microflows_stats(mf_stats, expired_session);
+        if (is_microflow_stats_reportable(mf_stats)) {
+            report_microflows_stats(mf_stats);
+        }
+    } else {
+        //First we check if we should skip the reporting for this flow
+        if (temp_session->app_format_id != MMT_SKIP_APP_REPORT_FORMAT) {
+            if (probe_context->web_enable==1 && temp_session->app_format_id==probe_context->web_id)print_web_app_format(expired_session, iprobe);
+            else if (probe_context->ssl_enable==1 && temp_session->app_format_id==probe_context->ssl_id)print_ssl_app_format(expired_session, iprobe);
+            else if(probe_context->rtp_enable==1 && temp_session->app_format_id==probe_context->rtp_id)print_rtp_app_format(expired_session, iprobe);
+            else if(probe_context->ftp_enable==1 &&temp_session->app_format_id==probe_context->ftp_id)print_ftp_app_format(expired_session, iprobe);
+            else{
+                sslindex = get_protocol_index_from_session(get_session_protocol_hierarchy(expired_session), PROTO_SSL);
+                if (sslindex != -1 && probe_context->ssl_enable==1 ) print_ssl_app_format(expired_session, iprobe);
+                else print_default_app_format(expired_session,iprobe);
+
+            }
+
+        }
+    }
+
+
+      if (temp_session->app_data != NULL) {
+          //Free the application specific data
+          free(temp_session->app_data);
+      }
+      if (temp_session->session_attr != NULL) {
+          //Free the application specific data
+          free(temp_session->session_attr);
+      }
+      free(temp_session);
 }

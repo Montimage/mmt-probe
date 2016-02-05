@@ -11,19 +11,6 @@
 #include "mmt/tcpip/mmt_tcpip.h"
 #include "processing.h"
 
-
-#define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
-
-static struct timeval mmt_time_diff(struct timeval tstart, struct timeval tend) {
-    tstart.tv_sec = tend.tv_sec - tstart.tv_sec;
-    tstart.tv_usec = tend.tv_usec - tstart.tv_usec;
-    if ((int) tstart.tv_usec < 0) {
-        tstart.tv_usec += 1000000;
-        tstart.tv_sec -= 1;
-    }
-    return tstart;
-}
-
 typedef struct http_line_struct {
     const uint8_t *ptr;
     uint16_t len;
@@ -266,22 +253,24 @@ void print_web_app_format(const mmt_session_t * expired_session, probe_internal_
 
 }
 
-void print_initial_web_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid){
+void print_initial_web_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid){
     uint32_t cdn_flag = 0;
-    if (((web_session_attr_t *) p->ip_temp_session->app_data)->xcdn_seen) cdn_flag = ((web_session_attr_t *) p->ip_temp_session->app_data)->xcdn_seen;
-    else if (get_session_content_flags(p->mmt_session) & MMT_CONTENT_CDN) cdn_flag = 2;
+    const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
+    if (((web_session_attr_t *) temp_session->app_data)->xcdn_seen) cdn_flag = ((web_session_attr_t *) temp_session->app_data)->xcdn_seen;
+    else if (get_session_content_flags(session) & MMT_CONTENT_CDN) cdn_flag = 2;
 
-    snprintf(&message[valid], MAX_MESS-valid,",%u,%u,%u,%u,%u,%u,\"%s\",\"%s\",\"%s\",%u", // app specific
-            p->ip_temp_session->app_format_id,get_application_class_by_protocol_id(p->proto_stats->proto_hierarchy->proto_path[(p->proto_stats->proto_hierarchy->len <= 16)?(p->proto_stats->proto_hierarchy->len - 1):(16 - 1)]),
-            p->ip_temp_session->contentclass,
-            (((web_session_attr_t *) p->ip_temp_session->app_data)->seen_response) ? (uint32_t) TIMEVAL_2_MSEC(((web_session_attr_t *) p->ip_temp_session->app_data)->response_time) : 0,
-                    (((web_session_attr_t *) p->ip_temp_session->app_data)->seen_response) ? ((web_session_attr_t *) p->ip_temp_session->app_data)->trans_nb : 0,
-                            (((web_session_attr_t *) p->ip_temp_session->app_data)->seen_response) ? (uint32_t) TIMEVAL_2_MSEC(mmt_time_diff(((web_session_attr_t *) p->ip_temp_session->app_data)->first_request_time, ((web_session_attr_t *) p->ip_temp_session->app_data)->interaction_time)) : 0,
-                                    ((web_session_attr_t *) p->ip_temp_session->app_data)->hostname,
-                                    ((web_session_attr_t *) p->ip_temp_session->app_data)->mimetype, ((web_session_attr_t *) p->ip_temp_session->app_data)->referer,cdn_flag
+    snprintf(&message[valid], MAX_MESS-valid,
+    		",%u,%u,%u,%u,%u,%u,\"%s\",\"%s\",\"%s\",%u", // app specific
+            temp_session->app_format_id,get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
+            temp_session->contentclass,
+            (((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint32_t) TIMEVAL_2_MSEC(((web_session_attr_t *) temp_session->app_data)->response_time) : 0,
+                    (((web_session_attr_t *) temp_session->app_data)->seen_response) ? ((web_session_attr_t *) temp_session->app_data)->trans_nb : 0,
+                            (((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint32_t) TIMEVAL_2_MSEC(mmt_time_diff(((web_session_attr_t *) temp_session->app_data)->first_request_time, ((web_session_attr_t *) temp_session->app_data)->interaction_time)) : 0,
+                                    ((web_session_attr_t *) temp_session->app_data)->hostname,
+                                    ((web_session_attr_t *) temp_session->app_data)->mimetype, ((web_session_attr_t *) temp_session->app_data)->referer,cdn_flag
 
     );
-    p->counter=1;
+    temp_session->session_attr->touched=1;
 
 }
 

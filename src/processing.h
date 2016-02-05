@@ -37,6 +37,7 @@ extern "C" {
 
 #define MMT_USER_AGENT_THRESHOLD 0x20 //32KB
 #define MAX_MESS 3000
+#define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
 
 enum os_id {
     OS_UKN, //Unknown
@@ -284,58 +285,44 @@ typedef struct ftp_packet_attr_struct {
 
 } ftp_packet_attr_t;
 
-typedef struct ip_statistics_session_struct {
-    unsigned char ipsrc [17];
-    unsigned char ipdst [17] ;
-    uint32_t touched;
-    uint16_t clientport;
-    uint16_t serverport;
-    uint64_t session_id;
-    uint8_t ipversion;
-} ip_statistics_session_t;
 
-typedef struct ip_proto_statistics_struct {
-    uint32_t touched; /**< Indicates if the statistics have been updated since the last reset */
-    uint64_t packets_count; /**< Total number of packets seen by the protocol */
-    uint64_t data_volume; /**< Total data volume seen by the protocol */
-    uint64_t payload_volume; /**< Total payload data volume seen by the protocol */
-    uint64_t packets_count_direction[2]; /**< Total number of UL/DL packets seen by the protocol */
-    uint64_t data_volume_direction[2]; /**< Total UL/DL data volume seen by the protocol */
-    uint64_t payload_volume_direction[2]; /**< Total UL/DL payload data volume seen by the protocol */
-    uint64_t sessions_count; /**< Total number of sessions seen by the protocol */
-    uint64_t timedout_sessions_count; /**< Total number of timedout sessions (this is the difference between sessions count and ative sessions count) */
-    struct timeval start_timestamp; /*Timestamp (seconds.micros) corresponding to the time when the flow was detected (first packet of the flow).*/
-    struct ip_proto_statistics_struct* next; /**< next instance of statistics for the same protocol */
-    proto_hierarchy_t *proto_hierarchy; /**< pointer to the protocol */
-    unsigned char src_mac [7];
-    unsigned char dst_mac [7];
-} ip_proto_statistics_t;
+typedef struct temp_session_statistics_struct{
+    struct timeval start_time;
+    struct timeval last_activity_time;
+    uint64_t total_byte_count;
+    uint64_t total_data_byte_count;
+    uint64_t total_packet_count;
+    uint64_t packet_count[2];
+    uint64_t byte_count[2];
+    uint64_t data_byte_count[2];
+    uint64_t retransmission_count;
+    uint32_t rtt_ms;
+    uint32_t touched;
+
+}temp_session_statistics_t;
 
 typedef struct session_struct {
     uint16_t format_id;
     uint16_t app_format_id;
-    //struct timeval start_time;
-    //struct timeval end_time;
+    int proto_path;
+    int application_class;
+    char path[128];
     mmt_ipv4_ipv6_id_t ipclient;
     mmt_ipv4_ipv6_id_t ipserver;
     uint16_t clientport;
     uint16_t serverport;
+    unsigned char src_mac [7];
+    unsigned char dst_mac [7];
     uint8_t proto;
     uint8_t isFlowExtracted;
     uint8_t isClassified;
     uint8_t ipversion;
     uint32_t contentclass;
+    temp_session_statistics_t * session_attr;
     void * app_data;
 } session_struct_t;
 
-typedef struct ip_statistics_struct {
-    ip_proto_statistics_t * proto_stats;
-    ip_statistics_session_t * session;
-    session_struct_t * ip_temp_session;
-    mmt_session_t * mmt_session;
-    uint32_t counter;
-    struct ip_statistics_struct * next;
-} ip_statistics_t;
+
 
 typedef struct web_session_attr_struct {
     struct timeval first_request_time;
@@ -359,24 +346,6 @@ typedef struct session_expiry_check_struct {
 } session_expiry_check_struct_t;
 
 
-
-typedef struct session_attributes_struct{
-    struct timeval start_time;
-    struct timeval last_activity_time;
-    uint64_t packet_count[2];
-    uint64_t byte_count[2];
-    uint64_t retransmission_count;
-    uint32_t rtt_ms;
-    uint32_t sslindex;
-    uint32_t content_flags;
-
-}session_attributes_t;
-typedef struct reset_attributes_struct{
-    uint64_t reset_packet_count[2];
-    uint64_t reset_byte_count[2];
-    uint64_t reset_retransmission_count;
-
-}reset_attributes_t;
 
 typedef struct probe_internal_struct {
     uint32_t instance_id;
@@ -420,7 +389,6 @@ void reset_microflows_stats(microsessions_stats_t * stats);
 void report_all_protocols_microflows_stats(probe_internal_t * iprobe);
 void report_microflows_stats(microsessions_stats_t * stats);
 void update_microflows_stats(microsessions_stats_t * stats, const mmt_session_t * expired_session);
-void ip_get_session_attr(const ipacket_t * ipacket);
 int license_expiry_check(int status);
 void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf);
 void todo_at_start(char *file_path);
@@ -432,6 +400,7 @@ char * get_prety_mac_address( const uint8_t *ea );
 void flush_cache_and_exit_timers();
 void flush_messages_to_file( void * );
 int start_timer( uint32_t period, void *callback, void *user_data);
+struct timeval mmt_time_diff(struct timeval tstart, struct timeval tend);
 
 
 //void register_web_attributes(void * handler);
@@ -463,6 +432,10 @@ void rtp_order_error_handle(const ipacket_t * ipacket, attribute_t * attribute, 
 void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session);
+void go_through_session( mmt_session_t * session);
+void print_ip_session_report (const mmt_session_t * session);
+int is_localv6_net(char * addr);
+int is_local_net(int addr);
 
 int register_event_report_handle(void * handler, mmt_event_report_t * event_report);
 void print_web_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe);
@@ -471,11 +444,11 @@ void print_rtp_app_format(const mmt_session_t * expired_session, probe_internal_
 void print_ftp_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe);
 void print_default_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe);
 
-void print_initial_web_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid);
-void print_initial_rtp_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid);
-void print_initial_ssl_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid);
-void print_initial_ftp_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid);
-void print_initial_default_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid);
+void print_initial_web_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
+void print_initial_rtp_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
+void print_initial_ssl_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
+void print_initial_ftp_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
+void print_initial_default_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
 
 int get_protocol_index_from_session(const proto_hierarchy_t * proto_hierarchy, uint32_t proto_id);
 

@@ -14,9 +14,6 @@
 #include "mmt/tcpip/mmt_tcpip.h"
 #include "processing.h"
 
-
-#define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
-
 char * str_replace_all_char(const char *str,int c1, int c2){
     char *new_str;
     new_str = (char*)malloc(strlen(str)+1);
@@ -377,18 +374,19 @@ void print_ftp_app_format(const mmt_session_t * expired_session,probe_internal_t
         }
     }
 }
-void print_initial_ftp_report(ip_statistics_t *p, char message [MAX_MESS + 1],int valid){
-    snprintf(&message[valid], MAX_MESS-valid,
-            ",%u,%u,%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%"PRIu8"",
-            p->ip_temp_session->app_format_id,get_application_class_by_protocol_id(p->proto_stats->proto_hierarchy->proto_path[(p->proto_stats->proto_hierarchy->len <= 16)?(p->proto_stats->proto_hierarchy->len - 1):(16 - 1)]),
-            ((ftp_session_attr_t*) p->ip_temp_session->app_data)->session_conn_type,
-            ((ftp_session_attr_t*) p->ip_temp_session->app_data)->session_username,
-            ((ftp_session_attr_t*) p->ip_temp_session->app_data)->session_password,
-            ((ftp_session_attr_t*) p->ip_temp_session->app_data)->file_size,
-            ((ftp_session_attr_t*) p->ip_temp_session->app_data)->filename,
-            ((ftp_session_attr_t*) p->ip_temp_session->app_data)->direction
+void print_initial_ftp_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid){
+    const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
+	snprintf(&message[valid], MAX_MESS-valid,
+            ",%u,%u,%"PRIu8",%s,%s,%"PRIu32",%s,%"PRIu8"",
+            temp_session->app_format_id,get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
+            ((ftp_session_attr_t*) temp_session->app_data)->session_conn_type,
+            ((ftp_session_attr_t*) temp_session->app_data)->session_username,
+            ((ftp_session_attr_t*) temp_session->app_data)->session_password,
+            ((ftp_session_attr_t*) temp_session->app_data)->file_size,
+            ((ftp_session_attr_t*) temp_session->app_data)->filename,
+            ((ftp_session_attr_t*) temp_session->app_data)->direction
     );
-    p->counter=1;
+	 temp_session->session_attr->touched=1;
 }
 
 void register_ftp_attributes(void * handler){
