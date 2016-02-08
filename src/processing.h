@@ -38,6 +38,7 @@ extern "C" {
 #define MMT_USER_AGENT_THRESHOLD 0x20 //32KB
 #define MAX_MESS 3000
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
+uint64_t total_session_count;
 
 enum os_id {
     OS_UKN, //Unknown
@@ -295,8 +296,6 @@ typedef struct temp_session_statistics_struct{
     uint64_t packet_count[2];
     uint64_t byte_count[2];
     uint64_t data_byte_count[2];
-    uint64_t retransmission_count;
-    uint32_t rtt_ms;
     uint32_t touched;
 
 }temp_session_statistics_t;

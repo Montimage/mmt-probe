@@ -12,8 +12,6 @@
 #include <inttypes.h>
 
 #include "mmt_core.h"
-//#include "mmt/tcpip/mmt_tcpip_protocols.h"
-//#include "mmt/tcpip/mmt_tcpip_attributes.h"
 #include "mmt/tcpip/mmt_tcpip.h"
 #include "processing.h"
 
@@ -22,10 +20,12 @@ void print_ip_session_report (const mmt_session_t * session){
 	uint8_t *ea = 0;
 	char src_mac_pretty [18], dst_mac_pretty [18];
 	int keep_direction = 1;
-	int valid=0;
+	int valid = 0;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 
-	session_struct_t * temp_session =(session_struct_t *) get_user_session_context(session);
+	//printf("print_ip_session_report_total_session_count =%lu \n",total_session_count);
+
+	session_struct_t * temp_session = (session_struct_t *) get_user_session_context(session);
 	if (temp_session == NULL){
 		return;
 	}
@@ -52,7 +52,7 @@ void print_ip_session_report (const mmt_session_t * session){
 	} else if(temp_session->ipversion == 6) {
 		inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
 		inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
-		keep_direction =is_localv6_net(ip_src_str);//to do
+		keep_direction = is_localv6_net(ip_src_str);//to do
 	}
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
 	int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
@@ -61,10 +61,10 @@ void print_ip_session_report (const mmt_session_t * session){
 	temp_session->session_attr->last_activity_time = get_session_last_activity_time(session);
 	int sslindex;
 
-	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%"PRIu64",%u,\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%hu,%hu,%u",
+	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64" ,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu",
 			MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source,temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec,
-			get_session_id(session),proto_id,
-			temp_session->path,
+			proto_id,
+			temp_session->path, total_session_count,
 			get_session_byte_count(session) - temp_session->session_attr->total_byte_count,
 			get_session_data_byte_count(session) - temp_session->session_attr->total_data_byte_count,
 			get_session_packet_count(session) - temp_session->session_attr->total_packet_count,
@@ -74,19 +74,18 @@ void print_ip_session_report (const mmt_session_t * session){
 			((keep_direction)?get_session_dl_byte_count(session):get_session_ul_byte_count(session)) - temp_session->session_attr->byte_count[1],
 			((keep_direction)?get_session_dl_data_byte_count(session):get_session_ul_data_byte_count(session)) - temp_session->session_attr->data_byte_count[1],
 			((keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session)) - temp_session->session_attr->packet_count[1],
-			(get_session_retransmission_count(session) - temp_session->session_attr->retransmission_count),
 			temp_session->session_attr->start_time.tv_sec, temp_session->session_attr->start_time.tv_usec,
-			ip_src_str,ip_dst_str, src_mac_pretty, dst_mac_pretty,
-			temp_session->serverport, temp_session->clientport, (int) temp_session->ipversion);
+			ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,get_session_id(session),
+			temp_session->serverport, temp_session->clientport);
 	valid = strlen(message);
 
 	//To inform what is comming at the start of the flow report
 
-	if (temp_session->app_format_id==probe_context->web_id && temp_session->session_attr->touched==0 && probe_context->web_enable==1) print_initial_web_report(session,temp_session,message,valid);
-	else if (temp_session->app_format_id==probe_context->rtp_id && temp_session->session_attr->touched==0 && probe_context->rtp_enable==1) print_initial_rtp_report(session,temp_session,message,valid);
-	else if (temp_session->app_format_id==probe_context->ssl_id && temp_session->session_attr->touched==0 && probe_context->ssl_enable==1) print_initial_ssl_report(session,temp_session,message,valid);
-	else if (temp_session->app_format_id==probe_context->ftp_id && temp_session->session_attr->touched==0 && probe_context->ftp_enable==1) print_initial_ftp_report(session,temp_session,message,valid);
-	else if(temp_session->session_attr->touched==0){
+	if (temp_session->app_format_id == probe_context->web_id && temp_session->session_attr->touched == 0 && probe_context->web_enable == 1) print_initial_web_report(session,temp_session,message,valid);
+	else if (temp_session->app_format_id == probe_context->rtp_id && temp_session->session_attr->touched == 0 && probe_context->rtp_enable == 1) print_initial_rtp_report(session,temp_session,message,valid);
+	else if (temp_session->app_format_id == probe_context->ssl_id && temp_session->session_attr->touched == 0 && probe_context->ssl_enable == 1) print_initial_ssl_report(session,temp_session,message,valid);
+	else if (temp_session->app_format_id == probe_context->ftp_id && temp_session->session_attr->touched == 0 && probe_context->ftp_enable == 1) print_initial_ftp_report(session,temp_session,message,valid);
+	else if(temp_session->session_attr->touched == 0){
 		sslindex = get_protocol_index_from_session(proto_hierarchy, PROTO_SSL);
 		if (sslindex != -1) print_initial_ssl_report(session,temp_session,message,valid);
 		else print_initial_default_report(session,temp_session,message,valid);
@@ -101,16 +100,15 @@ void print_ip_session_report (const mmt_session_t * session){
 	temp_session->session_attr->total_data_byte_count = get_session_data_byte_count(session);
 	temp_session->session_attr->total_packet_count = get_session_packet_count(session);
 
-	temp_session->session_attr->byte_count[0]=(keep_direction)?get_session_ul_byte_count(session):get_session_dl_byte_count(session);
-	temp_session->session_attr->byte_count[1]=(keep_direction)?get_session_dl_byte_count(session):get_session_ul_byte_count(session);
+	temp_session->session_attr->byte_count[0] = (keep_direction)?get_session_ul_byte_count(session):get_session_dl_byte_count(session);
+	temp_session->session_attr->byte_count[1] = (keep_direction)?get_session_dl_byte_count(session):get_session_ul_byte_count(session);
 
 	temp_session->session_attr->data_byte_count[0] = (keep_direction)?get_session_ul_data_byte_count(session):get_session_dl_data_byte_count(session);
-	temp_session->session_attr->data_byte_count[1] =(keep_direction)?get_session_dl_data_byte_count(session):get_session_ul_data_byte_count(session);
+	temp_session->session_attr->data_byte_count[1] = (keep_direction)?get_session_dl_data_byte_count(session):get_session_ul_data_byte_count(session);
 
 	temp_session->session_attr->packet_count[0] = (keep_direction)?get_session_ul_packet_count(session):get_session_dl_packet_count(session);
-	temp_session->session_attr->packet_count[1]=(keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session);
+	temp_session->session_attr->packet_count[1] = (keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session);
 
-	temp_session->session_attr->retransmission_count= get_session_retransmission_count(session);
 }
 
 void go_through_session(const mmt_session_t * session){
@@ -120,16 +118,14 @@ void go_through_session(const mmt_session_t * session){
 
 	print_ip_session_report (session);
 
-	while(session_previous !=NULL){
+	while(session_previous != NULL){
 
 		print_ip_session_report (session_previous);
 		session_previous = get_session_previous(session_previous);
-
 	}
 
-	while(session_next !=NULL){
+	while(session_next != NULL){
 		print_ip_session_report (session_next);
 		session_next = get_session_next(session_next);
-
 	}
 }
