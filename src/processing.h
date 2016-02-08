@@ -431,11 +431,14 @@ void rtp_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * 
 void rtp_order_error_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+
+//prototypes
 void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session);
-void go_through_session( mmt_session_t * session);
+void go_through_session(const mmt_session_t * session);
 void print_ip_session_report (const mmt_session_t * session);
 int is_localv6_net(char * addr);
 int is_local_net(int addr);
+
 
 int register_event_report_handle(void * handler, mmt_event_report_t * event_report);
 void print_web_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe);

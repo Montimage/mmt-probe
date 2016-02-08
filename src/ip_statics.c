@@ -113,7 +113,7 @@ void print_ip_session_report (const mmt_session_t * session){
 	temp_session->session_attr->retransmission_count= get_session_retransmission_count(session);
 }
 
-void go_through_session( mmt_session_t * session){
+void go_through_session(const mmt_session_t * session){
 
 	const mmt_session_t * session_next = get_session_next(session);
 	const mmt_session_t * session_previous = get_session_previous(session);
