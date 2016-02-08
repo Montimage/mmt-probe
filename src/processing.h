@@ -38,6 +38,7 @@ extern "C" {
 #define MMT_USER_AGENT_THRESHOLD 0x20 //32KB
 #define MAX_MESS 3000
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
+uint64_t total_session_count;
 
 enum os_id {
     OS_UKN, //Unknown
@@ -295,8 +296,6 @@ typedef struct temp_session_statistics_struct{
     uint64_t packet_count[2];
     uint64_t byte_count[2];
     uint64_t data_byte_count[2];
-    uint64_t retransmission_count;
-    uint32_t rtt_ms;
     uint32_t touched;
 
 }temp_session_statistics_t;
@@ -431,6 +430,7 @@ void rtp_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * 
 void rtp_order_error_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+
 void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session);
 void go_through_session( mmt_session_t * session);
 void print_ip_session_report (const mmt_session_t * session);
