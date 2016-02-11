@@ -86,9 +86,11 @@ void print_ip_session_report (const mmt_session_t * session){
 	else if (temp_session->app_format_id == probe_context->ssl_id && temp_session->session_attr->touched == 0 && probe_context->ssl_enable == 1) print_initial_ssl_report(session,temp_session,message,valid);
 	else if (temp_session->app_format_id == probe_context->ftp_id && temp_session->session_attr->touched == 0 && probe_context->ftp_enable == 1) print_initial_ftp_report(session,temp_session,message,valid);
 	else if(temp_session->session_attr->touched == 0){
-		sslindex = get_protocol_index_from_session(proto_hierarchy, PROTO_SSL);
-		if (sslindex != -1) print_initial_ssl_report(session,temp_session,message,valid);
-		else print_initial_default_report(session,temp_session,message,valid);
+            sslindex = get_protocol_index_from_session(proto_hierarchy, PROTO_SSL);
+                if (sslindex != -1 && probe_context->ssl_enable==1 ){
+                    temp_session->app_format_id = probe_context->ssl_id;
+                    print_initial_ssl_report(session,temp_session,message,valid);
+                }else print_initial_default_report(session,temp_session,message,valid);
 	}
 	valid = strlen(message);
 	message[ valid ] = '\0'; // correct end of string in case of truncated message

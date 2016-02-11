@@ -587,7 +587,10 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
             else if(probe_context->ftp_enable==1 &&temp_session->app_format_id==probe_context->ftp_id)print_ftp_app_format(expired_session, iprobe);
             else{
                 sslindex = get_protocol_index_from_session(get_session_protocol_hierarchy(expired_session), PROTO_SSL);
-                if (sslindex != -1 && probe_context->ssl_enable==1 ) print_ssl_app_format(expired_session, iprobe);
+                if (sslindex != -1 && probe_context->ssl_enable==1 ){
+                    temp_session->app_format_id = probe_context->ssl_id;
+                    print_ssl_app_format(expired_session, iprobe);
+                }
                 else print_default_app_format(expired_session,iprobe);
 
             }
