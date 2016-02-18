@@ -118,6 +118,17 @@ void flush_messages_to_file( void *arg){
 	int i=0;
 	char command_str [500+1]={0};
 	mmt_probe_context_t * probe_context = get_probe_context_config();
+	char message[MAX_MESS + 1];
+	struct timeval ts;
+	//Print this report every 5 second 
+	gettimeofday(&ts, NULL);
+	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu",
+			200, probe_context->probe_id_number,
+			probe_context->input_source,ts.tv_sec, ts.tv_usec);
+	message[ MAX_MESS] = '\0';
+
+	if (probe_context->output_to_file_enable==1)send_message_to_file (message);
+	if (probe_context->redis_enable==1)send_message_to_redis ("session.flow.report", message);
 
 	if( cache_count == 0 ){
 		//nothing to write
