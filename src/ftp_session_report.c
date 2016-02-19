@@ -220,7 +220,10 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
     mmt_session_t * ftp_session = get_session_from_packet(ipacket);
     if(ftp_session == NULL) return;
 
-    uint64_t session_id = get_session_id(ftp_session);
+   // uint64_t session_id = get_session_id(ftp_session);
+    uint64_t session_id = temp_session->session_id_probe;
+
+
     struct timeval end_time = get_session_last_activity_time(ipacket->session);
 
 
@@ -321,12 +324,7 @@ void print_ftp_app_format(const mmt_session_t * expired_session,probe_internal_t
     char path[128];
     int i;
     mmt_probe_context_t * probe_context = get_probe_context_config();
-    uint64_t session_id = get_session_id(expired_session);
-
-    if (probe_context->thread_nb > 1) {
-        session_id <<= probe_context->thread_nb_2_power;
-        session_id |= iprobe->instance_id;
-    }
+    uint64_t session_id = temp_session->session_id_probe;
     //IP strings
     char ip_src_str[46];
     char ip_dst_str[46];

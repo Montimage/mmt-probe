@@ -57,6 +57,7 @@ int gethostMACaddress(char *read_mac_address,int no_of_mac){
                     memcpy(mac_address, ifr.ifr_hwaddr.sa_data, 6);
                     mac_address[6]='\0';
                     snprintf(message,13,"%.2X%.2X%.2X%.2X%.2X%.2X", mac_address[0],mac_address[1],mac_address[2],mac_address[3],mac_address[4],mac_address[5]);
+                    //printf("MAC_available=%s\n",message);
                     message[12]='\0';
                     for (j=0;j<no_of_mac;j++){
                         memcpy(licensed_MAC,&read_mac_address[offset],12);
@@ -250,8 +251,6 @@ int license_expiry_check(int status){
         memset(sum_block_str,'0',20);
         valid2=snprintf(sum_block_str,20,"%lu",sum_of_blocks);
         sum_block_str[valid2]='\0';
-
-        //printf("sum__blocks_str=%s\n",sum_block_str);
 
         char * read_sum_block;
         read_sum_block=malloc(sizeof(char)* (valid2+1));

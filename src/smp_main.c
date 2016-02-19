@@ -36,7 +36,6 @@ src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c s
 #include <sys/types.h> //gettid
 #include <sys/resource.h>
 #include <unistd.h> //usleep, sleep
-
 #include "mmt_core.h"
 #include "processing.h"
 
@@ -202,6 +201,7 @@ struct smp_thread {
     pthread_spinlock_t lock; /* lock for concurrent access */
     struct smp_pkt pkt_head; /* pointer on first packet */
     struct smp_pkt null_pkt; /* Null packet used to indicate end of packet feeding for the thread. */
+    time_t last_report_time;
 };
 
 /*
@@ -241,6 +241,7 @@ static void *smp_thread_routine(void *arg) {
     // customized packet and session handling functions are then registered
 
     if(mmt_probe.mmt_conf->enable_flow_stats) {
+    	register_session_timer_handler(th->mmt_handler,print_ip_session_report,NULL);
         register_session_timeout_handler(th->mmt_handler, classification_expiry_session, &th->iprobe);
         flowstruct_init(th->mmt_handler); // initialize our event handler
         if(mmt_probe.mmt_conf->event_based_reporting_enable==1)event_reports_init(th->mmt_handler); // initialize our event reports
@@ -251,9 +252,21 @@ static void *smp_thread_routine(void *arg) {
 
         proto_stats_init(th->mmt_handler);
 
+    	mmt_probe_context_t * probe_context = get_probe_context_config();
+    	char message[MAX_MESS + 1];
 
     while (!quit) {
         pthread_spin_lock(&th->lock);
+        static int start_timer = 0;
+
+        if (start_timer == 0){
+        	th->last_report_time = time(NULL);
+        	start_timer = 1;
+        }
+        if(time(NULL)- th->last_report_time >= mmt_probe.mmt_conf->stats_reporting_period){
+        	th->last_report_time=time(NULL);
+        	process_session_timer_handler(th->mmt_handler);
+        }
         /* if no packet has arrived sleep 2.50 ms */
         if (list_empty((struct list_entry *) &th->pkt_head)) {
             pthread_spin_unlock(&th->lock);
@@ -279,12 +292,18 @@ static void *smp_thread_routine(void *arg) {
         }
     }
 
-
     flowstruct_cleanup(th->mmt_handler); // cleanup our event handler
     radius_ext_cleanup(th->mmt_handler); // cleanup our event handler for RADIUS initializations
-    mmt_close_handler(th->mmt_handler);
-    th->mmt_handler = NULL;
+
+    if(th->mmt_handler != NULL){
+    	pthread_spin_lock(&th->lock);
+        mmt_close_handler(th->mmt_handler);
+        th->mmt_handler = NULL;
+        pthread_spin_unlock(&th->lock);
+    }
+
     sprintf(lg_msg, "Thread %i ended (%"PRIu64" packets)", th->thread_number, nb_pkts);
+    printf("Thread %i ended (%"PRIu64" packets)\n", th->thread_number, nb_pkts);
     mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_T_END, lg_msg);
     //fprintf(stdout, "Thread %i ended (%u packets)\n", th->thread_number, nb_pkts);
     return NULL;
@@ -320,12 +339,10 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
     tm= localtime(&now);
     day_now= tm->tm_mday;
 
-
     //Initialise MMT_Security
     if(mmt_probe->mmt_conf->security_enable==1)
         init_mmt_security( mmt_probe->mmt_handler, mmt_probe->mmt_conf->properties_file );
     //End initialise MMT_Security
-
 
     if (mmt_probe->mmt_conf->thread_nb == 1) {
 
@@ -340,7 +357,7 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
         sprintf(lg_msg, "Start processing trace file: %s", filename);
         mmt_log(mmt_probe->mmt_conf, MMT_L_INFO, MMT_P_START_PROCESS_TRACE, lg_msg);
         //One thread for reading packets and processing them
-
+    	char message[MAX_MESS + 1];
         while ((data = pcap_next(pcap, &pkthdr))) {
             //Check for license
             if(day!=day_now){
@@ -351,6 +368,17 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
             header.caplen = pkthdr.caplen;
             header.len = pkthdr.len;
             header.user_args = NULL;
+            static int start_timer = 0;
+            static time_t last_report_time =0;
+
+            if (start_timer == 0){
+            	last_report_time = time(NULL);
+            	start_timer = 1;
+            }
+            if(time(NULL)- last_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
+            	last_report_time=time(NULL);
+                process_session_timer_handler(mmt_probe->mmt_handler);
+            }
 
             //Call mmt_core function that will parse the packet and analyse it.
             //If MMT_Security is being used:
@@ -446,10 +474,18 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
         header.len = pkthdr->len;
         header.user_args = NULL;
 
-        //Call mmt_core function that will parse the packet and analyse it.
-        //If MMT_Security is being used:
-        //   When a security property is satisfied or not, the callback
-        //   function todo_when_property_is_satisfied_or_not will be executed.
+        static int start_timer = 0;
+        static time_t last_report_time =0;
+
+        if (start_timer == 0){
+        	last_report_time = time(NULL);
+        	start_timer = 1;
+        }
+        if(time(NULL)- last_report_time >= mmt_probe.mmt_conf->stats_reporting_period){
+        	last_report_time=time(NULL);
+        	process_session_timer_handler(mmt_probe.mmt_handler);
+        }
+
         if (!packet_process(mmt_probe.mmt_handler, &header, data)) {
             fprintf(stderr, "MMT Extraction failure! Error while processing packet number %"PRIu64"", packets_count);
         }
@@ -728,12 +764,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
         report_all_protocols_microflows_stats(&mmt_probe.iprobe);
 
     } else {
-        for (i = 0; i < mmt_conf->thread_nb; i++) {
-            // Report the statistics if any (this case appears: statistics reporting time is greater than packet interval time(functions in the packet_handler)) before probe termination
-            //iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.smp_threads[i].mmt_handler);
-        }
-
-        if (wait_thread_terminate) {
+         if (wait_thread_terminate) {
             /* Add a dummy packet at each thread packet list tail */
             for (i = 0; i < mmt_conf->thread_nb; i++) {
                 pthread_spin_lock(&mmt_probe.smp_threads[i].lock);
@@ -767,7 +798,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
             for (i = 0; i < mmt_conf->thread_nb; i++) {
                 //pthread_join(mmt_probe.smp_threads[i].handle, NULL);
                 if (mmt_probe.smp_threads[i].mmt_handler != NULL) {
-                    // Report the statistics if any (this case appears: statistics reporting time is greater than packet interval time(functions in the packet_handler)) before probe termination
                     flowstruct_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler
                     radius_ext_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler for RADIUS initializations
                     mmt_close_handler(mmt_probe.smp_threads[i].mmt_handler);
@@ -777,6 +807,8 @@ void terminate_probe_processing(int wait_thread_terminate) {
             }
         }
     }
+
+
 
     //Now close the reporting files.
     //Offline or Online processing
@@ -789,24 +821,24 @@ void terminate_probe_processing(int wait_thread_terminate) {
     char behaviour_command_str [500+1]={0};
     int behaviour_valid=0;
     int cr;
-
     //If the files are not created this will return error,remove_lock_file();
-    if(mmt_conf->sampled_report==1){
-    	flush_cache_and_exit_timers();
-    }else if (mmt_conf->sampled_report==0){
-        if (mmt_conf->behaviour_enable==1){
-            behaviour_valid=snprintf(behaviour_command_str, MAX_FILE_NAME, "cp %s%s %s", mmt_conf->output_location,mmt_conf->data_out,mmt_conf->behaviour_output_location);
-            behaviour_command_str[behaviour_valid]='\0';
-            cr=system(behaviour_command_str);
-            if (cr!=0){
-                fprintf(stderr,"\n5 Error code %d, while coping output file %s to %s ",cr, mmt_conf->output_location,mmt_conf->behaviour_output_location);
-                exit(1);
-            }
-        }
-    }
+     if(mmt_conf->sampled_report==1){
+     	flush_cache_and_exit_timers();
+     }else if (mmt_conf->sampled_report==0){
+         if (mmt_conf->behaviour_enable==1){
+             behaviour_valid=snprintf(behaviour_command_str, MAX_FILE_NAME, "cp %s%s %s", mmt_conf->output_location,mmt_conf->data_out,mmt_conf->behaviour_output_location);
+             behaviour_command_str[behaviour_valid]='\0';
+             cr=system(behaviour_command_str);
+             if (cr!=0){
+                 fprintf(stderr,"\n5 Error code %d, while coping output file %s to %s ",cr, mmt_conf->output_location,mmt_conf->behaviour_output_location);
+                 exit(1);
+             }
+             exit_timers();
+         }
 
-    close_extraction();
+     }
 
+     close_extraction();
 
     mmt_log(mmt_conf, MMT_L_INFO, MMT_E_END, "Closing MMT Extraction engine!");
 
@@ -958,6 +990,7 @@ int main(int argc, char **argv) {
 
         // customized packet and session handling functions are then registered
         if(mmt_probe.mmt_conf->enable_flow_stats) {
+        	register_session_timer_handler(mmt_probe.mmt_handler,print_ip_session_report,NULL);
             register_session_timeout_handler(mmt_probe.mmt_handler, classification_expiry_session, &mmt_probe.iprobe);
             flowstruct_init(mmt_probe.mmt_handler); // initialize our event handler
             if(mmt_conf->event_based_reporting_enable==1)event_reports_init(mmt_probe.mmt_handler); // initialize our event reports
@@ -979,6 +1012,7 @@ int main(int argc, char **argv) {
         mmt_log(mmt_conf, MMT_L_INFO, MMT_E_INIT, lg_msg);
         mmt_probe.smp_threads = (struct smp_thread *) calloc(mmt_conf->thread_nb, sizeof (struct smp_thread));
 
+        pthread_mutex_init(&mutex_lock, NULL);
         /* run threads */
         for (i = 0; i < mmt_conf->thread_nb; i++) {
             init_list_head((struct list_entry *) &mmt_probe.smp_threads[i].pkt_head);

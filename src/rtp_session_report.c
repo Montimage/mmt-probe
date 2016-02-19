@@ -204,17 +204,12 @@ void print_rtp_app_format(const mmt_session_t * expired_session, probe_internal_
     //Flow_id, Start timestamp, IP version, Server_Address, Client_Address, Server_Port, Client_Port, Transport Protocol ID,
     //Uplink Packet Count, Downlink Packet Count, Uplink Byte Count, Downlink Byte Count, TCP RTT, Retransmissions,
     //Application_Family, Content Class, Protocol_Path, Application_Name
-
+    mmt_probe_context_t * probe_context = get_probe_context_config();
     char message[MAX_MESS + 1];
     char path[128];
-    //proto_hierarchy_to_str(&expired_session->proto_path, path);
-    uint64_t session_id = get_session_id(expired_session);
-    mmt_probe_context_t * probe_context = get_probe_context_config();
 
-    if (probe_context->thread_nb > 1) {
-        session_id <<= probe_context->thread_nb_2_power;
-        session_id |= iprobe->instance_id;
-    }
+    uint64_t session_id = temp_session->session_id_probe;
+
     //IP strings
     char ip_src_str[46];
     char ip_dst_str[46];

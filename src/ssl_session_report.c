@@ -55,12 +55,8 @@ void print_ssl_app_format(const mmt_session_t * expired_session,probe_internal_t
     //Application_Family, Content Class, Protocol_Path, Application_Name
     mmt_probe_context_t * probe_context = get_probe_context_config();
 
-    uint64_t session_id = get_session_id(expired_session);
-    if (probe_context->thread_nb > 1) {
-        session_id <<= probe_context->thread_nb_2_power;
-        session_id |= iprobe->instance_id;
-    }
-    //proto_hierarchy_to_str(&expired_session->proto_path, path);
+    uint64_t session_id = temp_session->session_id_probe;
+
     proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(expired_session), path);
     //IP strings
     char ip_src_str[46];

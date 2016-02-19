@@ -189,11 +189,9 @@ void print_web_app_format(const mmt_session_t * expired_session, probe_internal_
     mmt_probe_context_t * probe_context = get_probe_context_config();
     proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(expired_session), path);
 
-    uint64_t session_id = get_session_id(expired_session);
-    if (probe_context->thread_nb > 1) {
-        session_id <<= probe_context->thread_nb_2_power;
-        session_id |= iprobe->instance_id;
-    }
+
+    uint64_t session_id = temp_session->session_id_probe;
+
     char dev_prop[12];
 
     if ((probe_context->user_agent_parsing_threshold) && (get_session_byte_count(expired_session) > probe_context->user_agent_parsing_threshold)) {

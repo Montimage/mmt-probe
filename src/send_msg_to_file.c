@@ -10,12 +10,15 @@
 #include "processing.h"
 #include <pthread.h>
 #include <sys/timerfd.h>
-pthread_mutex_t mutex_lock = PTHREAD_MUTEX_INITIALIZER;
+
 
 static int is_stop_timer = 0;
 void flush_cache_and_exit_timers(){
 	is_stop_timer = 1;
 	flush_messages_to_file( NULL );
+}
+void exit_timers(){
+	is_stop_timer = 1;
 }
 //start timer
 typedef struct pthread_user_data{
@@ -90,7 +93,6 @@ int start_timer( uint32_t period, void *callback, void *user_data){
 	data->period   = period;
 	data->callback = callback;
 	data->user_data = user_data;
-
 	ret = pthread_create(&pthread, NULL, wait_to_do_something, data);
 
 	if( ret != 0 ){
@@ -118,6 +120,17 @@ void flush_messages_to_file( void *arg){
 	int i=0;
 	char command_str [500+1]={0};
 	mmt_probe_context_t * probe_context = get_probe_context_config();
+	char message[MAX_MESS + 1];
+	struct timeval ts;
+	//Print this report every 5 second
+	gettimeofday(&ts, NULL);
+	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu",
+			200, probe_context->probe_id_number,
+			probe_context->input_source,ts.tv_sec, ts.tv_usec);
+	message[ MAX_MESS] = '\0';
+
+	if (probe_context->output_to_file_enable==1)send_message_to_file (message);
+	if (probe_context->redis_enable==1)send_message_to_redis ("session.flow.report", message);
 
 	if( cache_count == 0 ){
 		//nothing to write
@@ -127,6 +140,8 @@ void flush_messages_to_file( void *arg){
 	time_t present_time;
 	//static time_t last_reporting_time_single=0;
 	present_time = time(0);
+
+
 
 	//open a file
 	valid = snprintf(file_name_str, MAX_FILE_NAME, "%s%lu_%s", probe_context->output_location, present_time, probe_context->data_out);

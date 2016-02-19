@@ -147,12 +147,14 @@ mmt_probe_context_t * get_probe_context_config() {
 void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	mmt_session_t * session = get_session_from_packet(ipacket);
 	if(session == NULL) return;
+	static uint64_t session_id_probe = 1;
 	if (attribute->data == NULL) {
 		return; //This should never happen! check it anyway
 	}
     static uint64_t ipv4_session_count=0;
     static uint64_t ipv6_session_count=0;
 	session_struct_t *temp_session = malloc(sizeof (session_struct_t));
+
 
 	if (temp_session == NULL) {
 		mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating new flow reporting context");
@@ -161,6 +163,8 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	}
 
 	memset(temp_session, '\0', sizeof (session_struct_t));
+
+	temp_session->session_id_probe = session_id_probe++;
 
 	temp_session->format_id = MMT_FLOW_REPORT_FORMAT;
 	temp_session->app_format_id = MMT_DEFAULT_APP_REPORT_FORMAT;
@@ -255,33 +259,19 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	set_user_session_context(session, temp_session);
 }
 
-mmt_session_t * current_session = NULL;
-
-static void iterate_packet( void *arg ){
-	if (probe_context.enable_proto_stats == 1)iterate_through_protocols(protocols_stats_iterator, arg);
-    go_through_session(current_session);
-}
-
 void packet_handler(const ipacket_t * ipacket, void * args) {
-    static time_t last_report_time = 0;
+	static time_t last_report_time = 0;
     static int is_start_timer = 0;
 
-
-    if (last_report_time == 0) {
-        last_report_time = ipacket->p_hdr->ts.tv_sec;
-        return;
-    }
     if (probe_context.ftp_reconstruct_enable==1)
         reconstruct_data(ipacket);
 
-    if(ipacket->session!= NULL) current_session = get_session_from_packet(ipacket);
-
-	if( ! is_start_timer){
-		start_timer(probe_context.stats_reporting_period, iterate_packet,ipacket->mmt_handler );
+    pthread_mutex_lock(&mutex_lock);
+    if( ! is_start_timer){
 		start_timer( probe_context.sampled_report_period, flush_messages_to_file, NULL );
 		is_start_timer = 1;
 	}
-
+    pthread_mutex_unlock(&mutex_lock);
 }
 
 void proto_stats_init(void * handler) {
@@ -571,7 +561,8 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 
     int sslindex;
     //uint64_t session_id = get_session_id(expired_session);
-    print_ip_session_report (expired_session);
+    //printf("session_expired =%p\n",expired_session);
+    print_ip_session_report (expired_session,NULL);
     if (is_microflow(expired_session)) {
         microsessions_stats_t * mf_stats = &iprobe->mf_stats[get_session_protocol_hierarchy(expired_session)->proto_path[(get_session_protocol_hierarchy(expired_session)->len <= 16)?(get_session_protocol_hierarchy(expired_session)->len - 1):(16 - 1)]];
         update_microflows_stats(mf_stats, expired_session);
@@ -589,7 +580,6 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
                 sslindex = get_protocol_index_from_session(get_session_protocol_hierarchy(expired_session), PROTO_SSL);
                 if (sslindex != -1 && probe_context->ssl_enable==1 ) print_ssl_app_format(expired_session, iprobe);
                 else print_default_app_format(expired_session,iprobe);
-
             }
 
         }

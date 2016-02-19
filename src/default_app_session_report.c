@@ -24,14 +24,9 @@ void print_default_app_format(const mmt_session_t * expired_session,probe_intern
     //Uplink Packet Count, Downlink Packet Count, Uplink Byte Count, Downlink Byte Count, TCP RTT, Retransmissions,
     //Application_Family, Content Class, Protocol_Path, Application_Name
 
-    uint64_t session_id = get_session_id(expired_session);
-    if (probe_context->thread_nb > 1) {
-        session_id <<= probe_context->thread_nb_2_power;
-        session_id |= iprobe->instance_id;
-    }
-    //jeevan
+    uint64_t session_id = temp_session->session_id_probe;
+
     temp_session->contentclass = get_content_class_by_content_flags(get_session_content_flags(expired_session));
-    //printf("contentclass=%d \t",temp_session->contentclass);
 
     //IP strings
     char ip_src_str[46];
@@ -44,7 +39,6 @@ void print_default_app_format(const mmt_session_t * expired_session,probe_intern
         inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
         inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
     }
-    //proto_hierarchy_to_str(&expired_session->proto_path, path);
     proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(expired_session), path);
 
     uint32_t rtt_ms = TIMEVAL_2_MSEC(get_session_rtt(expired_session));
