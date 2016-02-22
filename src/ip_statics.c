@@ -64,9 +64,9 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	//printf ("ul_data_byte_count =%lu\n",get_session_ul_data_byte_count(session));
 	//printf ("dl_data_byte_count =%lu\n",get_session_dl_data_byte_count(session));
 
-	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%"PRIu64",%u,\"%s\",%"PRIu64" ,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%hu,%hu",
+	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64" ,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu",
 			MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source,temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec,
-			temp_session->session_id_probe,proto_id,
+			proto_id,
 			temp_session->path, total_session_count,
 			get_session_byte_count(session) - temp_session->session_attr->total_byte_count,
 			get_session_data_byte_count(session) - temp_session->session_attr->total_data_byte_count,
@@ -79,7 +79,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 			((keep_direction)?get_session_dl_data_byte_count(session):get_session_ul_data_byte_count(session)) - temp_session->session_attr->data_byte_count[1],
 			((keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session)) - temp_session->session_attr->packet_count[1],
 			temp_session->session_attr->start_time.tv_sec, temp_session->session_attr->start_time.tv_usec,
-			ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,
+			ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,get_session_id(session),
 			temp_session->serverport, temp_session->clientport);
 	valid = strlen(message);
 

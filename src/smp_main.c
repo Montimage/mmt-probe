@@ -66,6 +66,7 @@ struct mmt_probe_struct {
 };
 
 static struct mmt_probe_struct mmt_probe;
+
 pcap_t *handle = 0; /* packet capture handle */
 struct pcap_stat pcs; /* packet capture filter stats */
 int got_stats = 0; /* capture stats have been obtained */
@@ -303,7 +304,7 @@ static void *smp_thread_routine(void *arg) {
     }
 
     sprintf(lg_msg, "Thread %i ended (%"PRIu64" packets)", th->thread_number, nb_pkts);
-    printf("Thread %i ended (%"PRIu64" packets)\n", th->thread_number, nb_pkts);
+    //printf("Thread %i ended (%"PRIu64" packets)\n", th->thread_number, nb_pkts);
     mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_T_END, lg_msg);
     //fprintf(stdout, "Thread %i ended (%u packets)\n", th->thread_number, nb_pkts);
     return NULL;
@@ -758,7 +759,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
         //Cleanup the MMT handler
         flowstruct_cleanup(mmt_probe.mmt_handler); // cleanup our event handler
         radius_ext_cleanup(mmt_probe.mmt_handler); // cleanup our event handler for RADIUS initializations
-
         mmt_close_handler(mmt_probe.mmt_handler);
         //Now report the microflows!
         report_all_protocols_microflows_stats(&mmt_probe.iprobe);
@@ -800,6 +800,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
                 if (mmt_probe.smp_threads[i].mmt_handler != NULL) {
                     flowstruct_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler
                     radius_ext_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler for RADIUS initializations
+                	//printf("mmt_close_handler = %p \n",mmt_probe.smp_threads[i].mmt_handler);
                     mmt_close_handler(mmt_probe.smp_threads[i].mmt_handler);
                     mmt_probe.smp_threads[i].mmt_handler = NULL;
                 }
@@ -808,37 +809,37 @@ void terminate_probe_processing(int wait_thread_terminate) {
         }
     }
 
+     close_extraction();
 
-
-    //Now close the reporting files.
-    //Offline or Online processing
-    if (mmt_conf->input_mode == OFFLINE_ANALYSIS||mmt_conf->input_mode == ONLINE_ANALYSIS) {
-        if (mmt_conf->data_out_file) fclose(mmt_conf->data_out_file);
-        sprintf(lg_msg, "Closing output results file");
-        mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_P_CLOSE_OUTPUT, lg_msg);
-
-    }
-    char behaviour_command_str [500+1]={0};
-    int behaviour_valid=0;
-    int cr;
-    //If the files are not created this will return error,remove_lock_file();
-     if(mmt_conf->sampled_report==1){
-     	flush_cache_and_exit_timers();
-     }else if (mmt_conf->sampled_report==0){
-         if (mmt_conf->behaviour_enable==1){
-             behaviour_valid=snprintf(behaviour_command_str, MAX_FILE_NAME, "cp %s%s %s", mmt_conf->output_location,mmt_conf->data_out,mmt_conf->behaviour_output_location);
-             behaviour_command_str[behaviour_valid]='\0';
-             cr=system(behaviour_command_str);
-             if (cr!=0){
-                 fprintf(stderr,"\n5 Error code %d, while coping output file %s to %s ",cr, mmt_conf->output_location,mmt_conf->behaviour_output_location);
-                 exit(1);
-             }
-             exit_timers();
-         }
+     //Now close the reporting files.
+     //Offline or Online processing
+     if (mmt_conf->input_mode == OFFLINE_ANALYSIS||mmt_conf->input_mode == ONLINE_ANALYSIS) {
+         if (mmt_conf->data_out_file) fclose(mmt_conf->data_out_file);
+         sprintf(lg_msg, "Closing output results file");
+         mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_P_CLOSE_OUTPUT, lg_msg);
 
      }
+     char behaviour_command_str [500+1]={0};
+     int behaviour_valid=0;
+     int cr;
+     //If the files are not created this will return error,remove_lock_file();
+      if(mmt_conf->sampled_report==1){
+      	flush_cache_and_exit_timers();
+      }else if (mmt_conf->sampled_report==0){
+          if (mmt_conf->behaviour_enable==1){
+              behaviour_valid=snprintf(behaviour_command_str, MAX_FILE_NAME, "cp %s%s %s", mmt_conf->output_location,mmt_conf->data_out,mmt_conf->behaviour_output_location);
+              behaviour_command_str[behaviour_valid]='\0';
+              cr=system(behaviour_command_str);
+              if (cr!=0){
+                  fprintf(stderr,"\n5 Error code %d, while coping output file %s to %s ",cr, mmt_conf->output_location,mmt_conf->behaviour_output_location);
+                  exit(1);
+              }
+              exit_timers();
+          }
 
-     close_extraction();
+      }
+
+
 
     mmt_log(mmt_conf, MMT_L_INFO, MMT_E_END, "Closing MMT Extraction engine!");
 
@@ -942,6 +943,11 @@ int main(int argc, char **argv) {
     char lg_msg[1024];
     sigset_t signal_set;
 
+
+    mmt_probe.smp_threads = NULL;
+    mmt_probe.mmt_handler = NULL;
+    mmt_probe.mmt_conf = NULL;
+
     mmt_probe_context_t * mmt_conf = get_probe_context_config();
     mmt_probe.mmt_conf = mmt_conf;
 
@@ -968,6 +974,8 @@ int main(int argc, char **argv) {
     if (mmt_conf->security_enable==1)
         todo_at_start(mmt_conf->dir_out);
     //End for MMT_Security
+
+    start_timer( mmt_conf->sampled_report_period, flush_messages_to_file, NULL );
 
     //Initialization
     if (mmt_conf->thread_nb == 1) {

@@ -266,12 +266,12 @@ void packet_handler(const ipacket_t * ipacket, void * args) {
     if (probe_context.ftp_reconstruct_enable==1)
         reconstruct_data(ipacket);
 
-    pthread_mutex_lock(&mutex_lock);
+/*    pthread_mutex_lock(&mutex_lock);
     if( ! is_start_timer){
 		start_timer( probe_context.sampled_report_period, flush_messages_to_file, NULL );
 		is_start_timer = 1;
 	}
-    pthread_mutex_unlock(&mutex_lock);
+    pthread_mutex_unlock(&mutex_lock);*/
 }
 
 void proto_stats_init(void * handler) {
@@ -578,7 +578,10 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
             else if(probe_context->ftp_enable==1 &&temp_session->app_format_id==probe_context->ftp_id)print_ftp_app_format(expired_session, iprobe);
             else{
                 sslindex = get_protocol_index_from_session(get_session_protocol_hierarchy(expired_session), PROTO_SSL);
-                if (sslindex != -1 && probe_context->ssl_enable==1 ) print_ssl_app_format(expired_session, iprobe);
+                if (sslindex != -1 && probe_context->ssl_enable==1 ){
+                    temp_session->app_format_id = probe_context->ssl_id;
+                    print_ssl_app_format(expired_session, iprobe);
+                }
                 else print_default_app_format(expired_session,iprobe);
             }
 

@@ -111,6 +111,7 @@ int cache_count = 0;
 char *cache_message_list[ MAX_CACHE_SIZE ];
 
 void flush_messages_to_file( void *arg){
+
 	FILE * file;
 	char file_name_str [MAX_FILE_NAME+1]={0};
 	char dup_file_name_str [MAX_FILE_NAME+1]={0};
