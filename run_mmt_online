@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# description: mmt-probe
+# Start the service mmt-probe
+start() {
+        echo  "Starting mmt-probe: "
+        (while true; do 
+        /usr/bin/onlineprobe -c /etc/mmt/mmt_online.conf
+        done) &    
+        echo
+}
+
+# stop the service mmt-probe
+stop() {
+        echo "Stopping mmt-probe_online: "
+        pkill -f "onlineprobe"
+        pkill -f "run_mmt_online"
+        echo
+}
+
+# restart the mmt-probe 
+restart () {
+
+        stop 
+        start
+
+}
+### main logic ###
+case "$1" in
+  start)
+        start
+        ;;
+  stop)
+        stop
+        ;;
+  status)
+        status mmt-probe_online
+        ;;
+  restart)
+        restart
+        ;;
+  *)
+        echo $"Usage: $0 {start|stop|restart|status}"
+        exit 1
+esac
+exit 0
