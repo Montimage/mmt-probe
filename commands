@@ -20,6 +20,17 @@ gcc -I/opt/mmt/include -g -o simple_probe src/main.c -L/opt/mmt/lib -lmmt_core -
 #### Modular probe
 gcc -g -o probe src/smp_main.c  src/processing.c src/web_session_report.c src/thredis.c src/send_msg_to_file.c src/send_msg_to_redis.c src/rtp_session_report.c src/event_based_reporting.c src/protocols_report.c src/ssl_session_report.c src/default_app_session_report.c src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c src/parseoptions.c src/license.c  src/ftp_session_report.c src/ip_statics.c -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
 
+#### Modular probe as a service
+Start the probe service
+cd ../mmt-probe/
+sudo chmod +x built.sh
+./build.sh
+sudo service run_mmt_online start
+
+Stop the probe service
+sudo service run_mmt_online stop
+
+
 ####Create link to plugins
 mkdir plugins
 cd plugins/
