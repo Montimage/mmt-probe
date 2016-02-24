@@ -24,7 +24,7 @@ gcc -g -o probe src/smp_main.c  src/processing.c src/web_session_report.c src/th
 Start the probe service
 cd ../mmt-probe/
 sudo chmod +x built.sh
-./build.sh
+sudo ./built.sh
 sudo service run_mmt_online start
 
 Stop the probe service
