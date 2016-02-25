@@ -75,8 +75,9 @@ static void *wait_to_do_something( void *arg ){
     //end the timer
     close( timer_fd );
 
-	if( !p_data )
-		free( p_data );
+	if( p_data ) free( p_data );
+        p_data = NULL;
+
 
 	return NULL;
 };
@@ -161,9 +162,9 @@ void flush_messages_to_file( void *arg){
 			perror("this message should not be NULL");
 		}else{
 		    fprintf ( file, "%s\n", cache_message_list[ i ]);
-		    free( cache_message_list[ i ] );
-            cache_message_list[ i ] = NULL;
-        }
+		    if (cache_message_list[ i ]) free( cache_message_list[ i ] );
+                    cache_message_list[ i ] = NULL;
+                }
 	  }
 	cache_count = 0;
     pthread_mutex_unlock(&mutex_lock);

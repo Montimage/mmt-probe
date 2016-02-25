@@ -349,13 +349,20 @@ int license_expiry_check(int status){
             return_ok = 1;
         }
 
-        free(mac_address);
-        free(key);
-        free(read_sum_mac);
-        free(sum_mac_str);
-        free(sum_block_str);
-        free(read_sum_block);
-        free(read_mac_address);
+        if(mac_address) free(mac_address);
+        mac_address = NULL;
+        if(key) free(key);
+        key = NULL;
+        if(read_sum_mac) free(read_sum_mac);
+        read_sum_mac = NULL;
+        if(sum_mac_str) free(sum_mac_str);
+        sum_mac_str = NULL;
+        if(sum_block_str) free(sum_block_str);
+        sum_block_str = NULL;
+        if(read_sum_block) free(read_sum_block);
+        read_sum_block = NULL;
+        if(read_mac_address) free(read_mac_address);
+        read_mac_address = NULL;
 
         return return_ok;
 }

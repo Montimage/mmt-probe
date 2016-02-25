@@ -208,7 +208,8 @@ struct smp_thread {
  * This callback will be called by ixE for packets completely processed.
  */
 static void free_packet_element(void * packet) {
-    free(packet);
+    if(packet)free(packet);
+    packet = NULL;
 }
 
 
@@ -467,7 +468,6 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
                 if (license_expiry_check(1)==1) exit(0);//pcap_next
                     day=day_now;
             }
-
             /* fill smp_pkt fields and copy packet data from pcap buffer */
 
             smp_pkt_instance->pkt.header.len = pkthdr->len;
@@ -483,7 +483,8 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
                 //The packet will be dropped from the analysis
                 sprintf(lg_msg, "Handler queue full error. Instance %i will drop packet nb %"PRIu64" from %s", th->thread_number, packets_count, mmt_probe.mmt_conf->input_source);
                 mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_INSTANCE_QUEUE_FULL, lg_msg);
-                free(smp_pkt_instance);
+                if(smp_pkt_instance)free(smp_pkt_instance);
+                smp_pkt_instance = NULL;
             } else {
                 list_add_tail((struct list_entry *) smp_pkt_instance, (struct list_entry *) &th->pkt_head);
                 th->queue_plen += 1;
@@ -505,7 +506,8 @@ void *Reader(void *arg) {
     struct bpf_program fp; /* compiled filter program */
     bpf_u_int32 mask; /* subnet mask */
     bpf_u_int32 net; /* ip */
-    int num_packets = -1; /* number of packets to capture */
+    //int num_packets = -1; /* number of packets to capture */
+    int num_packets = 1000000; /* number of packets to capture */
 #ifdef CPU_SET
     int rtid = gettid(); /* reader thread id */
     cpu_set_t csmask;
@@ -583,7 +585,7 @@ void *Reader(void *arg) {
 
 
 
-    fprintf(stderr, "\n%d packets captured\n", captured);
+    //fprintf(stderr, "\n%d packets captured\n", captured);
     if (ignored > 0) {
         fprintf(stderr, "%d packets ignored (too small to decapsulate)\n", ignored);
     }
@@ -688,7 +690,8 @@ static void *process_tracefile_thread_routine(void *arg) {
                     //The packet will be dropped from the analysis
                     sprintf(lg_msg, "Handler queue full error. Instance %i will drop packet nb %"PRIu64" from %s", th->thread_number, packets_count, dispatcher->filename);
                     mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_INSTANCE_QUEUE_FULL, lg_msg);
-                    free(smp_pkt);
+                    if(smp_pkt)free(smp_pkt);
+                    smp_pkt = NULL;
                 } else {
                     list_add_tail((struct list_entry *) smp_pkt, (struct list_entry *) &th->pkt_head);
                     th->queue_plen += 1;
