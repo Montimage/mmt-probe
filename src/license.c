@@ -27,8 +27,6 @@ int gethostMACaddress(char *read_mac_address,int no_of_mac)
 	memset(message, '0', 13);
 	struct ifaddrs *ifaddr=NULL;
 	struct ifaddrs *ifa = NULL;
-	int family = 0;
-	int i = 0;
 	char licensed_MAC[13];
 	int offset=0;
 	int j=0;
@@ -44,7 +42,6 @@ int gethostMACaddress(char *read_mac_address,int no_of_mac)
 			if ( (ifa->ifa_addr) && (ifa->ifa_addr->sa_family == AF_PACKET) )
 			{
 				struct sockaddr_ll *s = (struct sockaddr_ll*)ifa->ifa_addr;
-				//printf("%-8s ", ifa->ifa_name);
 				memcpy(mac_address, &s->sll_addr, 6);
 				mac_address[6]='\0';
 				snprintf(message,13,"%.2X%.2X%.2X%.2X%.2X%.2X", mac_address[0],mac_address[1],mac_address[2],mac_address[3],mac_address[4],mac_address[5]);
@@ -52,15 +49,14 @@ int gethostMACaddress(char *read_mac_address,int no_of_mac)
 				for (j=0;j<no_of_mac;j++){
 					memcpy(licensed_MAC,&read_mac_address[offset],12);
 					licensed_MAC[12]='\0';
-					//printf("MAC=%s\n",message);
 					if(strncmp(message,licensed_MAC,12)==0){
+						freeifaddrs(ifaddr);
 						return 1;
 					}
 					offset+=12;
 				}
 				offset =0;
 			}
-
 		}
 		freeifaddrs(ifaddr);
 	}
@@ -96,7 +92,7 @@ int license_expiry_check(int status){
     gettimeofday (&current_time, NULL);
 
     static char file [256+1]={0};
-    strcpy(file,"etc/mmt/License_key.txt");
+    strcpy(file,"/etc/mmt/License_key.txt");
 
     license_key= fopen(file, "r");
     if(license_key == NULL) {
