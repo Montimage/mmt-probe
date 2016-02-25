@@ -591,11 +591,14 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 
       if (temp_session->app_data != NULL) {
           //Free the application specific data
-          free(temp_session->app_data);
+          if(temp_session->app_data) free(temp_session->app_data);
+          temp_session->app_data = NULL;
       }
       if (temp_session->session_attr != NULL) {
           //Free the application specific data
-          free(temp_session->session_attr);
+          if (temp_session->session_attr) free(temp_session->session_attr);
+          temp_session->session_attr = NULL;
       }
-      free(temp_session);
+      if(temp_session) free(temp_session);
+      temp_session = NULL;
 }

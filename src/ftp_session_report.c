@@ -55,6 +55,7 @@ void write_data_to_file (const ipacket_t * ipacket,const char * path, const char
         return;
     }
     if(path2 != NULL) free (path2);
+    path2 = NULL;
     if(len>0){
         printf("Going to write to file: %s\n",filename);
         printf("Data len: %d\n",len);
