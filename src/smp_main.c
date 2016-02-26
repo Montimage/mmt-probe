@@ -267,8 +267,8 @@ static void *smp_thread_routine(void *arg) {
         }
         if(time(NULL)- th->last_report_time >= mmt_probe.mmt_conf->stats_reporting_period){
         	th->last_report_time=time(NULL);
-        	(th->mmt_handler);
-            if (probe_context->enable_proto_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *) th->mmt_handler);
+            process_session_timer_handler(th->mmt_handler);
+            if (probe_context->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *) th->mmt_handler);
 
         }
         /* if no packet has arrived sleep 2.50 ms */
@@ -303,7 +303,7 @@ static void *smp_thread_routine(void *arg) {
     	pthread_spin_lock(&th->lock);
     	radius_ext_cleanup(th->mmt_handler); // cleanup our event handler for RADIUS initializations
     	flowstruct_cleanup(th->mmt_handler); // cleanup our event handler
-    	if (mmt_probe.mmt_conf->enable_proto_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *) th->mmt_handler);
+    	//if (mmt_probe.mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *) th->mmt_handler);
         mmt_close_handler(th->mmt_handler);
         th->mmt_handler = NULL;
         pthread_spin_unlock(&th->lock);
@@ -385,7 +385,7 @@ void process_trace_file(char * filename, struct mmt_probe_struct * mmt_probe) {
             if(time(NULL)- last_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
             	last_report_time=time(NULL);
                 process_session_timer_handler(mmt_probe->mmt_handler);
-                if (mmt_probe->mmt_conf->enable_proto_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe->mmt_handler);
+                if (mmt_probe->mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe->mmt_handler);
 
             }
 
@@ -493,7 +493,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
         if(time(NULL)- last_report_time >= mmt_probe.mmt_conf->stats_reporting_period){
         	last_report_time=time(NULL);
         	process_session_timer_handler(mmt_probe.mmt_handler);
-            if (mmt_probe.mmt_conf->enable_proto_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.mmt_handler);
+            if (mmt_probe.mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.mmt_handler);
         }
 
         if (!packet_process(mmt_probe.mmt_handler, &header, data)) {
@@ -551,8 +551,8 @@ void *Reader(void *arg) {
     struct bpf_program fp; /* compiled filter program */
     bpf_u_int32 mask; /* subnet mask */
     bpf_u_int32 net; /* ip */
-    //int num_packets = -1; /* number of packets to capture */
-    int num_packets = 1000000; /* number of packets to capture */
+    int num_packets = -1; /* number of packets to capture */
+    //int num_packets = 1000000; /* number of packets to capture */
 #ifdef CPU_SET
     int rtid = gettid(); /* reader thread id */
     cpu_set_t csmask;
@@ -770,7 +770,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
         //Cleanup the MMT handler
         flowstruct_cleanup(mmt_probe.mmt_handler); // cleanup our event handler
         radius_ext_cleanup(mmt_probe.mmt_handler); // cleanup our event handler for RADIUS initializations
-        if (mmt_conf->enable_proto_stats == 1)iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.mmt_handler);
+       // if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.mmt_handler);
         mmt_close_handler(mmt_probe.mmt_handler);
         //Now report the microflows!
         report_all_protocols_microflows_stats(&mmt_probe.iprobe);
