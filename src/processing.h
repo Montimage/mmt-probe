@@ -99,6 +99,7 @@ enum mmt_probe_log_codes {
     MMT_P_ERROR,
     MMT_P_TERMINATION,
     MMT_P_INSTANCE_QUEUE_FULL,
+	MMT_LICENSE,
     MMT_T_INIT,
     MMT_T_END,
 };
@@ -192,7 +193,7 @@ typedef struct mmt_probe_context_struct {
     FILE * log_output;
     uint32_t log_level;
 
-    uint32_t enable_proto_stats;
+    uint32_t enable_proto_without_session_stats;
     uint32_t enable_flow_stats;
 
     uint32_t radius_starategy;
@@ -360,7 +361,7 @@ typedef struct probe_internal_struct {
 } probe_internal_t;
 
 
-
+void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char * log_msg);
 void init_redis (char * hostname, int port);
 void proto_stats_init(void * handler);
 void proto_stats_cleanup(void * handler);

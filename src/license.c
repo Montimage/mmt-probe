@@ -84,6 +84,7 @@ int license_expiry_check(int status){
     char block3[11];
     char block4[11];
     char license_message[MAX_MESS + 1];
+    char lg_msg[256];
 
     mmt_probe_context_t * probe_context = get_probe_context_config();
     //tm=localtime(&now);
@@ -100,12 +101,15 @@ int license_expiry_check(int status){
         license_message[ MAX_MESS ] = '\0';
         if (probe_context->output_to_file_enable==1 && status ==0)send_message_to_file (license_message);
         if (probe_context->redis_enable==1 && status ==0)send_message_to_redis ("license.stat", license_message);
-/*        printf("\n\t*************************************\n"
+
+        sprintf(lg_msg, "\n\t*************************************\n"
                 "\t*  MMT LICENSE KEY DOES-NOT EXIST   *\n"
                 "\t*          BUY MMT LICENSE          *\n"
                 "\t*   Website: http://montimage.com   *\n"
                 "\t*   Contact: contact@montimage.com  *\n"
-                "\t**************************************\n\n");*/
+                "\t**************************************\n\n");
+        mmt_log(probe_context, MMT_L_INFO, MMT_LICENSE, lg_msg);
+
         return 1;
     }
 
@@ -274,11 +278,13 @@ int license_expiry_check(int status){
                 license_message[ MAX_MESS ] = '\0';
                 if (probe_context->output_to_file_enable==1 && status ==0)send_message_to_file (license_message);
                 if (probe_context->redis_enable==1&& status ==0)send_message_to_redis ("license.stat", license_message);
-              /*  printf("\n\t*************************************\n"
+
+                sprintf(lg_msg, "\n\t*************************************\n"
                         "\t*          BUY MMT LICENSE          *\n"
                         "\t*   Website: http://montimage.com   *\n"
                         "\t*   Contact: contact@montimage.com  *\n"
-                        "\t**************************************\n\n");*/
+                        "\t**************************************\n\n");
+                mmt_log(probe_context, MMT_L_INFO, MMT_LICENSE, lg_msg);
                 return_ok = 1;
             }
 
@@ -289,12 +295,14 @@ int license_expiry_check(int status){
                 if (probe_context->output_to_file_enable==1 && status ==0)send_message_to_file (license_message);
                 if (probe_context->redis_enable==1 && status ==0)send_message_to_redis ("license.stat", license_message);
 
-          /*      printf("\n\t*************************************\n"
+                sprintf(lg_msg,"\n\t*************************************\n"
                         "\t* MMT LICENSE EXPIRED ON %04d-%02d-%02d *\n"
                         "\t*          BUY MMT LICENSE          *\n"
                         "\t*   Website: http://montimage.com   *\n"
                         "\t*   Contact: contact@montimage.com  *\n"
-                        "\t**************************************\n\n",yr,mn,dy);*/
+                        "\t**************************************\n\n",yr,mn,dy);
+                mmt_log(probe_context, MMT_L_INFO, MMT_LICENSE, lg_msg);
+
                 return_ok = 1;
             }
             snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,%d,\"%s\",%lu.%lu",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_INFO,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec);
@@ -308,12 +316,13 @@ int license_expiry_check(int status){
                 if (probe_context->output_to_file_enable==1 && status ==0)send_message_to_file (license_message);
                 if (probe_context->redis_enable==1 && status ==0)send_message_to_redis ("license.stat", license_message);
 
-           /*     printf("\n\t***********************************************\n"
+               sprintf(lg_msg,"\n\t***********************************************\n"
                         "\t*  MMT LICENSE WILL EXPIRE ON %04d-%02d-%02d  *\n"
                         "\t*              BUY MMT LICENSE                *\n"
                         "\t*        Website: http://montimage.com        *\n"
                         "\t*        Contact: contact@montimage.com       *\n"
-                        "\t************************************************\n\n",yr,mn,dy);*/
+                        "\t************************************************\n\n",yr,mn,dy);
+               mmt_log(probe_context, MMT_L_INFO, MMT_LICENSE, lg_msg);
                 return_ok = 0;
             }
 
@@ -325,12 +334,13 @@ int license_expiry_check(int status){
             if (probe_context->output_to_file_enable==1 && status ==0)send_message_to_file (license_message);
             if (probe_context->redis_enable==1 && status ==0)send_message_to_redis ("license.stat", license_message);
 
-/*            printf("\n\t*************************************\n"
+            sprintf(lg_msg,"\n\t*************************************\n"
                     "\t*        MMT LICENSE MODIFIED       *\n"
                     "\t*          BUY MMT LICENSE          *\n"
                     "\t*   Website: http://montimage.com   *\n"
                     "\t*   Contact: contact@montimage.com  *\n"
-                    "\t**************************************\n\n");*/
+                    "\t**************************************\n\n");
+            mmt_log(probe_context, MMT_L_INFO, MMT_LICENSE, lg_msg);
             return_ok = 1;
         }
 
