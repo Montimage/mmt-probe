@@ -41,7 +41,7 @@ fi
 sudo cp mmt_online.conf /etc/mmt/
 sudo cp mmt_offline.conf /etc/mmt/
 sudo cp License_key.txt /etc/mmt/
-sudo cp log2.data /etc/mmt/
+sudo cp log.data /etc/mmt/
 
 
 sudo cp run_mmt_offline /etc/init.d/
