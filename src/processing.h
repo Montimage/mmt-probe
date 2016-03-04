@@ -1,3 +1,4 @@
+#include <valgrind/drd.h>
 #ifndef PROCESSING_H
 #define	PROCESSING_H
 
@@ -40,6 +41,9 @@ extern "C" {
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
 uint64_t total_session_count;
 pthread_mutex_t mutex_lock;
+pthread_spinlock_t spin_lock;
+time_t update_reporting_time;
+int is_stop_timer;
 
 enum os_id {
     OS_UKN, //Unknown
@@ -164,6 +168,7 @@ typedef struct mmt_probe_context_struct {
     char input_f_name[256 + 1];
     char out_f_name[256 + 1];
     char output_location[256 + 1];
+    char license_location[256 + 1];
     char behaviour_output_location[256 + 1];
     char ftp_reconstruct_output_location[256 + 1];
     uint32_t ftp_enable;
@@ -324,11 +329,6 @@ typedef struct session_struct {
     void * app_data;
 } session_struct_t;
 
-typedef struct thread_session_struct {
-	uint64_t thread_id;
-	mmt_session_t * session_struct;
-	struct thread_session_struct * next;
-} thread_session_struct_t;
 
 typedef struct web_session_attr_struct {
     struct timeval first_request_time;
@@ -352,7 +352,12 @@ typedef struct session_expiry_check_struct {
 } session_expiry_check_struct_t;
 
 
-
+/*typedef struct thread_session_struct {
+	uint64_t thread_id;
+	mmt_session_t * session_struct;
+	struct thread_session_struct * next;
+} thread_session_struct_t;
+*/
 typedef struct probe_internal_struct {
     uint32_t instance_id;
     microsessions_stats_t mf_stats[PROTO_MAX_IDENTIFIER];

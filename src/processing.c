@@ -66,6 +66,9 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt) {
 }
 #endif
 
+uint64_t expired_session_count = 1;
+uint64_t session_id_probe = 1;
+
 struct timeval mmt_time_diff(struct timeval tstart, struct timeval tend) {
     tstart.tv_sec = tend.tv_sec - tstart.tv_sec;
     tstart.tv_usec = tend.tv_usec - tstart.tv_usec;
@@ -143,19 +146,15 @@ mmt_probe_context_t * get_probe_context_config() {
     return & probe_context;
 }
 
-
 void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	mmt_session_t * session = get_session_from_packet(ipacket);
 	if(session == NULL) return;
-	static uint64_t session_id_probe = 1;
+
 	if (attribute->data == NULL) {
 		return; //This should never happen! check it anyway
 	}
-    static uint64_t ipv4_session_count=0;
-    static uint64_t ipv6_session_count=0;
+
 	session_struct_t *temp_session = malloc(sizeof (session_struct_t));
-
-
 	if (temp_session == NULL) {
 		mmt_log(&probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating new flow reporting context");
 		//fprintf(stderr, "Memory allocation failed when creating a new file reporting struct! This flow will be ignored! Sorry!");
@@ -164,7 +163,11 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 
 	memset(temp_session, '\0', sizeof (session_struct_t));
 
+	//pthread_mutex_lock (&mutex_lock);
+	pthread_spin_lock(&spin_lock);
 	temp_session->session_id_probe = session_id_probe++;
+	pthread_spin_unlock(&spin_lock);
+	//pthread_mutex_unlock (&mutex_lock);
 
 	temp_session->format_id = MMT_FLOW_REPORT_FORMAT;
 	temp_session->app_format_id = MMT_DEFAULT_APP_REPORT_FORMAT;
@@ -219,8 +222,6 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		if (dport) {
 			temp_session->serverport = *dport;
 		}
-	    uint64_t * IPV4_active_sessions = (uint64_t *) get_attribute_extracted_data (ipacket,PROTO_IP, PROTO_ACTIVE_SESSIONS_COUNT );
-	    ipv4_session_count = * IPV4_active_sessions;
 
 	} else {
 		void * ipv6_src = (void *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SRC);
@@ -247,31 +248,19 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		if (dport) {
 			temp_session->serverport = *dport;
 		}
-	    uint64_t * IPV6_active_sessions = ( uint64_t *) get_attribute_extracted_data (ipacket,PROTO_IPV6, PROTO_ACTIVE_SESSIONS_COUNT );
-	    ipv6_session_count = * IPV6_active_sessions;
 	}
-    total_session_count = ipv4_session_count + ipv6_session_count;
 
 	temp_session->isFlowExtracted = 1;
-
-
-
 	set_user_session_context(session, temp_session);
 }
 
 void packet_handler(const ipacket_t * ipacket, void * args) {
-	static time_t last_report_time = 0;
-    static int is_start_timer = 0;
 
-    if (probe_context.ftp_reconstruct_enable==1)
-        reconstruct_data(ipacket);
+	//printf("The ID of this thread is: %u\n", (unsigned int)pthread_self());
 
-/*    pthread_mutex_lock(&mutex_lock);
-    if( ! is_start_timer){
-		start_timer( probe_context.sampled_report_period, flush_messages_to_file, NULL );
-		is_start_timer = 1;
-	}
-    pthread_mutex_unlock(&mutex_lock);*/
+  /*  if (probe_context.ftp_reconstruct_enable==1)
+        reconstruct_data(ipacket);*/
+
 }
 
 void proto_stats_init(void * handler) {
@@ -354,8 +343,9 @@ void * get_handler_by_name(char * func_name){
 
 int register_conditional_report_handle(void * handler, mmt_condition_report_t * condition_report) {
     int i = 1,j;
+    mmt_probe_context_t * probe_context = get_probe_context_config();
 
-    if(strcmp(condition_report->condition.condition,"FTP")==0 && condition_report->enable ==1 ){
+ /*   if(strcmp(condition_report->condition.condition,"FTP")==0 && condition_report->enable ==1 ){
         probe_context.ftp_enable=1;
         probe_context.ftp_id=condition_report->id;
     }
@@ -370,8 +360,7 @@ int register_conditional_report_handle(void * handler, mmt_condition_report_t * 
     if(strcmp(condition_report->condition.condition,"SSL")==0 && condition_report->enable ==1){
         probe_context.ssl_enable=1;
         probe_context.ssl_id=condition_report->id;
-    }
-
+    }*/
     for(j = 0; j < condition_report->attributes_nb; j++) {
         mmt_condition_attribute_t * condition_attribute = &condition_report->attributes[j];
         mmt_condition_attribute_t * handler_attribute = &condition_report->handlers[j];
@@ -553,11 +542,19 @@ mmt_dev_properties_t get_dev_properties_from_user_agent(char * user_agent, uint3
 
 void classification_expiry_session(const mmt_session_t * expired_session, void * args) {
     session_struct_t * temp_session = get_user_session_context(expired_session);
+
     if (temp_session == NULL) {
         return;
     }
     probe_internal_t * iprobe = (probe_internal_t *) args;
     mmt_probe_context_t * probe_context = get_probe_context_config();
+
+    //pthread_mutex_lock(&mutex_lock);
+    pthread_spin_lock(& spin_lock);
+    expired_session_count ++;
+    total_session_count = session_id_probe - expired_session_count;
+    pthread_spin_unlock(&spin_lock);
+    //pthread_mutex_unlock(& mutex_lock);
 
     int sslindex;
     //uint64_t session_id = get_session_id(expired_session);
@@ -575,7 +572,7 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
             if (probe_context->web_enable==1 && temp_session->app_format_id==probe_context->web_id)print_web_app_format(expired_session, iprobe);
             else if (probe_context->ssl_enable==1 && temp_session->app_format_id==probe_context->ssl_id)print_ssl_app_format(expired_session, iprobe);
             else if(probe_context->rtp_enable==1 && temp_session->app_format_id==probe_context->rtp_id)print_rtp_app_format(expired_session, iprobe);
-            else if(probe_context->ftp_enable==1 &&temp_session->app_format_id==probe_context->ftp_id)print_ftp_app_format(expired_session, iprobe);
+            else if(probe_context->ftp_enable==1 && temp_session->app_format_id==probe_context->ftp_id)print_ftp_app_format(expired_session, iprobe);
             else{
                 sslindex = get_protocol_index_from_session(get_session_protocol_hierarchy(expired_session), PROTO_SSL);
                 if (sslindex != -1 && probe_context->ssl_enable==1 ){

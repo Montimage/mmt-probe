@@ -87,15 +87,14 @@ int license_expiry_check(int status){
     char lg_msg[256];
 
     mmt_probe_context_t * probe_context = get_probe_context_config();
-    //tm=localtime(&now);
     //convert timeval time into epoch time
     struct timeval current_time;
     gettimeofday (&current_time, NULL);
 
-    static char file [256+1]={0};
-    strcpy(file,"/etc/mmt/License_key.txt");
+    //license_key= fopen("/opt/mmt/mmt_bin/License_key.key", "r");
+    license_key= fopen(probe_context->license_location, "r");
+    //license_key= fopen("License_key.key", "r");
 
-    license_key= fopen(file, "r");
     if(license_key == NULL) {
         snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_KEY_DOES_NOT_EXIST);
         license_message[ MAX_MESS ] = '\0';
@@ -167,7 +166,7 @@ int license_expiry_check(int status){
         int mac_length=0;
         mac_length=no_of_mac*12;
 
-        read_mac_address=malloc(sizeof(char)* mac_length+1);
+        read_mac_address=malloc(sizeof(char)* (mac_length+1));
         memset(read_mac_address,0,mac_length);
         fseek(license_key,offset,SEEK_SET);
         offset+=fread(read_mac_address,1,mac_length,license_key);

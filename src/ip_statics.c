@@ -64,10 +64,16 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	//printf ("ul_data_byte_count =%lu\n",get_session_ul_data_byte_count(session));
 	//printf ("dl_data_byte_count =%lu\n",get_session_dl_data_byte_count(session));
 
+	//pthread_mutex_lock(& mutex_lock);
+	pthread_spin_lock(&spin_lock);
+	uint64_t active_session_count = total_session_count;
+	pthread_spin_unlock(&spin_lock);
+	//pthread_mutex_unlock(& mutex_lock);
+
 	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64" ,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu",
 			MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source,temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec,
 			proto_id,
-			temp_session->path, total_session_count,
+			temp_session->path, active_session_count,
 			get_session_byte_count(session) - temp_session->session_attr->total_byte_count,
 			get_session_data_byte_count(session) - temp_session->session_attr->total_data_byte_count,
 			get_session_packet_count(session) - temp_session->session_attr->total_packet_count,
@@ -99,8 +105,8 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	valid = strlen(message);
 	message[ valid ] = '\0'; // correct end of string in case of truncated message
 
-	if (probe_context->output_to_file_enable==1)send_message_to_file (message);
-	if (probe_context->redis_enable==1)send_message_to_redis ("session.flow.report", message);
+	if (probe_context->output_to_file_enable == 1)send_message_to_file (message);
+	if (probe_context->redis_enable == 1)send_message_to_redis ("session.flow.report", message);
 
 	temp_session->session_attr->total_byte_count = get_session_byte_count(session);
 	temp_session->session_attr->total_data_byte_count = get_session_data_byte_count(session);

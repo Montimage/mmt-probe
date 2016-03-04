@@ -33,9 +33,9 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 				return;
 			}
 		}
+
 		//report the stats instance if there is anything to report
 		if(proto_stats->touched) {
-
 			snprintf(message, MAX_MESS,
 					"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%u,%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%u,%u,%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%u,%u,%u",
 					MMT_STATISTICS_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, proto_stats->last_packet_time.tv_sec, proto_stats->last_packet_time.tv_usec, proto_id, path,

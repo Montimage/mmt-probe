@@ -12,13 +12,22 @@
 #include <sys/timerfd.h>
 
 
-static int is_stop_timer = 0;
+//jeevan
+
 void flush_cache_and_exit_timers(){
+	//pthread_mutex_lock(&mutex_lock);
+	pthread_spin_lock(&spin_lock);
 	is_stop_timer = 1;
+	pthread_spin_unlock(&spin_lock);
+	//pthread_mutex_unlock(&mutex_lock);
 	flush_messages_to_file( NULL );
 }
 void exit_timers(){
+	//pthread_mutex_lock(&mutex_lock);
+	pthread_spin_lock(&spin_lock);
 	is_stop_timer = 1;
+	pthread_spin_unlock(&spin_lock);
+	//pthread_mutex_unlock(&mutex_lock);
 }
 //start timer
 typedef struct pthread_user_data{
@@ -55,7 +64,16 @@ static void *wait_to_do_something( void *arg ){
 	   return NULL;
    }
 
-    while( !is_stop_timer ){
+    while( 1 ){
+    	//pthread_mutex_lock(&mutex_lock);
+    	pthread_spin_lock(&spin_lock);
+    	if ( is_stop_timer ){
+    		//pthread_mutex_unlock(&mutex_lock);
+    		pthread_spin_unlock(&spin_lock);
+    		break;
+    	}
+    	//pthread_mutex_unlock(&mutex_lock);
+    	pthread_spin_unlock(&spin_lock);
     	//pthread_t id = pthread_self();//jeevan delete
 		//printf("wait for %d - %lu - %d\n", seconds, id, number_pthread );
 		//fflush( stdout );
@@ -75,6 +93,7 @@ static void *wait_to_do_something( void *arg ){
         */
 		(* p_data->callback)( p_data->user_data );
     }
+
     //end the timer
     close( timer_fd );
 
@@ -125,13 +144,14 @@ void flush_messages_to_file( void *arg){
 	char message[MAX_MESS + 1];
 	struct timeval ts;
 	//Print this report every 5 second
+
 	gettimeofday(&ts, NULL);
 	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu",
 			200, probe_context->probe_id_number,
 			probe_context->input_source,ts.tv_sec, ts.tv_usec);
 	message[ MAX_MESS] = '\0';
 
-	if (probe_context->output_to_file_enable==1)send_message_to_file (message);
+	if (probe_context->output_to_file_enable == 1) send_message_to_file (message);
 	if (probe_context->redis_enable==1)send_message_to_redis ("session.flow.report", message);
 
 	if( cache_count == 0 ){
@@ -236,16 +256,9 @@ void flush_messages_to_file( void *arg){
 }
 
 void send_message_to_file (char * message) {
-	static time_t last_reporting_time = 0;
-    time_t present_time;
-    //static time_t last_reporting_time_single=0;
-	present_time=time(0);
-	static char single_file [256+1]={0};
-	char lg_msg[1024];
 	mmt_probe_context_t * probe_context = get_probe_context_config();
-    //int size_m=0, ret=0;//jeevan
 	int ret=0;
-	if(probe_context->sampled_report==1){
+	if(probe_context->sampled_report == 1){
 		//avoid 2 threads access in the same time
 		ret = pthread_mutex_lock( &mutex_lock  );
         if (ret == 0) {
@@ -292,28 +305,7 @@ void send_message_to_file (char * message) {
 			pthread_mutex_unlock(&mutex_lock);
 		}
 	}
-	else if (probe_context->sampled_report==0) {
-
-        if (last_reporting_time==0){
-
-        	int len=0;
-            len=snprintf(single_file,MAX_FILE_NAME,"%s%s",probe_context->output_location,probe_context->data_out);
-            single_file[len]='\0';
-
-        	probe_context->data_out_file = fopen(single_file, "w");
-
-        	if (probe_context->data_out_file==NULL){
-        	    fprintf ( stderr , "\n[e] Error: %d creation of \"%s\" failed: %s\n" , errno ,single_file, strerror( errno ) );
-        	    exit(1);
-            }
-
-        	sprintf(lg_msg, "Open output results file: %s", single_file);
-	        mmt_log(probe_context, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
-
-        	last_reporting_time=present_time;
-
-		}
-
+	else if (probe_context->sampled_report == 0) {
         fprintf (probe_context->data_out_file, "%s\n", message);
 	}
 

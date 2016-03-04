@@ -68,6 +68,7 @@ void print_ssl_app_format(const mmt_session_t * expired_session,probe_internal_t
     } else {
         inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
         inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
+        keep_direction = is_localv6_net(ip_src_str);
     }
 
     temp_session->contentclass = get_content_class_by_content_flags(get_session_content_flags(expired_session));

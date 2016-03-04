@@ -13,7 +13,7 @@
 #include "mmt_core.h"
 #include "mmt/tcpip/mmt_tcpip.h"
 #include "processing.h"
-
+/*
 char * str_replace_all_char(const char *str,int c1, int c2){
     char *new_str;
     new_str = (char*)malloc(strlen(str)+1);
@@ -28,16 +28,24 @@ char * str_replace_all_char(const char *str,int c1, int c2){
     return new_str;
 }
 
+typedef struct ftp_download_struct{
+	uint32_t total_len;
+	time_t download_start_time_sec;
+
+}ftp_download_struct_t;
+
 void write_data_to_file (const ipacket_t * ipacket,const char * path, const char * content, int len, uint32_t * file_size) {
     int fd = 0,MAX=200;
     char filename[len];
     char * path2=NULL;
 
     static uint32_t total_len=0;
-    static time_t download_start_time_sec =0, download_start_time_usec=0;
+    static time_t download_start_time_sec = 0, download_start_time_usec = 0;
+    //ftp_download_struct_t * download_parameters;
+
     mmt_probe_context_t * probe_context = get_probe_context_config();
 
-    total_len+=len;
+    total_len += len;
 
     if (download_start_time_sec ==0 && download_start_time_usec==0){
         download_start_time_sec = ipacket->p_hdr->ts.tv_sec;
@@ -64,7 +72,7 @@ void write_data_to_file (const ipacket_t * ipacket,const char * path, const char
 
     if (total_len >= * file_size){
         download_start_time_sec =0,
-                download_start_time_usec=0;
+        download_start_time_usec=0;
         total_len=0;
     }
 
@@ -100,7 +108,7 @@ void reconstruct_data(const ipacket_t * ipacket ){
         printf("Going to write data of packet %lu\n",ipacket->packet_id);
         write_data_to_file(ipacket,file_name,data_payload,len,file_size);
     }
-}
+}*/
 
 void reset_ftp_parameters(const ipacket_t * ipacket,session_struct_t *temp_session ){
 
@@ -221,7 +229,6 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
     mmt_session_t * ftp_session = get_session_from_packet(ipacket);
     if(ftp_session == NULL) return;
 
-   // uint64_t session_id = get_session_id(ftp_session);
     uint64_t session_id = temp_session->session_id_probe;
 
 
@@ -287,7 +294,6 @@ void ftp_file_name_handle(const ipacket_t * ipacket, attribute_t * attribute, vo
     //char * name;
     //name= (char*)malloc(sizeof(char)*200);
 
-
     if (temp_session != NULL && temp_session->app_data != NULL) {
         char * file_name = (char *) attribute->data;
         //file_name=str_replace_all_char(file_name,'/','_');
@@ -336,6 +342,7 @@ void print_ftp_app_format(const mmt_session_t * expired_session,probe_internal_t
     } else {
         inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
         inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
+        keep_direction = is_localv6_net(ip_src_str);
     }
     uint32_t rtt_ms = TIMEVAL_2_MSEC(get_session_rtt(expired_session));
     proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(expired_session), path);

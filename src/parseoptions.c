@@ -139,6 +139,7 @@ cfg_t * parse_conf(const char *filename) {
             CFG_STR("input-source", "nosource", CFGF_NONE),
             CFG_INT("probe-id-number", 0, CFGF_NONE),
             CFG_STR("logfile", 0, CFGF_NONE),
+			CFG_STR("license_file_path", 0, CFGF_NONE),
             CFG_INT("loglevel", 2, CFGF_NONE),
             CFG_SEC("event_report", event_report_opts, CFGF_TITLE | CFGF_MULTI),
             CFG_SEC("condition_report", condition_report_opts, CFGF_TITLE | CFGF_MULTI),
@@ -273,7 +274,14 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
             exit(1);
         }
         strncpy(mmt_conf->log_file, (char *) cfg_getstr(cfg, "logfile"), 256);
+
         mmt_conf->log_level = (uint32_t) cfg_getint(cfg, "loglevel");
+
+        if ((char *) cfg_getstr(cfg, "license_file_path")==NULL){
+            printf("Error: Specify the license_file_path full path in the configuration file\n");
+            exit(1);
+        }
+        strncpy(mmt_conf->license_location, (char *) cfg_getstr(cfg, "license_file_path"), 256);
 
         if (cfg_size(cfg, "micro-flows")) {
             cfg_t *microflows = cfg_getnsec(cfg, "micro-flows", 0);
@@ -423,6 +431,22 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
                 //   fprintf(stderr, "Error: invalid condition_report location value '%s'\n", (char *) cfg_getstr(condition_opts, "location"));
                 //  exit(-1);
                 // }
+                if(strcmp(temp_condn->condition.condition,"FTP")==0 && temp_condn->enable ==1 ){
+                	mmt_conf->ftp_enable=1;
+                	mmt_conf->ftp_id=temp_condn->id;
+                }
+                if(strcmp(temp_condn->condition.condition,"WEB")==0 && temp_condn->enable ==1){
+                	mmt_conf->web_enable=1;
+                	mmt_conf->web_id=temp_condn->id;
+                }
+                if(strcmp(temp_condn->condition.condition,"RTP")==0 && temp_condn->enable ==1){
+                	mmt_conf->rtp_enable=1;
+                	mmt_conf->rtp_id=temp_condn->id;
+                }
+                if(strcmp(temp_condn->condition.condition,"SSL")==0 && temp_condn->enable ==1){
+                	mmt_conf->ssl_enable=1;
+                	mmt_conf->ssl_id=temp_condn->id;
+                }
 
                 condition_attributes_nb = cfg_size(condition_opts, "attributes");
                 temp_condn->attributes_nb = condition_attributes_nb;

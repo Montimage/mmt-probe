@@ -220,6 +220,7 @@ void print_rtp_app_format(const mmt_session_t * expired_session, probe_internal_
     } else {
         inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
         inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
+        keep_direction = is_localv6_net(ip_src_str);
     }
 
     proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(expired_session), path);

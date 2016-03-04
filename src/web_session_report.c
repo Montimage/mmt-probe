@@ -210,6 +210,7 @@ void print_web_app_format(const mmt_session_t * expired_session, probe_internal_
     } else {
         inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
         inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
+        keep_direction = is_localv6_net(ip_src_str);
     }
 
     uint32_t rtt_ms = TIMEVAL_2_MSEC(get_session_rtt(expired_session));

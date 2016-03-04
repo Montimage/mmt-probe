@@ -90,7 +90,11 @@ void update_microflows_stats(microsessions_stats_t * stats, const mmt_session_t 
     if (temp_session->ipversion == 4) {
         keep_direction = is_local_net(temp_session->ipclient.ipv4);
         is_local_net(temp_session->ipserver.ipv4);
-    }
+    }else if(temp_session->ipversion == 6) {
+    	char ip_src_str[46];
+		inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
+		keep_direction = is_localv6_net(ip_src_str);//add more condition if any in is_localv6_net function
+	}
 
     if(keep_direction) {
         stats->dl_pcount += get_session_dl_packet_count(expired_session);
