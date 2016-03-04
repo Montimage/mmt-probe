@@ -1,54 +1,106 @@
 #!/bin/bash
-sudo gcc -g -o /usr/bin/offlineprobe src/smp_main.c  src/processing.c src/web_session_report.c src/thredis.c src/send_msg_to_file.c src/send_msg_to_redis.c src/rtp_session_report.c src/event_based_reporting.c src/protocols_report.c src/ssl_session_report.c src/default_app_session_report.c src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c src/parseoptions.c src/license.c  src/ftp_session_report.c src/ip_statics.c -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
 
-sudo gcc -g -o /usr/bin/onlineprobe src/smp_main.c  src/processing.c src/web_session_report.c src/thredis.c src/send_msg_to_file.c src/send_msg_to_redis.c src/rtp_session_report.c src/event_based_reporting.c src/protocols_report.c src/ssl_session_report.c src/default_app_session_report.c src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c src/parseoptions.c src/license.c  src/ftp_session_report.c src/ip_statics.c -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
-
-if [ ! -d /tmp/ ]
+if [ ! -d /opt ]
 then
-    mkdir /tmp/
-fi
-if [ ! -d /tmp/reports_online ]
-then
-    mkdir /tmp/reports_online/
-fi
-if [ ! -d /tmp/reports_offline/ ]
-then
-    mkdir /tmp/reports_offline/
-fi
-if [ ! -d /tmp/behaviour_reports_online/ ]
-then
-    mkdir /tmp/behaviour_reports_online/
-fi
-if [ ! -d /tmp/behaviour_reports_offline/ ]
-then
-    mkdir /tmp/behaviour_reports_offline/
-fi
-if [ ! -d /tmp/security_reports_online/ ]
-then
-    mkdir /tmp/security_reports_online/
+    sudo mkdir /opt/
 fi
 
-if [ ! -d /tmp/security_reports_offline/ ]
+if [ ! -d /opt/mmt/ ]
 then
-    mkdir /tmp/security_reports_offline/
+    sudo mkdir /opt/mmt/
 fi
 
-if [ ! -d /etc/mmt/ ]
+
+if [ -z "$1" ]
 then
-    mkdir /etc/mmt/
+output_dir="/opt/mmt/"
+echo "Output directory /opt/mmt/"
+else
+if [ ! -d $1 ]
+then
+echo "Created $1"
+sudo mkdir -p $1
+output_dir="$1"
+else
+output_dir="$1"
+echo "Already exists $1"
+fi
 fi
 
-sudo cp mmt_online.conf /etc/mmt/
-sudo cp mmt_offline.conf /etc/mmt/
-sudo cp License_key.txt /etc/mmt/
-sudo cp log.data /etc/mmt/
+if [ ! -d $output_dir/mmt_results/ ]
+then
+    sudo mkdir $output_dir/mmt_results/
+fi
+
+if [ ! -d $output_dir/mmt_results/reports_online/ ]
+then
+    sudo mkdir $output_dir/mmt_results/reports_online/
+fi
+
+if [ ! -d $output_dir/mmt_results/reports_offline/ ]
+then
+    sudo mkdir $output_dir/mmt_results/reports_offline/
+fi
+
+if [ ! -d $output_dir/mmt_results/behaviour_reports_online/ ]
+then
+    sudo mkdir $output_dir/mmt_results/behaviour_reports_online/
+fi
+
+if [ ! -d $output_dir/mmt_results/behaviour_reports_offline/ ]
+then
+    sudo mkdir $output_dir/mmt_results/behaviour_reports_offline/
+fi
+
+if [ ! -d $output_dir/mmt_results/security_reports_online/ ]
+then
+    sudo mkdir $output_dir/mmt_results/security_reports_online/
+fi
+
+if [ ! -d $output_dir/mmt_results/security_reports_offline/ ]
+then
+    sudo mkdir $output_dir/mmt_results/security_reports_offline/
+fi
+
+if [ ! -d $output_dir/mmt_conf/ ]
+then
+    sudo mkdir $output_dir/mmt_conf/
+fi
+
+if [ ! -d $output_dir/mmt_bin/ ]
+then
+    sudo mkdir $output_dir/mmt_bin/
+fi
+
+if [ ! -d $output_dir/mmt_log/ ]
+then
+    sudo mkdir $output_dir/mmt_log/
+fi
+
+if [ ! -f log.data ]
+then
+    touch $output_dir/mmt_log/log.data
+fi
+
+var="/opt/"
+
+#sudo sed "s|$var|$output_dir|g" mmt_offline.conf > $output_dir/mmt_conf/mmt_offline.conf
+sudo sed "s|$var|$output_dir|g" mmt_online.conf > $output_dir/mmt_conf/mmt_online.conf
 
 
-sudo cp run_mmt_offline /etc/init.d/
-sudo cp run_mmt_online /etc/init.d/
 
-sudo chmod +x /etc/init.d/run_mmt_offline
+#sudo cp log.data $output_dir/mmt_log/
+sudo cp onlineprobe $output_dir/mmt_bin/
+sudo cp offlineprobe $output_dir/mmt_bin/
+#sudo sed "s|$var|$output_dir|g" conf_offline_probe > /etc/init.d/run_mmt_offline
+sudo sed "s|$var|$output_dir|g" conf_online_probe > /etc/init.d/run_mmt_online
+
+sudo cp License_key.key $output_dir/mmt_bin/
+
 sudo chmod +x /etc/init.d/run_mmt_online
+sudo chmod +x /etc/init.d/run_mmt_offline
+
+
 
 
 
