@@ -1,4 +1,3 @@
-#include <valgrind/drd.h>
 #ifndef PROCESSING_H
 #define	PROCESSING_H
 
