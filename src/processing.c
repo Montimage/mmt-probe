@@ -258,8 +258,8 @@ void packet_handler(const ipacket_t * ipacket, void * args) {
 
 	//printf("The ID of this thread is: %u\n", (unsigned int)pthread_self());
 
-  /*  if (probe_context.ftp_reconstruct_enable==1)
-        reconstruct_data(ipacket);*/
+    if (probe_context.ftp_reconstruct_enable==1)
+        reconstruct_data(ipacket);
 
 }
 
