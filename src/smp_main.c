@@ -71,6 +71,8 @@ char *filter_exp = ""; /* decapsulation filter expression */
 int captured = 0; /* number of packets captured for stats */
 int ignored = 0; /* number of packets !decapsulated for stats */
 
+uint64_t nb_packets_dropped_by_mmt = 0;
+
 static void terminate_probe_processing(int wait_thread_terminate);
 
 
@@ -350,14 +352,24 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 //BW: TODO: add the pcap handler to the mmt_probe (or internal structure accessible from it) in order to be able to close it here
 
 void cleanup(int signo) {
-	stop = 1;
-	if (got_stats) return;
-#ifndef RHEL3
+
 	pcap_breakloop(handle);
-#endif
-	if (pcap_stats(handle, &pcs) < 0) {
-		(void) fprintf(stderr, "pcap_stats: %s\n", pcap_geterr(handle));
-	} else got_stats = 1;
+    stop = 1;
+    if (got_stats) return;
+
+    if (pcap_stats(handle, &pcs) < 0) {
+        (void) fprintf(stderr, "pcap_stats: %s\n", pcap_geterr(handle));
+    } else got_stats = 1;
+
+    if (ignored > 0) {
+	   fprintf(stderr, "%d packets ignored (too small to decapsulate)\n", ignored);
+   }
+   if (got_stats) {
+	   (void) fprintf(stderr, "%d packets received by filter\n", pcs.ps_recv);
+	   (void) fprintf(stderr, "%d packets dropped by kernel\n", pcs.ps_drop);
+	   (void) fprintf(stderr, "%"PRIu64" packets dropped by MMT\n", nb_packets_dropped_by_mmt );
+   }
+
 #ifdef RHEL3
 	pcap_close(handle);
 #endif /* RHEL3 */
@@ -416,6 +428,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
 				mmt_log(mmt_probe.mmt_conf, MMT_L_EMERGENCY, MMT_P_INSTANCE_QUEUE_FULL, lg_msg);
 				if(smp_pkt_instance)free(smp_pkt_instance);
 				smp_pkt_instance = NULL;
+				nb_packets_dropped_by_mmt ++;
 			} else {
 				list_add_tail((struct list_entry *) smp_pkt_instance, (struct list_entry *) &th->pkt_head);
 				th->queue_plen += 1;
@@ -424,7 +437,6 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
 			pthread_spin_unlock(&th->lock);
 		}
 	}
-
 }
 
 /*
@@ -453,15 +465,6 @@ void *Reader(void *arg) {
 #else
 	//replace with equivalent code for target OS or delete and run less optimally
 #endif
-
-	struct sigaction sa;
-	sa.sa_handler = cleanup;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = 0; /* allow signal to abort pcap read */
-
-	sigaction(SIGINT, &sa, NULL);
-	sigaction(SIGPIPE, &sa, NULL);
-
 
 	/*
 	 * get network number and mask associated with capture device
@@ -515,13 +518,7 @@ void *Reader(void *arg) {
 	pcap_loop(handle, num_packets, got_packet, NULL);
 
 	//fprintf(stderr, "\n%d packets captured\n", captured);
-	if (ignored > 0) {
-		fprintf(stderr, "%d packets ignored (too small to decapsulate)\n", ignored);
-	}
-	if (got_stats) {
-		(void) fprintf(stderr, "%d packets received by filter\n", pcs.ps_recv);
-		(void) fprintf(stderr, "%d packets dropped by kernel\n", pcs.ps_drop);
-	}
+
 	/* cleanup */
 	pcap_freecode(&fp);
 #ifndef RHEL3
@@ -534,17 +531,9 @@ void *Reader(void *arg) {
 }
 
 void process_interface(char * ifname, struct mmt_probe_struct * mmt_probe) {
-	pthread_t reader_thread; //Live interface reader thread
-	int rc;
-	rc = pthread_create(&reader_thread, NULL, &Reader, (void *) mmt_probe);
-	if (rc) {
-		fprintf(stderr, "pthread_create error while creating interface reader\n");
-		exit(1);
-	}
+	Reader((void*) mmt_probe );
+	return;
 
-	while (!stop) {
-		usleep(500000);
-	}
 }
 
 static void *process_tracefile_thread_routine(void *arg) {
@@ -731,11 +720,8 @@ void terminate_probe_processing(int wait_thread_terminate) {
 	close_extraction();
 //printf("HERE_close_extraction2\n");
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_E_END, "Closing MMT Extraction engine!");
-
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_P_END, "Closing MMT Probe!");
-
 	if (mmt_conf->log_output) fclose(mmt_conf->log_output);
-
 }
 
 /* This signal handler ensures clean exits */
@@ -744,9 +730,11 @@ void signal_handler(int type) {
 	i++;
 	char lg_msg[1024];
 
-	if (i == 1) {
-		terminate_probe_processing(0);
-		/*
+    cleanup( 0 );
+
+    if (i == 1) {
+        terminate_probe_processing(0);
+        /*
                     if(strlen(mmt_probe.mmt_conf->input_f_name) > 1) {
                         if (remove(mmt_probe.mmt_conf->input_f_name) != 0) {
                             //fprintf(stdout, "Trace Error deleting file\n");
@@ -758,10 +746,11 @@ void signal_handler(int type) {
                             //fprintf(stdout, "Trace File %s successfully deleted\n", trace_file_name);
                         }
                     }
-		 */
-	} else {
-		sprintf(lg_msg, "reception of signal %i while processing a signal exiting!", type);
-		/*
+         */
+    } else {
+    	signal(SIGINT, signal_handler);
+        sprintf(lg_msg, "reception of signal %i while processing a signal exiting!", type);
+        /*
                 mmt_log(mmt_probe.mmt_conf, MMT_L_EMERGENCY, MMT_P_TERMINATION, "Multi signal received! cleaning up!");
                     if(strlen(mmt_probe.mmt_conf->input_f_name) > 1) {
                         if (remove(mmt_probe.mmt_conf->input_f_name) != 0) {

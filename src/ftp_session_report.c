@@ -12,6 +12,7 @@
 #include "mmt_core.h"
 #include "mmt/tcpip/mmt_tcpip.h"
 #include "processing.h"
+
 /*
 char * str_replace_all_char(const char *str,int c1, int c2){
     char *new_str;
@@ -52,7 +53,7 @@ void write_data_to_file (const ipacket_t * ipacket,const char * path, const char
 
     }
 
-    path2 = str_replace_all_char(path2,'/','_');
+    path2 = str_replace_all_char(path,'/','_');
     snprintf(filename,MAX, "%s%lu.%lu_%s",probe_context->ftp_reconstruct_output_location,download_start_time_sec,download_start_time_usec,path);
     filename[MAX]='\0';
 
@@ -107,7 +108,8 @@ void reconstruct_data(const ipacket_t * ipacket ){
         printf("Going to write data of packet %lu\n",ipacket->packet_id);
         write_data_to_file(ipacket,file_name,data_payload,len,file_size);
     }
-}*/
+}
+*/
 
 void reset_ftp_parameters(const ipacket_t * ipacket,session_struct_t *temp_session ){
 
@@ -115,7 +117,7 @@ void reset_ftp_parameters(const ipacket_t * ipacket,session_struct_t *temp_sessi
     ((ftp_session_attr_t*) temp_session->app_data)->file_download_starttime_usec=0;
     ((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_sec=0;
     ((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_usec=0;
-    /*((ftp_session_attr_t*) temp_session->app_data)->response_value=NULL;
+ /*   ((ftp_session_attr_t*) temp_session->app_data)->response_value=NULL;
     ((ftp_session_attr_t*) temp_session->app_data)->file_size=0;
     ((ftp_session_attr_t*) temp_session->app_data)->filename=NULL;
     ((ftp_session_attr_t*) temp_session->app_data)->response_code=0;
@@ -363,7 +365,7 @@ void print_ftp_app_format(const mmt_session_t * expired_session,void *args) {
                                             (keep_direction)?get_session_dl_byte_count(expired_session):get_session_ul_byte_count(expired_session),
                                                     rtt_ms, get_session_retransmission_count(expired_session),
                                                     path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]
-                    /*((ftp_session_attr_t*) temp_session->app_data)->session_conn_type,
+               /*     ((ftp_session_attr_t*) temp_session->app_data)->session_conn_type,
                     ((ftp_session_attr_t*) temp_session->app_data)->session_username,
                     ((ftp_session_attr_t*) temp_session->app_data)->session_password,
                     ((ftp_session_attr_t*) temp_session->app_data)->file_size,

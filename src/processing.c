@@ -272,7 +272,7 @@ void packet_handler(const ipacket_t * ipacket, void * args) {
 
 	//printf("packet_id: %lu\n", ipacket->packet_id);
 
-  /*  if (probe_context.ftp_reconstruct_enable==1)
+   /* if (probe_context.ftp_reconstruct_enable==1)
         reconstruct_data(ipacket);*/
 
 }
