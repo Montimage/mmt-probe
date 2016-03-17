@@ -904,7 +904,7 @@ int main(int argc, char **argv) {
 		if(mmt_probe.mmt_conf->enable_flow_stats) {
 			register_session_timer_handler(mmt_probe.smp_threads->mmt_handler,print_ip_session_report,(void *) mmt_probe.smp_threads);
 			register_session_timeout_handler(mmt_probe.smp_threads->mmt_handler, classification_expiry_session, (void *) mmt_probe.smp_threads);
-			flowstruct_init(mmt_probe.smp_threads->mmt_handler); // initialize our event handler
+			flowstruct_init((void *)mmt_probe.smp_threads); // initialize our event handler
 			if(mmt_conf->event_based_reporting_enable==1)event_reports_init((void *)mmt_probe.smp_threads); // initialize our event reports
 			conditional_reports_init(mmt_probe.smp_threads->mmt_handler);// initialize our conditional reports
 			if(mmt_conf->radius_enable==1)radius_ext_init((void *)mmt_probe.smp_threads); // initialize radius extraction and attribute event handler
