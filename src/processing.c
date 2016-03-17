@@ -27,6 +27,8 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <pthread.h>
+
 
 
 #ifdef _WIN32
@@ -147,8 +149,13 @@ mmt_probe_context_t * get_probe_context_config() {
 }
 
 void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
+
 	mmt_session_t * session = get_session_from_packet(ipacket);
 	if(session == NULL) return;
+
+	uint64_t * IPV4_active_sessions = NULL;
+	uint64_t * IPV6_active_sessions = NULL;
+	struct smp_thread *th = (struct smp_thread *) user_args;
 
 	if (attribute->data == NULL) {
 		return; //This should never happen! check it anyway
@@ -163,11 +170,16 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 
 	memset(temp_session, '\0', sizeof (session_struct_t));
 
-	//pthread_mutex_lock (&mutex_lock);
-	pthread_spin_lock(&spin_lock);
-	temp_session->session_id_probe = session_id_probe++;
-	pthread_spin_unlock(&spin_lock);
-	//pthread_mutex_unlock (&mutex_lock);
+	temp_session->session_id = get_session_id(session);
+	temp_session->thread_number = th->thread_number;
+/*
+
+	//pthread_spin_lock(&spin_lock);
+
+    total_session_count = session_id_probe - expired_session_count;
+    //printf("total_session_count1 = %lu \n",total_session_count);
+
+*/
 
 	temp_session->format_id = MMT_FLOW_REPORT_FORMAT;
 	temp_session->app_format_id = MMT_DEFAULT_APP_REPORT_FORMAT;
@@ -222,7 +234,8 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		if (dport) {
 			temp_session->serverport = *dport;
 		}
-
+		uint64_t * IPv4_total_active_sessions = (uint64_t *) get_attribute_extracted_data (ipacket,PROTO_IP, PROTO_ACTIVE_SESSIONS_COUNT );
+		 temp_session->IPv4_total_active_sessions = * IPv4_total_active_sessions;
 	} else {
 		void * ipv6_src = (void *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SRC);
 		void * ipv6_dst = (void *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_DST);
@@ -248,15 +261,16 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		if (dport) {
 			temp_session->serverport = *dport;
 		}
+		uint64_t * IPv6_total_active_sessions  = (uint64_t *) get_attribute_extracted_data (ipacket,PROTO_IPV6, PROTO_ACTIVE_SESSIONS_COUNT );
+		temp_session->IPv6_total_active_sessions = * IPv6_total_active_sessions;
 	}
-
 	temp_session->isFlowExtracted = 1;
 	set_user_session_context(session, temp_session);
 }
 
 void packet_handler(const ipacket_t * ipacket, void * args) {
 
-	//printf("The ID of this thread is: %u\n", (unsigned int)pthread_self());
+	//printf("packet_id: %lu\n", ipacket->packet_id);
 
   /*  if (probe_context.ftp_reconstruct_enable==1)
         reconstruct_data(ipacket);*/
@@ -387,33 +401,34 @@ void conditional_reports_init(void * handler) {
         }
     }
 }
-void flowstruct_init(void * handler) {
+void flowstruct_init(void * args) {
+	struct smp_thread *th = (struct smp_thread *) args;
     int i = 1;
-    i &= register_extraction_attribute(handler, PROTO_TCP, TCP_SRC_PORT);
-    i &= register_extraction_attribute(handler, PROTO_TCP, TCP_DEST_PORT);
-    i &= register_extraction_attribute(handler, PROTO_UDP, UDP_SRC_PORT);
-    i &= register_extraction_attribute(handler, PROTO_UDP, UDP_DEST_PORT);
+    i &= register_extraction_attribute(th->mmt_handler, PROTO_TCP, TCP_SRC_PORT);
+    i &= register_extraction_attribute(th->mmt_handler, PROTO_TCP, TCP_DEST_PORT);
+    i &= register_extraction_attribute(th->mmt_handler, PROTO_UDP, UDP_SRC_PORT);
+    i &= register_extraction_attribute(th->mmt_handler, PROTO_UDP, UDP_DEST_PORT);
 
-    i &= register_extraction_attribute(handler, PROTO_ETHERNET, ETH_DST);
-    i &= register_extraction_attribute(handler, PROTO_ETHERNET, ETH_SRC);
-    i &= register_extraction_attribute(handler, PROTO_IP, IP_SRC);
-    i &= register_extraction_attribute(handler, PROTO_IP, IP_DST);
-    i &= register_extraction_attribute(handler, PROTO_IP, IP_PROTO_ID);
-    i &= register_extraction_attribute(handler, PROTO_IP, IP_SERVER_PORT);
-    i &= register_extraction_attribute(handler, PROTO_IP, IP_CLIENT_PORT);
+    i &= register_extraction_attribute(th->mmt_handler, PROTO_ETHERNET, ETH_DST);
+    i &= register_extraction_attribute(th->mmt_handler, PROTO_ETHERNET, ETH_SRC);
+    i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, IP_SRC);
+    i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, IP_DST);
+    i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, IP_PROTO_ID);
+    i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, IP_SERVER_PORT);
+    i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, IP_CLIENT_PORT);
 
-    i &= register_extraction_attribute(handler, PROTO_IPV6, IP6_NEXT_PROTO);
-    i &= register_extraction_attribute(handler, PROTO_IPV6, IP6_SRC);
-    i &= register_extraction_attribute(handler, PROTO_IPV6, IP6_DST);
-    i &= register_extraction_attribute(handler, PROTO_IPV6, IP6_SERVER_PORT);
-    i &= register_extraction_attribute(handler, PROTO_IPV6, IP6_CLIENT_PORT);
+    i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_NEXT_PROTO);
+    i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_SRC);
+    i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_DST);
+    i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_SERVER_PORT);
+    i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_CLIENT_PORT);
 
-    i &= register_extraction_attribute(handler, PROTO_IP, PROTO_ACTIVE_SESSIONS_COUNT);
-    i &= register_extraction_attribute(handler, PROTO_IPV6, PROTO_ACTIVE_SESSIONS_COUNT);
+    i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_ACTIVE_SESSIONS_COUNT);
+    i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, PROTO_ACTIVE_SESSIONS_COUNT);
 
-    i &= register_attribute_handler(handler, PROTO_IP, PROTO_SESSION, flow_nb_handle, NULL, NULL);
-    i &= register_attribute_handler(handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle, NULL, NULL);
-    register_ftp_attributes(handler);
+    i &= register_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
+    i &= register_attribute_handler(th->mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
+    register_ftp_attributes(th->mmt_handler);
     if(!i) {
         //TODO: we need a sound error handling mechanism! Anyway, we should never get here :)
         fprintf(stderr, "Error while initializing MMT handlers and extractions!\n");
@@ -542,47 +557,45 @@ mmt_dev_properties_t get_dev_properties_from_user_agent(char * user_agent, uint3
 
 void classification_expiry_session(const mmt_session_t * expired_session, void * args) {
     session_struct_t * temp_session = get_user_session_context(expired_session);
-
+    struct smp_thread *th = (struct smp_thread *) args;
     if (temp_session == NULL) {
         return;
     }
-    probe_internal_t * iprobe = (probe_internal_t *) args;
-    mmt_probe_context_t * probe_context = get_probe_context_config();
 
-    //pthread_mutex_lock(&mutex_lock);
-    pthread_spin_lock(& spin_lock);
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+ /*
     expired_session_count ++;
     total_session_count = session_id_probe - expired_session_count;
-    pthread_spin_unlock(&spin_lock);
-    //pthread_mutex_unlock(& mutex_lock);
+    //pthread_spin_unlock(&spin_lock);
+ ;*/
 
     int sslindex;
     //uint64_t session_id = get_session_id(expired_session);
     //printf("session_expired =%p\n",expired_session);
-    print_ip_session_report (expired_session,NULL);
+    print_ip_session_report (expired_session,th);
     if (is_microflow(expired_session)) {
-        microsessions_stats_t * mf_stats = &iprobe->mf_stats[get_session_protocol_hierarchy(expired_session)->proto_path[(get_session_protocol_hierarchy(expired_session)->len <= 16)?(get_session_protocol_hierarchy(expired_session)->len - 1):(16 - 1)]];
-        update_microflows_stats(mf_stats, expired_session);
-        if (is_microflow_stats_reportable(mf_stats)) {
-            report_microflows_stats(mf_stats);
-        }
+    	microsessions_stats_t * mf_stats = &th->iprobe.mf_stats[get_session_protocol_hierarchy(expired_session)->proto_path[(get_session_protocol_hierarchy(expired_session)->len <= 16)?(get_session_protocol_hierarchy(expired_session)->len - 1):(16 - 1)]];
+    	update_microflows_stats(mf_stats, expired_session);
+    	if (is_microflow_stats_reportable(mf_stats)) {
+    		report_microflows_stats(mf_stats,args);
+    	}
     } else {
-        //First we check if we should skip the reporting for this flow
-        if (temp_session->app_format_id != MMT_SKIP_APP_REPORT_FORMAT) {
-            if (probe_context->web_enable==1 && temp_session->app_format_id==probe_context->web_id)print_web_app_format(expired_session, iprobe);
-            else if (probe_context->ssl_enable==1 && temp_session->app_format_id==probe_context->ssl_id)print_ssl_app_format(expired_session, iprobe);
-            else if(probe_context->rtp_enable==1 && temp_session->app_format_id==probe_context->rtp_id)print_rtp_app_format(expired_session, iprobe);
-            else if(probe_context->ftp_enable==1 && temp_session->app_format_id==probe_context->ftp_id)print_ftp_app_format(expired_session, iprobe);
-            else{
-                sslindex = get_protocol_index_from_session(get_session_protocol_hierarchy(expired_session), PROTO_SSL);
-                if (sslindex != -1 && probe_context->ssl_enable==1 ){
-                    temp_session->app_format_id = probe_context->ssl_id;
-                    print_ssl_app_format(expired_session, iprobe);
-                }
-                else print_default_app_format(expired_session,iprobe);
-            }
+    	//First we check if we should skip the reporting for this flow
+    	if (temp_session->app_format_id != MMT_SKIP_APP_REPORT_FORMAT) {
+    		if (probe_context->web_enable==1 && temp_session->app_format_id==probe_context->web_id)print_web_app_format(expired_session,(void *) th);
+    		else if (probe_context->ssl_enable==1 && temp_session->app_format_id==probe_context->ssl_id)print_ssl_app_format(expired_session,(void *) th);
+    		else if(probe_context->rtp_enable==1 && temp_session->app_format_id==probe_context->rtp_id)print_rtp_app_format(expired_session,(void *) th);
+    		else if(probe_context->ftp_enable==1 && temp_session->app_format_id==probe_context->ftp_id)print_ftp_app_format(expired_session, (void *)th);
+    		else{
+    			sslindex = get_protocol_index_from_session(get_session_protocol_hierarchy(expired_session), PROTO_SSL);
+    			if (sslindex != -1 && probe_context->ssl_enable==1 ){
+    				temp_session->app_format_id = probe_context->ssl_id;
+    				if (probe_context->ssl_enable==1 && temp_session->app_format_id==probe_context->ssl_id)print_ssl_app_format(expired_session, (void *)th);
+    			}
+    			//else print_default_app_format(expired_session,(void *)th);//jeevan if no report are enable , comment it
+    		}
 
-        }
+    	}
     }
 
 

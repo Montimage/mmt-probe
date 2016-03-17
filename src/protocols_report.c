@@ -10,19 +10,21 @@
 #include "mmt_core.h"
 #include "mmt/tcpip/mmt_tcpip_protocols.h"
 #include "processing.h"
+#include <pthread.h>
 
 void protocols_stats_iterator(uint32_t proto_id, void * args) {
 	if (proto_id == 1 || proto_id == 99 ) return;
 	char message[MAX_MESS + 1];
-	mmt_handler_t * mmt_handler = (mmt_handler_t *) args;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
-	//ignor META and UNknown protocols
-	proto_statistics_t * proto_stats = get_protocol_stats(mmt_handler, proto_id);
+
+	struct smp_thread *th = (struct smp_thread *) args;
+
+	proto_statistics_t * proto_stats = get_protocol_stats(th->mmt_handler, proto_id);
 	proto_hierarchy_t proto_hierarchy = {0};
 
 	if (proto_stats != NULL) {
 
-		get_protocol_stats_path(mmt_handler, proto_stats, &proto_hierarchy);
+		get_protocol_stats_path(th->mmt_handler, proto_stats, &proto_hierarchy);
 		char path[128];
 		proto_hierarchy_ids_to_str(&proto_hierarchy, path);
 		protocol_t * proto_struct = get_protocol_struct_by_id (proto_id);
@@ -43,10 +45,11 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 					0,0,0,proto_stats->first_packet_time.tv_sec,proto_stats->first_packet_time.tv_usec,"undefined","undefined","undefined","undefined",0,0,0);
 
 			message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-			if (probe_context->output_to_file_enable==1)send_message_to_file (message);
-			if (probe_context->redis_enable==1)send_message_to_redis ("protocol.stat", message);
+			if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,th);
 		}
+		if (probe_context->redis_enable==1)send_message_to_redis ("protocol.stat", message);
 
 		reset_statistics(proto_stats);
 	}
+
 }

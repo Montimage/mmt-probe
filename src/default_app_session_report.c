@@ -11,7 +11,7 @@
 #include "mmt/tcpip/mmt_tcpip.h"
 #include "processing.h"
 
-void print_default_app_format(const mmt_session_t * expired_session,probe_internal_t * iprobe) {
+void print_default_app_format(const mmt_session_t * expired_session,void *args) {
     int keep_direction = 1;
     session_struct_t * temp_session = get_user_session_context(expired_session);
     char message[MAX_MESS + 1];
@@ -23,8 +23,6 @@ void print_default_app_format(const mmt_session_t * expired_session,probe_intern
     //Flow_id, Start timestamp, IP version, Server_Address, Client_Address, Server_Port, Client_Port, Transport Protocol ID,
     //Uplink Packet Count, Downlink Packet Count, Uplink Byte Count, Downlink Byte Count, TCP RTT, Retransmissions,
     //Application_Family, Content Class, Protocol_Path, Application_Name
-
-    uint64_t session_id = temp_session->session_id_probe;
 
     temp_session->contentclass = get_content_class_by_content_flags(get_session_content_flags(expired_session));
 
@@ -49,9 +47,9 @@ void print_default_app_format(const mmt_session_t * expired_session,probe_intern
     const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
 
     snprintf(message, MAX_MESS,
-            "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u", // app specific
+            "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%"PRIu32",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u", // app specific
             temp_session->app_format_id, probe_context->probe_id_number, probe_context->input_source, end_time.tv_sec, end_time.tv_usec,
-            session_id,
+            temp_session->session_id,temp_session->thread_number,
             init_time.tv_sec, init_time.tv_usec,
             (int) temp_session->ipversion,
             ip_dst_str, ip_src_str,
@@ -67,7 +65,7 @@ void print_default_app_format(const mmt_session_t * expired_session,probe_intern
 
     message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
     //send_message_to_file ("flow.report", message);
-    if (probe_context->output_to_file_enable==1)send_message_to_file (message);
+    if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,(void*)args);
     if (probe_context->redis_enable==1)send_message_to_redis ("flow.report", message);
     /*
     fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,\n", // app specific

@@ -44,7 +44,7 @@ int gethostMACaddress(char *read_mac_address,int no_of_mac)
 				struct sockaddr_ll *s = (struct sockaddr_ll*)ifa->ifa_addr;
 				memcpy(mac_address, &s->sll_addr, 6);
 				mac_address[6]='\0';
-				snprintf(message,13,"%.2X%.2X%.2X%.2X%.2X%.2X", mac_address[0],mac_address[1],mac_address[2],mac_address[3],mac_address[4],mac_address[5]);
+				snprintf(message,13,"%.2x%.2x%.2x%.2x%.2x%.2x", mac_address[0],mac_address[1],mac_address[2],mac_address[3],mac_address[4],mac_address[5]);
 				message[12]='\0';
 				for (j=0;j<no_of_mac;j++){
 					memcpy(licensed_MAC,&read_mac_address[offset],12);
@@ -96,7 +96,7 @@ int license_expiry_check(int status){
     //license_key= fopen("License_key.key", "r");
 
     if(license_key == NULL) {
-        snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_KEY_DOES_NOT_EXIST);
+        snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_KEY_DOES_NOT_EXIST);
         license_message[ MAX_MESS ] = '\0';
         if (probe_context->output_to_file_enable==1 && status ==0)send_message_to_file (license_message);
         if (probe_context->redis_enable==1 && status ==0)send_message_to_redis ("license.stat", license_message);

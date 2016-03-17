@@ -15,12 +15,14 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
     attribute_t * attr_extract;
     int offset = 0, valid;
     char message[MAX_MESS + 1];
+	struct smp_thread *th = (struct smp_thread *) user_args;
+
     mmt_probe_context_t * probe_context = get_probe_context_config();
     mmt_event_report_t * event_report = (mmt_event_report_t *) user_args;
 
     valid= snprintf(message, MAX_MESS,
             "%u,%u,\"%s\",%lu.%lu",
-            event_report->id, probe_context->probe_id_number, probe_context->input_source, ipacket->p_hdr->ts.tv_sec,ipacket->p_hdr->ts.tv_usec);
+            th->event_reports->id, probe_context->probe_id_number, probe_context->input_source, ipacket->p_hdr->ts.tv_sec,ipacket->p_hdr->ts.tv_usec);
     if(valid > 0) {
         offset += valid;
     }else {
@@ -38,7 +40,7 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
     }
 
     for(j = 0; j < event_report->attributes_nb; j++) {
-        mmt_event_attribute_t * event_attribute = &event_report->attributes[j];
+        mmt_event_attribute_t * event_attribute = &th->event_reports->attributes[j];
         attr_extract = get_extracted_attribute_by_name(ipacket,event_attribute->proto, event_attribute->attribute);
         message[offset] = ',';
         if(attr_extract != NULL) {
@@ -56,28 +58,31 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
     }
     message[ offset ] = '\0';
     //send_message_to_file ("event.report", message);
-    if (probe_context->output_to_file_enable==1)send_message_to_file (message);
+    if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,th);
     if (probe_context->redis_enable==1)send_message_to_redis ("event.report", message);
 }
 
-int register_event_report_handle(void * handler, mmt_event_report_t * event_report) {
+int register_event_report_handle(void * args) {
     int i = 1, j;
-    i &= register_attribute_handler_by_name(handler, event_report->event.proto, event_report->event.attribute, event_report_handle, NULL, (void *) event_report);
-    for(j = 0; j < event_report->attributes_nb; j++) {
-        mmt_event_attribute_t * event_attribute = &event_report->attributes[j];
-        i &= register_extraction_attribute_by_name(handler, event_attribute->proto, event_attribute->attribute);
+	struct smp_thread *th = (struct smp_thread *) args;
+
+    i &= register_attribute_handler_by_name(th->mmt_handler, th->event_reports->event.proto, th->event_reports->event.attribute, event_report_handle, NULL, (void *) th);
+    for(j = 0; j < th->event_reports->attributes_nb; j++) {
+        mmt_event_attribute_t * event_attribute = &th->event_reports->attributes[j];
+        i &= register_extraction_attribute_by_name(th->mmt_handler, event_attribute->proto, event_attribute->attribute);
         // printf ("%s \tAttribute=%s, i=%d\n\n",event_attribute->proto,event_attribute->attribute,i);
     }
     return i;
 }
-void event_reports_init(void * handler) {
+void event_reports_init(void * args) {
     int i;
     mmt_probe_context_t * probe_context = get_probe_context_config();
+	struct smp_thread *th = (struct smp_thread *) args;
 
     for(i = 0; i < probe_context->event_reports_nb; i++) {
-        mmt_event_report_t * event_report = &probe_context->event_reports[i];
-        if(register_event_report_handle(handler, event_report) == 0) {
-            fprintf(stderr, "Error while initializing event report number %i!\n", event_report->id);
+        th->event_reports = &probe_context->event_reports[i];
+        if(register_event_report_handle((void *)th) == 0) {
+            fprintf(stderr, "Error while initializing event report number %i!\n", th->event_reports->id);
         }
     }
 }

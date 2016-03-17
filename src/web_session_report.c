@@ -172,12 +172,12 @@ void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, vo
     }
 }
 
-void print_web_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe) {
+void print_web_app_format(const mmt_session_t * expired_session, void *args) {
     int keep_direction = 1;
     session_struct_t * temp_session = get_user_session_context(expired_session);
     char path[128];
     char message[MAX_MESS + 1];
-
+    struct smp_thread *th = (struct smp_thread *) args;
     //common fields
     //format id, timestamp
     //Flow_id, Start timestamp, IP version, Server_Address, Client_Address, Server_Port, Client_Port, Transport Protocol ID,
@@ -189,8 +189,7 @@ void print_web_app_format(const mmt_session_t * expired_session, probe_internal_
     mmt_probe_context_t * probe_context = get_probe_context_config();
     proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(expired_session), path);
 
-
-    uint64_t session_id = temp_session->session_id_probe;
+    //printf("print_web_app_format_th_nb=%d \n",th->thread_number);
 
     char dev_prop[12];
 
@@ -224,9 +223,9 @@ void print_web_app_format(const mmt_session_t * expired_session, probe_internal_
     const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
 
     snprintf(message, MAX_MESS,
-            "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,%u,%u,%u,\"%s\",\"%s\",\"%s\",\"%s\",%u", // app specific
+            "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%"PRIu32",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,%u,%u,%u,\"%s\",\"%s\",\"%s\",\"%s\",%u", // app specific
             temp_session->app_format_id, probe_context->probe_id_number, probe_context->input_source, end_time.tv_sec, end_time.tv_usec,
-            session_id,
+            temp_session->session_id,temp_session->thread_number,
             init_time.tv_sec, init_time.tv_usec,
             (int) temp_session->ipversion,
             ip_dst_str, ip_src_str,
@@ -247,7 +246,7 @@ void print_web_app_format(const mmt_session_t * expired_session, probe_internal_
     );
 
     message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-    if (probe_context->output_to_file_enable==1)send_message_to_file (message);
+    if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,(void*)args);
     if (probe_context->redis_enable==1)send_message_to_redis ("web.flow.report", message);
 
 }
@@ -270,7 +269,6 @@ void print_initial_web_report(const mmt_session_t * session,session_struct_t * t
 
     );
     temp_session->session_attr->touched=1;
-
 }
 
 /*

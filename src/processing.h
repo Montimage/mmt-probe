@@ -1,4 +1,3 @@
-#include <valgrind/drd.h>
 #ifndef PROCESSING_H
 #define	PROCESSING_H
 
@@ -44,6 +43,7 @@ pthread_mutex_t mutex_lock;
 pthread_spinlock_t spin_lock;
 time_t update_reporting_time;
 int is_stop_timer;
+
 
 enum os_id {
     OS_UKN, //Unknown
@@ -324,7 +324,10 @@ typedef struct session_struct {
     uint8_t isClassified;
     uint8_t ipversion;
     uint32_t contentclass;
-    uint64_t session_id_probe;
+    uint32_t thread_number;
+    uint64_t session_id;
+    uint64_t IPv4_total_active_sessions;
+    uint64_t IPv6_total_active_sessions;
     temp_session_statistics_t * session_attr;
     void * app_data;
 } session_struct_t;
@@ -351,20 +354,97 @@ typedef struct session_expiry_check_struct {
     uint32_t expired_session_id;
 } session_expiry_check_struct_t;
 
+struct packet_element {
+    struct pkthdr header;
+    u_char *data;
+};
 
-/*typedef struct thread_session_struct {
-	uint64_t thread_id;
-	mmt_session_t * session_struct;
-	struct thread_session_struct * next;
-} thread_session_struct_t;
-*/
+/**
+ * Double linked list structure
+ */
+struct list_entry {
+    struct list_entry *next, *prev;
+};
+
+/**
+ * List node initialization
+ */
+static inline void init_list_head(struct list_entry *list) {
+    list->next = list;
+    list->prev = list;
+}
+
+/**
+ * Test if list is empty
+ */
+static inline int list_empty(struct list_entry *list) {
+    return (list->next == list);
+}
+
+/**
+ * Add a node at list tail
+ */
+static inline void list_add_tail(struct list_entry *new, struct list_entry *head) {
+    new->next = head;
+    head->prev->next = new;
+    new->prev = head->prev;
+    head->prev = new;
+}
+
+/**
+ * Remove a node from list
+ */
+static inline void list_del(struct list_entry *entry) {
+    entry->next->prev = entry->prev;
+    entry->prev->next = entry->next;
+    entry->next = NULL;
+    entry->prev = NULL;
+}
+
+/*
+ * Packet with pointer on next packet
+ * for list insertion
+ */
+struct smp_pkt {
+    struct list_entry entry; /* list structure */
+    struct packet_element pkt; /* real packet information */
+};
 typedef struct probe_internal_struct {
     uint32_t instance_id;
     microsessions_stats_t mf_stats[PROTO_MAX_IDENTIFIER];
     //FILE * data_out;
     //FILE * radius_out;
 } probe_internal_t;
+/*
+ * List of packets for a thread
+ */
+#define MAX_CACHE_SIZE 300002
+struct smp_thread {
+    int thread_number;
+    mmt_handler_t *mmt_handler;
+    probe_internal_t iprobe;
+    uint32_t queue_plen;
+    uint32_t queue_blen;
+    pthread_t handle; /* thread handle */
+    pthread_spinlock_t lock; /* lock for concurrent access */
+    struct smp_pkt pkt_head; /* pointer on first packet */
+    struct smp_pkt null_pkt; /* Null packet used to indicate end of packet feeding for the thread. */
+    time_t last_stat_report_time;
+    time_t last_msg_report_time;
+    mmt_event_report_t * event_reports;
+    char *cache_message_list[ MAX_CACHE_SIZE ];
+    int cache_count;
+};
 
+
+
+typedef struct mmt_probe_struct {
+    struct smp_thread *smp_threads;
+    //mmt_handler_t *mmt_handler; //For single threaded operations
+    mmt_probe_context_t * mmt_conf;
+    probe_internal_t iprobe;
+    uint64_t packets_nb;
+}mmt_probe_struct_t;
 
 void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char * log_msg);
 void init_redis (char * hostname, int port);
@@ -372,52 +452,41 @@ void proto_stats_init(void * handler);
 void proto_stats_cleanup(void * handler);
 void flowstruct_init(void * handler);
 void flowstruct_cleanup(void * handler);
-void radius_ext_init(void * handler);
+void radius_ext_init(void * args);
 void radius_ext_cleanup(void * handler);
-void event_reports_init(void * handler);
+void event_reports_init(void * args);
 void conditional_reports_init(void * handler);
-void event_reports_cleanup(void * handler);
-void init_session_structs();
-void print_session_structs();
-void report_microflows_stats(microsessions_stats_t * stats);
-void reset_microflows_stats(microsessions_stats_t * stats);
-void report_all_protocols_microflows_stats(probe_internal_t * iprobe);
 void security_event( int prop_id, char *verdict, char *type, char *cause, char *history );
-void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char * log_msg);
-void iterate_through_ip( mmt_handler_t *mmt_handler );
 void protocols_stats_iterator(uint32_t proto_id, void * args);
 void send_message_to_file (char * message);
+void send_message_to_file_thread (char * message, void *args);
 void send_message_to_redis (char *channel, char * message);
 int proto_hierarchy_ids_to_str(const proto_hierarchy_t * proto_hierarchy, char * dest);
 int is_local_net(int addr);
+int is_localv6_net(char * addr);
 
+int register_event_report_handle(void * args);
 uint32_t get_2_power(uint32_t nb);
 const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt);
-void write_data_to_file (const ipacket_t * ipacket,const char * path, const char * content, int len, uint32_t * file_size);
+//void write_data_to_file (const ipacket_t * ipacket,const char * path, const char * content, int len, uint32_t * file_size);
 uint32_t is_microflow(const mmt_session_t * expired_session);
 uint32_t is_microflow_stats_reportable(microsessions_stats_t * stats);
-void reset_microflows_stats(microsessions_stats_t * stats);
-void report_all_protocols_microflows_stats(probe_internal_t * iprobe);
-void report_microflows_stats(microsessions_stats_t * stats);
+void report_microflows_stats(microsessions_stats_t * stats, void *args);
 void update_microflows_stats(microsessions_stats_t * stats, const mmt_session_t * expired_session);
+void reset_microflows_stats(microsessions_stats_t * stats);
+void report_all_protocols_microflows_stats(void *args);
 int license_expiry_check(int status);
 void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf);
 void todo_at_start(char *file_path);
-void reconstruct_data(const ipacket_t * ipacket );
+//void reconstruct_data(const ipacket_t * ipacket );
 void todo_at_end();
 void init_mmt_security(mmt_handler_t *mmt_handler, char * property_file);
-void send_message (char * message);
-char * get_prety_mac_address( const uint8_t *ea );
-void flush_cache_and_exit_timers();
-void flush_messages_to_file( void * );
+void exit_timers();
+void flush_messages_to_file_thread( void *);
 int start_timer( uint32_t period, void *callback, void *user_data);
 struct timeval mmt_time_diff(struct timeval tstart, struct timeval tend);
 
-
-//void register_web_attributes(void * handler);
-void register_rtp_attributes(void * handler);
 void register_ftp_attributes(void * handler);
-void register_ssl_attributes(void *handler);
 
 //handlers
 void ftp_file_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
@@ -444,20 +513,13 @@ void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, v
 void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 
 //prototypes
-void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session);
-void go_through_session(const mmt_session_t * session);
+//void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session);
+void print_web_app_format(const mmt_session_t * expired_session, void *args);
+void print_ssl_app_format(const mmt_session_t * expired_session, void *args);
+void print_rtp_app_format(const mmt_session_t * expired_session, void *args);
+void print_ftp_app_format(const mmt_session_t * expired_session, void *args);
+void print_default_app_format(const mmt_session_t * expired_session, void *args);
 void print_ip_session_report (const mmt_session_t * session, void *user_args);
-int is_localv6_net(char * addr);
-int is_local_net(int addr);
-
-
-int register_event_report_handle(void * handler, mmt_event_report_t * event_report);
-void print_web_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe);
-void print_ssl_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe);
-void print_rtp_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe);
-void print_ftp_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe);
-void print_default_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe);
-
 void print_initial_web_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
 void print_initial_rtp_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
 void print_initial_ssl_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);

@@ -9,7 +9,6 @@
 
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
-
 #include "mmt_core.h"
 #include "mmt/tcpip/mmt_tcpip.h"
 #include "processing.h"
@@ -229,9 +228,6 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
     mmt_session_t * ftp_session = get_session_from_packet(ipacket);
     if(ftp_session == NULL) return;
 
-    uint64_t session_id = temp_session->session_id_probe;
-
-
     struct timeval end_time = get_session_last_activity_time(ipacket->session);
 
 
@@ -250,8 +246,8 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
             ((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_sec= ipacket->p_hdr->ts.tv_sec;
             ((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_usec=ipacket->p_hdr->ts.tv_usec;
             snprintf(message, MAX_MESS,
-                    "%u,%u,\"%s\",%lu.%lu,%"PRIu64",\"%s\",\"%s\",%hu,%hu,%"PRIu8",%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%lu.%lu,%lu.%lu",
-                    probe_context->ftp_reconstruct_id,probe_context->probe_id_number, probe_context->input_source, end_time.tv_sec, end_time.tv_usec,session_id,
+                    "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%"PRIu32",\"%s\",\"%s\",%hu,%hu,%"PRIu8",%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%lu.%lu,%lu.%lu",
+                    probe_context->ftp_reconstruct_id,probe_context->probe_id_number, probe_context->input_source, end_time.tv_sec, end_time.tv_usec,temp_session->session_id,temp_session->thread_number,
                     ip_dst_str, ip_src_str,
                     temp_session->serverport, temp_session->clientport,
                     ((ftp_session_attr_t*) temp_session->app_data)->session_conn_type,
@@ -267,7 +263,7 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
             );
             message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
             //send_message_to_file ("ftp.download.report", message);
-            if (probe_context->output_to_file_enable==1)send_message_to_file (message);
+            //if (probe_context->output_to_file_enable==1)send_message_to_file (message);
             if (probe_context->redis_enable==1)send_message_to_redis ("ftp.download.report", message);
             reset_ftp_parameters(ipacket,temp_session);
             break;
@@ -324,14 +320,13 @@ void ftp_response_code_handle(const ipacket_t * ipacket, attribute_t * attribute
 
     }
 }
-void print_ftp_app_format(const mmt_session_t * expired_session,probe_internal_t * iprobe) {
+void print_ftp_app_format(const mmt_session_t * expired_session,void *args) {
     int keep_direction = 1;
     session_struct_t * temp_session = get_user_session_context(expired_session);
     char message[MAX_MESS + 1];
     char path[128];
     int i;
     mmt_probe_context_t * probe_context = get_probe_context_config();
-    uint64_t session_id = temp_session->session_id_probe;
     //IP strings
     char ip_src_str[46];
     char ip_dst_str[46];
@@ -355,9 +350,9 @@ void print_ftp_app_format(const mmt_session_t * expired_session,probe_internal_t
         mmt_condition_report_t * condition_report = &probe_context->condition_reports[i];
         if (strcmp(condition_report->condition.condition,"FTP")==0 && ((ftp_session_attr_t*) temp_session->app_data)->file_size >1){
             snprintf(message, MAX_MESS,
-                    "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,\"%s\",%u",
+                    "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%"PRIu32",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,\"%s\",%u",
                     temp_session->app_format_id, probe_context->probe_id_number, probe_context->input_source, end_time.tv_sec, end_time.tv_usec,
-                    session_id,
+                    temp_session->session_id,temp_session->thread_number,
                     init_time.tv_sec, init_time.tv_usec,
                     (int) temp_session->ipversion,
                     ip_dst_str, ip_src_str,
@@ -375,7 +370,7 @@ void print_ftp_app_format(const mmt_session_t * expired_session,probe_internal_t
                     ((ftp_session_attr_t*) temp_session->app_data)->filename*/
                 );
                 message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-                if (probe_context->output_to_file_enable==1)send_message_to_file (message);
+                if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,(void*)args);
                 if (probe_context->redis_enable==1)send_message_to_redis ("ftp.flow.report", message);
         }
     }

@@ -23,8 +23,6 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	int valid = 0;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 
-	//printf("print_ip_session_report_total_session_count =%lu \n",total_session_count);
-
 	session_struct_t * temp_session = (session_struct_t *) get_user_session_context(session);
 	if (temp_session == NULL){
 		return;
@@ -61,19 +59,14 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	temp_session->session_attr->last_activity_time = get_session_last_activity_time(session);
 	int sslindex;
 
-	//printf ("ul_data_byte_count =%lu\n",get_session_ul_data_byte_count(session));
-	//printf ("dl_data_byte_count =%lu\n",get_session_dl_data_byte_count(session));
+	//pthread_spin_lock(&spin_lock);
+	//uint64_t active_session_count = 0;
+	//pthread_spin_unlock(&spin_lock);
 
-	//pthread_mutex_lock(& mutex_lock);
-	pthread_spin_lock(&spin_lock);
-	uint64_t active_session_count = total_session_count;
-	pthread_spin_unlock(&spin_lock);
-	//pthread_mutex_unlock(& mutex_lock);
-
-	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64" ,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu",
+	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",%"PRIu64",%"PRIu64",",
 			MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source,temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec,
 			proto_id,
-			temp_session->path, active_session_count,
+			temp_session->path,
 			get_session_byte_count(session) - temp_session->session_attr->total_byte_count,
 			get_session_data_byte_count(session) - temp_session->session_attr->total_data_byte_count,
 			get_session_packet_count(session) - temp_session->session_attr->total_packet_count,
@@ -85,8 +78,8 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 			((keep_direction)?get_session_dl_data_byte_count(session):get_session_ul_data_byte_count(session)) - temp_session->session_attr->data_byte_count[1],
 			((keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session)) - temp_session->session_attr->packet_count[1],
 			temp_session->session_attr->start_time.tv_sec, temp_session->session_attr->start_time.tv_usec,
-			ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,temp_session ->session_id_probe,
-			temp_session->serverport, temp_session->clientport);
+			ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,temp_session ->session_id,
+			temp_session->serverport, temp_session->clientport,temp_session->thread_number,temp_session->IPv4_total_active_sessions,temp_session->IPv6_total_active_sessions);
 	valid = strlen(message);
 
 	//To inform what is comming at the start of the flow report
@@ -96,16 +89,19 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	else if (temp_session->app_format_id == probe_context->ssl_id && temp_session->session_attr->touched == 0 && probe_context->ssl_enable == 1) print_initial_ssl_report(session,temp_session,message,valid);
 	else if (temp_session->app_format_id == probe_context->ftp_id && temp_session->session_attr->touched == 0 && probe_context->ftp_enable == 1) print_initial_ftp_report(session,temp_session,message,valid);
 	else if(temp_session->session_attr->touched == 0){
-            sslindex = get_protocol_index_from_session(proto_hierarchy, PROTO_SSL);
-                if (sslindex != -1 && probe_context->ssl_enable==1 ){
-                    temp_session->app_format_id = probe_context->ssl_id;
-                    print_initial_ssl_report(session,temp_session,message,valid);
-                }else print_initial_default_report(session,temp_session,message,valid);
+		sslindex = get_protocol_index_from_session(proto_hierarchy, PROTO_SSL);
+		if (sslindex != -1 && probe_context->ssl_enable==1 ){
+			temp_session->app_format_id = probe_context->ssl_id;
+			print_initial_ssl_report(session,temp_session,message,valid);
+		}else print_initial_default_report(session,temp_session,message,valid);
 	}
 	valid = strlen(message);
 	message[ valid ] = '\0'; // correct end of string in case of truncated message
 
-	if (probe_context->output_to_file_enable == 1)send_message_to_file (message);
+	struct smp_thread *th = (struct smp_thread *) user_args;
+	if (probe_context->output_to_file_enable == 1)send_message_to_file_thread (message, (void *)user_args);
+
+
 	if (probe_context->redis_enable == 1)send_message_to_redis ("session.flow.report", message);
 
 	temp_session->session_attr->total_byte_count = get_session_byte_count(session);

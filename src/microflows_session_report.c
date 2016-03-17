@@ -46,18 +46,21 @@ void reset_microflows_stats(microsessions_stats_t * stats) {
     stats->flows_nb = 0;
 }
 
-void report_all_protocols_microflows_stats(probe_internal_t * iprobe) {
+void report_all_protocols_microflows_stats(void *args) {
     int i;
+    struct smp_thread *th = (struct smp_thread *) args;
+
     //FILE * out_file = (probe_context->data_out_file != NULL) ? probe_context->data_out_file : stdout;
     for (i = 0; i < PROTO_MAX_IDENTIFIER; i++) {
-        if (iprobe->mf_stats[i].flows_nb) {
-            report_microflows_stats(&iprobe->mf_stats[i]);
+        if (th->iprobe.mf_stats[i].flows_nb) {
+            report_microflows_stats(&th->iprobe.mf_stats[i],(void *)th);
         }
     }
 }
 
-void report_microflows_stats(microsessions_stats_t * stats) {
+void report_microflows_stats(microsessions_stats_t * stats, void *args) {
     mmt_probe_context_t * probe_context = get_probe_context_config();
+    struct smp_thread *th = (struct smp_thread *) args;
 
     //Format id, timestamp, App name, Nb of flows, DL Packet Count, UL Packet Count, DL Byte Count, UL Byte Count
     char message[MAX_MESS + 1];
@@ -68,7 +71,7 @@ void report_microflows_stats(microsessions_stats_t * stats) {
 
     message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
     //send_message_to_file ("microflows.report", message);
-    if (probe_context->output_to_file_enable==1)send_message_to_file (message);
+    if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,(void *)th);
     if (probe_context->redis_enable==1)send_message_to_redis ("microflows.report", message);
     /*
      fprintf(out_file, "%i,%lu.%lu,"

@@ -87,7 +87,7 @@ void radius_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void
                     );
                     message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
                     //send_message_to_file ("radius.report", message);
-                    if (probe_context->output_to_file_enable==1)send_message_to_file (message);
+                    if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,(void *)user_args);
                     if (probe_context->redis_enable==1)send_message_to_redis ("radius.report", message);
                     /*
                     fprintf(out_file, "%i,%lu.%lu,%i,%s,%s,%i,%s,%s,%s,%s,%s,%s,%i,%s,%i,%i\n", MMT_RADIUS_REPORT_FORMAT, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec,
@@ -175,22 +175,23 @@ void radius_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void
     }
 }
 
-void radius_ext_init(void * handler) {
-    register_attribute_handler(handler, PROTO_RADIUS, RADIUS_CODE, radius_code_handle, NULL, NULL);
-    register_extraction_attribute(handler, PROTO_RADIUS, RADIUS_CALLING_STATION_ID);
-    register_extraction_attribute(handler, PROTO_RADIUS, RADIUS_FRAMED_IP_ADDRESS);
-    register_extraction_attribute(handler, PROTO_RADIUS, RADIUS_ACCT_STATUS_TYPE);
-    register_extraction_attribute(handler, PROTO_RADIUS, RADIUS_ACCT_SESSION_ID);
-    register_extraction_attribute(handler, PROTO_RADIUS, RADIUS_3GPP_IMSI);
-    register_extraction_attribute(handler, PROTO_RADIUS, RADIUS_3GPP_IMEISV);
-    register_extraction_attribute(handler, PROTO_RADIUS, RADIUS_3GPP_USER_LOCATION);
-    register_extraction_attribute(handler, PROTO_RADIUS, RADIUS_3GPP_CHARGIN_CHARACT);
-    register_extraction_attribute(handler, PROTO_RADIUS, RADIUS_3GPP_RAT_TYPE);
-    register_extraction_attribute(handler, PROTO_RADIUS, RADIUS_3GPP_SGSN_ADDRESS);
-    register_extraction_attribute(handler, PROTO_RADIUS, RADIUS_3GPP_GGSN_ADDRESS);
-    register_extraction_attribute(handler, PROTO_RADIUS, RADIUS_3GPP_SGSN_IPV6);
-    register_extraction_attribute(handler, PROTO_RADIUS, RADIUS_3GPP_GGSN_IPV6);
-    register_extraction_attribute(handler, PROTO_RADIUS, RADIUS_3GPP_SGSN_MCCMNC);
+void radius_ext_init(void * args) {
+	struct smp_thread *th = (struct smp_thread *) args;
+    register_attribute_handler(th->mmt_handler, PROTO_RADIUS, RADIUS_CODE, radius_code_handle, NULL, (void *)th);
+    register_extraction_attribute(th->mmt_handler, PROTO_RADIUS, RADIUS_CALLING_STATION_ID);
+    register_extraction_attribute(th->mmt_handler, PROTO_RADIUS, RADIUS_FRAMED_IP_ADDRESS);
+    register_extraction_attribute(th->mmt_handler, PROTO_RADIUS, RADIUS_ACCT_STATUS_TYPE);
+    register_extraction_attribute(th->mmt_handler, PROTO_RADIUS, RADIUS_ACCT_SESSION_ID);
+    register_extraction_attribute(th->mmt_handler, PROTO_RADIUS, RADIUS_3GPP_IMSI);
+    register_extraction_attribute(th->mmt_handler, PROTO_RADIUS, RADIUS_3GPP_IMEISV);
+    register_extraction_attribute(th->mmt_handler, PROTO_RADIUS, RADIUS_3GPP_USER_LOCATION);
+    register_extraction_attribute(th->mmt_handler, PROTO_RADIUS, RADIUS_3GPP_CHARGIN_CHARACT);
+    register_extraction_attribute(th->mmt_handler, PROTO_RADIUS, RADIUS_3GPP_RAT_TYPE);
+    register_extraction_attribute(th->mmt_handler, PROTO_RADIUS, RADIUS_3GPP_SGSN_ADDRESS);
+    register_extraction_attribute(th->mmt_handler, PROTO_RADIUS, RADIUS_3GPP_GGSN_ADDRESS);
+    register_extraction_attribute(th->mmt_handler, PROTO_RADIUS, RADIUS_3GPP_SGSN_IPV6);
+    register_extraction_attribute(th->mmt_handler, PROTO_RADIUS, RADIUS_3GPP_GGSN_IPV6);
+    register_extraction_attribute(th->mmt_handler, PROTO_RADIUS, RADIUS_3GPP_SGSN_MCCMNC);
 }
 
 void radius_ext_cleanup(void * handler) {

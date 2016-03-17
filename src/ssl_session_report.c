@@ -43,7 +43,7 @@ void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, 
     temp_session->contentclass = get_content_class_by_content_flags(get_session_content_flags(ipacket->session));
 }
 
-void print_ssl_app_format(const mmt_session_t * expired_session,probe_internal_t * iprobe) {
+void print_ssl_app_format(const mmt_session_t * expired_session,void *args) {
     int keep_direction = 1;
     session_struct_t * temp_session = get_user_session_context(expired_session);
     char message[MAX_MESS + 1];
@@ -54,8 +54,6 @@ void print_ssl_app_format(const mmt_session_t * expired_session,probe_internal_t
     //Uplink Packet Count, Downlink Packet Count, Uplink Byte Count, Downlink Byte Count, TCP RTT, Retransmissions,
     //Application_Family, Content Class, Protocol_Path, Application_Name
     mmt_probe_context_t * probe_context = get_probe_context_config();
-
-    uint64_t session_id = temp_session->session_id_probe;
 
     proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(expired_session), path);
     //IP strings
@@ -80,9 +78,9 @@ void print_ssl_app_format(const mmt_session_t * expired_session,probe_internal_t
     const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
 
     snprintf(message, MAX_MESS,
-            "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,\"%s\",%u", // app specific
+            "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%"PRIu32",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,\"%s\",%u", // app specific
             temp_session->app_format_id, probe_context->probe_id_number, probe_context->input_source, end_time.tv_sec, end_time.tv_usec,
-            session_id,
+            temp_session->session_id,temp_session->thread_number,
             init_time.tv_sec, init_time.tv_usec,
             (int) temp_session->ipversion,
             ip_dst_str, ip_src_str,
@@ -100,7 +98,7 @@ void print_ssl_app_format(const mmt_session_t * expired_session,probe_internal_t
 
     message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
     //send_message_to_file ("ssl.flow.report", message);
-    if (probe_context->output_to_file_enable==1)send_message_to_file (message);
+    if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,(void*)args);
     if (probe_context->redis_enable==1)send_message_to_redis ("ssl.flow.report", message);
     /*
     fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,%s,%u\n", // app specific
@@ -135,7 +133,6 @@ void print_initial_ssl_report(const mmt_session_t * session,session_struct_t * t
 
     );
     temp_session->session_attr->touched=1;
-
 }
 
 

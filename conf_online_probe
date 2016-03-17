@@ -6,7 +6,7 @@ start() {
         echo  "Starting mmt-probe: "
         (while true; do 
 	echo "online running"
-        /opt/mmt_bin/onlineprobe -c /opt/mmt_conf/mmt_online.conf
+        /opt/mmt/bin/onlineprobe -c /opt/mmt/conf/mmt_online.conf
         done) &    
         echo
 }

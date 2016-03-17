@@ -196,7 +196,7 @@ void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, v
     }
 }
 
-void print_rtp_app_format(const mmt_session_t * expired_session, probe_internal_t * iprobe) {
+void print_rtp_app_format(const mmt_session_t * expired_session, void * args) {
     int keep_direction = 1;
     session_struct_t * temp_session = get_user_session_context(expired_session);
     //common fields
@@ -207,8 +207,6 @@ void print_rtp_app_format(const mmt_session_t * expired_session, probe_internal_
     mmt_probe_context_t * probe_context = get_probe_context_config();
     char message[MAX_MESS + 1];
     char path[128];
-
-    uint64_t session_id = temp_session->session_id_probe;
 
     //IP strings
     char ip_src_str[46];
@@ -246,9 +244,9 @@ void print_rtp_app_format(const mmt_session_t * expired_session, probe_internal_
     const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
 
     snprintf(message, MAX_MESS,
-            "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,%f,%f,%u,%f", // app specific
+            "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%"PRIu32",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,%f,%f,%u,%f", // app specific
             temp_session->app_format_id, probe_context->probe_id_number, probe_context->input_source, end_time.tv_sec, end_time.tv_usec,
-            session_id,
+            temp_session->session_id,temp_session->thread_number,
             init_time.tv_sec, init_time.tv_usec,
             (int) temp_session->ipversion,
             ip_dst_str, ip_src_str,
@@ -267,7 +265,7 @@ void print_rtp_app_format(const mmt_session_t * expired_session, probe_internal_
 
     message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
     //send_message_to_file ("rtp.flow.report", message);
-    if (probe_context->output_to_file_enable==1)send_message_to_file (message);
+    if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,(void*)args);
     if (probe_context->redis_enable==1)send_message_to_redis ("rtp.flow.report", message);
     /*
     // Packet loss rate, Packet loss burstiness, max jitter, Order error rate
