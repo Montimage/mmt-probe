@@ -172,14 +172,6 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 
 	temp_session->session_id = get_session_id(session);
 	temp_session->thread_number = th->thread_number;
-/*
-
-	//pthread_spin_lock(&spin_lock);
-
-    total_session_count = session_id_probe - expired_session_count;
-    //printf("total_session_count1 = %lu \n",total_session_count);
-
-*/
 
 	temp_session->format_id = MMT_FLOW_REPORT_FORMAT;
 	temp_session->app_format_id = MMT_DEFAULT_APP_REPORT_FORMAT;
@@ -234,8 +226,6 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		if (dport) {
 			temp_session->serverport = *dport;
 		}
-		/*uint64_t * IPv4_total_active_sessions = (uint64_t *) get_attribute_extracted_data (ipacket,PROTO_IP, PROTO_ACTIVE_SESSIONS_COUNT );
-		 temp_session->IPv4_total_active_sessions = * IPv4_total_active_sessions;*/
 	} else {
 		void * ipv6_src = (void *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SRC);
 		void * ipv6_dst = (void *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_DST);
@@ -261,8 +251,6 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		if (dport) {
 			temp_session->serverport = *dport;
 		}
-		/*uint64_t * IPv6_total_active_sessions  = (uint64_t *) get_attribute_extracted_data (ipacket,PROTO_IPV6, PROTO_ACTIVE_SESSIONS_COUNT );
-		temp_session->IPv6_total_active_sessions = * IPv6_total_active_sessions;*/
 	}
 	temp_session->isFlowExtracted = 1;
 	set_user_session_context(session, temp_session);
@@ -360,22 +348,6 @@ int register_conditional_report_handle(void * handler, mmt_condition_report_t * 
     int i = 1,j;
     mmt_probe_context_t * probe_context = get_probe_context_config();
 
- /*   if(strcmp(condition_report->condition.condition,"FTP")==0 && condition_report->enable ==1 ){
-        probe_context.ftp_enable=1;
-        probe_context.ftp_id=condition_report->id;
-    }
-    if(strcmp(condition_report->condition.condition,"WEB")==0 && condition_report->enable ==1){
-        probe_context.web_enable=1;
-        probe_context.web_id=condition_report->id;
-    }
-    if(strcmp(condition_report->condition.condition,"RTP")==0 && condition_report->enable ==1){
-        probe_context.rtp_enable=1;
-        probe_context.rtp_id=condition_report->id;
-    }
-    if(strcmp(condition_report->condition.condition,"SSL")==0 && condition_report->enable ==1){
-        probe_context.ssl_enable=1;
-        probe_context.ssl_id=condition_report->id;
-    }*/
     for(j = 0; j < condition_report->attributes_nb; j++) {
         mmt_condition_attribute_t * condition_attribute = &condition_report->attributes[j];
         mmt_condition_attribute_t * handler_attribute = &condition_report->handlers[j];
@@ -564,15 +536,8 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
     }
 
     mmt_probe_context_t * probe_context = get_probe_context_config();
- /*
-    expired_session_count ++;
-    total_session_count = session_id_probe - expired_session_count;
-    //pthread_spin_unlock(&spin_lock);
- ;*/
 
     int sslindex;
-    //uint64_t session_id = get_session_id(expired_session);
-    //printf("session_expired =%p\n",expired_session);
     print_ip_session_report (expired_session,th);
     if (is_microflow(expired_session)) {
     	microsessions_stats_t * mf_stats = &th->iprobe.mf_stats[get_session_protocol_hierarchy(expired_session)->proto_path[(get_session_protocol_hierarchy(expired_session)->len <= 16)?(get_session_protocol_hierarchy(expired_session)->len - 1):(16 - 1)]];
