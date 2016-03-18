@@ -234,8 +234,8 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		if (dport) {
 			temp_session->serverport = *dport;
 		}
-		uint64_t * IPv4_total_active_sessions = (uint64_t *) get_attribute_extracted_data (ipacket,PROTO_IP, PROTO_ACTIVE_SESSIONS_COUNT );
-		 temp_session->IPv4_total_active_sessions = * IPv4_total_active_sessions;
+		/*uint64_t * IPv4_total_active_sessions = (uint64_t *) get_attribute_extracted_data (ipacket,PROTO_IP, PROTO_ACTIVE_SESSIONS_COUNT );
+		 temp_session->IPv4_total_active_sessions = * IPv4_total_active_sessions;*/
 	} else {
 		void * ipv6_src = (void *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SRC);
 		void * ipv6_dst = (void *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_DST);
@@ -261,19 +261,20 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		if (dport) {
 			temp_session->serverport = *dport;
 		}
-		uint64_t * IPv6_total_active_sessions  = (uint64_t *) get_attribute_extracted_data (ipacket,PROTO_IPV6, PROTO_ACTIVE_SESSIONS_COUNT );
-		temp_session->IPv6_total_active_sessions = * IPv6_total_active_sessions;
+		/*uint64_t * IPv6_total_active_sessions  = (uint64_t *) get_attribute_extracted_data (ipacket,PROTO_IPV6, PROTO_ACTIVE_SESSIONS_COUNT );
+		temp_session->IPv6_total_active_sessions = * IPv6_total_active_sessions;*/
 	}
 	temp_session->isFlowExtracted = 1;
 	set_user_session_context(session, temp_session);
 }
 
-void packet_handler(const ipacket_t * ipacket, void * args) {
+int packet_handler(const ipacket_t * ipacket, void * args) {
 
 	//printf("packet_id: %lu\n", ipacket->packet_id);
 
    /* if (probe_context.ftp_reconstruct_enable==1)
         reconstruct_data(ipacket);*/
+	return 0;
 
 }
 
