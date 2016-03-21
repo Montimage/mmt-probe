@@ -86,7 +86,7 @@ int license_expiry_check(int status){
     char license_message[MAX_MESS + 1];
     char lg_msg[256];
     char version_probe[15] = "v0.95-bab7c10";
-    char version_sdk[15] = "v1.4-0d04f4b ";
+    char version_sdk[15] = "v1.4-0d04f4b";
 
     mmt_probe_context_t * probe_context = get_probe_context_config();
     //convert timeval time into epoch time
