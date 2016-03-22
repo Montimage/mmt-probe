@@ -633,7 +633,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.smp_threads);
 		mmt_close_handler(mmt_probe.smp_threads->mmt_handler);
 		report_all_protocols_microflows_stats((void *)mmt_probe.smp_threads);
-		flush_messages_to_file_thread((void *)mmt_probe.smp_threads);
+		if (mmt_conf->output_to_file_enable == 1)flush_messages_to_file_thread((void *)mmt_probe.smp_threads);
 		exit_timers();
 		//Now report the microflows!
 
@@ -655,7 +655,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
 				pthread_join(mmt_probe.smp_threads[i].handle, NULL);
 				report_all_protocols_microflows_stats(&mmt_probe.smp_threads[i]);
-				flush_messages_to_file_thread(&mmt_probe.smp_threads[i]);
+				if (mmt_conf->output_to_file_enable == 1)flush_messages_to_file_thread(&mmt_probe.smp_threads[i]);
 				//flush_messages_to_file_thread(&mmt_probe.smp_threads[i]);
 			}
 			exit_timers();
@@ -935,7 +935,7 @@ int main(int argc, char **argv) {
 		sprintf(lg_msg, "MMT Extraction engine! successfully initialized in a multi threaded operation (%i threads)", mmt_conf->thread_nb);
 		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, lg_msg);
 	}
-	start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
+	if (mmt_conf->output_to_file_enable == 1)start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
 	//Offline or Online processing
 	if (mmt_conf->input_mode == OFFLINE_ANALYSIS) {
 		process_trace_file(mmt_conf->input_source, &mmt_probe); //Process single offline trace
