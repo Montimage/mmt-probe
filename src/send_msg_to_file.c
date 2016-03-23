@@ -216,7 +216,7 @@ void flush_messages_to_file_thread( void *arg){
 		}
 
 		//create semaphore
-		valid = snprintf(sem_file_name_str, MAX_FILE_NAME, "%s%lu_%s.sem", probe_context->behaviour_output_location, present_time, probe_context->data_out);
+		valid = snprintf(sem_file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s.sem", probe_context->behaviour_output_location, present_time,th->thread_number,probe_context->data_out);
 		sem_file_name_str[ valid ]='\0';
 		file= fopen(sem_file_name_str, "w");
 
