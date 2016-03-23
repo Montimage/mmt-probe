@@ -44,6 +44,7 @@ pthread_spinlock_t spin_lock;
 time_t update_reporting_time;
 int is_stop_timer;
 
+static struct mmt_probe_struct mmt_probe;
 
 enum os_id {
     OS_UKN, //Unknown
@@ -439,7 +440,7 @@ struct smp_thread {
 
 
 typedef struct mmt_probe_struct {
-    struct smp_thread *smp_threads;
+    struct smp_thread * smp_threads;
     //mmt_handler_t *mmt_handler; //For single threaded operations
     mmt_probe_context_t * mmt_conf;
     probe_internal_t iprobe;
@@ -456,7 +457,7 @@ void radius_ext_init(void * args);
 void radius_ext_cleanup(void * handler);
 void event_reports_init(void * args);
 void conditional_reports_init(void * handler);
-void security_event( int prop_id, char *verdict, char *type, char *cause, char *history );
+void security_event( int prop_id, char *verdict, char *type, char *cause, char *history , struct timeval packet_timestamp, void * user_args);
 void protocols_stats_iterator(uint32_t proto_id, void * args);
 void send_message_to_file (char * message);
 void send_message_to_file_thread (char * message, void *args);
@@ -480,7 +481,7 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf);
 void todo_at_start(char *file_path);
 //void reconstruct_data(const ipacket_t * ipacket );
 void todo_at_end();
-void init_mmt_security(mmt_handler_t *mmt_handler, char * property_file);
+void init_mmt_security(mmt_handler_t *mmt_handler, char * property_file, void *args);
 void exit_timers();
 void flush_messages_to_file_thread( void *);
 int start_timer( uint32_t period, void *callback, void *user_data);
