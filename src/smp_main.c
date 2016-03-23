@@ -58,7 +58,7 @@ static int okcode  = EXIT_SUCCESS;
 static int errcode = EXIT_FAILURE;
 
 
-static struct mmt_probe_struct mmt_probe;
+
 
 pcap_t *handle = 0; /* packet capture handle */
 struct pcap_stat pcs; /* packet capture filter stats */
@@ -266,7 +266,7 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 
 	//Initialise MMT_Security
 	if(mmt_probe->mmt_conf->security_enable==1)
-		init_mmt_security(mmt_probe->smp_threads->mmt_handler, mmt_probe->mmt_conf->properties_file );
+		init_mmt_security(mmt_probe->smp_threads->mmt_handler, mmt_probe->mmt_conf->properties_file,(void *)mmt_probe->smp_threads );
 	//End initialise MMT_Security
 
 	if (mmt_probe->mmt_conf->thread_nb == 1) {
@@ -510,7 +510,7 @@ void *Reader(void *arg) {
 	}
 	//Initialise MMT_Security
 	if(mmt_probe->mmt_conf->security_enable==1)
-		init_mmt_security( mmt_probe->smp_threads->mmt_handler, mmt_probe->mmt_conf->properties_file );
+		init_mmt_security( mmt_probe->smp_threads->mmt_handler, mmt_probe->mmt_conf->properties_file, (void *)mmt_probe->smp_threads );
 	//End initialise MMT_Security
 
 	/* now we can set our callback function */
@@ -897,6 +897,7 @@ int main(int argc, char **argv) {
 			mmt_probe.smp_threads->iprobe.mf_stats[i].application_id = i;
 		}
 		mmt_probe.smp_threads->iprobe.instance_id = mmt_probe.smp_threads->thread_number;
+		mmt_probe.smp_threads->thread_number = 0;
 
 		pthread_spin_init(&mmt_probe.smp_threads->lock, 0);
 		// customized packet and session handling functions are then registered

@@ -149,8 +149,6 @@ void flush_messages_to_file_thread( void *arg){
 
 	struct smp_thread *th = (struct smp_thread *) arg;
 	if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message,(void *)th);
-
-
 	//open a file
 	valid = snprintf(file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s",probe_context->output_location,present_time,th->thread_number,probe_context->data_out);
 	file_name_str[valid] = '\0';
@@ -303,6 +301,7 @@ void send_message_to_file (char * message) {
 	struct timeval ts;
 	time_t present_time;
 	present_time = time(0);
+
 
 	valid = snprintf(file_name_str, MAX_FILE_NAME, "%s%lu_%s",probe_context->output_location,present_time,probe_context->data_out);
 	file_name_str[valid] = '\0';

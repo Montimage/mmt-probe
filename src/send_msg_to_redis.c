@@ -49,6 +49,7 @@ void init_redis (char * hostname, int port) {
 
 void send_message_to_redis (char *channel, char * message) {
     // Publish to redis if it is enabled
+	//printf ("\n%s_\n%s",channel,message);
     if (redis != NULL) {
         // Publish an event
         redisReply *reply;

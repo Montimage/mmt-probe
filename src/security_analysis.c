@@ -13,7 +13,7 @@
 #define OPTION_NOT_SATISFIED 0 //if = 1 then yes, output when rule not satisfied
 
 static FILE * OutputFile = NULL; //XML results output file
-typedef void (*result_callback) (int prop_id, char *verdict, char *type, char *cause, char *history);
+typedef void (*result_callback) (int prop_id, char *verdict, char *type, char *cause, char *history,struct timeval packet_timestamp,void * user_args);
 
 
 //MMT_SecurityLib function to initalise the MMT_SecurityLib library
@@ -22,7 +22,7 @@ result_callback db_todo_when_property_is_satisfied_or_not = NULL;
 
 extern void init_sec_lib (mmt_handler_t *mmt, char * property_file, short option_statisfied, short option_not_satisfied,
         result_callback todo_when_property_is_satisfied_or_not, result_callback db_todo_at_start,
-        result_callback db_todo_when_property_is_satisfied_or_not);
+        result_callback db_todo_when_property_is_satisfied_or_not, void * user_args);
 
 //Next three functions can be changed to do any necessary treatment of results.
 void todo_at_start(char *file_path){
@@ -40,9 +40,9 @@ void todo_at_start(char *file_path){
     fprintf(OutputFile, "{\n");
 }
 
-void todo_when_property_is_satisfied_or_not (int prop_id, char *verdict, char *type, char *cause, char *history){
+void todo_when_property_is_satisfied_or_not (int prop_id, char *verdict, char *type, char *cause, char *history,struct timeval packet_timestamp,void * user_args){
 
-    security_event( prop_id, verdict, type, cause, history );
+    security_event( prop_id, verdict, type, cause, history,packet_timestamp, user_args );
 
 
     if( OutputFile != NULL ){
@@ -64,22 +64,22 @@ void todo_at_end(){
 }
 
 
-void init_mmt_security(mmt_handler_t *mmt_handler, char * property_file){
+void init_mmt_security(mmt_handler_t *mmt_handler, char * property_file, void *args){
     //return;
+	struct smp_thread *th = (struct smp_thread *) args;
     init_sec_lib( mmt_handler, property_file,
             OPTION_SATISFIED, OPTION_NOT_SATISFIED,
             todo_when_property_is_satisfied_or_not,
             db_todo_at_start,
-            db_todo_when_property_is_satisfied_or_not);
+            db_todo_when_property_is_satisfied_or_not,(void *) args);
 }
 
 
 //End for MMT_Security
-void security_event( int prop_id, char *verdict, char *type, char *cause, char *history ) {
+void security_event( int prop_id, char *verdict, char *type, char *cause, char *history,struct timeval packet_timestamp, void * user_args) {
 	//FILE * out_file = (probe_context.data_out_file != NULL) ? probe_context.data_out_file : stdout;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
-	struct timeval ts;
-	gettimeofday( &ts, NULL );
+	struct smp_thread *th = (struct smp_thread *) user_args;
 	char message[MAX_MESS + 1];
     message[0] = '\0';
     char *x=" ";
@@ -92,12 +92,14 @@ void security_event( int prop_id, char *verdict, char *type, char *cause, char *
 	snprintf( message, MAX_MESS,
             "%u,%u,\"%s\",%lu.%lu,%d,\"%s\",\"%s\",\"%s\",%s",
 			MMT_SECURITY_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source,
-			ts.tv_sec, ts.tv_usec,
+			packet_timestamp.tv_sec, packet_timestamp.tv_usec,
 			prop_id, xverdict, xtype, xcause, xhistory);
 
 
 	message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-    if (probe_context->output_to_file_enable==1)send_message_to_file (message);
+	//printf("%s\n",message);
+	if (th == NULL) printf("Thread structure does not exists\n");
+    if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,th);
     if (probe_context->redis_enable==1)send_message_to_redis ("security.report", message);
 }
 //END HN
