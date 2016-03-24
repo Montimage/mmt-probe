@@ -15,6 +15,7 @@
 void usage(const char * prg_name) {
     fprintf(stderr, "%s [<option>]\n", prg_name);
     fprintf(stderr, "Option:\n");
+    fprintf(stderr, "\t-v               : Lists versions.\n");
     fprintf(stderr, "\t-c <config file> : Gives the path to the config file (default: /etc/mmtprobe/mmt.conf).\n");
     fprintf(stderr, "\t-t <trace file>  : Gives the trace file to analyse.\n");
     fprintf(stderr, "\t-i <interface>   : Gives the interface name for live traffic analysis.\n");
@@ -151,7 +152,7 @@ cfg_t * parse_conf(const char *filename) {
 
     switch (cfg_parse(cfg, filename)) {
     case CFG_FILE_ERROR:
-        fprintf(stderr, "warning: configuration file '%s' could not be read: %s\n", filename, strerror(errno));
+        //fprintf(stderr, "warning: configuration file '%s' could not be read: %s\n", filename, strerror(errno));
         return 0;
     case CFG_SUCCESS:
         break;
@@ -496,7 +497,8 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
     int proto_stats = 1;
     int probe_id_number = 0;
     int flow_stats = 1;
-    while ((opt = getopt(argc, argv, "c:t:i:o:R:P:p:s:n:f:h")) != EOF) {
+    int versions_only = 0;
+    while ((opt = getopt(argc, argv, "c:t:i:o:R:P:p:s:n:f:h:v")) != EOF) {
         switch (opt) {
         case 'c':
             config_file = optarg;
@@ -536,6 +538,10 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
         case 'f':
             flow_stats = atoi(optarg);
             break;
+        case 'v':
+        	versions_only = 1;
+            fprintf(stderr,"Versions: \n Probe v0.95 \n DPI v1.41 \n Security v0.9b \n Compatible with Operator v1.3 \n");
+           break;
         case 'h':
         default: usage(argv[0]);
         }
@@ -543,7 +549,7 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 
     cfg_t *cfg = parse_conf(config_file);
     if(cfg == NULL) {
-        fprintf(stderr, "Configuration file not found: use -c <config file> or create default file /etc/mmtprobe/mmt.conf\n");
+        if(versions_only != 1) fprintf(stderr, "Configuration file not found: use -c <config file> or create default file /etc/mmtprobe/mmt.conf\n");
         exit(EXIT_FAILURE);
     }
     process_conf_result(cfg, mmt_conf);
@@ -552,7 +558,7 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
         strncpy(mmt_conf->input_source, input, 256);
     }
     else if (strlen(mmt_conf->input_source)==0){
-        printf("Error:Specify the input-source in the configuration file, for example, for offline analysis: trace file name and for online analysis: network interface\n");
+    	if(versions_only != 1) printf("Error:Specify the input-source in the configuration file, for example, for offline analysis: trace file name and for online analysis: network interface\n");
         exit(1);
     }
 
