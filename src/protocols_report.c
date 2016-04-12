@@ -46,8 +46,8 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 
 			message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
 			if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,th);
+		   if (probe_context->redis_enable==1)send_message_to_redis ("protocol.stat", message);
 		}
-		if (probe_context->redis_enable==1)send_message_to_redis ("protocol.stat", message);
 
 		reset_statistics(proto_stats);
 	}
