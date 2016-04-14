@@ -293,7 +293,7 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 
 			if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
 				mmt_probe->smp_threads->last_stat_report_time =time(NULL);
-				process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
+				//process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
 				if (mmt_probe->mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
 			}
 			//if(time(NULL)- mmt_probe->smp_threads->last_msg_report_time >= mmt_probe->mmt_conf->sampled_report_period){
@@ -906,7 +906,7 @@ int main(int argc, char **argv) {
 			register_session_timeout_handler(mmt_probe.smp_threads->mmt_handler, classification_expiry_session, (void *) mmt_probe.smp_threads);
 			flowstruct_init((void *)mmt_probe.smp_threads); // initialize our event handler
 			if(mmt_conf->event_based_reporting_enable==1)event_reports_init((void *)mmt_probe.smp_threads); // initialize our event reports
-			conditional_reports_init(mmt_probe.smp_threads->mmt_handler);// initialize our conditional reports
+			conditional_reports_init((void *)mmt_probe.smp_threads);// initialize our conditional reports
 			if(mmt_conf->radius_enable==1)radius_ext_init((void *)mmt_probe.smp_threads); // initialize radius extraction and attribute event handler
 		}
 

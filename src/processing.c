@@ -347,31 +347,32 @@ void * get_handler_by_name(char * func_name){
 	return 0;
 }
 
-int register_conditional_report_handle(void * handler, mmt_condition_report_t * condition_report) {
+int register_conditional_report_handle(void * args, mmt_condition_report_t * condition_report) {
 	int i = 1,j;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
-
+	struct smp_thread *th = (struct smp_thread *) args;
 	for(j = 0; j < condition_report->attributes_nb; j++) {
 		mmt_condition_attribute_t * condition_attribute = &condition_report->attributes[j];
 		mmt_condition_attribute_t * handler_attribute = &condition_report->handlers[j];
 		if (strcmp(handler_attribute->handler,"NULL")==0){
-			i &= register_extraction_attribute_by_name(handler, condition_attribute->proto, condition_attribute->attribute);
+			i &= register_extraction_attribute_by_name(th->mmt_handler, condition_attribute->proto, condition_attribute->attribute);
 
 		}else{
-			i &= register_attribute_handler_by_name(handler, condition_attribute->proto,condition_attribute->attribute, get_handler_by_name (handler_attribute->handler), NULL, NULL);
+			i &= register_attribute_handler_by_name(th->mmt_handler, condition_attribute->proto,condition_attribute->attribute, get_handler_by_name (handler_attribute->handler), NULL, args);
 		}
 	}
 
 
 	return i;
 }
-void conditional_reports_init(void * handler) {
+void conditional_reports_init(void * args) {
 	int i;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
+	//struct smp_thread *th = (struct smp_thread *) args;
 
 	for(i = 0; i < probe_context->condition_reports_nb; i++) {
 		mmt_condition_report_t * condition_report = &probe_context->condition_reports[i];
-		if(register_conditional_report_handle(handler, condition_report) == 0) {
+		if(register_conditional_report_handle(args, condition_report) == 0) {
 			fprintf(stderr, "Error while initializing condition report number %i!\n", condition_report->id);
 			printf( "Error while initializing condition report number %i!\n", condition_report->id);
 		}
@@ -382,6 +383,7 @@ void flowstruct_init(void * args) {
 	int i = 1;
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_TCP, TCP_SRC_PORT);
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_TCP, TCP_DEST_PORT);
+	i &= register_extraction_attribute(th->mmt_handler, PROTO_TCP, TCP_RTT);
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_UDP, UDP_SRC_PORT);
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_UDP, UDP_DEST_PORT);
 
