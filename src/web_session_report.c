@@ -91,7 +91,6 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 
 			strncpy(((web_session_attr_t *) temp_session->app_data)->method, (char *) method->ptr, max);
 			((web_session_attr_t *) temp_session->app_data)->method[max] = '\0';
-			((web_session_attr_t *) temp_session->app_data)->has_uri=1;
 
 		}
 
