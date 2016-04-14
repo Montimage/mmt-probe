@@ -494,7 +494,7 @@ mmt_dev_properties_t get_dev_properties_from_user_agent(char * user_agent, uint3
 		} else if ((len > 29) && (mmt_strncasecmp(&user_agent[12], "(Windows; U; MSIE", 17) == 0)) {
 			retval.os_id = OS_WIN;
 			retval.dev_id = DEV_PC;
-		} else if ((len > 23) && (mmt_strncasecmp(&user_agent[12], "(Windows NT", 11) == 0)) {
+        } else if ((len > 23) && (mmt_strncasecmp(&user_agent[12], "(Windows NT", 11) == 0)) {
 			retval.os_id = OS_WIN;
 			retval.dev_id = DEV_PC;
 		} else if ((len > 35) && (mmt_strncasecmp(&user_agent[12], "(Windows; U; Windows NT", 23) == 0)) {
