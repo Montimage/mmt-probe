@@ -12,7 +12,6 @@ callgrind.out.*
 cachegrind.out.*
 perf.data
 INSTALL
-Makefile
 Makefile.in
 *.swp
 *~
