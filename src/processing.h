@@ -344,6 +344,10 @@ typedef struct web_session_attr_struct {
     char useragent[64];
     uint8_t has_referer : 1, has_useragent : 1, xcdn_seen : 1, seen_response : 1;
     uint8_t trans_nb;
+    char uri[1024];
+    char method[20];
+    char response[1024];
+    uint8_t has_uri;
     time_t last_report_time_sec;
 } web_session_attr_t;
 
@@ -515,6 +519,7 @@ void rtp_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * 
 void rtp_order_error_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 
 //prototypes
 //void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session);

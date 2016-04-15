@@ -498,7 +498,7 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
     int probe_id_number = 0;
     int flow_stats = 1;
     int versions_only = 0;
-    while ((opt = getopt(argc, argv, "c:t:i:o:R:P:p:s:n:f:h:v")) != EOF) {
+    while ((opt = getopt(argc, argv, "c:t:i:o:R:P:p:s:n:f:hv")) != EOF) {
         switch (opt) {
         case 'c':
             config_file = optarg;
@@ -561,8 +561,6 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
     	if(versions_only != 1) printf("Error:Specify the input-source in the configuration file, for example, for offline analysis: trace file name and for online analysis: network interface\n");
         exit(1);
     }
-
-
 
     if(output) {
         strncpy(mmt_conf->data_out, output, 256);
