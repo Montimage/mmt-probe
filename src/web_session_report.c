@@ -68,6 +68,7 @@ void host_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user
 }
 void print_http_session_method_report (const mmt_session_t * session, void *user_args){
     char message[MAX_MESS + 1];
+	uint32_t cdn_flag = 0;
     uint8_t *ea = 0;
     char src_mac_pretty [18], dst_mac_pretty [18];
     int keep_direction = 1;
@@ -78,15 +79,12 @@ void print_http_session_method_report (const mmt_session_t * session, void *user
     if (temp_session == NULL){
         return;
     }
-
-    if (temp_session->session_attr == NULL) {
-        temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
-        memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+    if (((web_session_attr_t *) temp_session->app_data)->http_session_attr == NULL){
+    	return;
     }
     // To  check whether the session activity occurs between the reporting time interval
     //if (TIMEVAL_2_MSEC(mmt_time_diff(temp_session->session_attr->last_activity_time,get_session_last_activity_time(session))) == 0)return; // check the condition if in the last interval there was a protocol activity or not
 
-    //if (get_session_byte_count(session) - temp_session->session_attr->total_byte_count == 0)return;
     ea = temp_session->src_mac;
     snprintf(src_mac_pretty , 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
     ea = temp_session->dst_mac;
@@ -102,29 +100,101 @@ void print_http_session_method_report (const mmt_session_t * session, void *user
         inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
         keep_direction = is_localv6_net(ip_src_str);//add more condition if any in is_localv6_net function
     }
+
     const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
     int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
-    temp_session->session_attr->start_time = get_session_init_time(session);
     proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(session), temp_session->path);
-    temp_session->session_attr->last_activity_time = get_session_last_activity_time(session);
-    int sslindex;
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->start_time = get_session_init_time(session);
+
+    //((web_session_attr_t *)temp_session->app_data)->http_session_attr->last_activity_time = get_session_last_activity_time(session);
 
    // uint64_t active_session_count = get_active_session_count(th->mmt_handler);
     uint64_t active_session_count = 0;
-    temp_session->session_attr->total_byte_count = get_session_byte_count(session);
-    temp_session->session_attr->total_data_byte_count = get_session_data_byte_count(session);
-    temp_session->session_attr->total_packet_count = get_session_packet_count(session);
-    printf("packet_count_method = %lu\n",temp_session->session_attr->total_packet_count );
 
-    temp_session->session_attr->byte_count[0] = (keep_direction)?get_session_ul_byte_count(session):get_session_dl_byte_count(session);
-    temp_session->session_attr->byte_count[1] = (keep_direction)?get_session_dl_byte_count(session):get_session_ul_byte_count(session);
+   // if (((web_session_attr_t *)temp_session->app_data)->http_session_attr->total_packet_count !=0){
+    snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",\"%s\",\"%s\",\"%s\",%u,\"%s\",\"%s\",\"%s\"",
+            400, probe_context->probe_id_number, probe_context->input_source,((web_session_attr_t *)temp_session->app_data)->http_session_attr->last_activity_time.tv_sec, ((web_session_attr_t *)temp_session->app_data)->http_session_attr->last_activity_time.tv_usec,
+            proto_id,
+            temp_session->path,active_session_count,
+            get_session_byte_count(session) - ((web_session_attr_t *)temp_session->app_data)->http_session_attr->total_byte_count,
+            get_session_data_byte_count(session) - ((web_session_attr_t *)temp_session->app_data)->http_session_attr->total_data_byte_count,
+            get_session_packet_count(session) - ((web_session_attr_t *)temp_session->app_data)->http_session_attr->total_packet_count,
+            ((keep_direction)?get_session_ul_byte_count(session):get_session_dl_byte_count(session)) - ((web_session_attr_t *)temp_session->app_data)->http_session_attr->byte_count[0],
+            ((keep_direction)?get_session_ul_data_byte_count(session):get_session_dl_data_byte_count(session)) - ((web_session_attr_t *)temp_session->app_data)->http_session_attr->data_byte_count[0],
+            ((keep_direction)?get_session_ul_packet_count(session):get_session_dl_packet_count(session)) - ((web_session_attr_t *)temp_session->app_data)->http_session_attr->packet_count[0],
 
-    temp_session->session_attr->data_byte_count[0] = (keep_direction)?get_session_ul_data_byte_count(session):get_session_dl_data_byte_count(session);
-    temp_session->session_attr->data_byte_count[1] = (keep_direction)?get_session_dl_data_byte_count(session):get_session_ul_data_byte_count(session);
+            ((keep_direction)?get_session_dl_byte_count(session):get_session_ul_byte_count(session)) - ((web_session_attr_t *)temp_session->app_data)->http_session_attr->byte_count[1],
+            ((keep_direction)?get_session_dl_data_byte_count(session):get_session_ul_data_byte_count(session)) - ((web_session_attr_t *)temp_session->app_data)->http_session_attr->data_byte_count[1],
+            ((keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session)) - ((web_session_attr_t *)temp_session->app_data)->http_session_attr->packet_count[1],
+			((web_session_attr_t *)temp_session->app_data)->http_session_attr->start_time.tv_sec, ((web_session_attr_t *)temp_session->app_data)->http_session_attr->start_time.tv_usec,
+            ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,temp_session ->session_id,
+            temp_session->serverport, temp_session->clientport,temp_session->thread_number,
+			((web_session_attr_t *) temp_session->app_data)->hostname,
+			((web_session_attr_t *) temp_session->app_data)->mimetype, ((web_session_attr_t *) temp_session->app_data)->referer,cdn_flag,
+			((web_session_attr_t *) temp_session->app_data)->uri,((web_session_attr_t *) temp_session->app_data)->method,((web_session_attr_t *) temp_session->app_data)->response
+			);
+    message[ MAX_MESS] = '\0';
+    printf("message = %s \n",message);
+
+    if (probe_context->output_to_file_enable == 1)send_message_to_file_thread (message, (void *)user_args);
+    if (probe_context->redis_enable == 1)send_message_to_redis ("session.flow.report", message);
+   // }
 
 
-    temp_session->session_attr->packet_count[0] = (keep_direction)?get_session_ul_packet_count(session):get_session_dl_packet_count(session);
-    temp_session->session_attr->packet_count[1] = (keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session);
+    // correct end of string in case of truncated message
+
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->total_byte_count = get_session_byte_count(session);
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->total_data_byte_count = get_session_data_byte_count(session);
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->total_packet_count = get_session_packet_count(session);
+
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->byte_count[0] = (keep_direction)?get_session_ul_byte_count(session):get_session_dl_byte_count(session);
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->byte_count[1] = (keep_direction)?get_session_dl_byte_count(session):get_session_ul_byte_count(session);
+
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->data_byte_count[0] = (keep_direction)?get_session_ul_data_byte_count(session):get_session_dl_data_byte_count(session);
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->data_byte_count[1] = (keep_direction)?get_session_dl_data_byte_count(session):get_session_ul_data_byte_count(session);
+
+
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->packet_count[0] = (keep_direction)?get_session_ul_packet_count(session):get_session_dl_packet_count(session);
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->packet_count[1] = (keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session);
+}
+
+void print_http_session_response_report (const mmt_session_t * session, void *user_args){
+    char message[MAX_MESS + 1];
+    int keep_direction = 1;
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+    struct smp_thread *th = (struct smp_thread *) user_args;
+    session_struct_t * temp_session = (session_struct_t *) get_user_session_context(session);
+    if (temp_session == NULL){
+        return;
+    }
+
+    char ip_src_str[46];
+    char ip_dst_str[46];
+    if (temp_session->ipversion == 4) {
+        inet_ntop(AF_INET, (void *) &temp_session->ipclient.ipv4, ip_src_str, INET_ADDRSTRLEN);
+        inet_ntop(AF_INET, (void *) &temp_session->ipserver.ipv4, ip_dst_str, INET_ADDRSTRLEN);
+        keep_direction = is_local_net(temp_session->ipclient.ipv4);
+    } else if(temp_session->ipversion == 6) {
+        inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
+        inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
+        keep_direction = is_localv6_net(ip_src_str);//add more condition if any in is_localv6_net function
+    }
+
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->start_time = get_session_init_time(session);
+
+       // correct end of string in case of truncated message
+
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->total_byte_count = get_session_byte_count(session);
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->total_data_byte_count = get_session_data_byte_count(session);
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->total_packet_count = get_session_packet_count(session);
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->byte_count[0] = (keep_direction)?get_session_ul_byte_count(session):get_session_dl_byte_count(session);
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->byte_count[1] = (keep_direction)?get_session_dl_byte_count(session):get_session_ul_byte_count(session);
+
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->data_byte_count[0] = (keep_direction)?get_session_ul_data_byte_count(session):get_session_dl_data_byte_count(session);
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->data_byte_count[1] = (keep_direction)?get_session_dl_data_byte_count(session):get_session_ul_data_byte_count(session);
+
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->packet_count[0] = (keep_direction)?get_session_ul_packet_count(session):get_session_dl_packet_count(session);
+    ((web_session_attr_t *)temp_session->app_data)->http_session_attr->packet_count[1] = (keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session);
 }
 
 void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
@@ -144,6 +214,8 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 				return;
 			}
 		}
+		printf("len_method = %u, id = %lu \n",ipacket->p_hdr->caplen, ipacket->packet_id);
+		print_http_session_method_report (ipacket->session, user_args);
 
 		http_line_struct_t * method = (http_line_struct_t *) attribute->data;
 		if (method != NULL && temp_session->app_format_id == probe_context->web_id) {
@@ -153,13 +225,33 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 			((web_session_attr_t *) temp_session->app_data)->method[max] = '\0';
 
 		}
-		print_http_session_method_report (ipacket->session, user_args);
+
 		((web_session_attr_t *) temp_session->app_data)->trans_nb += 1;
 		if (((web_session_attr_t *) temp_session->app_data)->trans_nb == 1) {
-		    ((web_session_attr_t *) temp_session->app_data)->response_time = ipacket->p_hdr->ts;
-		    ((web_session_attr_t *) temp_session->app_data)->first_request_time = ipacket->p_hdr->ts;
+			((web_session_attr_t *) temp_session->app_data)->response_time = ipacket->p_hdr->ts;
+			((web_session_attr_t *) temp_session->app_data)->first_request_time = ipacket->p_hdr->ts;
 		}
+		printf("method=%s\n",((web_session_attr_t *) temp_session->app_data)->method);
+
+	  if (((web_session_attr_t *) temp_session->app_data)->http_session_attr == NULL) {
+			temp_session_statistics_t * http_session_data = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
+
+			if (http_session_data != NULL) {
+				memset(http_session_data, '\0', sizeof (temp_session_statistics_t));
+				((web_session_attr_t *)temp_session->app_data)->http_session_attr =http_session_data;
+			}else {
+				mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating HTTP session_data context");
+				//fprintf(stderr, "Out of memory error when creating HTTP specific data structure!\n");
+				return;
+			}
+
+		}
+
+
+
 	}
+
+
 }
 
 void referer_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
@@ -215,103 +307,6 @@ void xcdn_seen_handle(const ipacket_t * ipacket, attribute_t * attribute, void *
 }
 
 
-void print_http_session_response_report (const mmt_session_t * session, void *user_args){
-    char message[MAX_MESS + 1];
-    uint8_t *ea = 0;
-    char src_mac_pretty [18], dst_mac_pretty [18];
-    int keep_direction = 1;
-    int valid = 0;
-    mmt_probe_context_t * probe_context = get_probe_context_config();
-    struct smp_thread *th = (struct smp_thread *) user_args;
-    session_struct_t * temp_session = (session_struct_t *) get_user_session_context(session);
-    if (temp_session == NULL){
-        return;
-    }
-
-    if (temp_session->session_attr == NULL) {
-        temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
-        memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
-    }
-    // To  check whether the session activity occurs between the reporting time interval
-    //if (TIMEVAL_2_MSEC(mmt_time_diff(temp_session->session_attr->last_activity_time,get_session_last_activity_time(session))) == 0)return; // check the condition if in the last interval there was a protocol activity or not
-
-    //if (get_session_byte_count(session) - temp_session->session_attr->total_byte_count == 0)return;
-    ea = temp_session->src_mac;
-    snprintf(src_mac_pretty , 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
-    ea = temp_session->dst_mac;
-    snprintf(dst_mac_pretty , 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
-    char ip_src_str[46];
-    char ip_dst_str[46];
-    if (temp_session->ipversion == 4) {
-        inet_ntop(AF_INET, (void *) &temp_session->ipclient.ipv4, ip_src_str, INET_ADDRSTRLEN);
-        inet_ntop(AF_INET, (void *) &temp_session->ipserver.ipv4, ip_dst_str, INET_ADDRSTRLEN);
-        keep_direction = is_local_net(temp_session->ipclient.ipv4);
-    } else if(temp_session->ipversion == 6) {
-        inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
-        inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
-        keep_direction = is_localv6_net(ip_src_str);//add more condition if any in is_localv6_net function
-    }
-    const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
-    int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
-    temp_session->session_attr->start_time = get_session_init_time(session);
-    proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(session), temp_session->path);
-    temp_session->session_attr->last_activity_time = get_session_last_activity_time(session);
-    int sslindex;
-
-   // uint64_t active_session_count = get_active_session_count(th->mmt_handler);
-    uint64_t active_session_count = 0;
-    snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32"",
-            400, probe_context->probe_id_number, probe_context->input_source,temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec,
-            proto_id,
-            temp_session->path,active_session_count,
-            get_session_byte_count(session) - temp_session->session_attr->total_byte_count,
-            get_session_data_byte_count(session) - temp_session->session_attr->total_data_byte_count,
-            get_session_packet_count(session) - temp_session->session_attr->total_packet_count,
-            ((keep_direction)?get_session_ul_byte_count(session):get_session_dl_byte_count(session)) - temp_session->session_attr->byte_count[0],
-            ((keep_direction)?get_session_ul_data_byte_count(session):get_session_dl_data_byte_count(session)) - temp_session->session_attr->data_byte_count[0],
-            ((keep_direction)?get_session_ul_packet_count(session):get_session_dl_packet_count(session)) - temp_session->session_attr->packet_count[0],
-
-            ((keep_direction)?get_session_dl_byte_count(session):get_session_ul_byte_count(session)) - temp_session->session_attr->byte_count[1],
-            ((keep_direction)?get_session_dl_data_byte_count(session):get_session_ul_data_byte_count(session)) - temp_session->session_attr->data_byte_count[1],
-            ((keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session)) - temp_session->session_attr->packet_count[1],
-            temp_session->session_attr->start_time.tv_sec, temp_session->session_attr->start_time.tv_usec,
-            ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,temp_session ->session_id,
-            temp_session->serverport, temp_session->clientport,temp_session->thread_number);
-    valid = strlen(message);
-
-    //To inform what is comming at the start of the flow report
-    if (temp_session->app_format_id == probe_context->web_id  && probe_context->web_enable == 1) print_initial_web_report(session,temp_session,message,valid);
-
-    valid = strlen(message);
-    message[ valid ] = '\0'; // correct end of string in case of truncated message
-
-
-    if (probe_context->output_to_file_enable == 1)send_message_to_file_thread (message, (void *)user_args);
-
-
-    if (probe_context->redis_enable == 1)send_message_to_redis ("session.flow.report", message);
-    temp_session->session_attr->total_packet_count = get_session_packet_count(session);
-    printf("packet_count_response = %lu\n",temp_session->session_attr->total_packet_count );
-    /*temp_session->session_attr->total_byte_count = get_session_byte_count(session);
-    temp_session->session_attr->total_data_byte_count = get_session_data_byte_count(session);
-    temp_session->session_attr->total_packet_count = get_session_packet_count(session);
-
-    temp_session->session_attr->byte_count[0] = (keep_direction)?get_session_ul_byte_count(session):get_session_dl_byte_count(session);
-    temp_session->session_attr->byte_count[1] = (keep_direction)?get_session_dl_byte_count(session):get_session_ul_byte_count(session);
-
-    temp_session->session_attr->data_byte_count[0] = (keep_direction)?get_session_ul_data_byte_count(session):get_session_dl_data_byte_count(session);
-    temp_session->session_attr->data_byte_count[1] = (keep_direction)?get_session_dl_data_byte_count(session):get_session_ul_data_byte_count(session);
-
-
-    temp_session->session_attr->packet_count[0] = (keep_direction)?get_session_ul_packet_count(session):get_session_dl_packet_count(session);
-    temp_session->session_attr->packet_count[1] = (keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session);*/
-}
-
-
-
-
-
-
 void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	if(ipacket->session == NULL) return;
 	session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
@@ -345,10 +340,33 @@ void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, vo
 			((web_session_attr_t *) temp_session->app_data)->response[max] = '\0';
 
 		}
-		print_http_session_response_report (ipacket->session, user_args);
+		printf("len_response = %u, id = %lu \n",ipacket->p_hdr->caplen, ipacket->packet_id);
+		//print_http_session_response_report (ipacket->session, user_args);
+		print_http_session_response_report(ipacket->session, user_args);
 
 	}
 }
+void tcp_psh_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
+	if(ipacket->session == NULL) return;
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+
+
+	session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
+
+
+
+	if (temp_session == NULL || temp_session->app_data == NULL) {
+		return;
+	}
+	uint16_t * psh = (uint16_t *) attribute->data;
+	if (psh != NULL && temp_session->app_format_id == probe_context->web_id) {
+		printf("psh=%u\n",* psh);
+	}
+
+}
+
+
+
 void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	if(ipacket->session == NULL) return;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -368,6 +386,8 @@ void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_
 		((web_session_attr_t *) temp_session->app_data)->has_uri=1;
 
 	}
+
+
 
 }
 

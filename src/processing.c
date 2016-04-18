@@ -406,6 +406,8 @@ void flowstruct_init(void * args) {
 
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
+	i &= register_attribute_handler(th->mmt_handler, PROTO_TCP, TCP_PSH, tcp_psh_handle, NULL, (void *)args);
+
 	register_ftp_attributes(th->mmt_handler);
 	if(!i) {
 		//TODO: we need a sound error handling mechanism! Anyway, we should never get here :)

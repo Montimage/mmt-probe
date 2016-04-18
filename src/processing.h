@@ -348,7 +348,9 @@ typedef struct web_session_attr_struct {
     char method[20];
     char response[1024];
     uint8_t has_uri;
+    uint16_t psh_flag;
     time_t last_report_time_sec;
+    temp_session_statistics_t * http_session_attr;
 } web_session_attr_t;
 
 typedef struct ssl_session_attr_struct {
@@ -517,6 +519,8 @@ void rtp_order_error_handle(const ipacket_t * ipacket, attribute_t * attribute, 
 void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void tcp_psh_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void print_http_session_method_report (const mmt_session_t * session, void *user_args);
 
 //prototypes
 //void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session);

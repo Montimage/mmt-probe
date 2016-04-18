@@ -16,7 +16,7 @@
 #include "processing.h"
 
 void print_ip_session_report (const mmt_session_t * session, void *user_args){
-	/*char message[MAX_MESS + 1];
+	char message[MAX_MESS + 1];
 	uint8_t *ea = 0;
 	char src_mac_pretty [18], dst_mac_pretty [18];
 	int keep_direction = 1;
@@ -111,6 +111,6 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 
 
 	temp_session->session_attr->packet_count[0] = (keep_direction)?get_session_ul_packet_count(session):get_session_dl_packet_count(session);
-	temp_session->session_attr->packet_count[1] = (keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session);*/
+	temp_session->session_attr->packet_count[1] = (keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session);
 }
 
