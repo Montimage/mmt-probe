@@ -871,8 +871,8 @@ int main(int argc, char **argv) {
 			//mmt_probe.smp_threads[i].last_msg_report_time = time(0);
 			mmt_probe.smp_threads[i].null_pkt.pkt.data = NULL;
 			
-			data_spsc_ring_init( &mmt_probe.smp_threads[i].fifo, mmt_conf->thread_queue_plen, snap_len );
 			mmt_probe.smp_threads[i].nb_dropped_packets = 0;
+			mmt_probe.smp_threads[i].nb_packets         = 0;
 
 			if( data_spsc_ring_init( &mmt_probe.smp_threads[i].fifo, mmt_conf->thread_queue_plen, snap_len ) != 0 ){
 				perror("Not enough memory. Please reduce thread-queue or thread-nb in .conf");
