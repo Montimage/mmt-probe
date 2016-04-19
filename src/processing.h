@@ -304,6 +304,8 @@ typedef struct temp_session_statistics_struct{
     uint64_t packet_count[2];
     uint64_t byte_count[2];
     uint64_t data_byte_count[2];
+    struct timeval response_time;
+    uint8_t seen_response;
     uint32_t touched;
 
 }temp_session_statistics_t;
@@ -311,6 +313,8 @@ typedef struct temp_session_statistics_struct{
 typedef struct session_struct {
     uint16_t format_id;
     uint16_t app_format_id;
+    struct timeval latest_packet_time;
+    struct timeval previous_packet_time;
     int proto_path;
     int application_class;
     char path[128];
@@ -519,8 +523,10 @@ void rtp_order_error_handle(const ipacket_t * ipacket, attribute_t * attribute, 
 void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void tcp_psh_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void print_http_session_method_report (const mmt_session_t * session, void *user_args);
+void tcp_fin_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void print_http_request_response_report(const mmt_session_t * session, void *user_args);
+void tcp_data_off_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void ip_proto_id_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 
 //prototypes
 //void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session);

@@ -57,9 +57,10 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(session), temp_session->path);
 	temp_session->session_attr->last_activity_time = get_session_last_activity_time(session);
 	int sslindex;
+	uint32_t rtt_ms = TIMEVAL_2_MSEC(get_session_rtt(session));
 
 	uint64_t active_session_count = get_active_session_count(th->mmt_handler);
-	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32"",
+	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",%"PRIu32"",
 			MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source,temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec,
 			proto_id,
 			temp_session->path,active_session_count,
@@ -75,7 +76,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 			((keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session)) - temp_session->session_attr->packet_count[1],
 			temp_session->session_attr->start_time.tv_sec, temp_session->session_attr->start_time.tv_usec,
 			ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,temp_session ->session_id,
-			temp_session->serverport, temp_session->clientport,temp_session->thread_number);
+			temp_session->serverport, temp_session->clientport,temp_session->thread_number,rtt_ms);
 	valid = strlen(message);
 
 	//To inform what is comming at the start of the flow report

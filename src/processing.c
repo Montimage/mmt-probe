@@ -406,7 +406,9 @@ void flowstruct_init(void * args) {
 
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
-	i &= register_attribute_handler(th->mmt_handler, PROTO_TCP, TCP_PSH, tcp_psh_handle, NULL, (void *)args);
+	i &= register_attribute_handler(th->mmt_handler, PROTO_TCP, TCP_FIN, tcp_fin_handle, NULL, (void *)args);
+	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, IP_PROTO_ID, ip_proto_id_handle,NULL,(void *)args);
+	i &= register_attribute_handler(th->mmt_handler, PROTO_TCP, TCP_DATA_OFF, tcp_data_off_handle,NULL,(void *)args);
 
 	register_ftp_attributes(th->mmt_handler);
 	if(!i) {
