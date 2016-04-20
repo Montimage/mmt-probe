@@ -377,6 +377,7 @@ void conditional_reports_init(void * args) {
 			printf( "Error while initializing condition report number %i!\n", condition_report->id);
 		}
 	}
+
 }
 void flowstruct_init(void * args) {
 	struct smp_thread *th = (struct smp_thread *) args;
@@ -407,8 +408,7 @@ void flowstruct_init(void * args) {
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
 	i &= register_attribute_handler(th->mmt_handler, PROTO_TCP, TCP_FIN, tcp_fin_handle, NULL, (void *)args);
-	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, IP_PROTO_ID, ip_proto_id_handle,NULL,(void *)args);
-	i &= register_attribute_handler(th->mmt_handler, PROTO_TCP, TCP_DATA_OFF, tcp_data_off_handle,NULL,(void *)args);
+	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, IP_RTT, ip_rtt_handler, NULL, (void *)args);
 
 	register_ftp_attributes(th->mmt_handler);
 	if(!i) {
@@ -572,7 +572,12 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 
 		}
 	}
-
+	if (temp_session->app_format_id == probe_context->web_id){
+		if (((web_session_attr_t *) temp_session->app_data)->http_session_attr != NULL){
+			if(((web_session_attr_t *) temp_session->app_data)->http_session_attr) free(((web_session_attr_t *) temp_session->app_data)->http_session_attr);
+			((web_session_attr_t *) temp_session->app_data)->http_session_attr = NULL;
+		}
+	}
 
 	if (temp_session->app_data != NULL) {
 		//Free the application specific data
@@ -584,6 +589,7 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 		if (temp_session->session_attr) free(temp_session->session_attr);
 		temp_session->session_attr = NULL;
 	}
+
 	if(temp_session) free(temp_session);
 	temp_session = NULL;
 }

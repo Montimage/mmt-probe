@@ -38,6 +38,7 @@ extern "C" {
 #define MMT_USER_AGENT_THRESHOLD 0x20 //32KB
 #define MAX_MESS 3000
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
+#define TIMEVAL_2_USEC(tval) ((tval.tv_sec * 1000000) + (tval.tv_usec ))
 uint64_t total_session_count;
 pthread_mutex_t mutex_lock;
 pthread_spinlock_t spin_lock;
@@ -307,7 +308,11 @@ typedef struct temp_session_statistics_struct{
     struct timeval response_time;
     uint8_t seen_response;
     uint32_t touched;
-
+    uint64_t sum_rtt[2];
+    uint64_t rtt_min_usec[2];
+    uint64_t rtt_max_usec[2];
+    uint64_t rtt_avg_usec[2];
+    uint64_t rtt_counter[2];
 }temp_session_statistics_t;
 
 typedef struct session_struct {
@@ -527,6 +532,7 @@ void tcp_fin_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 void print_http_request_response_report(const mmt_session_t * session, void *user_args);
 void tcp_data_off_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void ip_proto_id_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 
 //prototypes
 //void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session);

@@ -180,7 +180,7 @@ static void *smp_thread_routine(void *arg) {
 		register_session_timeout_handler(th->mmt_handler, classification_expiry_session, th);
 		flowstruct_init(th); // initialize our event handler
 		if(mmt_probe.mmt_conf->event_based_reporting_enable==1)event_reports_init(th); // initialize our event reports
-		conditional_reports_init(th->mmt_handler);// initialize our condition reports
+		conditional_reports_init(th);// initialize our condition reports
 		if(mmt_probe.mmt_conf->radius_enable==1)radius_ext_init(th); // initialize radius extraction and attribute event handler
 	}
 

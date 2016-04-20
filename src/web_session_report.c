@@ -193,7 +193,6 @@ void init_http_request_response_report (const mmt_session_t * session, void *use
 	((web_session_attr_t *)temp_session->app_data)->http_session_attr->start_time = get_session_last_activity_time(session);
 	((web_session_attr_t *)temp_session->app_data)->http_session_attr->seen_response = 0;
 	((web_session_attr_t *)temp_session->app_data)->http_session_attr->touched = 1;
-
 }
 
 void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
@@ -301,7 +300,6 @@ void xcdn_seen_handle(const ipacket_t * ipacket, attribute_t * attribute, void *
 	}
 }
 
-
 void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	if(ipacket->session == NULL) return;
 	session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
@@ -332,7 +330,6 @@ void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, vo
 			((web_session_attr_t *)temp_session->app_data)->http_session_attr->seen_response = 1;
 		}
 
-
 		http_line_struct_t * response = (http_line_struct_t *) attribute->data;
 
 		if (response != NULL && temp_session->app_format_id == probe_context->web_id) {
@@ -353,45 +350,12 @@ void tcp_fin_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		return;
 	}
 	uint16_t * fin = (uint16_t *) attribute->data;
-	if (fin != NULL && temp_session->app_format_id == probe_context->web_id) {
-		if (((web_session_attr_t *)temp_session->app_data)->http_session_attr->touched == 1)print_http_request_response_report(ipacket->session, user_args);
-		((web_session_attr_t *)temp_session->app_data)->http_session_attr->touched = 0;
+	if (temp_session->app_format_id == probe_context->web_id){
+		if (fin != NULL && ((web_session_attr_t *) temp_session->app_data)->http_session_attr != NULL) {
+			if (((web_session_attr_t *)temp_session->app_data)->http_session_attr->touched == 1)print_http_request_response_report(ipacket->session, user_args);
+			((web_session_attr_t *)temp_session->app_data)->http_session_attr->touched = 0;
+		}
 	}
-
-}
-void ip_proto_id_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-	if(ipacket->session == NULL) return;
-	mmt_probe_context_t * probe_context = get_probe_context_config();
-	session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
-
-	if (temp_session == NULL ) {
-		return;
-	}
-	temp_session->previous_packet_time = temp_session->latest_packet_time;
-	uint8_t * proto_id= (uint8_t *) attribute->data;
-
-	if (proto_id != NULL && * proto_id == 6 ) {
-		temp_session->latest_packet_time = ipacket->p_hdr->ts;
-	}
-
-}
-
-void tcp_data_off_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-	if(ipacket->session == NULL) return;
-	mmt_probe_context_t * probe_context = get_probe_context_config();
-	session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
-
-	if (temp_session == NULL ) {
-		return;
-	}
-	uint32_t * data_off= (uint32_t *) attribute->data;
-	printf("data_off = %u\n",* data_off);
-	if (data_off != NULL && * data_off == 0 ) {
-		uint32_t rtt_ms = TIMEVAL_2_MSEC(mmt_time_diff(temp_session->previous_packet_time,temp_session->latest_packet_time));
-		printf("data_off= %u, rtt=%u \n",* data_off,rtt_ms);
-
-	}
-
 }
 
 void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
