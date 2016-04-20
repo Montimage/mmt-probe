@@ -124,6 +124,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	temp_session->session_attr->packet_count[1] = (keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session);
 	temp_session->session_attr->rtt_min_usec[1]=0;
 	temp_session->session_attr->rtt_min_usec[0]=0;
+	temp_session->session_attr->rtt_avg_usec[0]=0;
 }
 void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 

@@ -132,7 +132,7 @@ void print_http_request_response_report (const mmt_session_t * session, void *us
 			((web_session_attr_t *) temp_session->app_data)->hostname,
 			((web_session_attr_t *) temp_session->app_data)->mimetype, ((web_session_attr_t *) temp_session->app_data)->referer,cdn_flag,
 			((web_session_attr_t *) temp_session->app_data)->uri,((web_session_attr_t *) temp_session->app_data)->method,((web_session_attr_t *) temp_session->app_data)->response,
-			(((web_session_attr_t *) temp_session->app_data)->http_session_attr->seen_response) ?(uint32_t) TIMEVAL_2_MSEC(((web_session_attr_t *) temp_session->app_data)->http_session_attr->response_time):0
+			(((web_session_attr_t *) temp_session->app_data)->http_session_attr->seen_response) ?(uint32_t) TIMEVAL_2_USEC(((web_session_attr_t *) temp_session->app_data)->http_session_attr->response_time):0
 	);
 	message[ MAX_MESS] = '\0';
 
@@ -422,7 +422,7 @@ void print_web_app_format(const mmt_session_t * expired_session, void *args) {
 		keep_direction = is_localv6_net(ip_src_str);
 	}
 
-	uint32_t rtt_ms = TIMEVAL_2_MSEC(get_session_rtt(expired_session));
+	uint32_t rtt_ms = TIMEVAL_2_USEC(get_session_rtt(expired_session));
 	uint32_t cdn_flag = 0;
 
 	if (((web_session_attr_t *) temp_session->app_data)->xcdn_seen) cdn_flag = ((web_session_attr_t *) temp_session->app_data)->xcdn_seen;
@@ -447,9 +447,9 @@ void print_web_app_format(const mmt_session_t * expired_session, void *args) {
 											rtt_ms, get_session_retransmission_count(expired_session),
 											get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
 											temp_session->contentclass, path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)],
-											(((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint32_t) TIMEVAL_2_MSEC(((web_session_attr_t *) temp_session->app_data)->response_time) : 0,
+											(((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint32_t) TIMEVAL_2_USEC(((web_session_attr_t *) temp_session->app_data)->response_time) : 0,
 													(((web_session_attr_t *) temp_session->app_data)->seen_response) ? ((web_session_attr_t *) temp_session->app_data)->trans_nb : 0,
-															(((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint32_t) TIMEVAL_2_MSEC(mmt_time_diff(((web_session_attr_t *) temp_session->app_data)->first_request_time, ((web_session_attr_t *) temp_session->app_data)->interaction_time)) : 0,
+															(((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint32_t) TIMEVAL_2_USEC(mmt_time_diff(((web_session_attr_t *) temp_session->app_data)->first_request_time, ((web_session_attr_t *) temp_session->app_data)->interaction_time)) : 0,
 																	((web_session_attr_t *) temp_session->app_data)->hostname,
 																	((web_session_attr_t *) temp_session->app_data)->mimetype, ((web_session_attr_t *) temp_session->app_data)->referer,
 																	dev_prop, cdn_flag
