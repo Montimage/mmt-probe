@@ -315,6 +315,29 @@ typedef struct temp_session_statistics_struct{
     uint64_t rtt_counter[2];
 }temp_session_statistics_t;
 
+typedef struct web_session_attr_struct {
+    struct timeval first_request_time;
+    struct timeval response_time;
+    struct timeval interaction_time;
+    char mimetype[64];
+    char hostname[96];
+    char referer[64];
+    char useragent[64];
+    uint8_t has_referer : 1, has_useragent : 1, xcdn_seen : 1, seen_response : 1;
+    uint8_t trans_nb;
+    char uri[1024];
+    char method[20];
+    char response[1024];
+    uint8_t has_uri;
+    uint16_t psh_flag;
+    time_t last_report_time_sec;
+    temp_session_statistics_t * http_session_attr;
+} web_session_attr_t;
+
+typedef struct ssl_session_attr_struct {
+    char hostname[64];
+} ssl_session_attr_t;
+
 typedef struct session_struct {
     uint16_t format_id;
     uint16_t app_format_id;
@@ -341,30 +364,6 @@ typedef struct session_struct {
     temp_session_statistics_t * session_attr;
     void * app_data;
 } session_struct_t;
-
-
-typedef struct web_session_attr_struct {
-    struct timeval first_request_time;
-    struct timeval response_time;
-    struct timeval interaction_time;
-    char mimetype[64];
-    char hostname[96];
-    char referer[64];
-    char useragent[64];
-    uint8_t has_referer : 1, has_useragent : 1, xcdn_seen : 1, seen_response : 1;
-    uint8_t trans_nb;
-    char uri[1024];
-    char method[20];
-    char response[1024];
-    uint8_t has_uri;
-    uint16_t psh_flag;
-    time_t last_report_time_sec;
-    temp_session_statistics_t * http_session_attr;
-} web_session_attr_t;
-
-typedef struct ssl_session_attr_struct {
-    char hostname[64];
-} ssl_session_attr_t;
 
 typedef struct session_expiry_check_struct {
     uint32_t expired_session_id;

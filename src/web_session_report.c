@@ -66,7 +66,7 @@ void host_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user
 		//}
 	}
 }
-void print_http_request_response_report (const mmt_session_t * session, void *user_args){
+/*void print_http_request_response_report (const mmt_session_t * session, void *user_args){
 	char message[MAX_MESS + 1];
 	uint32_t cdn_flag = 0;
 	uint8_t *ea = 0;
@@ -81,6 +81,10 @@ void print_http_request_response_report (const mmt_session_t * session, void *us
 	}
 	if (((web_session_attr_t *) temp_session->app_data)->http_session_attr == NULL){
 		return;
+	}
+	if (temp_session->session_attr == NULL) {
+		temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
+		memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
 	}
 	// To  check whether the session activity occurs between the reporting time interval
 	//if (TIMEVAL_2_MSEC(mmt_time_diff(temp_session->session_attr->last_activity_time,get_session_last_activity_time(session))) == 0)return; // check the condition if in the last interval there was a protocol activity or not
@@ -111,8 +115,9 @@ void print_http_request_response_report (const mmt_session_t * session, void *us
 	((web_session_attr_t *)temp_session->app_data)->http_session_attr->last_activity_time = get_session_last_activity_time(session);
 
 	uint64_t active_session_count = get_active_session_count(th->mmt_handler);
+	uint64_t rtt_ms = TIMEVAL_2_USEC(get_session_rtt(session));
 
-	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",\"%s\",\"%s\",\"%s\",%u,\"%s\",\"%s\",\"%s\",%u",
+	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",\"%s\",\"%s\",\"%s\",%u,\"%s\",\"%s\",\"%s\",%u",
 			400, probe_context->probe_id_number, probe_context->input_source,((web_session_attr_t *)temp_session->app_data)->http_session_attr->last_activity_time.tv_sec, ((web_session_attr_t *)temp_session->app_data)->http_session_attr->last_activity_time.tv_usec,
 			proto_id,
 			temp_session->path,active_session_count,
@@ -129,12 +134,16 @@ void print_http_request_response_report (const mmt_session_t * session, void *us
 			((web_session_attr_t *)temp_session->app_data)->http_session_attr->start_time.tv_sec, ((web_session_attr_t *)temp_session->app_data)->http_session_attr->start_time.tv_usec,
 			ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,temp_session ->session_id,
 			temp_session->serverport, temp_session->clientport,temp_session->thread_number,
+			rtt_ms,temp_session->session_attr->rtt_min_usec[1] ,temp_session->session_attr->rtt_min_usec[0],
+			temp_session->session_attr->rtt_max_usec[1] ,temp_session->session_attr->rtt_max_usec[0],temp_session->session_attr->rtt_avg_usec[1],temp_session->session_attr->rtt_avg_usec[0],
 			((web_session_attr_t *) temp_session->app_data)->hostname,
 			((web_session_attr_t *) temp_session->app_data)->mimetype, ((web_session_attr_t *) temp_session->app_data)->referer,cdn_flag,
 			((web_session_attr_t *) temp_session->app_data)->uri,((web_session_attr_t *) temp_session->app_data)->method,((web_session_attr_t *) temp_session->app_data)->response,
 			(((web_session_attr_t *) temp_session->app_data)->http_session_attr->seen_response) ?(uint32_t) TIMEVAL_2_USEC(((web_session_attr_t *) temp_session->app_data)->http_session_attr->response_time):0
+
 	);
 	message[ MAX_MESS] = '\0';
+	printf ("%s \n",message);
 
 	if (probe_context->output_to_file_enable == 1)send_message_to_file_thread (message, (void *)user_args);
 	if (probe_context->redis_enable == 1)send_message_to_redis ("http_request_response.flow.report", message);
@@ -154,6 +163,16 @@ void print_http_request_response_report (const mmt_session_t * session, void *us
 	((web_session_attr_t *)temp_session->app_data)->http_session_attr->packet_count[1] = (keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session);
 	((web_session_attr_t *)temp_session->app_data)->http_session_attr->start_time = get_session_last_activity_time(session);
 	((web_session_attr_t *)temp_session->app_data)->http_session_attr->seen_response = 0;
+	temp_session->session_attr->rtt_min_usec[1]=0;
+	temp_session->session_attr->rtt_min_usec[0]=0;
+	temp_session->session_attr->rtt_max_usec[1]=0;
+	temp_session->session_attr->rtt_max_usec[0]=0;
+	temp_session->session_attr->rtt_avg_usec[0]=0;
+	temp_session->session_attr->rtt_avg_usec[1]=0;
+	temp_session->session_attr->rtt_counter[0]=0;
+	temp_session->session_attr->rtt_counter[1]=0;
+	temp_session->session_attr->sum_rtt[0]=0;
+	temp_session->session_attr->sum_rtt[1]=0;
 }
 
 void init_http_request_response_report (const mmt_session_t * session, void *user_args){
@@ -193,7 +212,7 @@ void init_http_request_response_report (const mmt_session_t * session, void *use
 	((web_session_attr_t *)temp_session->app_data)->http_session_attr->start_time = get_session_last_activity_time(session);
 	((web_session_attr_t *)temp_session->app_data)->http_session_attr->seen_response = 0;
 	((web_session_attr_t *)temp_session->app_data)->http_session_attr->touched = 1;
-}
+}*/
 
 void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	if(ipacket->session == NULL) return;
@@ -213,7 +232,7 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 			}
 		}
 
-		if (((web_session_attr_t *) temp_session->app_data)->http_session_attr == NULL) {
+/*		if (((web_session_attr_t *) temp_session->app_data)->http_session_attr == NULL) {
 			temp_session_statistics_t * http_session_data = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
 
 			if (http_session_data != NULL) {
@@ -225,11 +244,23 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 				return;
 			}
 
+		}*/
+
+/*		if (((web_session_attr_t *)temp_session->app_data)->http_session_attr->touched == 0){
+			((web_session_attr_t *)temp_session->app_data)->http_session_attr->touched= 1;
+		}else print_http_request_response_report(ipacket->session, user_args);*/
+		//((web_session_attr_t *)temp_session->app_data)->http_session_attr->response_time = ipacket->p_hdr->ts;
+
+		if (temp_session->session_attr == NULL) {
+			temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
+			memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
 		}
 
-		if (((web_session_attr_t *)temp_session->app_data)->http_session_attr->touched == 0)init_http_request_response_report (ipacket->session, user_args);
-		else print_http_request_response_report(ipacket->session, user_args);
-		((web_session_attr_t *)temp_session->app_data)->http_session_attr->response_time = ipacket->p_hdr->ts;
+		if (temp_session->session_attr->touched == 0){
+			temp_session->session_attr->touched= 1;
+		}else print_ip_session_report (ipacket->session,user_args);
+
+		//((web_session_attr_t *)temp_session->app_data)->http_session_attr->response_time = ipacket->p_hdr->ts;
 
 		http_line_struct_t * method = (http_line_struct_t *) attribute->data;
 		if (method != NULL && temp_session->app_format_id == probe_context->web_id) {
@@ -244,7 +275,6 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 			((web_session_attr_t *) temp_session->app_data)->response_time = ipacket->p_hdr->ts;
 			((web_session_attr_t *) temp_session->app_data)->first_request_time = ipacket->p_hdr->ts;
 		}
-
 	}
 }
 
@@ -350,11 +380,11 @@ void tcp_fin_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		return;
 	}
 	uint16_t * fin = (uint16_t *) attribute->data;
-	if (temp_session->app_format_id == probe_context->web_id){
-		if (fin != NULL && ((web_session_attr_t *) temp_session->app_data)->http_session_attr != NULL) {
-			if (((web_session_attr_t *)temp_session->app_data)->http_session_attr->touched == 1)print_http_request_response_report(ipacket->session, user_args);
-			((web_session_attr_t *)temp_session->app_data)->http_session_attr->touched = 0;
-		}
+
+	if (fin != NULL && temp_session->app_format_id == probe_context->web_id && temp_session->session_attr != NULL ) {
+		//if (((web_session_attr_t *)temp_session->app_data)->http_session_attr->touched == 1)print_http_request_response_report(ipacket->session, user_args);
+		if (temp_session->session_attr->touched == 1)print_ip_session_report (ipacket->session, user_args);
+		temp_session->session_attr->touched = 0;
 	}
 }
 
@@ -395,9 +425,10 @@ void print_web_app_format(const mmt_session_t * expired_session, void *args) {
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(expired_session), path);
-	if (((web_session_attr_t *) temp_session->app_data)->http_session_attr != NULL){
+
+	/*if (((web_session_attr_t *) temp_session->app_data)->http_session_attr != NULL){
 		if (((web_session_attr_t *)temp_session->app_data)->http_session_attr->touched == 1)print_http_request_response_report(expired_session, args);
-	}
+	}*/
 
 	//printf("print_web_app_format_th_nb=%d \n",th->thread_number);
 
@@ -462,21 +493,23 @@ void print_web_app_format(const mmt_session_t * expired_session, void *args) {
 }
 
 void print_initial_web_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid){
-	snprintf(&message[valid], MAX_MESS-valid,
-				",%u",temp_session->app_format_id);
 
-/*	snprintf(&message[valid], MAX_MESS-valid,
-			",%u,%u,%u,%u,%u,%u,\"%s\",\"%s\",\"%s\",%u,\"%s\",\"%s\",\"%s\"", // app specific
+	uint32_t cdn_flag = 0;
+	if (((web_session_attr_t *) temp_session->app_data)->xcdn_seen) cdn_flag = ((web_session_attr_t *) temp_session->app_data)->xcdn_seen;
+	else if (get_session_content_flags(session) & MMT_CONTENT_CDN) cdn_flag = 2;
+	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
+	snprintf(&message[valid], MAX_MESS-valid,
+			",%u,%u,%u,%"PRIu64",%u,%u,\"%s\",\"%s\",\"%s\",%u,\"%s\",\"%s\",\"%s\"", // app specific
 			temp_session->app_format_id,get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
 			temp_session->contentclass,
-			(((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint32_t) TIMEVAL_2_MSEC(((web_session_attr_t *) temp_session->app_data)->response_time) : 0,
+			(((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint64_t) TIMEVAL_2_USEC(((web_session_attr_t *) temp_session->app_data)->response_time) : 0,
 					(((web_session_attr_t *) temp_session->app_data)->seen_response) ? ((web_session_attr_t *) temp_session->app_data)->trans_nb : 0,
 							(((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint32_t) TIMEVAL_2_MSEC(mmt_time_diff(((web_session_attr_t *) temp_session->app_data)->first_request_time, ((web_session_attr_t *) temp_session->app_data)->interaction_time)) : 0,
 									((web_session_attr_t *) temp_session->app_data)->hostname,
 									((web_session_attr_t *) temp_session->app_data)->mimetype, ((web_session_attr_t *) temp_session->app_data)->referer,cdn_flag,
 									((web_session_attr_t *) temp_session->app_data)->uri,((web_session_attr_t *) temp_session->app_data)->method,((web_session_attr_t *) temp_session->app_data)->response
-	);*/
-	temp_session->session_attr->touched=1;
+	);
+
 }
 
 /*
