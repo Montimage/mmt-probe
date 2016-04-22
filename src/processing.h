@@ -38,6 +38,7 @@ extern "C" {
 #define MMT_USER_AGENT_THRESHOLD 0x20 //32KB
 #define MAX_MESS 3000
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
+#define TIMEVAL_2_USEC(tval) ((tval.tv_sec * 1000000) + (tval.tv_usec))
 uint64_t total_session_count;
 pthread_mutex_t mutex_lock;
 pthread_spinlock_t spin_lock;

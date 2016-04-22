@@ -239,10 +239,10 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 			header.len = pkthdr.len;
 			header.user_args = NULL;
 
-			if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
-				mmt_probe->smp_threads->last_stat_report_time =time(NULL);
+			if(time(NULL) - mmt_probe->smp_threads->last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
+				mmt_probe->smp_threads->last_stat_report_time = time(NULL);
 				process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
-				if (mmt_probe->mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
+				if (mmt_probe->mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
 			}
 			//if(time(NULL)- mmt_probe->smp_threads->last_msg_report_time >= mmt_probe->mmt_conf->sampled_report_period){
 			//	mmt_probe->smp_threads->last_msg_report_time = time(NULL);

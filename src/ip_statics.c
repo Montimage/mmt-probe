@@ -33,8 +33,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 		memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
 	}
 	// To  check whether the session activity occurs between the reporting time interval
-	if (TIMEVAL_2_MSEC(mmt_time_diff(temp_session->session_attr->last_activity_time,get_session_last_activity_time(session))) == 0)return; // check the condition if in the last interval there was a protocol activity or not
-
+	if (TIMEVAL_2_USEC(mmt_time_diff(temp_session->session_attr->last_activity_time,get_session_last_activity_time(session))) == 0)return; // check the condition if in the last interval there was a protocol activity or not
 	//if (get_session_byte_count(session) - temp_session->session_attr->total_byte_count == 0)return;
 	ea = temp_session->src_mac;
 	snprintf(src_mac_pretty , 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
@@ -57,7 +56,6 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(session), temp_session->path);
 	temp_session->session_attr->last_activity_time = get_session_last_activity_time(session);
 	int sslindex;
-
 	uint64_t active_session_count = get_active_session_count(th->mmt_handler);
 	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32"",
 			MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source,temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec,
