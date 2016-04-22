@@ -798,7 +798,9 @@ int main(int argc, char **argv) {
 	}
 	is_stop_timer =0;
 
-	//if (license_expiry_check(0)==1) exit(0);
+	if (license_expiry_check(0)==1){
+		//exit(0);
+	}
 
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_P_INIT, "MMT Probe started!");
 
