@@ -16,12 +16,14 @@
 #include "processing.h"
 
 void print_ip_session_report (const mmt_session_t * session, void *user_args){
+
 	session_struct_t * temp_session = (session_struct_t *) get_user_session_context(session);
 	mmt_probe_context_t * probe_context = get_probe_context_config();
-	if (temp_session == NULL || temp_session->app_data == NULL) {
+	if (temp_session == NULL) {
 		return;
 	}
 	if(temp_session->app_format_id == probe_context->web_id){
+		if (temp_session->app_data == NULL) return;
 		if (strncmp(((web_session_attr_t *) temp_session->app_data)->method,"0",20) == 0)
 			return;
 	}
@@ -34,17 +36,12 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 
 	struct smp_thread *th = (struct smp_thread *) user_args;
 
-	if (temp_session == NULL){
-		return;
-	}
-
 	if (temp_session->session_attr == NULL) {
 		temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
 		memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
 	}
 	// To  check whether the session activity occurs between the reporting time interval
 	if (TIMEVAL_2_MSEC(mmt_time_diff(temp_session->session_attr->last_activity_time,get_session_last_activity_time(session))) == 0)return; // check the condition if in the last interval there was a protocol activity or not
-
 	//if (get_session_byte_count(session) - temp_session->session_attr->total_byte_count == 0)return;
 	ea = temp_session->src_mac;
 	snprintf(src_mac_pretty , 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
@@ -97,7 +94,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 			temp_session->serverport, temp_session->clientport,temp_session->thread_number,rtt_ms,temp_session->session_attr->rtt_min_usec[1] ,temp_session->session_attr->rtt_min_usec[0],
 			temp_session->session_attr->rtt_max_usec[1] ,temp_session->session_attr->rtt_max_usec[0],temp_session->session_attr->rtt_avg_usec[1],temp_session->session_attr->rtt_avg_usec[0]);
 	valid = strlen(message);
-
+    //printf("%s \n",message);
 	//To inform what is comming at the start of the flow report
 	if (temp_session->app_format_id == probe_context->web_id && probe_context->web_enable == 1) print_initial_web_report(session,temp_session,message,valid);
 	else if (temp_session->app_format_id == probe_context->rtp_id && temp_session->session_attr->touched == 0 && probe_context->rtp_enable == 1) print_initial_rtp_report(session,temp_session,message,valid);
@@ -144,6 +141,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	temp_session->session_attr->sum_rtt[1]=0;
 
 	if(temp_session->app_format_id == probe_context->web_id ){
+		if (temp_session->app_data == NULL) return;
 		memset (((web_session_attr_t *) temp_session->app_data)->method,'0',20);
 	}
 }
@@ -183,7 +181,7 @@ void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		temp_session->session_attr->sum_rtt[ip_rtt.direction] += latest_rtt;
 		temp_session->session_attr->rtt_avg_usec[ip_rtt.direction] = temp_session->session_attr->sum_rtt [ip_rtt.direction]/temp_session->session_attr->rtt_counter[ip_rtt.direction];
 
-		/*printf("direction = %u, rtt_latest = %lu rtt_min = %lu, rtt_max = %lu rtt_avg = %lu, counter = %lu\n", ip_rtt.direction,latest_rtt,temp_session->session_attr->rtt_min_usec[ip_rtt.direction],temp_session->session_attr->rtt_max_usec[ip_rtt.direction],temp_session->session_attr->rtt_avg_usec[ip_rtt.direction],temp_session->session_attr->rtt_counter[ip_rtt.direction]);*/
+		//printf("direction = %u, rtt_latest = %lu rtt_min = %lu, rtt_max = %lu rtt_avg = %lu, counter = %lu\n", ip_rtt.direction,latest_rtt,temp_session->session_attr->rtt_min_usec[ip_rtt.direction],temp_session->session_attr->rtt_max_usec[ip_rtt.direction],temp_session->session_attr->rtt_avg_usec[ip_rtt.direction],temp_session->session_attr->rtt_counter[ip_rtt.direction]);
 		//printf("session: %lu Direction: %u has RTT : %lu.%lu (packet: %lu)\n",get_session_id(ip_rtt.session),ip_rtt.direction,ip_rtt.rtt.tv_sec,ip_rtt.rtt.tv_usec,ipacket->packet_id);
 	}
 

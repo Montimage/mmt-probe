@@ -31,7 +31,7 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 		//if (proto_struct->has_session == 0){
 		int i = 0;
 		for (i=1;i<=proto_hierarchy.len;i++){
-			if (proto_hierarchy.proto_path[i] == 178 || proto_hierarchy.proto_path[i] == 182){
+			if (proto_hierarchy.proto_path[i] == 178 || proto_hierarchy.proto_path[i] == 182 || proto_hierarchy.proto_path[i] == 7){
 				return;
 			}
 		}
