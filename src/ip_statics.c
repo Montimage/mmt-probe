@@ -151,7 +151,7 @@ void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	if(attribute->data == NULL) return;
 	ip_rtt_t ip_rtt = *((ip_rtt_t *)attribute->data);
 	session_struct_t *temp_session = get_user_session_context(ip_rtt.session);
-	if (temp_session == NULL || temp_session->app_data == NULL) {
+	if (temp_session == NULL) {
 		return;
 	}
 	if (temp_session->session_attr == NULL) {
