@@ -4,7 +4,7 @@
 #ifdef	__cplusplus
 extern "C" {
 #endif
-
+#include "lib/data_spsc_ring.h"
 #define ONLINE_ANALYSIS 0x1
 #define OFFLINE_ANALYSIS 0x2
 #define OFFLINE_ANALYSIS_CONTINUOUS 0x3 
@@ -449,6 +449,9 @@ struct smp_thread {
     mmt_event_report_t * event_reports;
     char *cache_message_list[ MAX_CACHE_SIZE ];
     int cache_count;
+    
+    data_spsc_ring_t fifo;
+    uint64_t nb_packets, nb_dropped_packets;
 };
 
 

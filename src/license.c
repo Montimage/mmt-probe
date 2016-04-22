@@ -246,7 +246,7 @@ int license_expiry_check(int status){
 	char * read_sum_block;
 	read_sum_block=malloc(sizeof(char)* (valid2+1));
 	fseek(license_key,offset,SEEK_SET);
-	fread(read_sum_block,1,valid2,license_key);
+	offset += fread(read_sum_block,1,valid2,license_key);
 	read_sum_block[valid2]='\0';
 
 	//printf("sum_of_blocks_read=%s\n",read_sum_block);

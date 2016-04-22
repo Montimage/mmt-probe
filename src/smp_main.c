@@ -31,23 +31,21 @@ src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c s
 #include <pthread.h>
 #include <errno.h>
 #include <signal.h>
-#include <sched.h>
 #include <sys/time.h>
-#include <sys/types.h> //gettid
 #include <sys/resource.h>
 #include <unistd.h> //usleep, sleep
 #include "mmt_core.h"
 #include "processing.h"
 
+#include "lib/packet_hash.h"
+#include "lib/data_spsc_ring.h"
+#include "lib/optimization.h"
+#include "lib/system_info.h"
+
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
-#define gettid() syscall(__NR_gettid)	/* missing in headers? */
-#ifdef RHEL3 //RedHat Enterprise Linux 3
-#define my_sched_setaffinity(a,b,c) sched_setaffinity(a, c)
-#else
-#define my_sched_setaffinity(a,b,c) sched_setaffinity(a, b, c)
-#endif /* RHEL3 */
+
 
 #define DLT_EN10MB 1    /* Ethernet (10Mb) */
 #define READ_PRIO	-15	/* niceness value for Reader thread */
@@ -72,6 +70,7 @@ int captured = 0; /* number of packets captured for stats */
 int ignored = 0; /* number of packets !decapsulated for stats */
 
 uint64_t nb_packets_dropped_by_mmt = 0;
+uint64_t nb_packets_processed_by_mmt = 0;
 
 static void terminate_probe_processing(int wait_thread_terminate);
 
@@ -85,72 +84,26 @@ uint32_t get_2_power(uint32_t nb) {
 	return ret;
 }
 
-struct tmp_eth_hdr {
-	uint8_t h_dest[6];
-	uint8_t h_source[6];
-	uint16_t h_proto;
-};
-
-struct tmp_vlan_hdr {
-	uint16_t code;
-	uint16_t h_proto;
-};
-
-int hash_packet(const u_char * packet, int len) {
-	if (len < 38) return 0; //TODO: this is not elegant check IP, IPv6 etc.
-	struct tmp_eth_hdr * eth = (struct tmp_eth_hdr *) packet;
-
-	int ip_src_off, ip_dst_off;
-	if (ntohs(eth->h_proto) == 0x0800) {
-		ip_src_off = 26;
-		ip_dst_off = 30;
-	} else if ((ntohs(eth->h_proto) == 0x8100)) {
-		ip_src_off = 30;
-		ip_dst_off = 34;
-	} else {
-		return 0;
-	}
-	int a1 = *((int *) &packet[ip_src_off]);
-	int a2 = *((int *) &packet[ip_dst_off]);
-
-
-	if ((ntohl(a1) & 0xFF000000 /* 255.0.0.0 */) == 0x0A000000 /* 10.0.0.0 */) {
-		return ntohl(a1);
-	}
-
-	if ((ntohl(a2) & 0xFF000000 /* 255.0.0.0 */) == 0x0A000000 /* 10.0.0.0 */) {
-		return ntohl(a2);
-	}
-
-	//a1 = (a1 & a2) ^ (a1 | a2);
-	a1 = (a1 >> 24) + (a1 >> 16) + (a1 >> 8) + a1;
-	a2 = (a2 >> 24) + (a2 >> 16) + (a2 >> 8) + a2;
-	a1 = a1 + a2;
-
-	return a1;
-}
-
-
-/*
- * This callback will be called by ixE for packets completely processed.
- */
-static void free_packet_element(void * packet) {
-	if(packet)free(packet);
-	packet = NULL;
-}
-
-
 static void *smp_thread_routine(void *arg) {
 	struct timeval tv;
 	struct smp_thread *th = (struct smp_thread *) arg;
-	uint64_t nb_pkts = 0;
-	struct smp_pkt *pkt_head;
 	char mmt_errbuf[1024];
 	char lg_msg[256];
-	int quit = 0, i = 0;
+	int  i = 0;
+	struct packet_element *pkt;
+	void *pdata;
+	long avail_processors;
+	
 	sprintf(lg_msg, "Starting thread %i", th->thread_number);
 
 	mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_T_INIT, lg_msg);
+
+	//move this thread to a specific processor
+	avail_processors = get_number_of_online_processors();
+	if( avail_processors > 0 ){
+		avail_processors -= 1;//avoid zero that is using by Reader
+		(void) move_the_current_thread_to_a_core( th->thread_number % avail_processors + 1, 0 );
+	}
 
 	//Initialize an MMT handler
 	pthread_spin_lock(&spin_lock);
@@ -186,11 +139,11 @@ static void *smp_thread_routine(void *arg) {
 
 
 	proto_stats_init(th->mmt_handler);
-
+	th->nb_packets = 0;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	char message[MAX_MESS + 1];
 
-	while (!quit) {
+	while ( 1 ) {
 
 		if(time(NULL)- th->last_stat_report_time >= mmt_probe.mmt_conf->stats_reporting_period){
 			th->last_stat_report_time=time(NULL);
@@ -200,28 +153,23 @@ static void *smp_thread_routine(void *arg) {
 		//if(time(NULL)- th->last_msg_report_time >= mmt_probe.mmt_conf->sampled_report_period){
 		//	th->last_msg_report_time = time(NULL);
 		//}
-		pthread_spin_lock(&th->lock);
+
 		/* if no packet has arrived sleep 2.50 ms */
-		if (list_empty((struct list_entry *) &th->pkt_head)) {
-			pthread_spin_unlock(&th->lock);
+		if ( data_spsc_ring_pop( &th->fifo, &pdata ) != 0 ) {
 			tv.tv_sec = 0;
-			tv.tv_usec = 2500;
+			tv.tv_usec = 250;
 			//fprintf(stdout, "No more packets for thread %i --- waiting\n", th->thread_number);
 			select(0, NULL, NULL, NULL, &tv);
 		} else { /* else remove pkt head from list and process it */
-			pkt_head = (struct smp_pkt *) th->pkt_head.entry.next;
-			list_del((struct list_entry *) pkt_head);
-			th->queue_plen -= 1;
-			th->queue_blen -= pkt_head->pkt.header.caplen;
-			if ((int) th->queue_plen < 0) th->queue_plen = 0;
-			if ((int) th->queue_blen < 0) th->queue_blen = 0;
-			pthread_spin_unlock(&th->lock);
+			pkt = (struct packet_element *) pdata;
 			/* is it a dummy packet ? => means thread must exit */
-			quit = (pkt_head->pkt.data == NULL);
-			if (!quit) {
-				packet_process(th->mmt_handler, &pkt_head->pkt.header, pkt_head->pkt.data);
-				free_packet_element((void *) pkt_head);
-				nb_pkts++;
+			if ( likely(pkt->data != NULL )) {
+				packet_process(th->mmt_handler, &pkt->header,(u_char *) (&pkt->data[0]) );
+				//increase nb packets processed by this thread
+				th->nb_packets ++;
+			}else{
+				printf("thread %d : %"PRIu64" \n", th->thread_number, th->nb_packets );
+				break;
 			}
 		}
 	}
@@ -235,7 +183,7 @@ static void *smp_thread_routine(void *arg) {
 		th->mmt_handler = NULL;
 	}
 
-	sprintf(lg_msg, "Thread %i ended (%"PRIu64" packets)", th->thread_number, nb_pkts);
+	sprintf(lg_msg, "Thread %i ended (%"PRIu64" packets)", th->thread_number, th->nb_packets);
 	//printf("Thread %i ended (%"PRIu64" packets)\n", th->thread_number, nb_pkts);
 	mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_T_END, lg_msg);
 	//fprintf(stdout, "Thread %i ended (%u packets)\n", th->thread_number, nb_pkts);
@@ -351,7 +299,9 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 //BW: TODO: add the pcap handler to the mmt_probe (or internal structure accessible from it) in order to be able to close it here
 
 void cleanup(int signo) {
-
+	mmt_probe_context_t * mmt_conf = mmt_probe.mmt_conf;
+	int i;
+	
 	pcap_breakloop(handle);
     stop = 1;
     if (got_stats) return;
@@ -364,11 +314,18 @@ void cleanup(int signo) {
 	   fprintf(stderr, "%d packets ignored (too small to decapsulate)\n", ignored);
    }
    if (got_stats) {
-	   (void) fprintf(stderr, "%d packets received by filter\n", pcs.ps_recv);
-	   (void) fprintf(stderr, "%d packets dropped by kernel\n", pcs.ps_drop);
-	   (void) fprintf(stderr, "%"PRIu64" packets dropped by MMT\n", nb_packets_dropped_by_mmt );
+	   (void) fprintf(stderr, "\n%12d packets received by filter\n", pcs.ps_recv);
+	   (void) fprintf(stderr, "%12d packets dropped by kernel (%3.2f%%)\n", pcs.ps_drop, pcs.ps_drop * 100.0 / pcs.ps_recv);
+	   (void) fprintf(stderr, "%12"PRIu64" packets dropped by MMT (%3.2f%%) \n", nb_packets_dropped_by_mmt, nb_packets_dropped_by_mmt * 100.0 /  pcs.ps_recv );
+	   fflush(stderr);
    }
-
+   if( mmt_conf->thread_nb == 1)
+	   (void) fprintf(stderr, "%12"PRIu64" packets processed by MMT (%3.2f%%) \n", nb_packets_processed_by_mmt, nb_packets_processed_by_mmt * 100.0 /  pcs.ps_recv );
+   else
+	   for (i = 0; i < mmt_conf->thread_nb; i++)
+		   (void) fprintf( stderr, "- thread %2d processed %12"PRIu64" packets, dropped %12"PRIu64"\n",
+				   mmt_probe.smp_threads[i].thread_number, mmt_probe.smp_threads[i].nb_packets, mmt_probe.smp_threads[i].nb_dropped_packets );
+   fflush(stderr);
 #ifdef RHEL3
 	pcap_close(handle);
 #endif /* RHEL3 */
@@ -377,9 +334,10 @@ void cleanup(int signo) {
 void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *data) {
 	struct smp_thread *th;
 	struct pkthdr header;
-	static uint64_t packets_count = 0;
-	char lg_msg[1024];
-	int p_hash;
+	static uint32_t p_hash = 0;
+	static void *pdata;
+	static struct packet_element *pkt;
+	
 	if (mmt_probe.mmt_conf->thread_nb == 1) {
 
 		header.ts = pkthdr->ts;
@@ -398,42 +356,31 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
 		//}
 
 		if (!packet_process(mmt_probe.smp_threads->mmt_handler, &header, data)) {
-			fprintf(stderr, "MMT Extraction failure! Error while processing packet number %"PRIu64"", packets_count);
+			fprintf(stderr, "MMT Extraction failure! Error while processing packet number %"PRIu64"", nb_packets_processed_by_mmt);
+			nb_packets_dropped_by_mmt ++;
 		}
-		packets_count++;
+		nb_packets_processed_by_mmt ++;
 	} else {//We have more than one thread for processing packets! dispatch the packet to one of them
-		struct smp_pkt * smp_pkt_instance;
-		p_hash = hash_packet(data, pkthdr->caplen);
-		if ((smp_pkt_instance = malloc(sizeof (struct smp_pkt) +pkthdr->caplen)) == NULL) {
-			sprintf(lg_msg, "Memory error while processing packet nb %"PRIu64" from %s! Will wait one second and resume!", packets_count, mmt_probe.mmt_conf->input_source);
-			mmt_log(mmt_probe.mmt_conf, MMT_L_EMERGENCY, MMT_P_MEM_ERROR, lg_msg);
-			sleep(1); //Sleep 1 second.
-		} else {
-			//check for license
-			/* fill smp_pkt fields and copy packet data from pcap buffer */
+		p_hash = get_packet_hash_number(data, pkthdr->caplen) % (mmt_probe.mmt_conf->thread_nb );
+		th     = &mmt_probe.smp_threads[ p_hash ];
 
-			smp_pkt_instance->pkt.header.len = pkthdr->len;
-			smp_pkt_instance->pkt.header.caplen = pkthdr->caplen;
-			smp_pkt_instance->pkt.header.ts = pkthdr->ts;
-			smp_pkt_instance->pkt.header.user_args = NULL;
-			smp_pkt_instance->pkt.data = (unsigned char *) (&smp_pkt_instance[1]);
-			memcpy(smp_pkt_instance->pkt.data, data, pkthdr->caplen);
-			/* get thread destination structure */
-			th = &mmt_probe.smp_threads[p_hash & (mmt_probe.mmt_conf->thread_nb - 1)];
-			pthread_spin_lock(&th->lock);
-			if (th->queue_blen > mmt_probe.mmt_conf->thread_queue_blen || th->queue_plen > mmt_probe.mmt_conf->thread_queue_plen) {
-				//The packet will be dropped from the analysis
-				sprintf(lg_msg, "Handler queue full error. Instance %i will drop packet nb %"PRIu64" from %s", th->thread_number, packets_count, mmt_probe.mmt_conf->input_source);
-				mmt_log(mmt_probe.mmt_conf, MMT_L_EMERGENCY, MMT_P_INSTANCE_QUEUE_FULL, lg_msg);
-				if(smp_pkt_instance)free(smp_pkt_instance);
-				smp_pkt_instance = NULL;
-				nb_packets_dropped_by_mmt ++;
-			} else {
-				list_add_tail((struct list_entry *) smp_pkt_instance, (struct list_entry *) &th->pkt_head);
-				th->queue_plen += 1;
-				th->queue_blen += pkthdr->caplen;
-			}
-			pthread_spin_unlock(&th->lock);
+		if( data_spsc_ring_get_tmp_element( &th->fifo, &pdata ) != 0)
+			return;
+
+		pkt = (struct packet_element *) pdata;
+		/* fill smp_pkt fields and copy packet data from pcap buffer */
+		pkt->header.len    = pkthdr->len;
+		pkt->header.caplen = pkthdr->caplen;
+		pkt->header.ts     = pkthdr->ts;
+		pkt->data          = (u_char *)( &pkt[ 1 ]); //put data in the same memory segment but after sizeof( pkt )
+		memcpy(pkt->data, data, pkthdr->caplen);
+		//pkt->data = data;
+
+		if(  data_spsc_ring_push_tmp_element( &th->fifo ) != 0 ){
+		//queue is full
+			nb_packets_dropped_by_mmt ++;
+			th->nb_dropped_packets ++;
+			return;
 		}
 	}
 }
@@ -450,20 +397,8 @@ void *Reader(void *arg) {
 	bpf_u_int32 net; /* ip */
 	int num_packets = -1; /* number of packets to capture */
 	//int num_packets = 1000000; /* number of packets to capture */
-#ifdef CPU_SET
-	int rtid = gettid(); /* reader thread id */
-	cpu_set_t csmask;
-	CPU_ZERO(&csmask);
-	CPU_SET(READER_CPU, &csmask);
-	if (my_sched_setaffinity(rtid, sizeof (cpu_set_t), &csmask) != 0) {
-		fprintf(stderr, "Reader could not set cpu affinity: %s\n", strerror(errno));
-	}
-	if (setpriority(PRIO_PROCESS, rtid, READ_PRIO) != 0) {
-		fprintf(stderr, "Reader could not set scheduling priority: %s\n", strerror(errno));
-	}
-#else
-	//replace with equivalent code for target OS or delete and run less optimally
-#endif
+
+	(void) move_the_current_thread_to_a_core(0, -15);
 
 	/*
 	 * get network number and mask associated with capture device
@@ -482,12 +417,16 @@ void *Reader(void *arg) {
 	//End initialise MMT_Security
 
 	/* open capture device */
-	handle = pcap_open_live(mmt_probe->mmt_conf->input_source, d_snap_len, 1, 0, errbuf);
-
-	if (handle == NULL) {
+    handle = pcap_create(mmt_probe->mmt_conf->input_source, errbuf);
+    if (handle == NULL) {
 		fprintf(stderr, "Couldn't open device %s\n", errbuf);
 		exit(EXIT_FAILURE);
 	}
+    pcap_set_snaplen(handle, d_snap_len);
+    pcap_set_promisc(handle, 1);
+    pcap_set_timeout(handle, 0);
+    pcap_set_buffer_size(handle, 100*1000*1000);
+    pcap_activate(handle);
 
 	reader_ready = 1;
 
@@ -498,16 +437,16 @@ void *Reader(void *arg) {
 	}
 
 	/* compile the filter expression */
-	if (pcap_compile(handle, &fp, filter_exp, 0, net) == -1) {
-		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(handle));
-		exit(EXIT_FAILURE);
-	}
+	//if (pcap_compile(handle, &fp, filter_exp, 0, net) == -1) {
+	//	fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(handle));
+	//	exit(EXIT_FAILURE);
+	//}
 
 	/* apply the compiled filter */
-	if (pcap_setfilter(handle, &fp) == -1) {
-		fprintf(stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(handle));
-		exit(EXIT_FAILURE);
-	}
+	//if (pcap_setfilter(handle, &fp) == -1) {
+	//	fprintf(stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(handle));
+	//	exit(EXIT_FAILURE);
+	//}
 	//Initialise MMT_Security
 	if(mmt_probe->mmt_conf->security_enable==1)
 		init_mmt_security( mmt_probe->smp_threads->mmt_handler, mmt_probe->mmt_conf->properties_file, (void *)mmt_probe->smp_threads );
@@ -567,7 +506,7 @@ static void *process_tracefile_thread_routine(void *arg) {
 	while ((data = pcap_next(pcap, &pkthdr))) {
 		//check for license
 		packets_count++;
-		p_hash = hash_packet(data, pkthdr.caplen);
+		p_hash = get_packet_hash_number(data, pkthdr.caplen);
 		if ((dispatcher->nb & p_hash) == (dispatcher->nb || (p_hash & 1))) {
 			/* build a new smp_pkt structure + length for packet data */
 			if ((smp_pkt = malloc(sizeof (struct smp_pkt) +pkthdr.caplen)) == NULL) {
@@ -728,7 +667,8 @@ void signal_handler(int type) {
 	static int i = 0;
 	i++;
 	char lg_msg[1024];
-
+	fprintf(stderr, "\nreception of signal %d\n", type);
+	fflush( stderr );
     cleanup( 0 );
 
     if (i == 1) {
@@ -816,10 +756,10 @@ void signal_handler(int type) {
 
 int main(int argc, char **argv) {
 	char mmt_errbuf[1024];
-	int i;
+	int i,j;
 	char lg_msg[1024];
 	sigset_t signal_set;
-	char single_file [256+1]={0};
+	char single_file [MAX_FILE_NAME+1]={0};
 	pthread_mutex_init(&mutex_lock, NULL);
 	pthread_spin_init(&spin_lock, 0);
 
@@ -858,7 +798,7 @@ int main(int argc, char **argv) {
 	}
 	is_stop_timer =0;
 
-	if (license_expiry_check(0)==1) exit(0);
+	//if (license_expiry_check(0)==1) exit(0);
 
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_P_INIT, "MMT Probe started!");
 
@@ -930,6 +870,18 @@ int main(int argc, char **argv) {
 			mmt_probe.smp_threads[i].last_stat_report_time = time(0);
 			//mmt_probe.smp_threads[i].last_msg_report_time = time(0);
 			mmt_probe.smp_threads[i].null_pkt.pkt.data = NULL;
+			
+			mmt_probe.smp_threads[i].nb_dropped_packets = 0;
+			mmt_probe.smp_threads[i].nb_packets         = 0;
+
+			if( data_spsc_ring_init( &mmt_probe.smp_threads[i].fifo, mmt_conf->thread_queue_plen, snap_len ) != 0 ){
+				perror("Not enough memory. Please reduce thread-queue or thread-nb in .conf");
+				//free memory allocated
+				for(j=0; j<=i; j++)
+					data_spsc_ring_free( &mmt_probe.smp_threads[j].fifo );
+				exit( 1 );
+			}
+			
 			pthread_create(&mmt_probe.smp_threads[i].handle, NULL,
 					smp_thread_routine, &mmt_probe.smp_threads[i]);
 		}
