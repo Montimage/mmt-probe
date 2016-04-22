@@ -27,7 +27,7 @@ typedef struct data_spsc_ring_struct{
  *          1 if q is null or size < 1 or element_size = 0
  *          2 if there is not enough memory
  */
-int data_spsc_ring_init( data_spsc_ring_t *q, uint32_t size, uint16_t element_size );
+int data_spsc_ring_init( data_spsc_ring_t *q, uint32_t size, uint32_t element_size );
 
 /**
  * Must be called by producer
