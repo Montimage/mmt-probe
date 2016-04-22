@@ -529,8 +529,6 @@ void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, 
 void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void tcp_fin_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void print_http_request_response_report(const mmt_session_t * session, void *user_args);
-void tcp_data_off_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void ip_proto_id_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 
 //prototypes

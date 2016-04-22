@@ -572,12 +572,6 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 
 		}
 	}
-/*	if (temp_session->app_format_id == probe_context->web_id){
-		if (((web_session_attr_t *) temp_session->app_data)->http_session_attr != NULL){
-			if(((web_session_attr_t *) temp_session->app_data)->http_session_attr) free(((web_session_attr_t *) temp_session->app_data)->http_session_attr);
-			((web_session_attr_t *) temp_session->app_data)->http_session_attr = NULL;
-		}
-	}*/
 
 	if (temp_session->app_data != NULL) {
 		//Free the application specific data
