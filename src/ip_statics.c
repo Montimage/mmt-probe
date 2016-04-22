@@ -41,7 +41,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 		memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
 	}
 	// To  check whether the session activity occurs between the reporting time interval
-	if (TIMEVAL_2_MSEC(mmt_time_diff(temp_session->session_attr->last_activity_time,get_session_last_activity_time(session))) == 0)return; // check the condition if in the last interval there was a protocol activity or not
+	if (TIMEVAL_2_USEC(mmt_time_diff(temp_session->session_attr->last_activity_time,get_session_last_activity_time(session))) == 0)return; // check the condition if in the last interval there was a protocol activity or not
 	//if (get_session_byte_count(session) - temp_session->session_attr->total_byte_count == 0)return;
 	ea = temp_session->src_mac;
 	snprintf(src_mac_pretty , 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
