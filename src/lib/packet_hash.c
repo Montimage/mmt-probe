@@ -52,6 +52,9 @@ uint32_t get_packet_hash_number( const u_char *packet, size_t len ){
 	static uint16_t ip_src_off, ip_dst_off, port_src_off;
 	if (len < 38) return 0; //TODO: this is not elegant check IP, IPv6 etc.
 
+	if( packet == NULL)
+		return 0;
+
 	eth = (struct __eth_hdr_struct *) packet;
 
 
