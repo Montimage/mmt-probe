@@ -255,9 +255,10 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         //fprintf(stdout, "thread nb is 2^%i\n", mmt_conf->thread_nb_2_power);
         mmt_conf->thread_queue_plen = (uint32_t) cfg_getint(cfg, "thread-queue");
         mmt_conf->thread_queue_blen = (uint32_t) cfg_getint(cfg, "thread-data");
-        if (mmt_conf->thread_queue_plen == 0) mmt_conf->thread_queue_plen = 0xFFFFFFFF; //No limitation
+        if (mmt_conf->thread_queue_plen == 0) mmt_conf->thread_queue_plen = 1000; //default value is 1000
         if (mmt_conf->thread_queue_blen == 0) mmt_conf->thread_queue_blen = 0xFFFFFFFF; //No limitation
         mmt_conf->input_mode = (uint32_t) cfg_getint(cfg, "input-mode");
+
         if(mmt_conf->input_mode==0){
             printf("Error: Specify the input-mode in the configuration file, for example input-mode = \"offline\" or \"online\" \n");
             exit(1);

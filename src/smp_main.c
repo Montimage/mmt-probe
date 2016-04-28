@@ -196,8 +196,6 @@ struct dispatcher_struct {
 	int nb;
 };
 
-static void *process_tracefile_thread_routine(void *arg);
-
 void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 	int i;
 	struct dispatcher_struct dispatcher[2];
@@ -210,6 +208,10 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 	char errbuf[1024];
 	//char mmt_errbuf[1024];
 	char lg_msg[1024];
+	struct smp_thread *th;
+	static uint32_t p_hash = 0;
+	static struct packet_element *pkt;
+	static void *pdata;
 
 
 	//Initialise MMT_Security
@@ -230,7 +232,6 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 		sprintf(lg_msg, "Start processing trace file: %s", filename);
 		mmt_log(mmt_probe->mmt_conf, MMT_L_INFO, MMT_P_START_PROCESS_TRACE, lg_msg);
 		//One thread for reading packets and processing them
-		char message[MAX_MESS + 1];
 
 		while ((data = pcap_next(pcap, &pkthdr))) {
 
@@ -239,10 +240,10 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 			header.len = pkthdr.len;
 			header.user_args = NULL;
 
-			if(time(NULL) - mmt_probe->smp_threads->last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
-				mmt_probe->smp_threads->last_stat_report_time = time(NULL);
+			if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
+				mmt_probe->smp_threads->last_stat_report_time =time(NULL);
 				process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
-				if (mmt_probe->mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
+				if (mmt_probe->mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
 			}
 			//if(time(NULL)- mmt_probe->smp_threads->last_msg_report_time >= mmt_probe->mmt_conf->sampled_report_period){
 			//	mmt_probe->smp_threads->last_msg_report_time = time(NULL);
@@ -258,41 +259,63 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 		pcap_close(pcap);
 		sprintf(lg_msg, "End processing trace file: %s", filename);
 		mmt_log(mmt_probe->mmt_conf, MMT_L_INFO, MMT_P_END_PROCESS_TRACE, lg_msg);
-	} else {
+	}else {//We have more than one thread for processing packets! dispatch the packet to one of them
+		pcap = pcap_open_offline(filename, errbuf); // open offline trace
+
+		if (!pcap) { /* pcap error ? */
+			sprintf(lg_msg, "Error while opening pcap file: %s --- error msg: %s", filename, errbuf);
+			printf("Error: Verify the name and the location of the trace file to be analysed \n ");
+			mmt_log(mmt_probe->mmt_conf, MMT_L_ERROR, MMT_P_TRACE_ERROR, lg_msg);
+			return;
+		}
 		sprintf(lg_msg, "Start processing trace file: %s", filename);
 		mmt_log(mmt_probe->mmt_conf, MMT_L_INFO, MMT_P_START_PROCESS_TRACE, lg_msg);
-		for (i = 0; i < 2; i++) {
-			dispatcher[i].filename = filename;
-			dispatcher[i].nb = i;
-			pthread_create(&dispatcher[i].handle, NULL, process_tracefile_thread_routine, &dispatcher[i]);
-		}
-		/* wait for the dispatching threads to complete */
-		for (i = 0; i < 2; i++) {
-			pthread_join(dispatcher[i].handle, NULL);
-		}
+        int is_queue_full = 0;
+		while (1) {
 
-		int i, processing_ongoing;
-		struct timeval tv_start_watching, tv_next;
-		gettimeofday(& tv_start_watching, NULL);
-		do {
-			processing_ongoing = 0;
-			usleep(1000); //Give some time for the threads to finish processing the packets.
-			for (i = 0; i < mmt_probe->mmt_conf->thread_nb; i++) {
-				pthread_spin_lock(&mmt_probe->smp_threads[i].lock);
-				processing_ongoing += mmt_probe->smp_threads[i].queue_plen;
-				pthread_spin_unlock(&mmt_probe->smp_threads[i].lock);
-				//printf("processing_ongoing_th_nb %d = %d\n",i,processing_ongoing);
-			}
-			gettimeofday(& tv_next, NULL);
-			if (tv_next.tv_sec - tv_start_watching.tv_sec > 120) {
-				//We are bad, probably a thread is deadlocked! exit
-				terminate_probe_processing(0);
-				exit(0);
-			}
-		} while (processing_ongoing);
+			//if( ! is_queue_full )
+			data = pcap_next(pcap, &pkthdr);
+			if( ! data ){
+				//printf("break read pcap");
+				fflush( stdout );
+				for( i=0; i<mmt_probe->mmt_conf->thread_nb; i++){
+					th = &mmt_probe->smp_threads[i];
+					if( data_spsc_ring_get_tmp_element( &th->fifo, &pdata ) != 0)
+						continue;
 
-		sprintf(lg_msg, "End processing trace file: %s", filename);
-		mmt_log(mmt_probe->mmt_conf, MMT_L_INFO, MMT_P_END_PROCESS_TRACE, lg_msg);
+					pkt = (struct packet_element *) pdata;
+					/* fill smp_pkt fields and copy packet data from pcap buffer */
+					pkt->header.len    = pkthdr.len;
+					pkt->header.caplen = pkthdr.caplen;
+					pkt->header.ts     = pkthdr.ts;
+					pkt->data          = NULL; //put data in the same memory segment but after sizeof( pkt )
+					data_spsc_ring_push_tmp_element( &th->fifo );
+				}
+
+				//printf("I lost %"PRIu64" but I processed %"PRIu64"", nb_packets_dropped_by_mmt, nb_packets_processed_by_mmt);
+				break;
+			}
+
+			p_hash = get_packet_hash_number(data, pkthdr.caplen) % (mmt_probe->mmt_conf->thread_nb );
+			th     = &mmt_probe->smp_threads[ p_hash ];
+
+			if( data_spsc_ring_get_tmp_element( &th->fifo, &pdata ) != 0)
+				return;
+
+			pkt = (struct packet_element *) pdata;
+			/* fill smp_pkt fields and copy packet data from pcap buffer */
+			pkt->header.len    = pkthdr.len;
+			pkt->header.caplen = pkthdr.caplen;
+			pkt->header.ts     = pkthdr.ts;
+			pkt->data          = (u_char *)( &pkt[ 1 ]); //put data in the same memory segment but after sizeof( pkt )
+			memcpy(pkt->data, data, pkthdr.caplen);
+			while (  (is_queue_full = data_spsc_ring_push_tmp_element( &th->fifo )) != 0 ){
+				usleep(100);
+				//nb_packets_dropped_by_mmt ++;
+				//th->nb_dropped_packets ++;
+
+			}
+		}
 	}
 }
 
@@ -473,84 +496,6 @@ void process_interface(char * ifname, struct mmt_probe_struct * mmt_probe) {
 	return;
 
 }
-
-static void *process_tracefile_thread_routine(void *arg) {
-	struct dispatcher_struct * dispatcher = (struct dispatcher_struct *) arg;
-
-	uint64_t packets_count = 0;
-	pcap_t *pcap;
-	const u_char *data;
-	struct pcap_pkthdr pkthdr;
-	char errbuf[1024];
-	char lg_msg[1024];
-	struct smp_pkt *smp_pkt;
-	struct smp_thread *th;
-
-	pcap = pcap_open_offline(dispatcher->filename, errbuf); // open offline trace
-	if (!pcap) { /* pcap error ? */
-		sprintf(lg_msg, "Error while opening pcap file in dispatcher nb %i: %s --- error msg: %s", dispatcher->nb, dispatcher->filename, errbuf);
-		printf("Error: Verify the name and the location of the trace file to be analysed \n ");
-		mmt_log(mmt_probe.mmt_conf, MMT_L_ERROR, MMT_P_TRACE_ERROR, lg_msg);
-		return &errcode;
-	}
-
-	sprintf(lg_msg, "Start dispatching packets from trace file: %s --- dispatcher %i", dispatcher->filename, dispatcher->nb);
-	mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_P_START_PROCESS_TRACE, lg_msg);
-
-	//Multiple threads for processing the packets
-	/*
-	 * Array of list of packets for all threads
-	 */
-	/* read packets */
-	int p_hash;
-	while ((data = pcap_next(pcap, &pkthdr))) {
-		//check for license
-		packets_count++;
-		p_hash = get_packet_hash_number(data, pkthdr.caplen);
-		if ((dispatcher->nb & p_hash) == (dispatcher->nb || (p_hash & 1))) {
-			/* build a new smp_pkt structure + length for packet data */
-			if ((smp_pkt = malloc(sizeof (struct smp_pkt) +pkthdr.caplen)) == NULL) {
-				sprintf(lg_msg, "Memory error while processing packet nb %"PRIu64" from %s! Will wait one second and resume!", packets_count, dispatcher->filename);
-				mmt_log(mmt_probe.mmt_conf, MMT_L_EMERGENCY, MMT_P_MEM_ERROR, lg_msg);
-				//fprintf(stderr, "Running out of memory when processing a new packet! Will wait one second now\n");
-				sleep(1); //Sleep 1 second.
-			} else {
-				/* fill smp_pkt fields and copy packet data from
-                pcap buffer */
-				smp_pkt->pkt.header.len = pkthdr.len;
-				smp_pkt->pkt.header.caplen = pkthdr.caplen;
-				smp_pkt->pkt.header.ts = pkthdr.ts;
-				smp_pkt->pkt.header.user_args = NULL;
-				smp_pkt->pkt.data = (unsigned char *) (&smp_pkt[1]);
-				memcpy(smp_pkt->pkt.data, data, pkthdr.caplen);
-
-				/* get thread destination structure */
-				//printf("Hash of packet nb %i : %i\n", packets_count, hash_packet(data, pkthdr.caplen));
-				//th = &mmt_probe->smp_threads[packets_count & (mmt_probe->mmt_conf->thread_nb - 1)];
-				th = &mmt_probe.smp_threads[p_hash & (mmt_probe.mmt_conf->thread_nb - 1)]; //get thread to assign a packet
-				pthread_spin_lock(&th->lock);
-				if (th->queue_blen > mmt_probe.mmt_conf->thread_queue_blen || th->queue_plen > mmt_probe.mmt_conf->thread_queue_plen) {
-					//The packet will be dropped from the analysis
-					sprintf(lg_msg, "Handler queue full error. Instance %i will drop packet nb %"PRIu64" from %s", th->thread_number, packets_count, dispatcher->filename);
-					mmt_log(mmt_probe.mmt_conf, MMT_L_EMERGENCY, MMT_P_INSTANCE_QUEUE_FULL, lg_msg);
-					if(smp_pkt)free(smp_pkt);
-					smp_pkt = NULL;
-				} else {
-					list_add_tail((struct list_entry *) smp_pkt, (struct list_entry *) &th->pkt_head);
-					th->queue_plen += 1;
-					th->queue_blen += pkthdr.caplen;
-				}
-				pthread_spin_unlock(&th->lock);
-			}
-		}
-	}
-	pcap_close(pcap);
-	sprintf(lg_msg, "End dispatching packets from trace file: %s --- Dispatcher %i", dispatcher->filename, dispatcher->nb);
-	mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_P_END_PROCESS_TRACE, lg_msg);
-
-	return &okcode;
-}
-
 
 void terminate_probe_processing(int wait_thread_terminate) {
 	char lg_msg[1024];
