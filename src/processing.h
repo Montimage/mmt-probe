@@ -38,7 +38,7 @@ extern "C" {
 #define MMT_USER_AGENT_THRESHOLD 0x20 //32KB
 #define MAX_MESS 3000
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
-#define TIMEVAL_2_USEC(tval) ((tval.tv_sec * 1000000) + (tval.tv_usec ))
+#define TIMEVAL_2_USEC(tval) ((tval.tv_sec * 1000000) + (tval.tv_usec))
 uint64_t total_session_count;
 pthread_mutex_t mutex_lock;
 pthread_spinlock_t spin_lock;
@@ -306,6 +306,7 @@ typedef struct temp_session_statistics_struct{
     uint64_t byte_count[2];
     uint64_t data_byte_count[2];
     struct timeval response_time;
+    struct timeval method_time;
     uint8_t seen_response;
     uint32_t touched;
     uint64_t sum_rtt[2];
@@ -318,6 +319,7 @@ typedef struct temp_session_statistics_struct{
 typedef struct web_session_attr_struct {
     struct timeval first_request_time;
     struct timeval response_time;
+    struct timeval method_time;
     struct timeval interaction_time;
     char mimetype[64];
     char hostname[96];

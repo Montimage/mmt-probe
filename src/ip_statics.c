@@ -23,6 +23,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 		return;
 	}
 	if(temp_session->app_format_id == probe_context->web_id){
+
 		if (temp_session->app_data == NULL) return;
 		if (strncmp(((web_session_attr_t *) temp_session->app_data)->method,"0",20) == 0)
 			return;
@@ -66,13 +67,6 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	int sslindex;
 
 	uint64_t rtt_ms = TIMEVAL_2_USEC(get_session_rtt(session));
-	/*uint64_t rtt_us_server = 0;
-	uint64_t rtt_us_client = 0;
-	uint64_t packets_direction1 = ((keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session)) - temp_session->session_attr->packet_count[1];
-	uint64_t packets_direction2 = ((keep_direction)?get_session_ul_packet_count(session):get_session_dl_packet_count(session)) - temp_session->session_attr->packet_count[0];
-	if (packets_direction1 !=0)rtt_us_server = (uint64_t)temp_session->session_attr->rtt[1]/packets_direction1;
-	if (packets_direction2 !=0)rtt_us_client = (uint64_t)temp_session->session_attr->rtt[0]/packets_direction2;*/
-	// printf("temp_session->session_attr->rtt[1] =%lu, packets1 = %lu, rtt_us_server = %"PRId64", temp_session->session_attr->rtt[1] =%lu,packets2 = %lu,rtt_us_client = %"PRId64"\n",temp_session->session_attr->rtt[1],(keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session),rtt_us_server,temp_session->session_attr->rtt[0],(keep_direction)?get_session_ul_packet_count(session):get_session_dl_packet_count(session),rtt_us_client);
 
 	uint64_t active_session_count = get_active_session_count(th->mmt_handler);
 	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64"",
@@ -109,6 +103,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	}
 	valid = strlen(message);
 	message[ valid ] = '\0'; // correct end of string in case of truncated message
+	//printf("%s\n",message);
 
 
 	if (probe_context->output_to_file_enable == 1)send_message_to_file_thread (message, (void *)user_args);

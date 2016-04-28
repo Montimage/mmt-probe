@@ -105,9 +105,13 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 
 		}
 		((web_session_attr_t *) temp_session->app_data)->trans_nb += 1;
-		if (((web_session_attr_t *) temp_session->app_data)->trans_nb == 1) {
-			((web_session_attr_t *) temp_session->app_data)->response_time = ipacket->p_hdr->ts;
+		if (((web_session_attr_t *) temp_session->app_data)->trans_nb >= 1) {
+			((web_session_attr_t *) temp_session->app_data)->method_time = ipacket->p_hdr->ts;
+
+		}
+		if (((web_session_attr_t *) temp_session->app_data)->trans_nb == 1){
 			((web_session_attr_t *) temp_session->app_data)->first_request_time = ipacket->p_hdr->ts;
+
 		}
 	}
 }
@@ -182,17 +186,13 @@ void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, vo
 			}
 		}
 		if(temp_session->app_format_id == probe_context->web_id) {
-			if (((web_session_attr_t *) temp_session->app_data)->trans_nb == 1) {
-				((web_session_attr_t *) temp_session->app_data)->response_time = mmt_time_diff(((web_session_attr_t *) temp_session->app_data)->response_time, ipacket->p_hdr->ts);
+			if (((web_session_attr_t *) temp_session->app_data)->trans_nb >= 1) {
+				((web_session_attr_t *) temp_session->app_data)->response_time = mmt_time_diff(((web_session_attr_t *) temp_session->app_data)->method_time, ipacket->p_hdr->ts);
 				((web_session_attr_t *) temp_session->app_data)->seen_response = 1;
 			}
 			((web_session_attr_t *) temp_session->app_data)->interaction_time = ipacket->p_hdr->ts;
 		}
 
-		if (((web_session_attr_t *) temp_session->app_data)->http_session_attr != NULL && temp_session->app_format_id == probe_context->web_id) {
-			((web_session_attr_t *)temp_session->app_data)->http_session_attr->response_time = mmt_time_diff(((web_session_attr_t *)temp_session->app_data)->http_session_attr->response_time, ipacket->p_hdr->ts);
-			((web_session_attr_t *)temp_session->app_data)->http_session_attr->seen_response = 1;
-		}
 
 		http_line_struct_t * response = (http_line_struct_t *) attribute->data;
 
@@ -201,10 +201,13 @@ void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, vo
 
 			strncpy(((web_session_attr_t *) temp_session->app_data)->response, (char *) response->ptr, max);
 			((web_session_attr_t *) temp_session->app_data)->response[max] = '\0';
+			//printf("response = %s\n",((web_session_attr_t *) temp_session->app_data)->response);
 
 		}
 	}
 }
+
+/*
 void tcp_fin_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	if(ipacket->session == NULL) return;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -221,6 +224,8 @@ void tcp_fin_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		temp_session->session_attr->touched = 0;
 	}
 }
+ */
+
 
 void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	if(ipacket->session == NULL) return;
@@ -328,13 +333,14 @@ void print_initial_web_report(const mmt_session_t * session,session_struct_t * t
 	if (((web_session_attr_t *) temp_session->app_data)->xcdn_seen) cdn_flag = ((web_session_attr_t *) temp_session->app_data)->xcdn_seen;
 	else if (get_session_content_flags(session) & MMT_CONTENT_CDN) cdn_flag = 2;
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
+
 	snprintf(&message[valid], MAX_MESS-valid,
-			",%u,%u,%u,%"PRIu64",%u,%u,\"%s\",\"%s\",\"%s\",%u,\"%s\",\"%s\",\"%s\"", // app specific
+			",%u,%u,%u,%"PRIu64",%u,%"PRIu64",\"%s\",\"%s\",\"%s\",%u,\"%s\",\"%s\",\"%s\"", // app specific
 			temp_session->app_format_id,get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
 			temp_session->contentclass,
 			(((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint64_t) TIMEVAL_2_USEC(((web_session_attr_t *) temp_session->app_data)->response_time) : 0,
 					(((web_session_attr_t *) temp_session->app_data)->seen_response) ? ((web_session_attr_t *) temp_session->app_data)->trans_nb : 0,
-							(((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint32_t) TIMEVAL_2_MSEC(mmt_time_diff(((web_session_attr_t *) temp_session->app_data)->first_request_time, ((web_session_attr_t *) temp_session->app_data)->interaction_time)) : 0,
+							(((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint64_t) TIMEVAL_2_USEC(mmt_time_diff(((web_session_attr_t *) temp_session->app_data)->first_request_time, ((web_session_attr_t *) temp_session->app_data)->interaction_time)) : 0,
 									((web_session_attr_t *) temp_session->app_data)->hostname,
 									((web_session_attr_t *) temp_session->app_data)->mimetype, ((web_session_attr_t *) temp_session->app_data)->referer,cdn_flag,
 									((web_session_attr_t *) temp_session->app_data)->uri,((web_session_attr_t *) temp_session->app_data)->method,((web_session_attr_t *) temp_session->app_data)->response
