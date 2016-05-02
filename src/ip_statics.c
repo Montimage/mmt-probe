@@ -25,7 +25,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	if(temp_session->app_format_id == probe_context->web_id){
 
 		if (temp_session->app_data == NULL) return;
-		if (((web_session_attr_t *) temp_session->app_data)->method[0] == '\0')
+		if (((web_session_attr_t *) temp_session->app_data)->enable_http_request_response == 0)
 			return;
 	}
 
@@ -103,8 +103,6 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	}
 	valid = strlen(message);
 	message[ valid ] = '\0'; // correct end of string in case of truncated message
-	//printf("%s\n",message);
-
 
 	if (probe_context->output_to_file_enable == 1)send_message_to_file_thread (message, (void *)user_args);
 
@@ -135,10 +133,6 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	temp_session->session_attr->sum_rtt[0]=0;
 	temp_session->session_attr->sum_rtt[1]=0;
 
-	if(temp_session->app_format_id == probe_context->web_id ){
-		if (temp_session->app_data == NULL) return;
-		((web_session_attr_t *) temp_session->app_data)->method[0]='\0';
-	}
 }
 void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 

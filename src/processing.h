@@ -327,12 +327,14 @@ typedef struct web_session_attr_struct {
     char useragent[64];
     uint8_t has_referer : 1, has_useragent : 1, xcdn_seen : 1, seen_response : 1;
     uint8_t trans_nb;
-    char uri[1024];
     char method[20];
+    char uri[1024];
     char response[1024];
     uint8_t has_uri;
     uint16_t psh_flag;
     time_t last_report_time_sec;
+    uint32_t touched;
+    uint32_t enable_http_request_response;
     temp_session_statistics_t * http_session_attr;
 } web_session_attr_t;
 
