@@ -25,7 +25,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	if(temp_session->app_format_id == probe_context->web_id){
 
 		if (temp_session->app_data == NULL) return;
-		if (strncmp(((web_session_attr_t *) temp_session->app_data)->method,"0",20) == 0)
+		if (((web_session_attr_t *) temp_session->app_data)->method[0] == '\0')
 			return;
 	}
 
@@ -88,7 +88,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 			temp_session->serverport, temp_session->clientport,temp_session->thread_number,rtt_ms,temp_session->session_attr->rtt_min_usec[1] ,temp_session->session_attr->rtt_min_usec[0],
 			temp_session->session_attr->rtt_max_usec[1] ,temp_session->session_attr->rtt_max_usec[0],temp_session->session_attr->rtt_avg_usec[1],temp_session->session_attr->rtt_avg_usec[0]);
 	valid = strlen(message);
-    //printf("%s \n",message);
+	//printf("%s \n",message);
 	//To inform what is comming at the start of the flow report
 	if (temp_session->app_format_id == probe_context->web_id && probe_context->web_enable == 1) print_initial_web_report(session,temp_session,message,valid);
 	else if (temp_session->app_format_id == probe_context->rtp_id && temp_session->session_attr->touched == 0 && probe_context->rtp_enable == 1) print_initial_rtp_report(session,temp_session,message,valid);
@@ -137,7 +137,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 
 	if(temp_session->app_format_id == probe_context->web_id ){
 		if (temp_session->app_data == NULL) return;
-		memset (((web_session_attr_t *) temp_session->app_data)->method,'0',20);
+		((web_session_attr_t *) temp_session->app_data)->method[0]='\0';
 	}
 }
 void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
