@@ -23,7 +23,6 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 	proto_hierarchy_t proto_hierarchy = {0};
 
 	if (proto_stats != NULL) {
-
 		get_protocol_stats_path(th->mmt_handler, proto_stats, &proto_hierarchy);
 		char path[128];
 		proto_hierarchy_ids_to_str(&proto_hierarchy, path);
@@ -31,11 +30,13 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 		//if (proto_struct->has_session == 0){
 		int i = 0;
 		for (i=1;i<=proto_hierarchy.len;i++){
-			if (proto_hierarchy.proto_path[i] == 178 || proto_hierarchy.proto_path[i] == 182 || proto_hierarchy.proto_path[i] == 7){
+			if (proto_hierarchy.proto_path[i] == 178 || proto_hierarchy.proto_path[i] == 182){
 				return;
 			}
 		}
-
+		if (proto_id == 7){
+			return;
+		}
 		//report the stats instance if there is anything to report
 		if(proto_stats->touched) {
 			snprintf(message, MAX_MESS,
