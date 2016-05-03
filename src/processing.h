@@ -350,6 +350,8 @@ typedef struct session_struct {
     int proto_path;
     int application_class;
     char path[128];
+    char path_ul[128]; //path for uplink traffic
+    char path_dl[128]; //path for downlink traffic
     mmt_ipv4_ipv6_id_t ipclient;
     mmt_ipv4_ipv6_id_t ipserver;
     uint16_t clientport;

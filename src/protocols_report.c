@@ -42,7 +42,7 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 					"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%u,%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%u,%u,%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%u,%u,%u",
 					MMT_STATISTICS_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, proto_stats->last_packet_time.tv_sec, proto_stats->last_packet_time.tv_usec, proto_id, path,
 					0,proto_stats->data_volume, proto_stats->payload_volume,proto_stats->packets_count,0,0,0,
-					0,0,0,proto_stats->first_packet_time.tv_sec,proto_stats->first_packet_time.tv_usec,"undefined","undefined","undefined","undefined",0,0,0);
+					0,0,0,proto_stats->first_packet_time.tv_sec,proto_stats->first_packet_time.tv_usec,"null","null","null","null",0,0,0);
 
 			message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
 			if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,th);

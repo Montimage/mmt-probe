@@ -68,11 +68,27 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 
 	uint64_t rtt_ms = TIMEVAL_2_USEC(get_session_rtt(session));
 
+
+	const proto_hierarchy_t * proto_path_0 =  get_session_proto_path_direction(session,0);
+	proto_hierarchy_ids_to_str(get_session_proto_path_direction(session,0), temp_session->path_ul);
+
+	if (proto_path_0->len == 0){
+		temp_session->path_ul[0] = '\0';
+	}
+
+	const proto_hierarchy_t * proto_path_1 =  get_session_proto_path_direction(session,1);
+	proto_hierarchy_ids_to_str(get_session_proto_path_direction(session,1), temp_session->path_dl);
+
+
+	if (proto_path_1->len == 0){
+		temp_session->path_dl[0] = '\0';
+	}
+
 	uint64_t active_session_count = get_active_session_count(th->mmt_handler);
-	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64"",
+	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64"",
 			MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source,temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec,
 			proto_id,
-			temp_session->path,active_session_count,
+			temp_session->path_ul,temp_session->path_dl,active_session_count,
 			get_session_byte_count(session) - temp_session->session_attr->total_byte_count,
 			get_session_data_byte_count(session) - temp_session->session_attr->total_data_byte_count,
 			get_session_packet_count(session) - temp_session->session_attr->total_packet_count,

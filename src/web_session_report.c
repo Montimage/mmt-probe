@@ -244,7 +244,6 @@ void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_
 
 	if (uri != NULL && temp_session->app_format_id == probe_context->web_id) {
 		int max = (uri->len > 1024) ? 1024 : uri->len;
-
 		strncpy(((web_session_attr_t *) temp_session->app_data)->uri, (char *) uri->ptr, max);
 		((web_session_attr_t *) temp_session->app_data)->uri[max] = '\0';
 		((web_session_attr_t *) temp_session->app_data)->has_uri=1;
@@ -333,7 +332,6 @@ void print_web_app_format(const mmt_session_t * expired_session, void *args) {
 	message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
 	if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,(void*)args);
 	if (probe_context->redis_enable==1)send_message_to_redis ("web.flow.report", message);
-
 }
 
 void print_initial_web_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid){

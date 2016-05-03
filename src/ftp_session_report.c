@@ -379,8 +379,22 @@ void print_ftp_app_format(const mmt_session_t * expired_session,void *args) {
 }
 void print_initial_ftp_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid){
     const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
+    if(((ftp_session_attr_t*) temp_session->app_data)->session_conn_type == 2){
+    	snprintf(&message[valid], MAX_MESS-valid,
+                ",%u,%u,%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%"PRIu8"",
+                temp_session->app_format_id,get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
+                ((ftp_session_attr_t*) temp_session->app_data)->session_conn_type,
+                "null",
+                "null",
+                ((ftp_session_attr_t*) temp_session->app_data)->file_size,
+                ((ftp_session_attr_t*) temp_session->app_data)->filename,
+                ((ftp_session_attr_t*) temp_session->app_data)->direction
+        );
+
+    }else if (((ftp_session_attr_t*) temp_session->app_data)->session_conn_type == 1){
+
 	snprintf(&message[valid], MAX_MESS-valid,
-            ",%u,%u,%"PRIu8",%s,%s,%"PRIu32",%s,%"PRIu8"",
+            ",%u,%u,%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%"PRIu8"",
             temp_session->app_format_id,get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
             ((ftp_session_attr_t*) temp_session->app_data)->session_conn_type,
             ((ftp_session_attr_t*) temp_session->app_data)->session_username,
@@ -389,6 +403,7 @@ void print_initial_ftp_report(const mmt_session_t * session,session_struct_t * t
             ((ftp_session_attr_t*) temp_session->app_data)->filename,
             ((ftp_session_attr_t*) temp_session->app_data)->direction
     );
+    }
 	 temp_session->session_attr->touched=1;
 }
 
@@ -403,6 +418,4 @@ void register_ftp_attributes(void * handler){
         //TODO: we need a sound error handling mechanism! Anyway, we should never get here :)
         fprintf(stderr, "Error while initializing MMT handlers and extractions!\n");
     }
-
-
 }
