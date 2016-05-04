@@ -109,7 +109,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	if (temp_session->app_format_id == probe_context->web_id && probe_context->web_enable == 1) print_initial_web_report(session,temp_session,message,valid);
 	else if (temp_session->app_format_id == probe_context->rtp_id && temp_session->session_attr->touched == 0 && probe_context->rtp_enable == 1) print_initial_rtp_report(session,temp_session,message,valid);
 	else if (temp_session->app_format_id == probe_context->ssl_id && temp_session->session_attr->touched == 0 && probe_context->ssl_enable == 1) print_initial_ssl_report(session,temp_session,message,valid);
-	else if (temp_session->app_format_id == probe_context->ftp_id && temp_session->session_attr->touched == 0 && probe_context->ftp_enable == 1) print_initial_ftp_report(session,temp_session,message,valid);
+	else if (temp_session->app_format_id == probe_context->ftp_id && probe_context->ftp_enable == 1) print_initial_ftp_report(session,temp_session,message,valid);
 	else if(temp_session->session_attr->touched == 0){
 		sslindex = get_protocol_index_from_session(proto_hierarchy, PROTO_SSL);
 		if (sslindex != -1 && probe_context->ssl_enable==1 ){
@@ -164,8 +164,10 @@ void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
 	}
 	uint8_t * proto_id = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_PROTO_ID);
-	uint64_t latest_rtt = (uint64_t) TIMEVAL_2_USEC(ip_rtt.rtt);
 
+	if (ip_rtt.rtt.tv_sec < 0 || ip_rtt.rtt.tv_usec < 0 )return;
+
+	uint64_t latest_rtt = (uint64_t) TIMEVAL_2_USEC(ip_rtt.rtt);
 
 	if (proto_id != NULL && * proto_id == 6 &&  latest_rtt > 0 ) {
 		if (temp_session->session_attr->rtt_min_usec[ip_rtt.direction] == 0){
@@ -186,8 +188,7 @@ void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		temp_session->session_attr->sum_rtt[ip_rtt.direction] += latest_rtt;
 		temp_session->session_attr->rtt_avg_usec[ip_rtt.direction] = temp_session->session_attr->sum_rtt [ip_rtt.direction]/temp_session->session_attr->rtt_counter[ip_rtt.direction];
 
-		//printf("direction = %u, rtt_latest = %lu rtt_min = %lu, rtt_max = %lu rtt_avg = %lu, counter = %lu\n", ip_rtt.direction,latest_rtt,temp_session->session_attr->rtt_min_usec[ip_rtt.direction],temp_session->session_attr->rtt_max_usec[ip_rtt.direction],temp_session->session_attr->rtt_avg_usec[ip_rtt.direction],temp_session->session_attr->rtt_counter[ip_rtt.direction]);
-		//printf("session: %lu Direction: %u has RTT : %lu.%lu (packet: %lu)\n",get_session_id(ip_rtt.session),ip_rtt.direction,ip_rtt.rtt.tv_sec,ip_rtt.rtt.tv_usec,ipacket->packet_id);
+		//printf("packet_id = %lu, direction = %u, rtt_latest = %lu rtt_min = %lu, rtt_max = %lu rtt_avg = %lu, counter = %lu\n",ipacket->packet_id, ip_rtt.direction,latest_rtt,temp_session->session_attr->rtt_min_usec[ip_rtt.direction],temp_session->session_attr->rtt_max_usec[ip_rtt.direction],temp_session->session_attr->rtt_avg_usec[ip_rtt.direction],temp_session->session_attr->rtt_counter[ip_rtt.direction]);
 	}
 
 }
