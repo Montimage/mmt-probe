@@ -5,7 +5,7 @@
 start() {
         echo  "Starting mmt-probe: "
         (while true; do 
-        /usr/bin/onlineprobe -c /etc/mmt/mmt_online.conf
+        /usr/bin/probe -c /etc/mmt/mmt_online.conf
         done) &    
         echo
 }
@@ -13,7 +13,7 @@ start() {
 # stop the service mmt-probe
 stop() {
         echo "Stopping mmt-probe_online: "
-        pkill -f "onlineprobe"
+        pkill -f "probe"
         pkill -f "run_mmt_online"
         echo
 }
