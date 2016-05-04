@@ -90,7 +90,7 @@ sudo sed "s|$var|$output_dir|g" mmt_online.conf > $output_dir/conf/mmt_online.co
 
 
 #sudo cp log.data $output_dir/mmt_log/
-sudo cp onlineprobe $output_dir/bin/
+sudo cp probe $output_dir/bin/
 #sudo cp offlineprobe $output_dir/bin/
 #sudo sed "s|$var|$output_dir|g" conf_offline_probe > /etc/init.d/run_mmt_offline
 sudo sed "s|$var|$output_dir|g" conf_online_probe > /etc/init.d/run_mmt_online
