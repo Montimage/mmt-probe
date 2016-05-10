@@ -96,9 +96,11 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 			//printf("((web_session_attr_t *) temp_session->app_data)->touched  = %u\n",((web_session_attr_t *) temp_session->app_data)->touched   );
 			((web_session_attr_t *) temp_session->app_data)->touched = 1;
 			((web_session_attr_t *) temp_session->app_data)->enable_http_request_response = 0;//response is not finished
+			((web_session_attr_t *) temp_session->app_data)->request_counter = 1;
 		}else{
 			((web_session_attr_t *) temp_session->app_data)->enable_http_request_response = 1;// response is finished
 			 print_ip_session_report (ipacket->session,user_args);
+			 ((web_session_attr_t *) temp_session->app_data)->request_counter++;
 			//((web_session_attr_t *) temp_session->app_data)->touched = 0;
 		}
 
@@ -339,7 +341,7 @@ void print_initial_web_report(const mmt_session_t * session,session_struct_t * t
 	else if (get_session_content_flags(session) & MMT_CONTENT_CDN) cdn_flag = 2;
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
 	snprintf(&message[valid], MAX_MESS-valid,
-			",%u,%u,%u,%"PRIu64",%u,%"PRIu64",\"%s\",\"%s\",\"%s\",%u,\"%s\",\"%s\",\"%s\",%u", // app specific
+			",%u,%u,%u,%"PRIu64",%u,%"PRIu64",\"%s\",\"%s\",\"%s\",%u,\"%s\",\"%s\",\"%s\",%"PRIu64",%u", // app specific
 			temp_session->app_format_id,get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
 			temp_session->contentclass,
 			(((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint64_t) TIMEVAL_2_USEC(((web_session_attr_t *) temp_session->app_data)->response_time) : 0,
@@ -348,7 +350,7 @@ void print_initial_web_report(const mmt_session_t * session,session_struct_t * t
 									((web_session_attr_t *) temp_session->app_data)->hostname,
 									((web_session_attr_t *) temp_session->app_data)->mimetype, ((web_session_attr_t *) temp_session->app_data)->referer,cdn_flag,
 									((web_session_attr_t *) temp_session->app_data)->uri,((web_session_attr_t *) temp_session->app_data)->method,((web_session_attr_t *) temp_session->app_data)->response,
-									((web_session_attr_t *) temp_session->app_data)->enable_http_request_response
+									((web_session_attr_t *) temp_session->app_data)->request_counter,((web_session_attr_t *) temp_session->app_data)->enable_http_request_response
 	);
 
 	if(temp_session->app_format_id == probe_context->web_id ){
