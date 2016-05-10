@@ -158,7 +158,7 @@ static void *smp_thread_routine(void *arg) {
 		if ( data_spsc_ring_pop( &th->fifo, &pdata ) != 0 ) {
 			tv.tv_sec = 0;
 			tv.tv_usec = 250;
-			fprintf(stdout, "No more packets for thread %i --- waiting\n", th->thread_number);
+			//fprintf(stdout, "No more packets for thread %i --- waiting\n", th->thread_number);
 			select(0, NULL, NULL, NULL, &tv);
 		} else { /* else remove pkt head from list and process it */
 			pkt = (struct packet_element *) pdata;
