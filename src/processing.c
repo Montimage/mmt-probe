@@ -547,14 +547,21 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 
 	int sslindex;
-	print_ip_session_report (expired_session,th);
+	if(temp_session->app_format_id == probe_context->web_id ){
+		if (temp_session->app_data == NULL) return;
+			if (((web_session_attr_t *) temp_session->app_data)->enable_http_request_response == 0)((web_session_attr_t *) temp_session->app_data)->enable_http_request_response = 1;
+			print_ip_session_report (expired_session,th);
+	}else{
+		print_ip_session_report (expired_session,th);
+	}
+
 	if (is_microflow(expired_session)) {
 		microsessions_stats_t * mf_stats = &th->iprobe.mf_stats[get_session_protocol_hierarchy(expired_session)->proto_path[(get_session_protocol_hierarchy(expired_session)->len <= 16)?(get_session_protocol_hierarchy(expired_session)->len - 1):(16 - 1)]];
 		update_microflows_stats(mf_stats, expired_session);
 		if (is_microflow_stats_reportable(mf_stats)) {
 			report_microflows_stats(mf_stats,args);
 		}
-	} else {
+	} /*else {
 		//First we check if we should skip the reporting for this flow
 		if (temp_session->app_format_id != MMT_SKIP_APP_REPORT_FORMAT) {
 			if (probe_context->web_enable==1 && temp_session->app_format_id==probe_context->web_id)print_web_app_format(expired_session,(void *) th);
@@ -571,7 +578,8 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 			}
 
 		}
-	}
+	}*/
+
 
 	if (temp_session->app_data != NULL) {
 		//Free the application specific data

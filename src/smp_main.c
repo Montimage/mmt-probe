@@ -178,7 +178,7 @@ static void *smp_thread_routine(void *arg) {
 		radius_ext_cleanup(th->mmt_handler); // cleanup our event handler for RADIUS initializations
 		flowstruct_cleanup(th->mmt_handler); // cleanup our event handler
 		if (mmt_probe.mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, th);
-		process_session_timer_handler(th->mmt_handler);
+		//process_session_timer_handler(th->mmt_handler);
 		mmt_close_handler(th->mmt_handler);
 		th->mmt_handler = NULL;
 	}
@@ -513,7 +513,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		//Cleanup the MMT handler
 		flowstruct_cleanup(mmt_probe.smp_threads->mmt_handler); // cleanup our event handler
 		radius_ext_cleanup(mmt_probe.smp_threads->mmt_handler); // cleanup our event handler for RADIUS initializations
-		process_session_timer_handler(mmt_probe.smp_threads->mmt_handler);
+		//process_session_timer_handler(mmt_probe.smp_threads->mmt_handler);
 		if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.smp_threads);
 		mmt_close_handler(mmt_probe.smp_threads->mmt_handler);
 		report_all_protocols_microflows_stats((void *)mmt_probe.smp_threads);

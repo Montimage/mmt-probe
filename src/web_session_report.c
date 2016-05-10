@@ -79,6 +79,7 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 				memset(http_data, '\0', sizeof (web_session_attr_t));
 				temp_session->app_format_id = probe_context->web_id;
 				temp_session->app_data = (void *) http_data;
+				((web_session_attr_t *) temp_session->app_data)->touched = 0;
 			} else {
 				mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating HTTP reporting context");
 				//fprintf(stderr, "Out of memory error when creating HTTP specific data structure!\n");
@@ -94,10 +95,11 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 		if (((web_session_attr_t *) temp_session->app_data)->touched == 0){
 			//printf("((web_session_attr_t *) temp_session->app_data)->touched  = %u\n",((web_session_attr_t *) temp_session->app_data)->touched   );
 			((web_session_attr_t *) temp_session->app_data)->touched = 1;
-			//((web_session_attr_t *) temp_session->app_data)->enable_http_request_response =0;
-		}else if (((web_session_attr_t *) temp_session->app_data)->touched == 1) {
-			//((web_session_attr_t *) temp_session->app_data)->enable_http_request_response = 1;
-			print_ip_session_report (ipacket->session,user_args);
+			((web_session_attr_t *) temp_session->app_data)->enable_http_request_response = 0;//response is not finished
+		}else{
+			((web_session_attr_t *) temp_session->app_data)->enable_http_request_response = 1;// response is finished
+			 print_ip_session_report (ipacket->session,user_args);
+			//((web_session_attr_t *) temp_session->app_data)->touched = 0;
 		}
 
 		http_line_struct_t * method = (http_line_struct_t *) attribute->data;
@@ -301,10 +303,6 @@ void print_web_app_format(const mmt_session_t * expired_session, void *args) {
 	struct timeval end_time = get_session_last_activity_time(expired_session);
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
 
-	if (((web_session_attr_t *) temp_session->app_data)->touched == 1) {
-		((web_session_attr_t *) temp_session->app_data)->enable_http_request_response = 1;
-		print_ip_session_report (expired_session,th);
-	}
 
 	snprintf(message, MAX_MESS,
 			"%u,%u,\"%s\",%lu.%lu,%"PRIu64",%"PRIu32",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,%u,%u,%u,\"%s\",\"%s\",\"%s\",\"%s\",%u", // app specific
@@ -341,7 +339,7 @@ void print_initial_web_report(const mmt_session_t * session,session_struct_t * t
 	else if (get_session_content_flags(session) & MMT_CONTENT_CDN) cdn_flag = 2;
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
 	snprintf(&message[valid], MAX_MESS-valid,
-			",%u,%u,%u,%"PRIu64",%u,%"PRIu64",\"%s\",\"%s\",\"%s\",%u,\"%s\",\"%s\",\"%s\"", // app specific
+			",%u,%u,%u,%"PRIu64",%u,%"PRIu64",\"%s\",\"%s\",\"%s\",%u,\"%s\",\"%s\",\"%s\",%u", // app specific
 			temp_session->app_format_id,get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
 			temp_session->contentclass,
 			(((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint64_t) TIMEVAL_2_USEC(((web_session_attr_t *) temp_session->app_data)->response_time) : 0,
@@ -349,14 +347,15 @@ void print_initial_web_report(const mmt_session_t * session,session_struct_t * t
 							(((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint64_t) TIMEVAL_2_USEC(mmt_time_diff(((web_session_attr_t *) temp_session->app_data)->first_request_time, ((web_session_attr_t *) temp_session->app_data)->interaction_time)) : 0,
 									((web_session_attr_t *) temp_session->app_data)->hostname,
 									((web_session_attr_t *) temp_session->app_data)->mimetype, ((web_session_attr_t *) temp_session->app_data)->referer,cdn_flag,
-									((web_session_attr_t *) temp_session->app_data)->uri,((web_session_attr_t *) temp_session->app_data)->method,((web_session_attr_t *) temp_session->app_data)->response
+									((web_session_attr_t *) temp_session->app_data)->uri,((web_session_attr_t *) temp_session->app_data)->method,((web_session_attr_t *) temp_session->app_data)->response,
+									((web_session_attr_t *) temp_session->app_data)->enable_http_request_response
 	);
 
-	/*if(temp_session->app_format_id == probe_context->web_id ){
+	if(temp_session->app_format_id == probe_context->web_id ){
 		if (temp_session->app_data == NULL) return;
-		((web_session_attr_t *) temp_session->app_data)->enable_http_request_response = 0;
+		if (((web_session_attr_t *) temp_session->app_data)->enable_http_request_response ==1)((web_session_attr_t *) temp_session->app_data)->enable_http_request_response = 0;
 	}
-	//temp_session->session_attr->touched = 1;*/
+	//temp_session->session_attr->touched = 1;
 
 }
 

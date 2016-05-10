@@ -33,7 +33,6 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	char src_mac_pretty [18], dst_mac_pretty [18];
 	int keep_direction = 1;
 	int valid = 0;
-
 	struct smp_thread *th = (struct smp_thread *) user_args;
 
 	if (temp_session->session_attr == NULL) {
