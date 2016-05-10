@@ -22,13 +22,12 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	if (temp_session == NULL) {
 		return;
 	}
-	if(temp_session->app_format_id == probe_context->web_id){
+	/*if(temp_session->app_format_id == probe_context->web_id){
 
 		if (temp_session->app_data == NULL) return;
-		if (((web_session_attr_t *) temp_session->app_data)->enable_http_request_response == 0)
+		if (((web_session_attr_t *) temp_session->app_data)->touched == 0)
 			return;
-	}
-
+	}*/
 	char message[MAX_MESS + 1];
 	uint8_t *ea = 0;
 	char src_mac_pretty [18], dst_mac_pretty [18];
@@ -44,6 +43,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	// To  check whether the session activity occurs between the reporting time interval
 	if (TIMEVAL_2_USEC(mmt_time_diff(temp_session->session_attr->last_activity_time,get_session_last_activity_time(session))) == 0)return; // check the condition if in the last interval there was a protocol activity or not
 	//if (get_session_byte_count(session) - temp_session->session_attr->total_byte_count == 0)return;
+
 	ea = temp_session->src_mac;
 	snprintf(src_mac_pretty , 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
 	ea = temp_session->dst_mac;
@@ -121,8 +121,6 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	message[ valid ] = '\0'; // correct end of string in case of truncated message
 
 	if (probe_context->output_to_file_enable == 1)send_message_to_file_thread (message, (void *)user_args);
-
-
 	if (probe_context->redis_enable == 1)send_message_to_redis ("session.flow.report", message);
 
 	temp_session->session_attr->total_byte_count = get_session_byte_count(session);
