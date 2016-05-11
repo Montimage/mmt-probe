@@ -326,6 +326,9 @@ void * get_handler_by_name(char * func_name){
 	if (strcmp(func_name,"xcdn_seen_handle")==0){
 		return xcdn_seen_handle;
 	}
+	if (strcmp(func_name,"content_len_handle")==0){
+		return content_len_handle;
+	}
 	if (strcmp(func_name,"rtp_version_handle")==0){
 		return rtp_version_handle;
 	}

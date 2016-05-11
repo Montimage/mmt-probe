@@ -330,6 +330,7 @@ typedef struct web_session_attr_struct {
     char method[20];
     char uri[1024];
     char response[1024];
+    char content_len[20];
     uint8_t has_uri;
     uint16_t psh_flag;
     time_t last_report_time_sec;
@@ -540,6 +541,7 @@ void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_
 void tcp_fin_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void print_http_request_response_report(const mmt_session_t * session, void *user_args);
 void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void content_len_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 
 //prototypes
 //void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session);
