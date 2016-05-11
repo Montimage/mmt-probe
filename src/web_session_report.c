@@ -345,7 +345,8 @@ void print_initial_web_report(const mmt_session_t * session,session_struct_t * t
 									((web_session_attr_t *) temp_session->app_data)->hostname,
 									((web_session_attr_t *) temp_session->app_data)->mimetype, ((web_session_attr_t *) temp_session->app_data)->referer,cdn_flag,
 									((web_session_attr_t *) temp_session->app_data)->uri,((web_session_attr_t *) temp_session->app_data)->method,((web_session_attr_t *) temp_session->app_data)->response,
-									((web_session_attr_t *) temp_session->app_data)->content_len,((web_session_attr_t *) temp_session->app_data)->request_counter,((web_session_attr_t *) temp_session->app_data)->enable_http_request_response
+									(strcmp(((web_session_attr_t *) temp_session->app_data)->content_len,"\0"))?((web_session_attr_t *) temp_session->app_data)->content_len:strcpy(((web_session_attr_t *) temp_session->app_data)->content_len,"0"),
+									((web_session_attr_t *) temp_session->app_data)->request_counter,((web_session_attr_t *) temp_session->app_data)->enable_http_request_response
 	);
 
 	if(temp_session->app_format_id == probe_context->web_id ){
