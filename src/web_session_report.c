@@ -15,7 +15,26 @@ typedef struct http_line_struct {
 	const uint8_t *ptr;
 	uint16_t len;
 } http_line_struct_t;
+void http_reset_report(session_struct_t *temp_session){
+	strcpy(((web_session_attr_t *) temp_session->app_data)->mimetype,"\0");
+	strcpy(((web_session_attr_t *) temp_session->app_data)->hostname,"\0");
+	strcpy(((web_session_attr_t *) temp_session->app_data)->referer,"\0");
+	strcpy(((web_session_attr_t *) temp_session->app_data)->useragent,"\0");
+	strcpy(((web_session_attr_t *) temp_session->app_data)->method,"\0");
+	strcpy(((web_session_attr_t *) temp_session->app_data)->uri,"\0");
+	strcpy(((web_session_attr_t *) temp_session->app_data)->response,"\0");
+	strcpy(((web_session_attr_t *) temp_session->app_data)->content_len,"\0");
 
+	((web_session_attr_t *) temp_session->app_data)->response_time.tv_sec = 0;
+	((web_session_attr_t *) temp_session->app_data)->response_time.tv_usec = 0;
+	((web_session_attr_t *) temp_session->app_data)->method_time.tv_sec = 0;
+	((web_session_attr_t *) temp_session->app_data)->method_time.tv_usec = 0;
+	((web_session_attr_t *) temp_session->app_data)->seen_response = 0;
+	((web_session_attr_t *) temp_session->app_data)->has_referer = 0;
+	((web_session_attr_t *) temp_session->app_data)->xcdn_seen = 0;
+	((web_session_attr_t *) temp_session->app_data)->has_useragent =0;
+    ((web_session_attr_t *) temp_session->app_data)->has_uri =0;
+}
 
 void mime_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	if(ipacket->session == NULL) return;
@@ -67,7 +86,6 @@ void host_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user
 	}
 }
 
-
 void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	if(ipacket->session == NULL) return;
 	session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
@@ -100,6 +118,7 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 		}else{
 			((web_session_attr_t *) temp_session->app_data)->enable_http_request_response = 1;// response is finished
 			 print_ip_session_report (ipacket->session,user_args);
+			 http_reset_report(temp_session);
 			 ((web_session_attr_t *) temp_session->app_data)->request_counter++;
 			//((web_session_attr_t *) temp_session->app_data)->touched = 0;
 		}
