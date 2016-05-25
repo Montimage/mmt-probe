@@ -2,37 +2,51 @@
 
 ## Documentation
 
-* [About](https://bitbucket.org/montimage/mmt-probe/wiki/About/)
-* [Installation](https://bitbucket.org/montimage/mmt-probe/wiki/Installation/)
-* [Configuration](https://bitbucket.org/montimage/mmt-probe/wiki/Configuration/)
-* [Data Format](https://bitbucket.org/montimage/mmt-probe/wiki/Data Format/)
-* [User Guide](https://bitbucket.org/montimage/mmt-probe/wiki/User Guide/)
-* [Developer Guide](https://bitbucket.org/montimage/mmt-probe/wiki/Developer Guide/)
+See [Wiki](https://bitbucket.org/montimage/mmt-probe/wiki)
 
 ## Getting Started
-```
-# Compile the Ericsson probe. with:
-gcc -o probe src/smp_main.c src/processing.c src/thredis.c -lmmt_core -ldl -lpcap -lconfuse -lhiredis -lpthread
-# execute:
-sudo su
-./probe -c ./mmt_online.con
-#if using redis and mmt_operator
-redis-server
-node app.js -d mongo
-firefox localhost:8088
 
+# Compile the key generator if need
+    make keygen
+    #./keygen
+# Compile the probe
+    #if need, remove old installation:
+    #sudo make dist-clean
+    make
+    #tobe debuged with gdb
+    #make DEBUG=1
+    sudo make install
+# Execute locally:
+    sudo ./probe -c ./mmt_online.conf
+# Execute as service
+    sudo service probe_online_d start
+    #see status
+    sudo service probe_offline_d status
+    #stop the service if need
+    sudo service probe_online_d stop
+    #if need, change probe_online_d by probe_offline_d to run offline
+    #if need, see the execution log at /opt/mmt/probe/log/online/
+# If view data by mmt_operator
+    #redis-server
+    #goto mmt-operator folder
+    #cd mmt-operator
+    sudo npm start
+    firefox localhost
 
-# Compile the simple probe with:
-gcc -o simple_probe src/main.c -lmmt_core -ldl -lpcap
-# Execute: 
-./simple_probe <pcap file>
+# Simple probe:
+    gcc -o simple_probe src/main.c -lmmt_core -ldl -lpcap
+    #execute
+    ./simple_probe <pcap file>
 
-# This assumes that you have compiled MMT SDK and install it on your system
-# If this is not the case:
+# This assumes that you have:
 
-> cd [mmt_folder]/sdk
-> make -j4
-> sudo make install
-
-# Before executing, insure you have created "plugins" forder and have either copied the TCPIP plugin or created a symbolic link to it.
-```
+## MMT-SDK
+    git clone git@bitbucket.org:montimage/mmt-sdk.git
+    cd mmt-sdk/sdk
+    make -j4
+    sudo make install
+    
+## MMT-Operator
+    git clone git@bitbucket.org:montimage/mmt-operator.git
+    cd mmt-operator
+    npm install

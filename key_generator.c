@@ -1,5 +1,5 @@
 /*
-	 gcc -o license_key_generator key_generator.c
+	 gcc -o license_key_generator key_generator2.c
 
 	 Information that needs to be changed in the code for generating new license
 	 Provide expiry date of the license in year (4-digits),month(2-digits) and date(2-digits)
@@ -11,29 +11,84 @@
 #include<stdio.h>
 #include<string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
-unsigned long hex2dec(char *str){
-
-    int i;
-    for(i = 0; i < strlen(str); i++ ){
-        int nb = str[i];
-        if (!( (nb >=48 && nb <= 57) || (nb >= 97 && nb<=102) || (nb >= 65 && nb<=70) )){
-            return -1;
-        }
-    }
-
-    unsigned long ul;
-    ul = strtoul (str, NULL, 16);
-    if(ul == 0){
-        int i;
-        for(i = 0; i < strlen(str); i++){
-            if(str[i] != '0') return -1;
-        }
-    }
-    return ul;
+void usage(const char * prg_name) {
+    fprintf(stderr, "%s [<option>]\n", prg_name);
+    fprintf(stderr, "Provide all these parameters:\n");
+    fprintf(stderr, "\t-m <MAC addresses>  : Provide MAC addresses separated by - if more than 1\"for example: 2a:3z:45:6c:12:34-45:67:34:t5:78:fG \" \n");
+    fprintf(stderr, "\t-d <Date>           : Provide expiry date in format YYYY/MM/DD \n");
+    fprintf(stderr, "\t-h                  : Prints this help.\n");
+    exit(1);
 }
 
-void main(){
+int no_of_mac_address = 1;
+char * write_mac_address = NULL;
+char * expiry_date = NULL;
+
+void parseOptions(int argc, char ** argv) {
+    int opt, optcount = 0;
+    int num_mac =0;
+    int length =0;
+
+    while ((opt = getopt(argc, argv, "m:d:h")) != EOF) {
+        switch (opt) {
+        case 'm':
+            optcount++;
+            length = strlen(optarg);
+            //printf("length=%d\n",length);
+            write_mac_address = malloc (sizeof(char)* (length));
+            write_mac_address = optarg;
+            //printf("write_mac_address= %s\n",write_mac_address);
+            break;
+        case 'd':
+            optcount++;
+            expiry_date = malloc (sizeof(char)*11);
+            expiry_date = optarg;
+           // printf("expiry_date = %s\n",expiry_date);
+            break;
+        case 'h':
+        default: usage(argv[0]);
+        }
+    }
+
+    if (optcount > 2 || optcount < 2 ) {
+        usage(argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    int count = 0;
+    if (length == 0){
+    	usage(argv[0]);
+    	exit(EXIT_FAILURE);
+    }
+
+    for (count = 0; count < length; count++)
+    {
+    	if (write_mac_address[count] == '-')
+
+    	{
+    		no_of_mac_address++;
+    	}
+
+    }
+
+
+
+    int mac_address_length = (no_of_mac_address *17 + no_of_mac_address-1);
+    if(!write_mac_address || length < mac_address_length || length > mac_address_length) {
+    	printf("Error: Specify 12 digit MAC addressess separated by - \"for example: 2A:3Z:45:6T:12:34-45:67:34:T5:78:FG also check number of mac address\" \n");
+    	exit(EXIT_FAILURE);
+    }
+
+    if(strlen(expiry_date)<10 ||strlen(expiry_date)>10) {
+    	printf("Error: Specify expiry date in format YYYY/MM/DD \n");
+    	exit(EXIT_FAILURE);
+    }
+
+    return;
+}
+void main(int argc, char **argv){
     FILE * license_key;
     int MAX=50;
     char message[50];
@@ -41,50 +96,43 @@ void main(){
     /*
      * Provide expiry date of the license in year,month and date
      * */
-    char year[4]="2017";//4-digits
-    char month[2]="02";//2-digits
-    char day[2]="30";//2-digits
-    /*
-     * Provide number of mac address (3 digits) and 12 digit MAC addresses separated by "-" of the machine for the license
-     */
-    char no_of_mac_address[3]= "001";//3-digits
-//00:21:5a:ee:ad:d2
-    char * write_mac_address ="00215AEEADD2";//12 digit MAC addresses separated by "-" in uppercase
+    parseOptions(argc,argv);
+    char mac_number_string[4];
+    char year[5];//4-digits
+    char month[3];//2-digits
+    char day[3];//2-digits
+
     int offset=0;
     /*
      * This blocks contains no information but are used to make the license key difficult to read
      */
-    char block1[10]="627G639FB5";
-    char block2[10]="70258TYG60";
-    char block3[10]="2SD574G689";
-    char block4[10]="24689G5K79";
+    char block1[10]="627f639fb5";
+    char block2[10]="70258tya60";
+    char block3[10]="2Sd574g689";
+    char block4[10]="24689k5b79";
     static char file [256+1]={0};
 
-    strcpy(file,"License_key.txt");
+    strcpy(file,"license.key");
 
     license_key= fopen(file, "w");
     offset+=fwrite(block1,1,10,license_key);
 
+    strncpy(year,expiry_date,4);
+    year[4]='\0';
+
     offset+=fwrite(year,1,4,license_key);
     int len_yr=strlen(year);
-    if (len_yr!=4){
-       // printf("ERROR:year must have 4 digits i.e. 2014\n");
-        exit(0);
-    }
+
+    strncpy(month,&expiry_date[5],2);
+    month[2]='\0';
 
     offset+=fwrite(month,1,2,license_key);
-    int len_mn=strlen(month);
-    if (len_mn!=2){
-        //printf("ERROR:month must have 2 digits i.e. 01 for January\n");
-        exit(0);
-    }
+
+    strncpy(day,&expiry_date[8],2);
+    day[2]='\0';
 
     offset+=fwrite(day,1,2,license_key);
-    int len_dy=strlen(month);
-    if (len_dy!=2){
-       // printf("ERROR:day must have 2 digits i.e. 01 for day 1\n");
-        exit(0);
-    }
+
 
     long int date = atoi(year)*atoi(month)*atoi(day);
 
@@ -97,30 +145,31 @@ void main(){
 
     offset+=fwrite(block3,1,10,license_key);
 
-    offset+=fwrite(no_of_mac_address,1,3,license_key);
+    snprintf(mac_number_string,4,"%03d",no_of_mac_address);
+    mac_number_string[3]='\0';
+   // printf("mac_number_string=%s\n",mac_number_string);
 
-    int no_of_mac;
 
-    no_of_mac=atoi(no_of_mac_address);
-    //printf("no_of_mac=%d\n",no_of_mac);
+    offset+=fwrite(mac_number_string,1,3,license_key);
+
     int j=0;
     int offset_mac_read=0;
     int offset_mac_write=0;
-
+    int length_of_mac_addresses = no_of_mac_address*12 +1;
     char * mac_address;
-    mac_address=malloc(sizeof(char)*no_of_mac*12);
+    mac_address=malloc(sizeof(char)*length_of_mac_addresses);
 
-    for (j=0;j<no_of_mac;j++){
+    for (j=0;j<no_of_mac_address *6;j++){
         strncpy(&mac_address[offset_mac_write],&write_mac_address[offset_mac_read],12);
-        offset_mac_write+=12;
-        offset_mac_read+=13;
+        offset_mac_write+=2;
+        offset_mac_read+=3;
     }
-    mac_address[no_of_mac*12]='\0';
-    offset+=fwrite(mac_address,1,no_of_mac*12,license_key);
-    int count_mac_len= strlen(mac_address);
-    //printf("count_mac_len=%d\n",count_mac_len);
+    mac_address[no_of_mac_address*12]='\0';
 
-    if (count_mac_len!=(no_of_mac*12)){
+    offset+=fwrite(mac_address,1,no_of_mac_address*12,license_key);
+    int count_mac_len= strlen(mac_address);
+
+    if (count_mac_len!=(no_of_mac_address*12)){
         printf ("ERROR: length of MAC address do not match \n");
         exit(0);
 
@@ -131,11 +180,8 @@ void main(){
     long int  sum_mac=0;
     int i;
 
-    for (i=0;i<(no_of_mac*12);i++){
-
+    for (i=0;i<(no_of_mac_address*12);i++){
         sum_mac+=mac_address[i];
-
-
     }
     //printf("sum_mac=%lu\n", sum_mac);
 
@@ -145,7 +191,7 @@ void main(){
 
     memset(sum_mac_str,'\0',10);
     valid=snprintf(sum_mac_str,10,"%lu",sum_mac);
-    //printf("valid=%d\n",valid);
+
     sum_mac_str[valid]='\0';
 
     //printf ("mac_sum_str=%s\n",sum_mac_str);
@@ -171,9 +217,14 @@ void main(){
     //printf ("block_sum=%s\n",sum_of_blocks_str);
 
 
-
     offset+=fwrite(sum_of_blocks_str,1,valid,license_key);
 
+    free(sum_of_blocks_str);
+    free(sum_mac_str);
+    free(mac_address);
+    //free(no_of_mac_address);
+    //free(write_mac_address);
+    //free(expiry_date);
     fclose(license_key);
 }
 

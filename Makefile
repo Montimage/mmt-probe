@@ -1,8 +1,12 @@
 CC     = gcc-4.9
 RM     = rm -rf
+MKDIR  = mkdir -p
+CP     = cp
 
 #name of executable file to generate
 OUTPUT   = probe
+#directory where probe will be installed on
+INSTALL_DIR = /opt/mmt/probe
 
 #set of library
 LIBS     = -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
@@ -40,4 +44,45 @@ all: $(LIB_OBJS) $(MAIN_OBJS)
 	@echo "[COMPILE] $(notdir $@)"
 	$(QUIET) $(CC) $(CFLAGS) -c -o $@ $<
 clean:
-	$(QUIET) $(RM) $(MAIN_OBJS) $(LIB_OBJS) probe
+	$(QUIET) $(RM) $(MAIN_OBJS) $(LIB_OBJS) $(OUTPUT)
+	
+keygen:
+	$(QUIET) $(CC) -o keygen $(CLDFLAGS)  key_generator.c
+	
+#
+# Install probe
+#
+install: all
+	@echo "Installing probe on" $(INSTALL_DIR)
+#create dir
+	$(QUIET) $(MKDIR) $(INSTALL_DIR)/bin $(INSTALL_DIR)/conf \
+		$(INSTALL_DIR)/log/online \
+		$(INSTALL_DIR)/log/offline \
+		$(INSTALL_DIR)/result/report/offline \
+		$(INSTALL_DIR)/result/report/online \
+		$(INSTALL_DIR)/result/behaviour/online \
+		$(INSTALL_DIR)/result/behaviour/offline \
+		$(INSTALL_DIR)/result/security/online \
+		$(INSTALL_DIR)/result/security/offline
+#copy probe to bin
+	$(QUIET) $(CP) $(OUTPUT) $(INSTALL_DIR)/bin/probe
+#create link
+	$(QUIET) $(CP) $(INSTALL_DIR)/bin/probe $(INSTALL_DIR)/bin/probe_online
+	$(QUIET) $(CP) $(INSTALL_DIR)/bin/probe $(INSTALL_DIR)/bin/probe_offline
+#copy config files
+	$(QUIET) $(CP) mmt_offline.conf $(INSTALL_DIR)/conf/offline.conf
+	$(QUIET) $(CP) mmt_online.conf  $(INSTALL_DIR)/conf/online.conf
+#install deamon -e: regex expression
+	$(QUIET) sed "s|/opt/mmt/probe|$(INSTALL_DIR)|g" deamon.sh  > /tmp/probe_deamon
+	$(QUIET) sed "s|runing_mode|online|g" /tmp/probe_deamon     > /etc/init.d/probe_online_d
+	$(QUIET) sed "s|runing_mode|offline|g" /tmp/probe_deamon    > /etc/init.d/probe_offline_d
+	$(QUIET) chmod +x /etc/init.d/probe_*_d
+#
+	@echo
+	@echo "To run probe online: sudo service probe_online_d start"
+	@echo "online's config file is located at " $(INSTALL_DIR)/conf/online.conf
+	@echo
+	
+dist-clean:
+	$(QUIET) $(RM) -rf $(INSTALL_DIR)
+	$(QUIET) $(RM) -rf /etc/init.d/probe_*_d
