@@ -122,6 +122,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	if (probe_context->output_to_file_enable == 1)send_message_to_file_thread (message, (void *)user_args);
 	if (probe_context->redis_enable == 1)send_message_to_redis ("session.flow.report", message);
 
+
 	temp_session->session_attr->total_byte_count = get_session_byte_count(session);
 	temp_session->session_attr->total_data_byte_count = get_session_data_byte_count(session);
 	temp_session->session_attr->total_packet_count = get_session_packet_count(session);

@@ -145,15 +145,6 @@ static void *smp_thread_routine(void *arg) {
 
 	while ( 1 ) {
 
-		if(time(NULL)- th->last_stat_report_time >= mmt_probe.mmt_conf->stats_reporting_period){
-			th->last_stat_report_time=time(NULL);
-			process_session_timer_handler(th->mmt_handler);
-			if (probe_context->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, th);
-		}
-		//if(time(NULL)- th->last_msg_report_time >= mmt_probe.mmt_conf->sampled_report_period){
-		//	th->last_msg_report_time = time(NULL);
-		//}
-
 		/* if no packet has arrived sleep 2.50 ms */
 		if ( data_spsc_ring_pop( &th->fifo, &pdata ) != 0 ) {
 			tv.tv_sec = 0;
@@ -240,14 +231,6 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 			header.len = pkthdr.len;
 			header.user_args = NULL;
 
-			if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
-				mmt_probe->smp_threads->last_stat_report_time =time(NULL);
-				process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
-				if (mmt_probe->mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
-			}
-			//if(time(NULL)- mmt_probe->smp_threads->last_msg_report_time >= mmt_probe->mmt_conf->sampled_report_period){
-			//	mmt_probe->smp_threads->last_msg_report_time = time(NULL);
-			//}
 			//Call mmt_core function that will parse the packet and analyse it.
 
 			if (!packet_process(mmt_probe->smp_threads->mmt_handler, &header, data)) {
@@ -367,16 +350,6 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
 		header.caplen = pkthdr->caplen;
 		header.len = pkthdr->len;
 		header.user_args = NULL;
-
-		if(time(NULL)- mmt_probe.smp_threads->last_stat_report_time  >= mmt_probe.mmt_conf->stats_reporting_period){
-			mmt_probe.smp_threads->last_stat_report_time = time(NULL);
-			process_session_timer_handler(mmt_probe.smp_threads->mmt_handler);
-			if (mmt_probe.mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe.smp_threads);
-		}
-		//if(time(NULL)- mmt_probe.smp_threads->last_msg_report_time >= mmt_probe.mmt_conf->sampled_report_period){
-		//	mmt_probe.smp_threads->last_msg_report_time = time(NULL);
-			//flush_messages_to_file_thread((void *)mmt_probe.smp_threads);
-		//}
 
 		if (!packet_process(mmt_probe.smp_threads->mmt_handler, &header, data)) {
 			fprintf(stderr, "MMT Extraction failure! Error while processing packet number %"PRIu64"", nb_packets_processed_by_mmt);
@@ -699,6 +672,14 @@ void signal_handler(int type) {
 	}
 }
 
+void iterate_session( void *arg){
+
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+	 struct smp_thread *th = (struct smp_thread *) arg;
+	 process_session_timer_handler(th->mmt_handler);
+	 if (probe_context->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, th);
+}
+
 int main(int argc, char **argv) {
 	char mmt_errbuf[1024];
 	int i,j;
@@ -836,6 +817,7 @@ int main(int argc, char **argv) {
 		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, lg_msg);
 	}
 	if (mmt_conf->output_to_file_enable == 1)start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
+	start_timer( mmt_probe.mmt_conf->stats_reporting_period, iterate_session, (void *) &mmt_probe);
 	//Offline or Online processing
 	if (mmt_conf->input_mode == OFFLINE_ANALYSIS) {
 		process_trace_file(mmt_conf->input_source, &mmt_probe); //Process single offline trace
