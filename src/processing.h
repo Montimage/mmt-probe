@@ -43,7 +43,7 @@ uint64_t total_session_count;
 pthread_mutex_t mutex_lock;
 pthread_spinlock_t spin_lock;
 time_t update_reporting_time;
-int is_stop_timer;
+static int is_stop_timer;
 
 static struct mmt_probe_struct mmt_probe;
 
@@ -454,6 +454,7 @@ struct smp_thread {
     struct smp_pkt null_pkt; /* Null packet used to indicate end of packet feeding for the thread. */
     time_t last_stat_report_time;
     time_t last_msg_report_time;
+    int check_timer;
     mmt_event_report_t * event_reports;
     char *cache_message_list[ MAX_CACHE_SIZE ];
     int cache_count;
@@ -466,6 +467,7 @@ struct smp_thread {
 
 typedef struct mmt_probe_struct {
     struct smp_thread * smp_threads;
+    pthread_t timer_handler;
     //mmt_handler_t *mmt_handler; //For single threaded operations
     mmt_probe_context_t * mmt_conf;
     probe_internal_t iprobe;

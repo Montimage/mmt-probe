@@ -12,19 +12,23 @@
 
 void __free_data_spsc_ring( data_spsc_ring_t *q){
 	uint32_t i;
-	if( q == NULL ) return;
 
-	for( i=0; i<q->_size; i++)
-		if( q->_data[i] != NULL)
+	if( q == NULL ) return;
+	for( i=0; i<q->_size; i++){
+
+		if( q->_data[i] != NULL){
+
 			free( q->_data[ i ] );
+		}
+	}
 	free( q->_data );
 	queue_free( q->_fifo_index );
 }
 
 void data_spsc_ring_free( data_spsc_ring_t *q ){
 	__free_data_spsc_ring( q );
-	free( q );
-	q = NULL;
+	//free( q );
+	//q = NULL;
 }
 
 /**

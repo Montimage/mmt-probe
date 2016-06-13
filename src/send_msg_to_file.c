@@ -16,6 +16,7 @@ void exit_timers(){
 	//flush_messages_to_file_thread( th );
 	pthread_spin_lock(&spin_lock);
 	is_stop_timer = 1;
+	int ret =pthread_cancel(mmt_probe.timer_handler);
 	pthread_spin_unlock(&spin_lock);
 
 }
@@ -68,11 +69,13 @@ static void *wait_to_do_something( void *arg ){
 		//fflush( stdout );
 		/* Wait for the next timer event. If we have missed any the
 		 *         number is written to "expirations"*/
+
 		ret = read (timer_fd, &expirations, sizeof (expirations));
 		if( ret == -1 ){
 			perror ("read timer");
 			return NULL;
 		}
+
 		//"missed" should always be >= 1, but just to be sure, check it is not 0 anyway
 
 		if (expirations > 1) {
@@ -90,8 +93,10 @@ static void *wait_to_do_something( void *arg ){
 	//end the timer
 	close( timer_fd );
 
-	if( p_data ) free( p_data );
-	p_data = NULL;
+	if( p_data ){
+		free( p_data );
+		p_data = NULL;
+	}
 
 
 	return NULL;
@@ -100,13 +105,14 @@ static void *wait_to_do_something( void *arg ){
 
 int start_timer( uint32_t period, void *callback, void *user_data){
 	int ret;
+	mmt_probe_context_t * probe_context = get_probe_context_config();
 	pthread_user_data_t *data = malloc( sizeof( pthread_user_data_t ));
-	pthread_t pthread;
+	//pthread_t pthread;
 
 	data->period   = period;
 	data->callback = callback;
 	data->user_data = user_data;
-	ret = pthread_create(&pthread, NULL, wait_to_do_something, data);
+	ret = pthread_create(&mmt_probe.timer_handler, NULL, wait_to_do_something, data);
 
 	if( ret != 0 ){
 		perror("pthread_create:");

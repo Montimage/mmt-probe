@@ -280,6 +280,7 @@ void ftp_file_size_handle(const ipacket_t * ipacket, attribute_t * attribute, vo
 		uint32_t * file_size = (uint32_t *) attribute->data;
 		if (file_size != NULL && temp_session->app_format_id == probe_context->ftp_id ) {
 			((ftp_session_attr_t*) temp_session->app_data)->file_size = * file_size;
+
 		}
 	}
 }

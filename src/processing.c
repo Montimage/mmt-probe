@@ -553,6 +553,10 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 	if(temp_session->app_format_id == probe_context->web_id ){
 		if (temp_session->app_data == NULL) return;
 			if (((web_session_attr_t *) temp_session->app_data)->enable_http_request_response == 0)((web_session_attr_t *) temp_session->app_data)->enable_http_request_response = 1;
+			if (temp_session->session_attr == NULL) {
+				temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
+				memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+			}
 			temp_session->session_attr->last_activity_time.tv_sec =0;
 			temp_session->session_attr->last_activity_time.tv_usec =0;
 			print_ip_session_report (expired_session,th);
