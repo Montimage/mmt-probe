@@ -20,7 +20,6 @@ static thredis_t* thredis = NULL;
 *
  * In short, to subscribe to "localhost" channel:*/
 
-
 void init_redis (char * hostname, int port) {
     struct timeval timeout = { 1, 500000 }; // 1.5 seconds
 
@@ -45,7 +44,6 @@ void init_redis (char * hostname, int port) {
         }
     }
 }
-
 
 void send_message_to_redis (char *channel, char * message) {
     //printf("---> report to redis: %s\n%s\n",channel,message);

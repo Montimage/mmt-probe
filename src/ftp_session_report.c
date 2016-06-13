@@ -145,7 +145,6 @@ void ftp_session_connection_type_handle(const ipacket_t * ipacket, attribute_t *
 			}
 		}
 	}
-
 	if (temp_session != NULL && temp_session->app_data != NULL) {
 		uint8_t * conn_type = (uint8_t *) attribute->data;
 		if (conn_type != NULL && temp_session->app_format_id == probe_context->ftp_id) {

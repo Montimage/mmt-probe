@@ -369,6 +369,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
 			process_session_timer_handler(mmt_probe.smp_threads->mmt_handler);
 			if (mmt_probe.mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe.smp_threads);
 		}
+
 		if (!packet_process(mmt_probe.smp_threads->mmt_handler, &header, data)) {
 			fprintf(stderr, "MMT Extraction failure! Error while processing packet number %"PRIu64"", nb_packets_processed_by_mmt);
 			nb_packets_dropped_by_mmt ++;
@@ -540,7 +541,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
 				pthread_join(mmt_probe.smp_threads[i].handle, NULL);
 				report_all_protocols_microflows_stats(&mmt_probe.smp_threads[i]);
 				if (mmt_conf->output_to_file_enable == 1)flush_messages_to_file_thread(&mmt_probe.smp_threads[i]);
-				//flush_messages_to_file_thread(&mmt_probe.smp_threads[i]);
 			}
 			exit_timers();
 		} else {

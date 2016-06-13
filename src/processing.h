@@ -314,6 +314,7 @@ typedef struct temp_session_statistics_struct{
     uint64_t rtt_max_usec[2];
     uint64_t rtt_avg_usec[2];
     uint64_t rtt_counter[2];
+    uint32_t retransmission_count;
 }temp_session_statistics_t;
 
 typedef struct web_session_attr_struct {
@@ -544,6 +545,8 @@ void tcp_fin_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 void print_http_request_response_report(const mmt_session_t * session, void *user_args);
 void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void content_len_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void flush_messages_to_file_thread( void *arg);
+void iterate_session( void *arg);
 
 //prototypes
 //void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session);

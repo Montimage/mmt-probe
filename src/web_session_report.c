@@ -105,8 +105,6 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 				return;
 			}
 		}
-
-
 		if (temp_session->session_attr == NULL) {
 			temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
 			memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
@@ -132,7 +130,6 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 			((web_session_attr_t *) temp_session->app_data)->method[max] = '\0';
 
 		}
-		//printf("method=%s\n",((web_session_attr_t *) temp_session->app_data)->method);
 		((web_session_attr_t *) temp_session->app_data)->trans_nb += 1;
 		if (((web_session_attr_t *) temp_session->app_data)->trans_nb >= 1) {
 			((web_session_attr_t *) temp_session->app_data)->method_time = ipacket->p_hdr->ts;
@@ -244,8 +241,6 @@ void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, vo
 
 			strncpy(((web_session_attr_t *) temp_session->app_data)->response, (char *) response->ptr, max);
 			((web_session_attr_t *) temp_session->app_data)->response[max] = '\0';
-			//printf("response = %s\n",((web_session_attr_t *) temp_session->app_data)->response);
-
 		}
 	}
 }
