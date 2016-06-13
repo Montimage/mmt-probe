@@ -236,9 +236,6 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 			header.caplen = pkthdr.caplen;
 			header.len = pkthdr.len;
 			header.user_args = NULL;
-			for (p=0;p<30;p++){
-            printf("123\n");
-			}
 
 			if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
 				mmt_probe->smp_threads->last_stat_report_time =time(NULL);
