@@ -385,29 +385,29 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 
         if (event_reports_nb > 0) {
-            mmt_conf->event_reports = calloc(sizeof(mmt_event_report_t), event_reports_nb);
-            for(j = 0; j < event_reports_nb; j++) {
-                event_opts = cfg_getnsec(cfg, "event_report", j);
-                mmt_conf->event_based_reporting_enable = (uint32_t) cfg_getint(event_opts, "enable");
-                temp_er = & mmt_conf->event_reports[j];
-                temp_er->id = (uint32_t)cfg_getint(event_opts, "id");
-                if (parse_dot_proto_attribute((char *) cfg_getstr(event_opts, "event"), &temp_er->event)) {
-                    fprintf(stderr, "Error: invalid event_report event value '%s'\n", (char *) cfg_getstr(event_opts, "event"));
-                    exit(-1);
-                }
-                event_attributes_nb = cfg_size(event_opts, "attributes");
-                temp_er->attributes_nb = event_attributes_nb;
-                if(event_attributes_nb > 0) {
-                    temp_er->attributes = calloc(sizeof(mmt_event_attribute_t), event_attributes_nb);
+        	mmt_conf->event_reports = calloc(sizeof(mmt_event_report_t), event_reports_nb);
+        	for(j = 0; j < event_reports_nb; j++) {
+        		event_opts = cfg_getnsec(cfg, "event_report", j);
+        		mmt_conf->event_based_reporting_enable = (uint32_t) cfg_getint(event_opts, "enable");
+        		temp_er = & mmt_conf->event_reports[j];
+        		temp_er->id = (uint32_t)cfg_getint(event_opts, "id");
+        		if (parse_dot_proto_attribute((char *) cfg_getstr(event_opts, "event"), &temp_er->event)) {
+        			fprintf(stderr, "Error: invalid event_report event value '%s'\n", (char *) cfg_getstr(event_opts, "event"));
+        			exit(-1);
+        		}
+        		event_attributes_nb = cfg_size(event_opts, "attributes");
+        		temp_er->attributes_nb = event_attributes_nb;
+        		if(event_attributes_nb > 0) {
+        			temp_er->attributes = calloc(sizeof(mmt_event_attribute_t), event_attributes_nb);
 
-                    for(i = 0; i < event_attributes_nb; i++) {
-                        if (parse_dot_proto_attribute(cfg_getnstr(event_opts, "attributes", i), &temp_er->attributes[i])) {
-                            fprintf(stderr, "Error: invalid event_report attribute value '%s'\n", (char *) cfg_getnstr(event_opts, "attributes", i));
-                            exit(-1);
-                        }
-                    }
-                }
-            }
+        			for(i = 0; i < event_attributes_nb; i++) {
+        				if (parse_dot_proto_attribute(cfg_getnstr(event_opts, "attributes", i), &temp_er->attributes[i])) {
+        					fprintf(stderr, "Error: invalid event_report attribute value '%s'\n", (char *) cfg_getnstr(event_opts, "attributes", i));
+        					exit(-1);
+        				}
+        			}
+        		}
+        	}
         }
 
         int condition_reports_nb = cfg_size(cfg, "condition_report");
@@ -417,67 +417,68 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         mmt_condition_report_t * temp_condn;
         mmt_conf->condition_reports_nb = condition_reports_nb;
         if (condition_reports_nb > 0) {
-            mmt_conf->condition_reports = calloc(sizeof(mmt_condition_report_t), condition_reports_nb);
-            for(j = 0; j < condition_reports_nb; j++) {
-                condition_opts = cfg_getnsec(cfg, "condition_report", j);
-                temp_condn = & mmt_conf->condition_reports[j];
-                temp_condn->id = (uint16_t)cfg_getint(condition_opts, "id");
-                temp_condn->enable = (uint32_t)cfg_getint(condition_opts, "enable");
+        	mmt_conf->condition_reports = calloc(sizeof(mmt_condition_report_t), condition_reports_nb);
+        	for(j = 0; j < condition_reports_nb; j++) {
+        		condition_opts = cfg_getnsec(cfg, "condition_report", j);
+        		temp_condn = & mmt_conf->condition_reports[j];
+        		temp_condn->id = (uint16_t)cfg_getint(condition_opts, "id");
+        		temp_condn->enable = (uint32_t)cfg_getint(condition_opts, "enable");
 
-                if (parse_condition_attribute((char *) cfg_getstr(condition_opts, "condition"), &temp_condn->condition)) {
-                    fprintf(stderr, "Error: invalid condition_report condition value '%s'\n", (char *) cfg_getstr(condition_opts, "condition"));
-                    exit(-1);
-                }
+        		if (parse_condition_attribute((char *) cfg_getstr(condition_opts, "condition"), &temp_condn->condition)) {
+        			fprintf(stderr, "Error: invalid condition_report condition value '%s'\n", (char *) cfg_getstr(condition_opts, "condition"));
+        			exit(-1);
+        		}
 
-                // if (parse_location_attribute((char *) cfg_getstr(condition_opts, "location"), &temp_condn->condition)) {
-                //   fprintf(stderr, "Error: invalid condition_report location value '%s'\n", (char *) cfg_getstr(condition_opts, "location"));
-                //  exit(-1);
-                // }
-                if(strcmp(temp_condn->condition.condition,"FTP")==0 && temp_condn->enable ==1 ){
-                	mmt_conf->ftp_enable=1;
-                	mmt_conf->ftp_id=temp_condn->id;
-                }
-                if(strcmp(temp_condn->condition.condition,"WEB")==0 && temp_condn->enable ==1){
-                	mmt_conf->web_enable=1;
-                	mmt_conf->web_id=temp_condn->id;
-                }
-                if(strcmp(temp_condn->condition.condition,"RTP")==0 && temp_condn->enable ==1){
-                	mmt_conf->rtp_enable=1;
-                	mmt_conf->rtp_id=temp_condn->id;
-                }
-                if(strcmp(temp_condn->condition.condition,"SSL")==0 && temp_condn->enable ==1){
-                	mmt_conf->ssl_enable=1;
-                	mmt_conf->ssl_id=temp_condn->id;
-                }
+        		// if (parse_location_attribute((char *) cfg_getstr(condition_opts, "location"), &temp_condn->condition)) {
+        		//   fprintf(stderr, "Error: invalid condition_report location value '%s'\n", (char *) cfg_getstr(condition_opts, "location"));
+        		//  exit(-1);
+        		// }
+        		if(strcmp(temp_condn->condition.condition,"FTP")==0 && temp_condn->enable ==1 ){
+        			mmt_conf->ftp_enable=1;
+        			mmt_conf->ftp_id=temp_condn->id;
+        		}
+        		if(strcmp(temp_condn->condition.condition,"WEB")==0 && temp_condn->enable ==1){
+        			mmt_conf->web_enable=1;
+        			mmt_conf->web_id=temp_condn->id;
+        		}
+        		if(strcmp(temp_condn->condition.condition,"RTP")==0 && temp_condn->enable ==1){
+        			mmt_conf->rtp_enable=1;
+        			mmt_conf->rtp_id=temp_condn->id;
+        		}
+        		if(strcmp(temp_condn->condition.condition,"SSL")==0 && temp_condn->enable ==1){
+        			mmt_conf->ssl_enable=1;
+        			mmt_conf->ssl_id=temp_condn->id;
+        		}
+        		if (temp_condn->enable == 1){
+        			condition_attributes_nb = cfg_size(condition_opts, "attributes");
+        			temp_condn->attributes_nb = condition_attributes_nb;
 
-                condition_attributes_nb = cfg_size(condition_opts, "attributes");
-                temp_condn->attributes_nb = condition_attributes_nb;
+        			if(condition_attributes_nb > 0) {
+        				temp_condn->attributes = calloc(sizeof(mmt_condition_attribute_t), condition_attributes_nb);
 
-                if(condition_attributes_nb > 0) {
-                    temp_condn->attributes = calloc(sizeof(mmt_condition_attribute_t), condition_attributes_nb);
+        				for(i = 0; i < condition_attributes_nb; i++) {
+        					if (condition_parse_dot_proto_attribute(cfg_getnstr(condition_opts, "attributes", i), &temp_condn->attributes[i])) {
+        						fprintf(stderr, "Error: invalid condition_report attribute value '%s'\n", (char *) cfg_getnstr(condition_opts, "attributes", i));
+        						exit(-1);
+        					}
+        				}
+        			}
+        			condition_handlers_nb = cfg_size(condition_opts, "handlers");
+        			temp_condn->handlers_nb = condition_handlers_nb;
 
-                    for(i = 0; i < condition_attributes_nb; i++) {
-                        if (condition_parse_dot_proto_attribute(cfg_getnstr(condition_opts, "attributes", i), &temp_condn->attributes[i])) {
-                            fprintf(stderr, "Error: invalid condition_report attribute value '%s'\n", (char *) cfg_getnstr(condition_opts, "attributes", i));
-                            exit(-1);
-                        }
-                    }
-                }
-                condition_handlers_nb = cfg_size(condition_opts, "handlers");
-                temp_condn->handlers_nb = condition_handlers_nb;
+        			if(condition_handlers_nb > 0) {
+        				temp_condn->handlers = calloc(sizeof(mmt_condition_attribute_t), condition_handlers_nb);
 
-                if(condition_handlers_nb > 0) {
-                    temp_condn->handlers = calloc(sizeof(mmt_condition_attribute_t), condition_handlers_nb);
+        				for(i = 0; i < condition_handlers_nb; i++) {
+        					if (parse_handlers_attribute((char *) cfg_getnstr(condition_opts, "handlers",i), &temp_condn->handlers[i])) {
+        						fprintf(stderr, "Error: invalid condition_report handler attribute value '%s'\n", (char *) cfg_getnstr(condition_opts, "handlers", i));
+        						exit(-1);
+        					}
+        				}
+        			}
+        		}
 
-                    for(i = 0; i < condition_handlers_nb; i++) {
-                        if (parse_handlers_attribute((char *) cfg_getnstr(condition_opts, "handlers",i), &temp_condn->handlers[i])) {
-                            fprintf(stderr, "Error: invalid condition_report handler attribute value '%s'\n", (char *) cfg_getnstr(condition_opts, "handlers", i));
-                            exit(-1);
-                        }
-                    }
-                }
-
-            }
+        	}
         }
         cfg_free(cfg);
     }

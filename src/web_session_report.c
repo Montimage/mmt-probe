@@ -368,7 +368,7 @@ void print_initial_web_report(const mmt_session_t * session,session_struct_t * t
 		if (temp_session->app_data == NULL) return;
 		if (((web_session_attr_t *) temp_session->app_data)->enable_http_request_response ==1)((web_session_attr_t *) temp_session->app_data)->enable_http_request_response = 0;
 	}
-	//temp_session->session_attr->touched = 1;
+	temp_session->session_attr->touched = 1;
 
 }
 

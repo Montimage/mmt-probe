@@ -9,21 +9,14 @@
 #include "processing.h"
 
 
-/*
-void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session){
+void reset_rtp (session_struct_t *temp_session){
     ((rtp_session_attr_t*) temp_session->app_data)->jitter= 0;
     ((rtp_session_attr_t*) temp_session->app_data)->nb_lost= 0;
     ((rtp_session_attr_t*) temp_session->app_data)->nb_loss_bursts= 0;
     ((rtp_session_attr_t*) temp_session->app_data)->nb_order_error= 0;
     ((rtp_session_attr_t*) temp_session->app_data)->packets_nb=0;
-    ((rtp_session_attr_t*) temp_session->app_data)->ul_packet_count=get_session_ul_packet_count(rtp_session);
-    ((rtp_session_attr_t*) temp_session->app_data)->dl_packet_count=get_session_dl_packet_count(rtp_session);
-    ((rtp_session_attr_t*) temp_session->app_data)->ul_byte_count=get_session_ul_byte_count(rtp_session);
-    ((rtp_session_attr_t*) temp_session->app_data)->dl_packet_count=get_session_dl_byte_count(rtp_session);
-    ((rtp_session_attr_t*) temp_session->app_data)->last_report_time_sec = ipacket->p_hdr->ts.tv_sec;
-    ((rtp_session_attr_t*) temp_session->app_data)->last_report_time_usec = ipacket->p_hdr->ts.tv_usec;
 }
-*/
+
 void rtp_version_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     if(ipacket->session == NULL) return;
     session_struct_t * temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
@@ -36,8 +29,6 @@ void rtp_version_handle(const ipacket_t * ipacket, attribute_t * attribute, void
                 temp_session->app_data = (void *) rtp_attr;
                 temp_session->app_format_id = probe_context->rtp_id;
                 rtp_attr->packets_nb += 1;
-                ((rtp_session_attr_t*) temp_session->app_data)->last_report_time_sec = ipacket->p_hdr->ts.tv_sec;
-                ((rtp_session_attr_t*) temp_session->app_data)->last_report_time_usec = ipacket->p_hdr->ts.tv_usec;
             } else {
                 mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating RTP reporting context");
                 //fprintf(stderr, "Out of memory error when creating RTP specific data structure!\n");
@@ -61,100 +52,6 @@ void rtp_jitter_handle(const ipacket_t * ipacket, attribute_t * attribute, void 
             }
         }
     }
-
-
-    //sampling RTP
-    /*
-    char path[128];
-    char message[MAX_MESS + 1];
-
-    //IP strings
-    char ip_src_str[46];
-    char ip_dst_str[46];
-    int keep_direction = 1;
-    mmt_probe_context_t * probe_context = get_probe_context_config();
-
-    mmt_session_t * rtp_session = get_session_from_packet(ipacket);
-    if(rtp_session == NULL) return;
-
-    //FILE * out_file = (probe_context->data_out_file != NULL) ? probe_context->data_out_file : stdout;
-    uint64_t session_id = get_session_id(rtp_session);
-
-
-    if (temp_session->ipversion == 4) {
-        inet_ntop(AF_INET, (void *) &temp_session->ipclient.ipv4, ip_src_str, INET_ADDRSTRLEN);
-        inet_ntop(AF_INET, (void *) &temp_session->ipserver.ipv4, ip_dst_str, INET_ADDRSTRLEN);
-        keep_direction = is_local_net(temp_session->ipclient.ipv4);
-        is_local_net(temp_session->ipserver.ipv4);
-    } else {
-        inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
-        inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
-    }
-
-    uint32_t app_class = PROTO_CLASS_STREAMING;
-    if(get_session_content_flags(rtp_session) & MMT_CONTENT_CONVERSATIONAL) {
-        app_class = PROTO_CLASS_CONVERSATIONAL;
-    }else if(get_session_ul_data_packet_count(rtp_session) &&  get_session_dl_data_packet_count(rtp_session)) {
-        app_class = PROTO_CLASS_CONVERSATIONAL;
-    }
-
-
-    const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(rtp_session);
-
-    proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(rtp_session), path);
-
-    uint32_t rtt_ms = TIMEVAL_2_MSEC(get_session_rtt(rtp_session));
-
-    //sampled metrics are calculated every 5 seconds and reported
-    if ((ipacket->p_hdr->ts.tv_sec - ((rtp_session_attr_t*) temp_session->app_data)->last_report_time_sec) >= 5) {
-        double loss_rate, loss_burstiness = 0, order_error = 0;
-
-        loss_rate = (double) ((double) ((rtp_session_attr_t*) temp_session->app_data)->nb_lost / (((rtp_session_attr_t*) temp_session->app_data)->nb_lost + ((rtp_session_attr_t*) temp_session->app_data)->packets_nb + 1));
-        if (((rtp_session_attr_t*) temp_session->app_data)->nb_loss_bursts) {
-            loss_burstiness = (double) ((double) ((rtp_session_attr_t*) temp_session->app_data)->nb_lost / ((rtp_session_attr_t*) temp_session->app_data)->nb_loss_bursts);
-        }
-        order_error = (double) ((double) ((rtp_session_attr_t*) temp_session->app_data)->nb_order_error / (((rtp_session_attr_t*) temp_session->app_data)->packets_nb + 1));
-
-        ((rtp_session_attr_t*) temp_session->app_data)->ul_packet_count=get_session_ul_packet_count(rtp_session)-((rtp_session_attr_t*) temp_session->app_data)->ul_packet_count;
-        ((rtp_session_attr_t*) temp_session->app_data)->dl_packet_count=get_session_dl_packet_count(rtp_session)-((rtp_session_attr_t*) temp_session->app_data)->dl_packet_count;
-        ((rtp_session_attr_t*) temp_session->app_data)->ul_byte_count=get_session_ul_byte_count(rtp_session)-((rtp_session_attr_t*) temp_session->app_data)->ul_byte_count;
-        ((rtp_session_attr_t*) temp_session->app_data)->dl_byte_count=get_session_dl_byte_count(rtp_session)-((rtp_session_attr_t*) temp_session->app_data)->dl_byte_count;
-
-
-        snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%"PRIu64",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,%f,%f,%u,%f", // app specific
-                MMT_SAMPLED_RTP_APP_REPORT_FORMAT,
-                probe_context->probe_id_number,
-                probe_context->input_source,
-                ipacket->p_hdr->ts.tv_sec,ipacket->p_hdr->ts.tv_usec,
-                session_id,
-                ((rtp_session_attr_t*) temp_session->app_data)->last_report_time_sec,
-                ((rtp_session_attr_t*) temp_session->app_data)->last_report_time_usec,
-                (int) temp_session->ipversion,
-                ip_dst_str,
-                ip_src_str,
-                temp_session->serverport,
-                temp_session->clientport,
-                (unsigned short)temp_session->proto,
-                (keep_direction)?((rtp_session_attr_t*) temp_session->app_data)->ul_packet_count:((rtp_session_attr_t*) temp_session->app_data)->dl_packet_count,
-                        (keep_direction)?((rtp_session_attr_t*) temp_session->app_data)->dl_packet_count:((rtp_session_attr_t*) temp_session->app_data)->ul_packet_count,
-                                (keep_direction)?((rtp_session_attr_t*) temp_session->app_data)->ul_byte_count:((rtp_session_attr_t*) temp_session->app_data)->dl_byte_count,
-                                        (keep_direction)?((rtp_session_attr_t*) temp_session->app_data)->dl_byte_count:((rtp_session_attr_t*) temp_session->app_data)->ul_byte_count,
-                                                rtt_ms, get_session_retransmission_count(rtp_session),
-                                                app_class,
-                                                temp_session->contentclass,path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)],
-                                                loss_rate,
-                                                loss_burstiness,
-                                                ((rtp_session_attr_t*) temp_session->app_data)->jitter, order_error
-        );
-
-        message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-        //send_message_to_file ("rtp.flow.report", message);
-        if (probe_context->output_to_file_enable==1)send_message_to_file (message);
-        if (probe_context->redis_enable==1)send_message_to_redis ("rtp.flow.report", message);
-
-        reset_rtp(ipacket,rtp_session,temp_session);
-
-    }*/
 }
 
 void rtp_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
@@ -316,6 +213,7 @@ void print_initial_rtp_report(const mmt_session_t * session,session_struct_t * t
             loss_burstiness,
             ((rtp_session_attr_t*) temp_session->app_data)->jitter, order_error
     );
+    reset_rtp(temp_session);
     temp_session->session_attr->touched=1;
 }
 

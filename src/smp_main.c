@@ -211,6 +211,7 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 	static uint32_t p_hash = 0;
 	static struct packet_element *pkt;
 	static void *pdata;
+	int p=0;
 
 	//Initialise MMT_Security
 	if(mmt_probe->mmt_conf->security_enable==1)
@@ -235,6 +236,9 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 			header.caplen = pkthdr.caplen;
 			header.len = pkthdr.len;
 			header.user_args = NULL;
+			for (p=0;p<30;p++){
+            printf("123\n");
+			}
 
 			if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
 				mmt_probe->smp_threads->last_stat_report_time =time(NULL);
@@ -620,9 +624,9 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			data_spsc_ring_free( &mmt_probe.smp_threads[i].fifo );
 			free (mmt_probe.smp_threads[i].event_reports);
 			mmt_probe.smp_threads[i].event_reports = NULL;
-			//free (mmt_probe.smp_threads[i].cache_message_list);
 		}
-		free( mmt_probe.smp_threads );
+		free( mmt_probe.smp_threads);
+		mmt_probe.smp_threads = NULL;
 	}else {
 		free(mmt_probe.smp_threads->event_reports);
 		mmt_probe.smp_threads->event_reports = NULL;

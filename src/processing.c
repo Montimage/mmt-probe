@@ -366,7 +366,6 @@ int register_conditional_report_handle(void * args, mmt_condition_report_t * con
 		}
 	}
 
-
 	return i;
 }
 void conditional_reports_init(void * args) {

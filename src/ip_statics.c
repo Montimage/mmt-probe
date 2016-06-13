@@ -107,7 +107,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 
 	//To inform what is comming at the start of the flow report
 	if (temp_session->app_format_id == probe_context->web_id && probe_context->web_enable == 1) print_initial_web_report(session,temp_session,message,valid);
-	else if (temp_session->app_format_id == probe_context->rtp_id && temp_session->session_attr->touched == 0 && probe_context->rtp_enable == 1) print_initial_rtp_report(session,temp_session,message,valid);
+	else if (temp_session->app_format_id == probe_context->rtp_id && probe_context->rtp_enable == 1) print_initial_rtp_report(session,temp_session,message,valid);
 	else if (temp_session->app_format_id == probe_context->ssl_id && temp_session->session_attr->touched == 0 && probe_context->ssl_enable == 1) print_initial_ssl_report(session,temp_session,message,valid);
 	else if (temp_session->app_format_id == probe_context->ftp_id && probe_context->ftp_enable == 1) print_initial_ftp_report(session,temp_session,message,valid);
 	else if(temp_session->session_attr->touched == 0){
