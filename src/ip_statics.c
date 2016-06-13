@@ -66,7 +66,6 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	int sslindex;
 
 	uint64_t rtt_ms = TIMEVAL_2_USEC(get_session_rtt(session));
-	uint32_t retransmission_count = get_session_retransmission_count (session);
 
 	const proto_hierarchy_t * proto_path_0 =  get_session_proto_path_direction(session,0);
 	proto_hierarchy_ids_to_str(get_session_proto_path_direction(session,0), temp_session->path_ul);
@@ -102,7 +101,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 			ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,temp_session ->session_id,
 			temp_session->serverport, temp_session->clientport,temp_session->thread_number,rtt_ms,temp_session->session_attr->rtt_min_usec[1] ,temp_session->session_attr->rtt_min_usec[0],
 			temp_session->session_attr->rtt_max_usec[1] ,temp_session->session_attr->rtt_max_usec[0],temp_session->session_attr->rtt_avg_usec[1],temp_session->session_attr->rtt_avg_usec[0],
-			retransmission_count);
+			get_session_retransmission_count (session)-temp_session->session_attr->retransmission_count);
 	valid = strlen(message);
 
 	//To inform what is comming at the start of the flow report
@@ -123,7 +122,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	if (probe_context->output_to_file_enable == 1)send_message_to_file_thread (message, (void *)user_args);
 	if (probe_context->redis_enable == 1)send_message_to_redis ("session.flow.report", message);
 
-
+    temp_session->session_attr->retransmission_count = get_session_retransmission_count (session);
 	temp_session->session_attr->total_byte_count = get_session_byte_count(session);
 	temp_session->session_attr->total_data_byte_count = get_session_data_byte_count(session);
 	temp_session->session_attr->total_packet_count = get_session_packet_count(session);

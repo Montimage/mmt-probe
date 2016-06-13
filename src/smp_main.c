@@ -628,7 +628,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		free(mmt_probe.smp_threads->event_reports);
 		mmt_probe.smp_threads->event_reports = NULL;
 		free (mmt_probe.smp_threads);
-		//free(mmt_probe.smp_threads->cache_message_list);
 		mmt_probe.smp_threads = NULL;
 	}
 	//printf("HERE_close_extraction1\n");
