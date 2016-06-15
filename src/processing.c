@@ -153,8 +153,6 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	mmt_session_t * session = get_session_from_packet(ipacket);
 	if(session == NULL) return;
 
-	uint64_t * IPV4_active_sessions = NULL;
-	uint64_t * IPV6_active_sessions = NULL;
 	struct smp_thread *th = (struct smp_thread *) user_args;
 
 	if (attribute->data == NULL) {
@@ -384,6 +382,8 @@ void conditional_reports_init(void * args) {
 }
 void flowstruct_init(void * args) {
 	struct smp_thread *th = (struct smp_thread *) args;
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+
 	int i = 1;
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_TCP, TCP_SRC_PORT);
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_TCP, TCP_DEST_PORT);
@@ -412,8 +412,9 @@ void flowstruct_init(void * args) {
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
 	//i &= register_attribute_handler(th->mmt_handler, PROTO_TCP, TCP_FIN, tcp_fin_handle, NULL, (void *)args);
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, IP_RTT, ip_rtt_handler, NULL, (void *)args);
-
-	register_ftp_attributes(th->mmt_handler);
+	if(probe_context->ftp_enable==1){
+		register_ftp_attributes(th->mmt_handler);
+	}
 	if(!i) {
 		//TODO: we need a sound error handling mechanism! Anyway, we should never get here :)
 		fprintf(stderr, "Error while initializing MMT handlers and extractions!\n");

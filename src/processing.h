@@ -278,6 +278,7 @@ typedef struct ftp_session_attr_struct {
     char * location;
     char * filename;
     uint16_t response_code;
+    uint64_t session_id_control_channel;
     time_t file_download_starttime_sec;
     time_t file_download_starttime_usec;
     time_t file_download_finishtime_sec;
@@ -368,8 +369,6 @@ typedef struct session_struct {
     uint32_t contentclass;
     uint32_t thread_number;
     uint64_t session_id;
-    uint64_t IPv4_total_active_sessions;
-    uint64_t IPv6_total_active_sessions;
     temp_session_statistics_t * session_attr;
     void * app_data;
 } session_struct_t;

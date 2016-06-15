@@ -13,6 +13,8 @@
 #include "mmt/tcpip/mmt_tcpip.h"
 #include "processing.h"
 
+
+
 /*
 char * str_replace_all_char(const char *str,int c1, int c2){
     char *new_str;
@@ -149,9 +151,14 @@ void ftp_session_connection_type_handle(const ipacket_t * ipacket, attribute_t *
 		uint8_t * conn_type = (uint8_t *) attribute->data;
 		if (conn_type != NULL && temp_session->app_format_id == probe_context->ftp_id) {
 			((ftp_session_attr_t*) temp_session->app_data)->session_conn_type = *conn_type;
-		}
-	}
 
+			if (((ftp_session_attr_t*) temp_session->app_data)->session_conn_type == 2){
+				uint64_t * control_session_id= (uint64_t *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_CONT_IP_SESSION_ID);
+				if (control_session_id != NULL)((ftp_session_attr_t*) temp_session->app_data)->session_id_control_channel = * control_session_id;
+			}
+		}
+
+	}
 }
 
 void ftp_data_direction_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
@@ -380,14 +387,14 @@ void print_ftp_app_format(const mmt_session_t * expired_session,void *args) {
 void print_initial_ftp_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid){
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
 	snprintf(&message[valid], MAX_MESS-valid,
-			",%u,%u,%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%"PRIu8"",
+			",%u,%u,%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%"PRIu8",%"PRIu64"",
 			temp_session->app_format_id,get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
 			((ftp_session_attr_t*) temp_session->app_data)->session_conn_type,
 			(((ftp_session_attr_t*) temp_session->app_data)->session_conn_type == 2)?"null":(((ftp_session_attr_t*) temp_session->app_data)->session_username == NULL)?"null":((ftp_session_attr_t*) temp_session->app_data)->session_username,
 			(((ftp_session_attr_t*) temp_session->app_data)->session_conn_type == 2)?"null":(((ftp_session_attr_t*) temp_session->app_data)->session_password == NULL)?"null":((ftp_session_attr_t*) temp_session->app_data)->session_password,
 			((ftp_session_attr_t*) temp_session->app_data)->file_size,
 			(((ftp_session_attr_t*) temp_session->app_data)->filename == NULL)?"null":((ftp_session_attr_t*) temp_session->app_data)->filename,
-			((ftp_session_attr_t*) temp_session->app_data)->direction
+			((ftp_session_attr_t*) temp_session->app_data)->direction,((ftp_session_attr_t*) temp_session->app_data)->session_id_control_channel
 	);
 
 	temp_session->session_attr->touched = 1;
@@ -395,11 +402,13 @@ void print_initial_ftp_report(const mmt_session_t * session,session_struct_t * t
 
 void register_ftp_attributes(void * handler){
 	int i=1;
-	i &=register_extraction_attribute(handler,PROTO_FTP,PROTO_PAYLOAD);
-	i &=register_extraction_attribute(handler,PROTO_FTP,FTP_FILE_SIZE);
-	i &=register_extraction_attribute(handler,PROTO_FTP,FTP_DATA_TYPE);
-	i &=register_extraction_attribute(handler,PROTO_FTP,FTP_FILE_NAME);
-	i &=register_extraction_attribute(handler,PROTO_FTP,FTP_PACKET_DATA_LEN);
+	i &=register_extraction_attribute(handler,PROTO_FTP,FTP_CONT_IP_SESSION_ID);
+	//For reconstruction
+	//i &=register_extraction_attribute(handler,PROTO_FTP,PROTO_PAYLOAD);
+	//i &=register_extraction_attribute(handler,PROTO_FTP,FTP_FILE_SIZE);
+	//i &=register_extraction_attribute(handler,PROTO_FTP,FTP_DATA_TYPE);
+	//i &=register_extraction_attribute(handler,PROTO_FTP,FTP_FILE_NAME);
+	//i &=register_extraction_attribute(handler,PROTO_FTP,FTP_PACKET_DATA_LEN);
 	if(!i) {
 		//TODO: we need a sound error handling mechanism! Anyway, we should never get here :)
 		fprintf(stderr, "Error while initializing MMT handlers and extractions!\n");
