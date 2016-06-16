@@ -433,21 +433,25 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         		//   fprintf(stderr, "Error: invalid condition_report location value '%s'\n", (char *) cfg_getstr(condition_opts, "location"));
         		//  exit(-1);
         		// }
-        		if(strcmp(temp_condn->condition.condition,"FTP")==0 && temp_condn->enable ==1 ){
-        			mmt_conf->ftp_enable=1;
+        		if(strcmp(temp_condn->condition.condition,"FTP")==0){
         			mmt_conf->ftp_id=temp_condn->id;
+        			if (temp_condn->enable ==1)mmt_conf->ftp_enable=1;
+        			if (temp_condn->enable ==0)mmt_conf->ftp_enable=0;
         		}
-        		if(strcmp(temp_condn->condition.condition,"WEB")==0 && temp_condn->enable ==1){
-        			mmt_conf->web_enable=1;
+        		if(strcmp(temp_condn->condition.condition,"WEB")==0){
         			mmt_conf->web_id=temp_condn->id;
+        			if (temp_condn->enable ==1)mmt_conf->web_enable=1;
+        			if (temp_condn->enable ==0)mmt_conf->web_enable=0;
         		}
-        		if(strcmp(temp_condn->condition.condition,"RTP")==0 && temp_condn->enable ==1){
-        			mmt_conf->rtp_enable=1;
+        		if(strcmp(temp_condn->condition.condition,"RTP")==0){
         			mmt_conf->rtp_id=temp_condn->id;
+        			if (temp_condn->enable ==1)mmt_conf->rtp_enable=1;
+        			if (temp_condn->enable ==0)mmt_conf->rtp_enable=0;
         		}
-        		if(strcmp(temp_condn->condition.condition,"SSL")==0 && temp_condn->enable ==1){
-        			mmt_conf->ssl_enable=1;
+        		if(strcmp(temp_condn->condition.condition,"SSL")==0){
         			mmt_conf->ssl_id=temp_condn->id;
+        			if (temp_condn->enable ==1)mmt_conf->ssl_enable=1;
+        			if (temp_condn->enable ==0)mmt_conf->ssl_enable=0;
         		}
         		if (temp_condn->enable == 1){
         			condition_attributes_nb = cfg_size(condition_opts, "attributes");
