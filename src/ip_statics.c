@@ -86,7 +86,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u",
 			MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source,temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec,
 			proto_id,
-			temp_session->path_ul,temp_session->path_dl,active_session_count,
+			(keep_direction)?temp_session->path_ul:temp_session->path_dl,(keep_direction)?temp_session->path_dl:temp_session->path_ul,active_session_count,
 			get_session_byte_count(session) - temp_session->session_attr->total_byte_count,
 			get_session_data_byte_count(session) - temp_session->session_attr->total_data_byte_count,
 			get_session_packet_count(session) - temp_session->session_attr->total_packet_count,

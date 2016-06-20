@@ -112,10 +112,10 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 		if (((web_session_attr_t *) temp_session->app_data)->touched == 0){
 			//printf("((web_session_attr_t *) temp_session->app_data)->touched  = %u\n",((web_session_attr_t *) temp_session->app_data)->touched   );
 			((web_session_attr_t *) temp_session->app_data)->touched = 1;
-			((web_session_attr_t *) temp_session->app_data)->enable_http_request_response = 0;//response is not finished
+			((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;//response is not finished
 			((web_session_attr_t *) temp_session->app_data)->request_counter = 1;
 		}else{
-			((web_session_attr_t *) temp_session->app_data)->enable_http_request_response = 1;// response is finished
+			((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 1;// response is finished
 			 print_ip_session_report (ipacket->session,user_args);
 			 http_reset_report(temp_session);
 			 ((web_session_attr_t *) temp_session->app_data)->request_counter++;
@@ -361,12 +361,12 @@ void print_initial_web_report(const mmt_session_t * session,session_struct_t * t
 									((web_session_attr_t *) temp_session->app_data)->mimetype, ((web_session_attr_t *) temp_session->app_data)->referer,cdn_flag,
 									((web_session_attr_t *) temp_session->app_data)->uri,((web_session_attr_t *) temp_session->app_data)->method,((web_session_attr_t *) temp_session->app_data)->response,
 									(((web_session_attr_t *) temp_session->app_data)->content_len[0] == '\0')? "0":((web_session_attr_t *) temp_session->app_data)->content_len,
-									((web_session_attr_t *) temp_session->app_data)->request_counter,((web_session_attr_t *) temp_session->app_data)->enable_http_request_response
+									((web_session_attr_t *) temp_session->app_data)->request_counter,((web_session_attr_t *) temp_session->app_data)->state_http_request_response
 	);
 
 	if(temp_session->app_format_id == probe_context->web_id ){
 		if (temp_session->app_data == NULL) return;
-		if (((web_session_attr_t *) temp_session->app_data)->enable_http_request_response ==1)((web_session_attr_t *) temp_session->app_data)->enable_http_request_response = 0;
+		if (((web_session_attr_t *) temp_session->app_data)->state_http_request_response ==1)((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;
 	}
 	temp_session->session_attr->touched = 1;
 
