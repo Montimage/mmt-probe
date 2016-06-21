@@ -67,15 +67,15 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 
 	uint64_t rtt_ms = TIMEVAL_2_USEC(get_session_rtt(session));
 
-	const proto_hierarchy_t * proto_path_0 =  get_session_proto_path_direction(session,0);
-	proto_hierarchy_ids_to_str(get_session_proto_path_direction(session,0), temp_session->path_ul);
+	const proto_hierarchy_t * proto_path_0 =  get_session_proto_path_direction(session,1);
+	proto_hierarchy_ids_to_str(get_session_proto_path_direction(session,1), temp_session->path_ul);
 
 	if (proto_path_0->len == 0){
 		temp_session->path_ul[0] = '\0';
 	}
 
-	const proto_hierarchy_t * proto_path_1 =  get_session_proto_path_direction(session,1);
-	proto_hierarchy_ids_to_str(get_session_proto_path_direction(session,1), temp_session->path_dl);
+	const proto_hierarchy_t * proto_path_1 =  get_session_proto_path_direction(session,0);
+	proto_hierarchy_ids_to_str(get_session_proto_path_direction(session,0), temp_session->path_dl);
 
 
 	if (proto_path_1->len == 0){
@@ -83,25 +83,47 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	}
 
 	uint64_t active_session_count = get_active_session_count(th->mmt_handler);
+	if (keep_direction == 1){
 	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u",
 			MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source,temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec,
 			proto_id,
-			(keep_direction)?temp_session->path_ul:temp_session->path_dl,(keep_direction)?temp_session->path_dl:temp_session->path_ul,active_session_count,
+			temp_session->path_ul,temp_session->path_dl,active_session_count,
 			get_session_byte_count(session) - temp_session->session_attr->total_byte_count,
 			get_session_data_byte_count(session) - temp_session->session_attr->total_data_byte_count,
 			get_session_packet_count(session) - temp_session->session_attr->total_packet_count,
-			((keep_direction)?get_session_ul_byte_count(session):get_session_dl_byte_count(session)) - temp_session->session_attr->byte_count[0],
-			((keep_direction)?get_session_ul_data_byte_count(session):get_session_dl_data_byte_count(session)) - temp_session->session_attr->data_byte_count[0],
-			((keep_direction)?get_session_ul_packet_count(session):get_session_dl_packet_count(session)) - temp_session->session_attr->packet_count[0],
+			get_session_ul_byte_count(session)- temp_session->session_attr->byte_count[1],
+			get_session_ul_data_byte_count(session)- temp_session->session_attr->data_byte_count[1],
+			get_session_ul_packet_count(session) - temp_session->session_attr->packet_count[1],
 
-			((keep_direction)?get_session_dl_byte_count(session):get_session_ul_byte_count(session)) - temp_session->session_attr->byte_count[1],
-			((keep_direction)?get_session_dl_data_byte_count(session):get_session_ul_data_byte_count(session)) - temp_session->session_attr->data_byte_count[1],
-			((keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session)) - temp_session->session_attr->packet_count[1],
+			get_session_dl_byte_count(session) - temp_session->session_attr->byte_count[0],
+			get_session_dl_data_byte_count(session) - temp_session->session_attr->data_byte_count[0],
+			get_session_dl_packet_count(session) - temp_session->session_attr->packet_count[0],
 			temp_session->session_attr->start_time.tv_sec, temp_session->session_attr->start_time.tv_usec,
 			ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,temp_session ->session_id,
 			temp_session->serverport, temp_session->clientport,temp_session->thread_number,rtt_ms,temp_session->session_attr->rtt_min_usec[1] ,temp_session->session_attr->rtt_min_usec[0],
 			temp_session->session_attr->rtt_max_usec[1] ,temp_session->session_attr->rtt_max_usec[0],temp_session->session_attr->rtt_avg_usec[1],temp_session->session_attr->rtt_avg_usec[0],
 			get_session_retransmission_count (session)-temp_session->session_attr->retransmission_count);
+	}else{
+		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u",
+				MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source,temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec,
+				proto_id,
+				temp_session->path_ul,temp_session->path_dl,active_session_count,
+				get_session_byte_count(session) - temp_session->session_attr->total_byte_count,
+				get_session_data_byte_count(session) - temp_session->session_attr->total_data_byte_count,
+				get_session_packet_count(session) - temp_session->session_attr->total_packet_count,
+				get_session_ul_byte_count(session)- temp_session->session_attr->byte_count[0],
+				get_session_ul_data_byte_count(session)- temp_session->session_attr->data_byte_count[0],
+				get_session_ul_packet_count(session) - temp_session->session_attr->packet_count[0],
+
+				get_session_dl_byte_count(session) - temp_session->session_attr->byte_count[1],
+				get_session_dl_data_byte_count(session) - temp_session->session_attr->data_byte_count[1],
+				get_session_dl_packet_count(session) - temp_session->session_attr->packet_count[1],
+				temp_session->session_attr->start_time.tv_sec, temp_session->session_attr->start_time.tv_usec,
+				ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,temp_session ->session_id,
+				temp_session->serverport, temp_session->clientport,temp_session->thread_number,rtt_ms,temp_session->session_attr->rtt_min_usec[1] ,temp_session->session_attr->rtt_min_usec[0],
+				temp_session->session_attr->rtt_max_usec[1] ,temp_session->session_attr->rtt_max_usec[0],temp_session->session_attr->rtt_avg_usec[1],temp_session->session_attr->rtt_avg_usec[0],
+				get_session_retransmission_count (session)-temp_session->session_attr->retransmission_count);
+	}
 	valid = strlen(message);
 
 	//To inform what is comming at the start of the flow report
@@ -127,15 +149,15 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	temp_session->session_attr->total_data_byte_count = get_session_data_byte_count(session);
 	temp_session->session_attr->total_packet_count = get_session_packet_count(session);
 
-	temp_session->session_attr->byte_count[0] = (keep_direction)?get_session_ul_byte_count(session):get_session_dl_byte_count(session);
-	temp_session->session_attr->byte_count[1] = (keep_direction)?get_session_dl_byte_count(session):get_session_ul_byte_count(session);
+	temp_session->session_attr->byte_count[1] = (keep_direction)?get_session_ul_byte_count(session):get_session_dl_byte_count(session);
+	temp_session->session_attr->byte_count[0] = (keep_direction)?get_session_dl_byte_count(session):get_session_ul_byte_count(session);
 
-	temp_session->session_attr->data_byte_count[0] = (keep_direction)?get_session_ul_data_byte_count(session):get_session_dl_data_byte_count(session);
-	temp_session->session_attr->data_byte_count[1] = (keep_direction)?get_session_dl_data_byte_count(session):get_session_ul_data_byte_count(session);
+	temp_session->session_attr->data_byte_count[1] = (keep_direction)?get_session_ul_data_byte_count(session):get_session_dl_data_byte_count(session);
+	temp_session->session_attr->data_byte_count[0] = (keep_direction)?get_session_dl_data_byte_count(session):get_session_ul_data_byte_count(session);
 
 
-	temp_session->session_attr->packet_count[0] = (keep_direction)?get_session_ul_packet_count(session):get_session_dl_packet_count(session);
-	temp_session->session_attr->packet_count[1] = (keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session);
+	temp_session->session_attr->packet_count[1] = (keep_direction)?get_session_ul_packet_count(session):get_session_dl_packet_count(session);
+	temp_session->session_attr->packet_count[0] = (keep_direction)?get_session_dl_packet_count(session):get_session_ul_packet_count(session);
 	temp_session->session_attr->rtt_min_usec[1]=0;
 	temp_session->session_attr->rtt_min_usec[0]=0;
 	temp_session->session_attr->rtt_max_usec[1]=0;
