@@ -251,21 +251,27 @@ typedef struct rtp_session_attr_struct {
     time_t last_report_time_usec;//jeevan
 } rtp_session_attr_t;
 
-typedef struct ftp_command_struct{
+/*typedef struct ftp_command_struct{
     uint16_t cmd;
     char *str_cmd;
     char *param;
-}ftp_command_t;
+}ftp_command_t;*/
 
 /**
  * FTP response structure
  */
-typedef struct ftp_response_struct{
+/*typedef struct ftp_response_struct{
     uint16_t code;
     char *str_code;
     char *value;
-}ftp_response_t;
+}ftp_response_t;*/
 
+
+/*typedef struct ftp_reconstruction_struct {
+    time_t file_reconstruction_starttime_sec;
+    time_t file_reconstruction_starttime_usec;
+
+}ftp_reconstruction_t;*/
 
 typedef struct ftp_session_attr_struct {
     uint8_t session_conn_type;
@@ -283,10 +289,11 @@ typedef struct ftp_session_attr_struct {
     time_t file_download_starttime_usec;
     time_t file_download_finishtime_sec;
     time_t file_download_finishtime_usec;
+    //ftp_reconstruction_t * ftp_reconstruct;
 
 } ftp_session_attr_t;
 
-typedef struct ftp_packet_attr_struct {
+/*typedef struct ftp_packet_attr_struct {
     uint8_t packet_type;
     char * request;
     char * request_parameter;
@@ -294,7 +301,7 @@ typedef struct ftp_packet_attr_struct {
     char * response_value;
     uint32_t data_len;
 
-} ftp_packet_attr_t;
+} ftp_packet_attr_t;*/
 
 
 typedef struct temp_session_statistics_struct{

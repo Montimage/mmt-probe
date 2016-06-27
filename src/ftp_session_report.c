@@ -13,8 +13,6 @@
 #include "mmt/tcpip/mmt_tcpip.h"
 #include "processing.h"
 
-
-
 /*
 char * str_replace_all_char(const char *str,int c1, int c2){
     char *new_str;
@@ -30,38 +28,19 @@ char * str_replace_all_char(const char *str,int c1, int c2){
     return new_str;
 }
 
-typedef struct ftp_download_struct{
-	uint32_t total_len;
-	time_t download_start_time_sec;
-
-}ftp_download_struct_t;
-
 void write_data_to_file (const ipacket_t * ipacket,const char * path, const char * content, int len, uint32_t * file_size) {
     int fd = 0,MAX=200;
     char filename[len];
     char * path2=NULL;
 
-    static uint32_t total_len=0;
-    static time_t download_start_time_sec = 0, download_start_time_usec = 0;
-    //ftp_download_struct_t * download_parameters;
-
     mmt_probe_context_t * probe_context = get_probe_context_config();
 
-    total_len += len;
-
-    if (download_start_time_sec ==0 && download_start_time_usec==0){
-        download_start_time_sec = ipacket->p_hdr->ts.tv_sec;
-        download_start_time_usec = ipacket->p_hdr->ts.tv_usec;
-
-    }
-
     path2 = str_replace_all_char(path,'/','_');
-    snprintf(filename,MAX, "%s%lu.%lu_%s",probe_context->ftp_reconstruct_output_location,download_start_time_sec,download_start_time_usec,path);
+    snprintf(filename,MAX, "%s%lu_%s",probe_context->ftp_reconstruct_output_location,time(0),path);
     filename[MAX]='\0';
 
-
     if ( (fd = open ( filename , O_CREAT | O_WRONLY | O_APPEND | O_NOFOLLOW , S_IRWXU | S_IRWXG | S_IRWXO )) < 0 ){
-        fprintf ( stderr , "\n Error %d writting data to \"%s\": %s" , errno , path2 , strerror( errno ) );
+        fprintf ( stderr , "\n Error %d writing data to \"%s\": %s" , errno , path2 , strerror( errno ) );
         return;
     }
     if(path2 != NULL) free (path2);
@@ -72,17 +51,10 @@ void write_data_to_file (const ipacket_t * ipacket,const char * path, const char
         write ( fd , content , len );
     }
 
-    if (total_len >= * file_size){
-        download_start_time_sec =0,
-        download_start_time_usec=0;
-        total_len=0;
-    }
-
-
     close ( fd );
 }
 
-void reconstruct_data(const ipacket_t * ipacket ){
+void reconstruct_data(const ipacket_t * ipacket){
 
     uint8_t * data_type = (uint8_t *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_DATA_TYPE);
     int d_type = -1;
@@ -95,8 +67,6 @@ void reconstruct_data(const ipacket_t * ipacket ){
     uint32_t * data_len = (uint32_t *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_PACKET_DATA_LEN);
 
     uint32_t * file_size = (uint32_t *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_FILE_SIZE);
-
-
 
     int len = 0;
     if(data_len){
@@ -111,7 +81,8 @@ void reconstruct_data(const ipacket_t * ipacket ){
         write_data_to_file(ipacket,file_name,data_payload,len,file_size);
     }
 }
- */
+
+*/
 
 void reset_ftp_parameters(const ipacket_t * ipacket,session_struct_t *temp_session ){
 
@@ -119,13 +90,12 @@ void reset_ftp_parameters(const ipacket_t * ipacket,session_struct_t *temp_sessi
 	((ftp_session_attr_t*) temp_session->app_data)->file_download_starttime_usec=0;
 	((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_sec=0;
 	((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_usec=0;
-	/*   ((ftp_session_attr_t*) temp_session->app_data)->response_value=NULL;
+	/*((ftp_session_attr_t*) temp_session->app_data)->response_value=NULL;
     ((ftp_session_attr_t*) temp_session->app_data)->file_size=0;
     ((ftp_session_attr_t*) temp_session->app_data)->filename=NULL;
     ((ftp_session_attr_t*) temp_session->app_data)->response_code=0;
     ((ftp_session_attr_t*) temp_session->app_data)->session_password=NULL;
     ((ftp_session_attr_t*) temp_session->app_data)->packet_request=NULL;*/
-
 
 }
 
@@ -146,6 +116,7 @@ void ftp_session_connection_type_handle(const ipacket_t * ipacket, attribute_t *
 				return;
 			}
 		}
+
 	}
 	if (temp_session != NULL && temp_session->app_data != NULL) {
 		uint8_t * conn_type = (uint8_t *) attribute->data;
@@ -153,6 +124,7 @@ void ftp_session_connection_type_handle(const ipacket_t * ipacket, attribute_t *
 			((ftp_session_attr_t*) temp_session->app_data)->session_conn_type = *conn_type;
 
 			if (((ftp_session_attr_t*) temp_session->app_data)->session_conn_type == 2){
+				//if (probe_context->ftp_reconstruct_enable==1)reconstruct_data(ipacket);
 				uint64_t * control_session_id= (uint64_t *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_CONT_IP_SESSION_ID);
 				if (control_session_id != NULL)((ftp_session_attr_t*) temp_session->app_data)->session_id_control_channel = * control_session_id;
 			}
@@ -272,7 +244,10 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
 			message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
 			//send_message_to_file ("ftp.download.report", message);
 			//if (probe_context->output_to_file_enable==1)send_message_to_file (message);
-			if (probe_context->redis_enable==1)send_message_to_redis ("ftp.download.report", message);
+			//if (probe_context->redis_enable==1)send_message_to_redis ("ftp.download.report", message);
+
+			if (probe_context->output_to_file_enable == 1)send_message_to_file_thread (message, (void *)user_args);
+			if (probe_context->redis_enable == 1)send_message_to_redis ("ftp.download.report", message);
 			reset_ftp_parameters(ipacket,temp_session);
 			break;
 		}
@@ -322,7 +297,7 @@ void ftp_response_code_handle(const ipacket_t * ipacket, attribute_t * attribute
 		if (response_code != NULL && temp_session->app_format_id == probe_context->ftp_id) {
 			((ftp_session_attr_t*) temp_session->app_data)->response_code= * response_code;
 		}
-		if(*response_code==150){
+		if(*response_code == 150){
 			((ftp_session_attr_t*) temp_session->app_data)->file_download_starttime_sec = ipacket->p_hdr->ts.tv_sec;
 			((ftp_session_attr_t*) temp_session->app_data)->file_download_starttime_usec= ipacket->p_hdr->ts.tv_usec;
 		}
@@ -404,11 +379,11 @@ void register_ftp_attributes(void * handler){
 	int i=1;
 	i &=register_extraction_attribute(handler,PROTO_FTP,FTP_CONT_IP_SESSION_ID);
 	//For reconstruction
-	//i &=register_extraction_attribute(handler,PROTO_FTP,PROTO_PAYLOAD);
-	//i &=register_extraction_attribute(handler,PROTO_FTP,FTP_FILE_SIZE);
-	//i &=register_extraction_attribute(handler,PROTO_FTP,FTP_DATA_TYPE);
-	//i &=register_extraction_attribute(handler,PROTO_FTP,FTP_FILE_NAME);
-	//i &=register_extraction_attribute(handler,PROTO_FTP,FTP_PACKET_DATA_LEN);
+	/*i &=register_extraction_attribute(handler,PROTO_FTP,PROTO_PAYLOAD);
+	i &=register_extraction_attribute(handler,PROTO_FTP,FTP_FILE_SIZE);
+	i &=register_extraction_attribute(handler,PROTO_FTP,FTP_DATA_TYPE);
+	i &=register_extraction_attribute(handler,PROTO_FTP,FTP_FILE_NAME);
+	i &=register_extraction_attribute(handler,PROTO_FTP,FTP_PACKET_DATA_LEN);*/
 	if(!i) {
 		//TODO: we need a sound error handling mechanism! Anyway, we should never get here :)
 		fprintf(stderr, "Error while initializing MMT handlers and extractions!\n");

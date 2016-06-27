@@ -407,6 +407,10 @@ void flowstruct_init(void * args) {
 
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_ACTIVE_SESSIONS_COUNT);
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, PROTO_ACTIVE_SESSIONS_COUNT);
+	i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_FRAG_PACKET_COUNT);
+	i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_FRAG_DATA_VOLUME);
+	i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_DF_PACKET_COUNT);
+	i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_DF_DATA_VOLUME);
 
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
