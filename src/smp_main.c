@@ -574,25 +574,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_P_CLOSE_OUTPUT, lg_msg);
 
 	}
-	/*   char behaviour_command_str [500+1] = {0};
-    int behaviour_valid = 0 ;
-    int cr;
-    //If the files are not created this will return error,remove_lock_file();
-     if(mmt_conf->sampled_report == 1){
-     	//flush_cache_and_exit_timers();
-     }else if (mmt_conf->sampled_report == 0){
-         if (mmt_conf->behaviour_enable == 1){
-             behaviour_valid=snprintf(behaviour_command_str, MAX_FILE_NAME, "cp %s%s %s", mmt_conf->output_location,mmt_conf->data_out,mmt_conf->behaviour_output_location);
-             behaviour_command_str[behaviour_valid]='\0';
-             cr = system(behaviour_command_str);
-             if (cr!=0){
-                 fprintf(stderr,"\n5 Error code %d, while coping output file %s to %s ",cr, mmt_conf->output_location,mmt_conf->behaviour_output_location);
-                 exit(1);
-             }
-             exit_timers();
-         }
-
-     }*/
 
 	for (i=0; i < mmt_conf->condition_reports_nb; i++){
 		free (mmt_conf->condition_reports[i].attributes);

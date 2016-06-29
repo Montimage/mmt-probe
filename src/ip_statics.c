@@ -60,10 +60,38 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	}
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
 	int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
+
+
+
+	uint64_t value_time;
+/*	if (temp_session->app_format_id == probe_context->ftp_id && probe_context->ftp_enable == 1){
+		if (((ftp_session_attr_t*) temp_session->app_data)->session_conn_type == 2){};
+				if (temp_session->session_attr->start_time.tv_sec == 0 ){
+					temp_session->session_attr->start_time = get_session_init_time(session);
+					value_time = TIMEVAL_2_USEC(mmt_time_diff(temp_session->session_attr->start_time,get_session_last_activity_time(session)));
+				}else {
+					value_time = TIMEVAL_2_USEC(mmt_time_diff(temp_session->session_attr->last_activity_time,get_session_last_activity_time(session)));
+				}
+
+				if (value_time == 0 )value_time = 1000000;
+
+				double throughput0 = (double) (get_session_ul_byte_count(session)- temp_session->session_attr->byte_count[0])/value_time;
+				double throughput1 = (double)(get_session_dl_byte_count(session)- temp_session->session_attr->byte_count[1])/value_time;
+				((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[0] =(throughput0)*1000000;
+				((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[1] =(throughput1)*1000000;
+
+				printf("value_time = %"PRIu64",\t b=%"PRIu64" \t ftp_throughput[0]=%f \n",value_time,(get_session_ul_byte_count(session)- temp_session->session_attr->byte_count[0]),(double)((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[0] );
+				printf("value_time = %"PRIu64",\t b=%"PRIu64" \t ftp_throughput[1]=%f \n\n",value_time,(get_session_dl_byte_count(session)- temp_session->session_attr->byte_count[1]),(double)((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[1]);
+
+	}*/
+
+	temp_session->session_attr->last_activity_time = get_session_last_activity_time(session);
 	temp_session->session_attr->start_time = get_session_init_time(session);
 	proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(session), temp_session->path);
-	temp_session->session_attr->last_activity_time = get_session_last_activity_time(session);
+
 	int sslindex;
+
+
 
 	uint64_t rtt_ms = TIMEVAL_2_USEC(get_session_rtt(session));
 

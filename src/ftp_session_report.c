@@ -377,7 +377,7 @@ void print_initial_ftp_report(const mmt_session_t * session,session_struct_t * t
 
 void register_ftp_attributes(void * handler){
 	int i=1;
-	i &=register_extraction_attribute(handler,PROTO_FTP,FTP_CONT_IP_SESSION_ID);
+	i &= register_extraction_attribute(handler,PROTO_FTP,FTP_CONT_IP_SESSION_ID);
 	//For reconstruction
 	/*i &=register_extraction_attribute(handler,PROTO_FTP,PROTO_PAYLOAD);
 	i &=register_extraction_attribute(handler,PROTO_FTP,FTP_FILE_SIZE);

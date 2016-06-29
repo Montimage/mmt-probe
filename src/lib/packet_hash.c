@@ -109,5 +109,6 @@ uint32_t get_packet_hash_number( const u_char *packet, size_t len ){
 //	a1 = (a1 >> 24) + (a1 >> 16) + (a1 >> 8) + a1;
 //	a2 = (a2 >> 24) + (a2 >> 16) + (a2 >> 8) + a2;
 
-	return _dispatcher( a1 + a2 + p1 + p2 );
+	//return _dispatcher( a1 + a2 + p1 + p2 );
+	return _dispatcher( a1 + a2);
 }

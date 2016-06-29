@@ -289,7 +289,8 @@ typedef struct ftp_session_attr_struct {
     time_t file_download_starttime_usec;
     time_t file_download_finishtime_sec;
     time_t file_download_finishtime_usec;
-    //ftp_reconstruction_t * ftp_reconstruct;
+    uint64_t ftp_throughput[2];
+	//ftp_reconstruction_t * ftp_reconstruct;
 
 } ftp_session_attr_t;
 
