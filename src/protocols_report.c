@@ -31,7 +31,7 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 		//if (proto_struct->has_session == 0){
 		int i = 0;
 
-		if (proto_id == 178 && proto_stats->ip_frag_packets_count > 0 && proto_stats->ip_df_packets_count > 0 ){
+		if (proto_id == 178){
 			long int ip_nodf_data_volume = (long int)(proto_stats->ip_frag_data_volume - proto_stats->ip_df_data_volume);
 			long int ip_nodf_packets_count = (long int)(proto_stats->ip_frag_packets_count - proto_stats->ip_df_packets_count);
 			snprintf(ip_message, MAX_MESS,
