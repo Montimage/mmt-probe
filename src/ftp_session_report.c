@@ -373,6 +373,8 @@ void print_initial_ftp_report(const mmt_session_t * session,session_struct_t * t
 	);
 
 	temp_session->session_attr->touched = 1;
+	((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[0]=0;
+	((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[1]=0;
 }
 
 void register_ftp_attributes(void * handler){

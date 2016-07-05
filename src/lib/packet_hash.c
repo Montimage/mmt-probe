@@ -51,7 +51,7 @@ uint32_t get_packet_hash_number( const u_char *packet, size_t len ){
 	static struct __eth_hdr_struct  * eth;
 
 	static uint32_t a1, a2;
-	static uint16_t p1, p2;
+	//static uint16_t p1, p2;
 	static uint16_t ip_src_off;
 	static uint8_t proto_id;
 
@@ -76,14 +76,14 @@ uint32_t get_packet_hash_number( const u_char *packet, size_t len ){
 	a1 = *((uint32_t *) &packet[ip_src_off]);
 	a2 = *((uint32_t *) &packet[ip_src_off + 4]);
 
-	proto_id = *((uint8_t *) &packet[ ip_src_off - 3 ]);
+	/*proto_id = *((uint8_t *) &packet[ ip_src_off - 3 ]);
 	//src and dst ports of TCP or UDP
 	if( likely(proto_id == 6 || proto_id == 17 )){
 		p1 = *((uint16_t *) &packet[ ip_src_off + 8]);
 		p2 = *((uint16_t *) &packet[ ip_src_off + 8 + 2]);
 	}
 	else
-		p1 = p2 = 0;
+		p1 = p2 = 0;*/
 
 	//p1 = ntohs( p1 );
 	//p2 = ntohs( p2 );

@@ -202,6 +202,7 @@ typedef struct mmt_probe_context_struct {
 
     uint32_t enable_proto_without_session_stats;
     uint32_t enable_flow_stats;
+    uint32_t enable_IP_fragmentation_report;
 
     uint32_t radius_starategy;
     uint32_t radius_message_id;
@@ -554,6 +555,7 @@ void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * u
 void content_len_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void flush_messages_to_file_thread( void *arg);
 void iterate_session( void *arg);
+double * throughput(const mmt_session_t * session,session_struct_t * temp_session,int keep_direction);
 
 //prototypes
 //void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session);

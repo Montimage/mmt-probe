@@ -33,7 +33,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	char src_mac_pretty [18], dst_mac_pretty [18];
 	int keep_direction = 1;
 	int valid = 0;
-   	struct smp_thread *th = (struct smp_thread *) user_args;
+	struct smp_thread *th = (struct smp_thread *) user_args;
 
 	if (temp_session->session_attr == NULL) {
 		temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
@@ -61,28 +61,15 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
 	int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
 
-
-
-	uint64_t value_time;
 /*	if (temp_session->app_format_id == probe_context->ftp_id && probe_context->ftp_enable == 1){
-		if (((ftp_session_attr_t*) temp_session->app_data)->session_conn_type == 2){};
-				if (temp_session->session_attr->start_time.tv_sec == 0 ){
-					temp_session->session_attr->start_time = get_session_init_time(session);
-					value_time = TIMEVAL_2_USEC(mmt_time_diff(temp_session->session_attr->start_time,get_session_last_activity_time(session)));
-				}else {
-					value_time = TIMEVAL_2_USEC(mmt_time_diff(temp_session->session_attr->last_activity_time,get_session_last_activity_time(session)));
-				}
-
-				if (value_time == 0 )value_time = 1000000;
-
-				double throughput0 = (double) (get_session_ul_byte_count(session)- temp_session->session_attr->byte_count[0])/value_time;
-				double throughput1 = (double)(get_session_dl_byte_count(session)- temp_session->session_attr->byte_count[1])/value_time;
-				((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[0] =(throughput0)*1000000;
-				((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[1] =(throughput1)*1000000;
-
-				printf("value_time = %"PRIu64",\t b=%"PRIu64" \t ftp_throughput[0]=%f \n",value_time,(get_session_ul_byte_count(session)- temp_session->session_attr->byte_count[0]),(double)((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[0] );
-				printf("value_time = %"PRIu64",\t b=%"PRIu64" \t ftp_throughput[1]=%f \n\n",value_time,(get_session_dl_byte_count(session)- temp_session->session_attr->byte_count[1]),(double)((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[1]);
-
+		if (((ftp_session_attr_t*) temp_session->app_data)->session_conn_type == 2){
+			double * data_throughput;
+			data_throughput = throughput(session,temp_session,keep_direction);
+			((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[0] =(data_throughput[0])*1000000;
+			((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[1] =(data_throughput[1])*1000000;
+			printf("temp_session->app_data)->ftp_throughput[0] = %"PRIu64"\n",((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[0]);
+			printf("temp_session->app_data)->ftp_throughput[1] = %"PRIu64"\n\n",((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[1]);
+		}
 	}*/
 
 	temp_session->session_attr->last_activity_time = get_session_last_activity_time(session);
@@ -90,8 +77,6 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(session), temp_session->path);
 
 	int sslindex;
-
-
 
 	uint64_t rtt_ms = TIMEVAL_2_USEC(get_session_rtt(session));
 
@@ -174,7 +159,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	if (probe_context->output_to_file_enable == 1)send_message_to_file_thread (message, (void *)user_args);
 	if (probe_context->redis_enable == 1)send_message_to_redis ("session.flow.report", message);
 
-    temp_session->session_attr->retransmission_count = get_session_retransmission_count (session);
+	temp_session->session_attr->retransmission_count = get_session_retransmission_count (session);
 
 	temp_session->session_attr->total_byte_count = get_session_data_cap_volume(session);
 	temp_session->session_attr->total_data_byte_count = get_session_data_byte_count(session);
@@ -223,7 +208,7 @@ void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	if (proto_id != NULL && * proto_id == 6 &&  latest_rtt > 0 ) {
 		if (temp_session->session_attr->rtt_min_usec[ip_rtt.direction] == 0){
 			temp_session->session_attr->rtt_min_usec[ip_rtt.direction] = latest_rtt;
-			temp_session->session_attr->rtt_counter[ip_rtt.direction] =1;
+			temp_session->session_attr->rtt_counter[ip_rtt.direction] = 1;
 
 		} else {
 			temp_session->session_attr->rtt_min_usec[ip_rtt.direction] = (temp_session->session_attr->rtt_min_usec[ip_rtt.direction] < latest_rtt) ? temp_session->session_attr->rtt_min_usec[ip_rtt.direction] : latest_rtt;
@@ -243,3 +228,29 @@ void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	}
 
 }
+
+double * throughput(const mmt_session_t * session,session_struct_t * temp_session, int keep_direction){
+	uint64_t time_interval;
+	uint64_t total_download_time;
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+	double * throughput;
+	throughput = malloc(sizeof(double)*3);
+	memset(throughput,0,3);
+
+	if (temp_session->session_attr->start_time.tv_sec == 0 ){
+		temp_session->session_attr->start_time = get_session_init_time(session);
+		time_interval = TIMEVAL_2_USEC(mmt_time_diff(temp_session->session_attr->start_time,get_session_last_activity_time(session)));
+	}else {
+		time_interval = TIMEVAL_2_USEC(mmt_time_diff(temp_session->session_attr->last_activity_time,get_session_last_activity_time(session)));
+	}
+
+	if (keep_direction == 1){
+		if (get_session_ul_byte_count(session)- temp_session->session_attr->byte_count[1] > 0)throughput[0] = (double) (get_session_ul_byte_count(session)- temp_session->session_attr->byte_count[1])/time_interval;
+		if (get_session_dl_byte_count(session)- temp_session->session_attr->byte_count[0] > 0)throughput[1] = (double) (get_session_dl_byte_count(session)- temp_session->session_attr->byte_count[0])/time_interval;
+	} else {
+		if (get_session_ul_byte_count(session)- temp_session->session_attr->byte_count[0] > 0)throughput[0] = (double)(get_session_ul_byte_count(session)- temp_session->session_attr->byte_count[0])/time_interval;
+		if (get_session_dl_byte_count(session)- temp_session->session_attr->byte_count[1] > 0)throughput[1] = (double)(get_session_dl_byte_count(session)- temp_session->session_attr->byte_count[1])/time_interval;
+	}
+	return throughput;
+}
+

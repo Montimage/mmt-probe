@@ -30,18 +30,20 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 		protocol_t * proto_struct = get_protocol_struct_by_id (proto_id);
 		//if (proto_struct->has_session == 0){
 		int i = 0;
+		//Count for fragmented and defragmented packets
+		if (probe_context->enable_IP_fragmentation_report == 1){
+			if (proto_id == 178 && (proto_stats->ip_frag_packets_count + proto_stats->ip_df_packets_count > 0)){
+				long int ip_nodf_data_volume = (long int)(proto_stats->ip_frag_data_volume - proto_stats->ip_df_data_volume);
+				long int ip_nodf_packets_count = (long int)(proto_stats->ip_frag_packets_count - proto_stats->ip_df_packets_count);
+				snprintf(ip_message, MAX_MESS,
+						"%u,%u,\"%s\",%lu.%lu,\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%ld,%ld",
+						101,probe_context->probe_id_number,probe_context->input_source, proto_stats->last_packet_time.tv_sec, proto_stats->last_packet_time.tv_usec,path,
+						proto_stats->ip_frag_data_volume,proto_stats->ip_frag_packets_count,proto_stats->ip_df_data_volume, proto_stats->ip_df_packets_count,ip_nodf_data_volume, ip_nodf_packets_count);
 
-		if (proto_id == 178){
-			long int ip_nodf_data_volume = (long int)(proto_stats->ip_frag_data_volume - proto_stats->ip_df_data_volume);
-			long int ip_nodf_packets_count = (long int)(proto_stats->ip_frag_packets_count - proto_stats->ip_df_packets_count);
-			snprintf(ip_message, MAX_MESS,
-					"%u,%u,\"%s\",%lu.%lu,\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%ld,%ld",
-					101,probe_context->probe_id_number,probe_context->input_source, proto_stats->last_packet_time.tv_sec, proto_stats->last_packet_time.tv_usec,path,
-					proto_stats->ip_frag_data_volume,proto_stats->ip_frag_packets_count,proto_stats->ip_df_data_volume, proto_stats->ip_df_packets_count,ip_nodf_data_volume, ip_nodf_packets_count);
-
-			ip_message[ MAX_MESS ] = '\0';
-			if (probe_context->output_to_file_enable==1)send_message_to_file_thread (ip_message,th);
-			if (probe_context->redis_enable==1)send_message_to_redis ("protocol.stat", ip_message);
+				ip_message[ MAX_MESS ] = '\0';
+				if (probe_context->output_to_file_enable==1)send_message_to_file_thread (ip_message,th);
+				if (probe_context->redis_enable==1)send_message_to_redis ("protocol.stat", ip_message);
+			}
 		}
 		int skip =0;
 		for (i=1;i<=proto_hierarchy.len;i++){
