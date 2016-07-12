@@ -117,7 +117,7 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 			((web_session_attr_t *) temp_session->app_data)->request_counter = 1;
 		}else{
 			((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 1;// response is finished
-			temp_session->report_counter = th->report_counter;
+			 temp_session->report_counter = th->report_counter;
 			 print_ip_session_report (ipacket->session,user_args);
 			 http_reset_report(temp_session);
 			 ((web_session_attr_t *) temp_session->app_data)->request_counter++;
