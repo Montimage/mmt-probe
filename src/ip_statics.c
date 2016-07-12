@@ -28,8 +28,10 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 		if (((web_session_attr_t *) temp_session->app_data)->touched == 0)
 			return;
 	}*/
+
 	char message[MAX_MESS + 1];
 	uint8_t *ea = 0;
+	uint64_t report_number;
 	char src_mac_pretty [18], dst_mac_pretty [18];
 	int keep_direction = 1;
 	int valid = 0;
@@ -39,10 +41,19 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 		temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
 		memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
 	}
+
 	// To  check whether the session activity occurs between the reporting time interval
 	if (TIMEVAL_2_USEC(mmt_time_diff(temp_session->session_attr->last_activity_time,get_session_last_activity_time(session))) == 0)return; // check the condition if in the last interval there was a protocol activity or not
 	//if (get_session_byte_count(session) - temp_session->session_attr->total_byte_count == 0)return;
 
+	// The report number is maintain to synchronize between the reporting time of the probe and MMT-operator report display time.
+	if (temp_session->report_counter == th->report_counter){
+		report_number = temp_session->report_counter + 1;
+        temp_session->report_counter = 0;
+	}else {
+		report_number = th->report_counter;
+	}
+	//printf ("report_counter = %lu \n", report_number);
 	ea = temp_session->src_mac;
 	snprintf(src_mac_pretty , 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
 	ea = temp_session->dst_mac;
@@ -61,16 +72,27 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
 	int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
 
-/*	if (temp_session->app_format_id == probe_context->ftp_id && probe_context->ftp_enable == 1){
+	if (temp_session->app_format_id == probe_context->ftp_id && probe_context->ftp_enable == 1){
+		if (temp_session->app_data == NULL) return;
 		if (((ftp_session_attr_t*) temp_session->app_data)->session_conn_type == 2){
-			double * data_throughput;
-			data_throughput = throughput(session,temp_session,keep_direction);
-			((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[0] =(data_throughput[0])*1000000;
-			((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[1] =(data_throughput[1])*1000000;
-			printf("temp_session->app_data)->ftp_throughput[0] = %"PRIu64"\n",((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[0]);
-			printf("temp_session->app_data)->ftp_throughput[1] = %"PRIu64"\n\n",((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[1]);
+			double data_throughput_ftp[2] = {0.0,0.0};
+			throughput(session,temp_session,keep_direction,data_throughput_ftp );
+			((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[0] =(data_throughput_ftp[0])*1000000;
+			((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[1] =(data_throughput_ftp[1])*1000000;
+			//printf("temp_session->app_data)->ftp_throughput[0] = %"PRIu64"\n",((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[0]);
+			//printf("temp_session->app_data)->ftp_throughput[1] = %"PRIu64"\n\n",((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[1]);
+
 		}
-	}*/
+	}
+	if (temp_session->app_format_id == probe_context->rtp_id && probe_context->rtp_enable == 1){
+		if (temp_session->app_data == NULL) return;
+		double data_throughput_rtp[2] = {0.0,0.0};
+		throughput(session,temp_session,keep_direction,data_throughput_rtp);
+		((rtp_session_attr_t*) temp_session->app_data)->rtp_throughput[0] =(data_throughput_rtp[0])*1000000;
+		((rtp_session_attr_t*) temp_session->app_data)->rtp_throughput[1] =(data_throughput_rtp[1])*1000000;
+		//printf("temp_session->app_data)->rtp_throughput[0] = %"PRIu64"\n",((rtp_session_attr_t*) temp_session->app_data)->rtp_throughput[0]);
+		//printf("temp_session->app_data)->rtp_throughput[1] = %"PRIu64"\n\n",((rtp_session_attr_t*) temp_session->app_data)->rtp_throughput[1]);
+	}
 
 	temp_session->session_attr->last_activity_time = get_session_last_activity_time(session);
 	temp_session->session_attr->start_time = get_session_init_time(session);
@@ -97,7 +119,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 
 	uint64_t active_session_count = get_active_session_count(th->mmt_handler);
 	if (keep_direction == 1){
-		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u",
+		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%u,\"%s\",\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%06lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%"PRIu64"",
 				MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source,temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec,
 				proto_id,
 				temp_session->path_ul,temp_session->path_dl,active_session_count,
@@ -116,9 +138,9 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 				ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,temp_session ->session_id,
 				temp_session->serverport, temp_session->clientport,temp_session->thread_number,rtt_ms,temp_session->session_attr->rtt_min_usec[1] ,temp_session->session_attr->rtt_min_usec[0],
 				temp_session->session_attr->rtt_max_usec[1] ,temp_session->session_attr->rtt_max_usec[0],temp_session->session_attr->rtt_avg_usec[1],temp_session->session_attr->rtt_avg_usec[0],
-				get_session_retransmission_count (session)-temp_session->session_attr->retransmission_count);
+				get_session_retransmission_count (session)-temp_session->session_attr->retransmission_count,report_number);
 	}else{
-		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u",
+		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%u,\"%s\",\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%06lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%"PRIu64"",
 				MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source,temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec,
 				proto_id,
 				temp_session->path_ul,temp_session->path_dl,active_session_count,
@@ -137,7 +159,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 				ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,temp_session ->session_id,
 				temp_session->serverport, temp_session->clientport,temp_session->thread_number,rtt_ms,temp_session->session_attr->rtt_min_usec[1] ,temp_session->session_attr->rtt_min_usec[0],
 				temp_session->session_attr->rtt_max_usec[1] ,temp_session->session_attr->rtt_max_usec[0],temp_session->session_attr->rtt_avg_usec[1],temp_session->session_attr->rtt_avg_usec[0],
-				get_session_retransmission_count (session)-temp_session->session_attr->retransmission_count);
+				get_session_retransmission_count (session)-temp_session->session_attr->retransmission_count, report_number);
 	}
 	valid = strlen(message);
 
@@ -229,13 +251,10 @@ void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * u
 
 }
 
-double * throughput(const mmt_session_t * session,session_struct_t * temp_session, int keep_direction){
+void throughput(const mmt_session_t * session,session_struct_t * temp_session, int keep_direction, double throughput []){
 	uint64_t time_interval;
 	uint64_t total_download_time;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
-	double * throughput;
-	throughput = malloc(sizeof(double)*3);
-	memset(throughput,0,3);
 
 	if (temp_session->session_attr->start_time.tv_sec == 0 ){
 		temp_session->session_attr->start_time = get_session_init_time(session);
@@ -251,6 +270,6 @@ double * throughput(const mmt_session_t * session,session_struct_t * temp_sessio
 		if (get_session_ul_byte_count(session)- temp_session->session_attr->byte_count[0] > 0)throughput[0] = (double)(get_session_ul_byte_count(session)- temp_session->session_attr->byte_count[0])/time_interval;
 		if (get_session_dl_byte_count(session)- temp_session->session_attr->byte_count[1] > 0)throughput[1] = (double)(get_session_dl_byte_count(session)- temp_session->session_attr->byte_count[1])/time_interval;
 	}
-	return throughput;
+
 }
 

@@ -145,6 +145,7 @@ static void *smp_thread_routine(void *arg) {
 	while ( 1 ) {
 
 		if(time(NULL)- th->last_stat_report_time >= mmt_probe.mmt_conf->stats_reporting_period){
+			th->report_counter++;
 			th->last_stat_report_time=time(NULL);
 			process_session_timer_handler(th->mmt_handler);
 			if (probe_context->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, th);
@@ -233,6 +234,7 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 			header.user_args = NULL;
 
 			if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
+				mmt_probe->smp_threads->report_counter++;
 				mmt_probe->smp_threads->last_stat_report_time =time(NULL);
 				process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
 				if (mmt_probe->mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
@@ -359,6 +361,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
 		header.user_args = NULL;
 
 		if(time(NULL)- mmt_probe.smp_threads->last_stat_report_time  >= mmt_probe.mmt_conf->stats_reporting_period){
+			mmt_probe.smp_threads->report_counter++;
 			mmt_probe.smp_threads->last_stat_report_time = time(NULL);
 			process_session_timer_handler(mmt_probe.smp_threads->mmt_handler);
 			if (mmt_probe.mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe.smp_threads);
@@ -468,6 +471,7 @@ void *Reader(void *arg) {
 		while (1){
 			pcap_dispatch(handle, 1000, got_packet, NULL);
 			if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time  >= mmt_probe->mmt_conf->stats_reporting_period){
+				mmt_probe->smp_threads->report_counter++;
 				mmt_probe->smp_threads->last_stat_report_time = time(NULL);
 				process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
 				if (mmt_probe->mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);

@@ -250,6 +250,7 @@ typedef struct rtp_session_attr_struct {
     uint64_t dl_byte_count;        //metric
     time_t last_report_time_sec;
     time_t last_report_time_usec;//jeevan
+    uint64_t rtp_throughput[2];
 } rtp_session_attr_t;
 
 /*typedef struct ftp_command_struct{
@@ -378,6 +379,7 @@ typedef struct session_struct {
     uint32_t contentclass;
     uint32_t thread_number;
     uint64_t session_id;
+    uint64_t report_counter;
     temp_session_statistics_t * session_attr;
     void * app_data;
 } session_struct_t;
@@ -464,6 +466,7 @@ struct smp_thread {
     time_t last_stat_report_time;
     time_t last_msg_report_time;
     int check_timer;
+    uint64_t report_counter;
     mmt_event_report_t * event_reports;
     char *cache_message_list[ MAX_CACHE_SIZE ];
     int cache_count;
@@ -555,7 +558,7 @@ void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * u
 void content_len_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void flush_messages_to_file_thread( void *arg);
 void iterate_session( void *arg);
-double * throughput(const mmt_session_t * session,session_struct_t * temp_session,int keep_direction);
+void throughput(const mmt_session_t * session,session_struct_t * temp_session,int keep_direction, double throughput []);
 
 //prototypes
 //void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session);

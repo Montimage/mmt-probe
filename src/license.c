@@ -71,33 +71,47 @@ int license_expiry_check(int status){
 	FILE * license_key;
 	int MAX=50;
 	char message[MAX];
-	int valid=0;
 	char year[5];
 	char month[3];
 	char day[3];
 	char no_of_mac_address[4];
 	char *read_mac_address;
 	int no_of_mac;
-	int offset=0;
-	char block1[11];
-	char block2[11];
-	char block3[11];
-	char block4[11];
+	char read_sum_license[20];
 	char license_message[MAX_MESS + 1];
-	char lg_msg[256];
+	char lg_msg[512];
 	char version_probe[15] = "v0.95-003fc92";
 	char version_sdk[15] = "v1.4-6e9fae9";
+	char ch;
+	char license_decrypt_key[300];
+	int i =0;
+
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	//convert timeval time into epoch time
 	struct timeval current_time;
 	gettimeofday (&current_time, NULL);
 
-	//license_key= fopen("/opt/mmt/mmt_bin/License_key.key", "r");
 	license_key= fopen(probe_context->license_location, "r");
-	//license_key= fopen("License_key.key", "r");
 
-	if(license_key == NULL) {
+	while(1)
+	{
+		ch=fgetc(license_key);
+		if(ch==EOF)
+		{
+			//printf("\nEnd Of File\n");
+			break;
+		}
+		else
+		{
+			ch=ch+(8*4-3);
+			license_decrypt_key[i] = ch;
+			i++;
+		}
+	}
+	license_decrypt_key [i] = '\0';
+
+	if(license_decrypt_key == NULL) {
 		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_KEY_DOES_NOT_EXIST);
 		license_message[ MAX_MESS ] = '\0';
 		if (probe_context->output_to_file_enable==1 && status ==0)send_message_to_file (license_message);
@@ -114,66 +128,44 @@ int license_expiry_check(int status){
 		return 1;
 	}
 
-	fseek(license_key,offset,SEEK_SET);
-	offset+=fread(block1,1,10,license_key);
-	block1[10]='\0';
+	int length = strlen (license_decrypt_key);
 
-	fseek(license_key,offset,SEEK_SET);
-	offset+=fread(year,1,4,license_key);
+	strncpy(year,&license_decrypt_key[0],4);
+	strncpy(month,&license_decrypt_key[4],2);
+	strncpy(day,&license_decrypt_key[6],2);
+	strncpy(no_of_mac_address,&license_decrypt_key[8],3);
 	year[4]='\0';
-
-	fseek(license_key,offset,SEEK_SET);
-	offset+=fread(month,1,2,license_key);
 	month[2]='\0';
-
-	fseek(license_key,offset,SEEK_SET);
-	offset+=fread(day,1,2,license_key);
 	day[2]='\0';
-
-	long int date = atoi(year)*atoi(month)*atoi(day);
-
-	valid=snprintf(message,MAX,"%li",date);
-	message[valid]='\0';
-
-	char * key;
-	key=malloc((valid+1)*sizeof(char));
-
-	fseek(license_key,offset,SEEK_SET);
-	offset+=fread(block2,1,10,license_key);
-	block2[10]='\0';
-
-	fseek(license_key,offset,SEEK_SET);
-	offset+=fread(key,1,valid,license_key);
-	key[valid]='\0';
-
-	int mn_dy=atoi(month)* atoi (day);
-	int yr_dy=atoi(year) * atoi(day);
-	int mn_yr=atoi (month) * atoi (year);
-
-	int yr =  atoi(key)/mn_dy;
-	int mn= atoi(key)/yr_dy;
-	int dy= atoi(key)/mn_yr;
-
-	fseek(license_key,offset,SEEK_SET);
-	offset+=fread(block3,1,10,license_key);
-	block3[10]='\0';
-
-	fseek(license_key,offset,SEEK_SET);
-	offset+=fread(no_of_mac_address,1,3,license_key);
 	no_of_mac_address[3]='\0';
 	no_of_mac=atoi(no_of_mac_address);
-	//printf("no_of_mac=%d\n",no_of_mac);
-
-
 	int mac_length=0;
 	mac_length=no_of_mac*12;
 
 	read_mac_address=malloc(sizeof(char)* (mac_length+1));
-	memset(read_mac_address,0,mac_length);
-	fseek(license_key,offset,SEEK_SET);
-	offset+=fread(read_mac_address,1,mac_length,license_key);
-	read_mac_address[mac_length]='\0';
 
+	strncpy(read_mac_address,&license_decrypt_key[11],mac_length);
+	read_mac_address[mac_length]='\0';
+	strncpy(read_sum_license,&license_decrypt_key[11+mac_length],length-(mac_length+11));
+	read_sum_license[length-(mac_length+11)] = '\0';
+
+	//printf("sum_license =%s\n",read_sum_license);
+	int yr = atoi(year);
+	int mn = atoi(month);
+	int dy = atoi(day);
+
+	long int date_sum = yr*mn*dy;
+    long int  sum_mac=0;
+    int m;
+
+	for (m=0;m<(no_of_mac*12);m++){
+
+		sum_mac+=read_mac_address[m];
+
+	}
+	long int sum_license_calc = date_sum + sum_mac + no_of_mac;
+
+	//printf("sum_license_calc =%li\n",sum_license_calc);
 
 	char * mac_address;
 	mac_address=malloc(sizeof(char)*no_of_mac*13);
@@ -191,65 +183,9 @@ int license_expiry_check(int status){
 			offset_mac_write+=12;
 			offset_mac_read+=12;
 		}
-
 	}
 	mac_address[offset_mac_write]='\0';
-	//printf("MAC address=%s",mac_address);
 
-	fseek(license_key,offset,SEEK_SET);
-	offset+=fread(block4,1,10,license_key);
-	block4[10]='\0';
-
-	long int  sum_mac=0;
-	int i;
-	int valid1=0;
-
-	for (i=0;i<(no_of_mac*12);i++){
-
-		sum_mac+=read_mac_address[i];
-
-	}
-
-	char * sum_mac_str;
-
-	sum_mac_str= malloc(sizeof(char)*20);
-
-	memset(sum_mac_str,'0',20);
-	valid1=snprintf(sum_mac_str,20,"%li",sum_mac);
-
-	sum_mac_str[valid1]='\0';
-
-	char * read_sum_mac;
-	read_sum_mac=malloc(sizeof(char)* (valid1 + 1));
-	fseek(license_key,offset,SEEK_SET);
-	offset+=fread(read_sum_mac,1,valid1,license_key);
-	read_sum_mac[valid1]='\0';
-
-	int valid2=0;
-	int k=0;
-	unsigned long int  sum_of_blocks=0;
-
-	for (k=0;k<10;k++){
-
-		sum_of_blocks+=block1[k]+block2[k]+block3[k]+block4[k];
-
-	}
-
-	char * sum_block_str;
-
-	sum_block_str= malloc(sizeof(char)*20);
-
-	memset(sum_block_str,'0',20);
-	valid2=snprintf(sum_block_str,20,"%lu",sum_of_blocks);
-	sum_block_str[valid2]='\0';
-
-	char * read_sum_block;
-	read_sum_block=malloc(sizeof(char)* (valid2+1));
-	fseek(license_key,offset,SEEK_SET);
-	offset += fread(read_sum_block,1,valid2,license_key);
-	read_sum_block[valid2]='\0';
-
-	//printf("sum_of_blocks_read=%s\n",read_sum_block);
 	if(license_key != NULL) fclose (license_key);
 
 	//calculate difference in seconds between two dates
@@ -262,14 +198,14 @@ int license_expiry_check(int status){
 	seconds=difftime(mktime(&expiry_time),now);
 	// printf("seconds=%f\n",seconds);
 
-
 	//convert time_t into epoch time
 	struct timeval expired_date;
 	expired_date.tv_sec=expiry_date;
 	expired_date.tv_usec=0;
 	int return_ok = 0;
 
-	if (strncmp(key,message,valid)==0 && yr==atoi(year) && mn==atoi(month) && dy==atoi(day) && strncmp(read_sum_mac,sum_mac_str,valid1)==0 && strncmp(read_sum_block,sum_block_str,valid2)==0){
+	//if (strncmp(key,message,valid)==0 && yr==atoi(year) && mn==atoi(month) && dy==atoi(day) && strncmp(read_sum_mac,sum_mac_str,valid1)==0 && strncmp(read_sum_block,sum_block_str,valid2)==0){
+	if (sum_license_calc == atoi(read_sum_license)){
 
 		int valid_mac = gethostMACaddress(read_mac_address,no_of_mac);
 
@@ -349,19 +285,8 @@ int license_expiry_check(int status){
 
 	if(mac_address) free(mac_address);
 	mac_address = NULL;
-	if(key) free(key);
-	key = NULL;
-	if(read_sum_mac) free(read_sum_mac);
-	read_sum_mac = NULL;
-	if(sum_mac_str) free(sum_mac_str);
-	sum_mac_str = NULL;
-	if(sum_block_str) free(sum_block_str);
-	sum_block_str = NULL;
-	if(read_sum_block) free(read_sum_block);
-	read_sum_block = NULL;
 	if(read_mac_address) free(read_mac_address);
 	read_mac_address = NULL;
-
 	return return_ok;
 }
 

@@ -564,8 +564,11 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 			}
 			temp_session->session_attr->last_activity_time.tv_sec =0;
 			temp_session->session_attr->last_activity_time.tv_usec =0;
+
+			temp_session->report_counter = th->report_counter;
 			print_ip_session_report (expired_session,th);
 	}else{
+		temp_session->report_counter = th->report_counter;
 		print_ip_session_report (expired_session,th);
 	}
 

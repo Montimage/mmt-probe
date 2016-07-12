@@ -115,7 +115,7 @@ int start_timer( uint32_t period, void *callback, void *user_data){
 	ret = pthread_create(&mmt_probe.timer_handler, NULL, wait_to_do_something, data);
 
 	if( ret != 0 ){
-		perror("pthread_create:");
+		perror("pthread_create for timer:ERROR");
 		exit( 0 );
 	}
 
@@ -166,7 +166,7 @@ void flush_messages_to_file_thread( void *arg){
 
 	if (file==NULL){
 		fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , file_name_str , strerror( errno ) );
-		exit(1);
+		//exit(1);
 	}
 
 	//write messages to the file
@@ -199,7 +199,7 @@ void flush_messages_to_file_thread( void *arg){
 
 	if (i!=0){
 		fprintf ( stderr , "\n1: Error %d closing of sampled_file failed: %s" , errno ,strerror( errno ) );
-		exit(1);
+		//exit(1);
 	}
 
 	//duplicate the file for behaviour
@@ -209,35 +209,37 @@ void flush_messages_to_file_thread( void *arg){
 		valid=system(NULL);
 		if (valid==0){
 			fprintf(stderr,"No processor available on the system,while running system() command");
-			exit(1);
-		}
+			//exit(1);
+		}else{
 
-		//duplicate file
-		valid = snprintf( command_str, MAX_FILE_NAME, "cp %s %s", file_name_str , probe_context->behaviour_output_location);
-		command_str[ valid ]='\0';
-		valid = system( command_str );
-		if ( valid !=0 ){
-			fprintf(stderr,"\n5 Error code %d, while coping output file %s to %s ", valid, dup_file_name_str, probe_context->behaviour_output_location);
-			exit(1);
-		}
+			//duplicate file
+			valid = snprintf( command_str, MAX_FILE_NAME, "cp %s %s", file_name_str , probe_context->behaviour_output_location);
+			command_str[ valid ]='\0';
+			valid = system( command_str );
+			if ( valid !=0 ){
+				fprintf(stderr,"\n5 Error code %d, while coping output file %s to %s ", valid, dup_file_name_str, probe_context->behaviour_output_location);
+				//exit(1);
+			}else {
 
-		//create semaphore
-		valid = snprintf(sem_file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s.sem", probe_context->behaviour_output_location, present_time,th->thread_number,probe_context->data_out);
-		sem_file_name_str[ valid ]='\0';
-		file= fopen(sem_file_name_str, "w");
+				//create semaphore
+				valid = snprintf(sem_file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s.sem", probe_context->behaviour_output_location, present_time,th->thread_number,probe_context->data_out);
+				sem_file_name_str[ valid ]='\0';
+				file= fopen(sem_file_name_str, "w");
 
-		if ( file==NULL ){
-			fprintf ( stderr , "\n2: Error: %d creation of \"%s\" failed: %s\n" , errno , sem_file_name_str , strerror( errno ) );
-			exit(1);
-		}
+				if ( file==NULL ){
+					fprintf ( stderr , "\n2: Error: %d creation of \"%s\" failed: %s\n" , errno , sem_file_name_str , strerror( errno ) );
+					//exit(1);
+				}else{
 
-		valid = fclose( file );
-		if ( valid!=0 ){
-			fprintf ( stderr , "\n4: Error %d closing of temp_behaviour_sem_file failed: %s" , errno ,strerror( errno ) );
-			exit(1);
+					valid = fclose( file );
+					if ( valid!=0 ){
+						fprintf ( stderr , "\n4: Error %d closing of temp_behaviour_sem_file failed: %s" , errno ,strerror( errno ) );
+						//exit(1);
+					}
+				}
+			}
 		}
 	}
-
 	//create semaphore
 	valid=snprintf(sem_file_name_str, MAX_FILE_NAME, "%s.sem", file_name_str);
 	sem_file_name_str[ valid ]='\0';
@@ -245,13 +247,14 @@ void flush_messages_to_file_thread( void *arg){
 
 	if ( file==NULL ){
 		fprintf ( stderr , "\n2: Error: %d creation of \"%s\" failed: %s\n" , errno , sem_file_name_str , strerror( errno ) );
-		exit(1);
-	}
+		//exit(1);
+	}else {
 
-	valid = fclose( file );
-	if ( valid!=0 ){
-		fprintf ( stderr , "\n4: Error %d closing of temp_behaviour_sem_file failed: %s" , errno ,strerror( errno ) );
-		exit(1);
+		valid = fclose( file );
+		if ( valid!=0 ){
+			fprintf ( stderr , "\n4: Error %d closing of temp_behaviour_sem_file failed: %s" , errno ,strerror( errno ) );
+			//exit(1);
+		}
 	}
 }
 
@@ -265,7 +268,7 @@ void send_message_to_file_thread (char * message, void *args) {
 		if (ret == 0) {
 			if( th->cache_count >= MAX_CACHE_SIZE - 1 ){
 				perror("Warning: cache size is too small");
-				exit( 1 );
+				//exit( 1 );
 			}
 			//cache_message_list[ cache_count ] = strdup( message );
 			int len = 0;
@@ -319,15 +322,16 @@ void send_message_to_file (char * message) {
 
 	if (file==NULL){
 		fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , file_name_str , strerror( errno ) );
-		exit(1);
-	}
-	fprintf ( file, "%s\n", message);
+		//exit(1);
+	}else{
+		fprintf ( file, "%s\n", message);
 
-	i = fclose( file );
+		i = fclose( file );
 
-	if (i!=0){
-		fprintf ( stderr , "\n1: Error %d closing of sampled_file failed: %s" , errno ,strerror( errno ) );
-		exit(1);
+		if (i!=0){
+			fprintf ( stderr , "\n1: Error %d closing of sampled_file failed: %s" , errno ,strerror( errno ) );
+			//exit(1);
+		}
 	}
 
 	//create semaphore
@@ -337,15 +341,15 @@ void send_message_to_file (char * message) {
 
 	if ( file==NULL ){
 		fprintf ( stderr , "\n2: Error: %d creation of \"%s\" failed: %s\n" , errno , sem_file_name_str , strerror( errno ) );
-		exit(1);
-	}
+		//exit(1);
+	}else{
 
-	valid = fclose( file );
-	if ( valid!=0 ){
-		fprintf ( stderr , "\n4: Error %d closing of temp_behaviour_sem_file failed: %s" , errno ,strerror( errno ) );
-		exit(1);
+		valid = fclose( file );
+		if ( valid!=0 ){
+			fprintf ( stderr , "\n4: Error %d closing of temp_behaviour_sem_file failed: %s" , errno ,strerror( errno ) );
+			//exit(1);
+		}
 	}
-
 }
 
 //end report message

@@ -215,6 +215,8 @@ void print_initial_rtp_report(const mmt_session_t * session,session_struct_t * t
     );
     reset_rtp(temp_session);
     temp_session->session_attr->touched=1;
+	((rtp_session_attr_t*) temp_session->app_data)->rtp_throughput[0]=0;
+	((rtp_session_attr_t*) temp_session->app_data)->rtp_throughput[1]=0;
 }
 
 

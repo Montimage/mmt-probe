@@ -36,7 +36,7 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 				long int ip_nodf_data_volume = (long int)(proto_stats->ip_frag_data_volume - proto_stats->ip_df_data_volume);
 				long int ip_nodf_packets_count = (long int)(proto_stats->ip_frag_packets_count - proto_stats->ip_df_packets_count);
 				snprintf(ip_message, MAX_MESS,
-						"%u,%u,\"%s\",%lu.%lu,\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%ld,%ld",
+						"%u,%u,\"%s\",%lu.%06lu,\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%ld,%ld",
 						101,probe_context->probe_id_number,probe_context->input_source, proto_stats->last_packet_time.tv_sec, proto_stats->last_packet_time.tv_usec,path,
 						proto_stats->ip_frag_data_volume,proto_stats->ip_frag_packets_count,proto_stats->ip_df_data_volume, proto_stats->ip_df_packets_count,ip_nodf_data_volume, ip_nodf_packets_count);
 
@@ -64,7 +64,7 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 		//report the stats instance if there is anything to report
 		if(proto_stats->touched) {
 			snprintf(message, MAX_MESS,
-					"%u,%u,\"%s\",%lu.%lu,%u,\"%s\",%u,%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%u,%u,%lu.%lu,\"%s\",\"%s\",\"%s\",\"%s\",%u,%u,%u",
+					"%u,%u,\"%s\",%lu.%06lu,%u,\"%s\",%u,%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%u,%u,%lu.%06lu,\"%s\",\"%s\",\"%s\",\"%s\",%u,%u,%u",
 					MMT_STATISTICS_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, proto_stats->last_packet_time.tv_sec, proto_stats->last_packet_time.tv_usec, proto_id, path,
 					0,proto_stats->data_volume, proto_stats->payload_volume,proto_stats->packets_count,0,0,0,
 					0,0,0,proto_stats->first_packet_time.tv_sec,proto_stats->first_packet_time.tv_usec,"null","null","null","null",0,0,0);
