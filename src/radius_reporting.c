@@ -5,7 +5,7 @@
 #include <inttypes.h>
 
 #include "mmt_core.h"
-#include "mmt/tcpip/mmt_tcpip_protocols.h"
+#include "tcpip/mmt_tcpip_protocols.h"
 #include "processing.h"
 
 struct mmt_location_info_struct {

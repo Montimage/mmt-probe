@@ -6,7 +6,7 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include "mmt_core.h"
-#include "mmt/tcpip/mmt_tcpip.h"
+#include "tcpip/mmt_tcpip.h"
 #ifdef _WIN32
 #include <ws2tcpip.h>
 #else

@@ -8,7 +8,7 @@
 #include <inttypes.h>
 
 #include "mmt_core.h"
-#include "mmt/tcpip/mmt_tcpip.h"
+#include "tcpip/mmt_tcpip.h"
 #include "processing.h"
 
 void print_default_app_format(const mmt_session_t * expired_session,void *args) {

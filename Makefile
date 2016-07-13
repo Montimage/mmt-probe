@@ -9,10 +9,10 @@ OUTPUT   = probe
 INSTALL_DIR = /opt/mmt/probe
 
 #set of library
-LIBS     = -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
+LIBS     = -L /opt/mmt/lib -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
 
 CFLAGS   = -O3 -Wall -Wno-unused-variable
-CLDFLAGS =
+CLDFLAGS = -I /opt/mmt/include
 
 #for debuging
 ifdef DEBUG
@@ -42,7 +42,7 @@ all: $(LIB_OBJS) $(MAIN_OBJS)
 	$(QUIET) $(CC) -o $(OUTPUT) $(CLDFLAGS)  $^ $(LIBS)
 %.o: %.c
 	@echo "[COMPILE] $(notdir $@)"
-	$(QUIET) $(CC) $(CFLAGS) -c -o $@ $<
+	$(QUIET) $(CC) $(CFLAGS) $(CLDFLAGS) -c -o $@ $<
 clean:
 	$(QUIET) $(RM) $(MAIN_OBJS) $(LIB_OBJS) $(OUTPUT)
 	

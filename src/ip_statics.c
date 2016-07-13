@@ -12,7 +12,7 @@
 #include <inttypes.h>
 
 #include "mmt_core.h"
-#include "mmt/tcpip/mmt_tcpip.h"
+#include "tcpip/mmt_tcpip.h"
 #include "processing.h"
 
 void print_ip_session_report (const mmt_session_t * session, void *user_args){
@@ -74,7 +74,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 
 	if (temp_session->app_format_id == probe_context->ftp_id && probe_context->ftp_enable == 1){
 		if (temp_session->app_data == NULL) return;
-		if (((ftp_session_attr_t*) temp_session->app_data)->session_conn_type == 2){
+		if (((ftp_session_attr_t*) temp_session->app_data)->session_conn_type == 2 && ((ftp_session_attr_t*) temp_session->app_data)->data_type == 1){
 			double data_throughput_ftp[2] = {0.0,0.0};
 			throughput(session,temp_session,keep_direction,data_throughput_ftp );
 			((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[0] =(data_throughput_ftp[0])*1000000;
@@ -262,7 +262,6 @@ void throughput(const mmt_session_t * session,session_struct_t * temp_session, i
 	}else {
 		time_interval = TIMEVAL_2_USEC(mmt_time_diff(temp_session->session_attr->last_activity_time,get_session_last_activity_time(session)));
 	}
-
 	if (keep_direction == 1){
 		if (get_session_ul_byte_count(session)- temp_session->session_attr->byte_count[1] > 0)throughput[0] = (double) (get_session_ul_byte_count(session)- temp_session->session_attr->byte_count[1])/time_interval;
 		if (get_session_dl_byte_count(session)- temp_session->session_attr->byte_count[0] > 0)throughput[1] = (double) (get_session_dl_byte_count(session)- temp_session->session_attr->byte_count[0])/time_interval;

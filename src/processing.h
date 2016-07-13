@@ -283,6 +283,9 @@ typedef struct ftp_session_attr_struct {
     char * packet_request;
     char * response_value;
     uint32_t file_size;
+    uint32_t data_type;
+    uint64_t response_time;
+    uint8_t data_response_time_seen;
     char * location;
     char * filename;
     uint16_t response_code;

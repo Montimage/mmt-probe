@@ -10,7 +10,7 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include "mmt_core.h"
-#include "mmt/tcpip/mmt_tcpip.h"
+#include "tcpip/mmt_tcpip.h"
 #include "processing.h"
 
 /*
@@ -124,9 +124,26 @@ void ftp_session_connection_type_handle(const ipacket_t * ipacket, attribute_t *
 			((ftp_session_attr_t*) temp_session->app_data)->session_conn_type = *conn_type;
 
 			if (((ftp_session_attr_t*) temp_session->app_data)->session_conn_type == 2){
+
 				//if (probe_context->ftp_reconstruct_enable==1)reconstruct_data(ipacket);
 				uint64_t * control_session_id= (uint64_t *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_CONT_IP_SESSION_ID);
 				if (control_session_id != NULL)((ftp_session_attr_t*) temp_session->app_data)->session_id_control_channel = * control_session_id;
+				if (((ftp_session_attr_t*) temp_session->app_data)->data_response_time_seen == 0){
+					uint32_t * data_type = (uint32_t *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_DATA_TYPE);
+					if (data_type != NULL){
+						((ftp_session_attr_t*) temp_session->app_data)->data_type  = * data_type;
+						if (((ftp_session_attr_t*) temp_session->app_data)->data_type == 1){
+							/* response time defined here
+							 * http://www.igi-global.com/chapter/future-networked-healthcare-systems/131381
+							 * FTP Response Time: It is the time elapsed between a client application sending a request to the FTP server and receiving the response packet.
+							 * The response time includes the 3 way TCP handshake.
+							 * */
+							((ftp_session_attr_t*) temp_session->app_data)->response_time = TIMEVAL_2_USEC(mmt_time_diff(get_session_init_time(ipacket->session), ipacket->p_hdr->ts));
+							((ftp_session_attr_t*) temp_session->app_data)->data_response_time_seen = 1;
+							//printf ("ftp_response_time = %lu \n",((ftp_session_attr_t*) temp_session->app_data)->response_time);
+						}
+					}
+				}
 			}
 		}
 
@@ -380,6 +397,7 @@ void print_initial_ftp_report(const mmt_session_t * session,session_struct_t * t
 void register_ftp_attributes(void * handler){
 	int i=1;
 	i &= register_extraction_attribute(handler,PROTO_FTP,FTP_CONT_IP_SESSION_ID);
+	i &= register_extraction_attribute(handler,PROTO_FTP,FTP_DATA_TYPE);
 	//For reconstruction
 	/*i &=register_extraction_attribute(handler,PROTO_FTP,PROTO_PAYLOAD);
 	i &=register_extraction_attribute(handler,PROTO_FTP,FTP_FILE_SIZE);

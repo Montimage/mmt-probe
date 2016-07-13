@@ -8,7 +8,7 @@
 #include "mmt_core.h"
 //#include "mmt/tcpip/mmt_tcpip_protocols.h"
 //#include "mmt/tcpip/mmt_tcpip_attributes.h"
-#include "mmt/tcpip/mmt_tcpip.h"
+#include "tcpip/mmt_tcpip.h"
 #include "processing.h"
 
 typedef struct http_line_struct {
