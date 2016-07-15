@@ -148,13 +148,17 @@ void flush_messages_to_file_thread( void *arg){
 	present_time = time(0);
 
 	gettimeofday(&ts, NULL);
-	snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu",
-			200, probe_context->probe_id_number,
-			probe_context->input_source,ts.tv_sec, ts.tv_usec);
-	message[ MAX_MESS] = '\0';
-
 	struct smp_thread *th = (struct smp_thread *) arg;
-	if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message,(void *)th);
+
+	//dummy report
+	if (th->thread_number == 0){
+		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu",
+				200, probe_context->probe_id_number,
+				probe_context->input_source,ts.tv_sec, ts.tv_usec);
+		message[ MAX_MESS] = '\0';
+		if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message,(void *)th);
+	}
+
 	//open a file
 	valid = snprintf(file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s",probe_context->output_location,present_time,th->thread_number,probe_context->data_out);
 	file_name_str[valid] = '\0';

@@ -13,7 +13,7 @@
 #include "tcpip/mmt_tcpip.h"
 #include "processing.h"
 
-/*
+
 char * str_replace_all_char(const char *str,int c1, int c2){
     char *new_str;
     new_str = (char*)malloc(strlen(str)+1);
@@ -32,25 +32,30 @@ void write_data_to_file (const ipacket_t * ipacket,const char * path, const char
     int fd = 0,MAX=200;
     char filename[len];
     char * path2=NULL;
+    int valid =0;
 
     mmt_probe_context_t * probe_context = get_probe_context_config();
 
     path2 = str_replace_all_char(path,'/','_');
-    snprintf(filename,MAX, "%s%lu_%s",probe_context->ftp_reconstruct_output_location,time(0),path);
+    uint64_t session_id = get_session_id (ipacket->session);
+    snprintf(filename,MAX, "%s%"PRIu64"_%s",probe_context->ftp_reconstruct_output_location,session_id ,path);
     filename[MAX]='\0';
 
     if ( (fd = open ( filename , O_CREAT | O_WRONLY | O_APPEND | O_NOFOLLOW , S_IRWXU | S_IRWXG | S_IRWXO )) < 0 ){
         fprintf ( stderr , "\n Error %d writing data to \"%s\": %s" , errno , path2 , strerror( errno ) );
         return;
     }
+
     if(path2 != NULL) free (path2);
     path2 = NULL;
     if(len>0){
-        printf("Going to write to file: %s\n",filename);
-        printf("Data len: %d\n",len);
-        write ( fd , content , len );
+        //printf("Going to write to file: %s\n",filename);
+        //printf("Data len: %d\n",len);
+        valid =write ( fd , content , len );
     }
-
+    if (valid == 0){
+    	printf ("Nothing to write from the packet");
+    }
     close ( fd );
 }
 
@@ -76,13 +81,13 @@ void reconstruct_data(const ipacket_t * ipacket){
     char * data_payload = (char *) get_attribute_extracted_data(ipacket,PROTO_FTP,PROTO_PAYLOAD);
 
     if(len>0 && file_name && data_payload && d_type==1){
-        printf("filename=%s\n",file_name);
-        printf("Going to write data of packet %lu\n",ipacket->packet_id);
+        //printf("filename=%s\n",file_name);
+        //printf("Going to write data of packet %lu\n",ipacket->packet_id);
         write_data_to_file(ipacket,file_name,data_payload,len,file_size);
     }
 }
 
-*/
+
 
 void reset_ftp_parameters(const ipacket_t * ipacket,session_struct_t *temp_session ){
 
@@ -90,13 +95,13 @@ void reset_ftp_parameters(const ipacket_t * ipacket,session_struct_t *temp_sessi
 	((ftp_session_attr_t*) temp_session->app_data)->file_download_starttime_usec=0;
 	((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_sec=0;
 	((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_usec=0;
-	/*((ftp_session_attr_t*) temp_session->app_data)->response_value=NULL;
-    ((ftp_session_attr_t*) temp_session->app_data)->file_size=0;
-    ((ftp_session_attr_t*) temp_session->app_data)->filename=NULL;
-    ((ftp_session_attr_t*) temp_session->app_data)->response_code=0;
-    ((ftp_session_attr_t*) temp_session->app_data)->session_password=NULL;
-    ((ftp_session_attr_t*) temp_session->app_data)->packet_request=NULL;*/
-
+/*	((ftp_session_attr_t*) temp_session->app_data)->response_value=NULL;
+	((ftp_session_attr_t*) temp_session->app_data)->file_size=0;
+	((ftp_session_attr_t*) temp_session->app_data)->filename=NULL;
+	((ftp_session_attr_t*) temp_session->app_data)->response_code=0;
+	((ftp_session_attr_t*) temp_session->app_data)->session_password=NULL;
+	((ftp_session_attr_t*) temp_session->app_data)->packet_request=NULL;
+	*/
 }
 
 void ftp_session_connection_type_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
@@ -125,11 +130,11 @@ void ftp_session_connection_type_handle(const ipacket_t * ipacket, attribute_t *
 
 			if (((ftp_session_attr_t*) temp_session->app_data)->session_conn_type == 2){
 
-				//if (probe_context->ftp_reconstruct_enable==1)reconstruct_data(ipacket);
+				if (probe_context->ftp_reconstruct_enable == 1)reconstruct_data(ipacket);
 				uint64_t * control_session_id= (uint64_t *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_CONT_IP_SESSION_ID);
 				if (control_session_id != NULL)((ftp_session_attr_t*) temp_session->app_data)->session_id_control_channel = * control_session_id;
 				if (((ftp_session_attr_t*) temp_session->app_data)->data_response_time_seen == 0){
-					uint32_t * data_type = (uint32_t *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_DATA_TYPE);
+					uint8_t * data_type = (uint8_t *) get_attribute_extracted_data(ipacket,PROTO_FTP,FTP_DATA_TYPE);
 					if (data_type != NULL){
 						((ftp_session_attr_t*) temp_session->app_data)->data_type  = * data_type;
 						if (((ftp_session_attr_t*) temp_session->app_data)->data_type == 1){
@@ -243,7 +248,7 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
 			((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_sec= ipacket->p_hdr->ts.tv_sec;
 			((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_usec=ipacket->p_hdr->ts.tv_usec;
 			snprintf(message, MAX_MESS,
-					"%u,%u,\"%s\",%lu.%lu,%"PRIu64",%"PRIu32",\"%s\",\"%s\",%hu,%hu,%"PRIu8",%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%lu.%lu,%lu.%lu",
+					"%u,%u,\"%s\",%lu.%lu,%"PRIu64",%"PRIu32",\"%s\",\"%s\",%hu,%hu,%"PRIu8",%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%lu.%06lu,%lu.%06lu,%"PRIu64",%u,%"PRIu64"",
 					probe_context->ftp_reconstruct_id,probe_context->probe_id_number, probe_context->input_source, end_time.tv_sec, end_time.tv_usec,temp_session->session_id,temp_session->thread_number,
 					ip_dst_str, ip_src_str,
 					temp_session->serverport, temp_session->clientport,
@@ -256,7 +261,9 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
 					((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_sec,
 					((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_usec,
 					((ftp_session_attr_t*) temp_session->app_data)->file_download_starttime_sec,
-					((ftp_session_attr_t*) temp_session->app_data)->file_download_starttime_usec
+					((ftp_session_attr_t*) temp_session->app_data)->file_download_starttime_usec,
+					temp_session ->session_id,
+					temp_session ->thread_number,((ftp_session_attr_t*) temp_session->app_data)->session_id_control_channel
 			);
 			message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
 			//send_message_to_file ("ftp.download.report", message);
@@ -351,7 +358,7 @@ void print_ftp_app_format(const mmt_session_t * expired_session,void *args) {
 		mmt_condition_report_t * condition_report = &probe_context->condition_reports[i];
 		if (strcmp(condition_report->condition.condition,"FTP")==0 && ((ftp_session_attr_t*) temp_session->app_data)->file_size >1){
 			snprintf(message, MAX_MESS,
-					"%u,%u,\"%s\",%lu.%lu,%"PRIu64",%"PRIu32",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,\"%s\",%u",
+					"%u,%u,\"%s\",%lu.%06lu,%"PRIu64",%"PRIu32",%lu.%06lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,\"%s\",%u",
 					temp_session->app_format_id, probe_context->probe_id_number, probe_context->input_source, end_time.tv_sec, end_time.tv_usec,
 					temp_session->session_id,temp_session->thread_number,
 					init_time.tv_sec, init_time.tv_usec,
@@ -394,18 +401,3 @@ void print_initial_ftp_report(const mmt_session_t * session,session_struct_t * t
 	((ftp_session_attr_t*) temp_session->app_data)->ftp_throughput[1]=0;
 }
 
-void register_ftp_attributes(void * handler){
-	int i=1;
-	i &= register_extraction_attribute(handler,PROTO_FTP,FTP_CONT_IP_SESSION_ID);
-	i &= register_extraction_attribute(handler,PROTO_FTP,FTP_DATA_TYPE);
-	//For reconstruction
-	/*i &=register_extraction_attribute(handler,PROTO_FTP,PROTO_PAYLOAD);
-	i &=register_extraction_attribute(handler,PROTO_FTP,FTP_FILE_SIZE);
-	i &=register_extraction_attribute(handler,PROTO_FTP,FTP_DATA_TYPE);
-	i &=register_extraction_attribute(handler,PROTO_FTP,FTP_FILE_NAME);
-	i &=register_extraction_attribute(handler,PROTO_FTP,FTP_PACKET_DATA_LEN);*/
-	if(!i) {
-		//TODO: we need a sound error handling mechanism! Anyway, we should never get here :)
-		fprintf(stderr, "Error while initializing MMT handlers and extractions!\n");
-	}
-}
