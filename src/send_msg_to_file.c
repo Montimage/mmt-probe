@@ -69,7 +69,6 @@ static void *wait_to_do_something( void *arg ){
 		//fflush( stdout );
 		/* Wait for the next timer event. If we have missed any the
 		 *         number is written to "expirations"*/
-
 		ret = read (timer_fd, &expirations, sizeof (expirations));
 		if( ret == -1 ){
 			perror ("read timer");
@@ -157,6 +156,7 @@ void flush_messages_to_file_thread( void *arg){
 				probe_context->input_source,ts.tv_sec, ts.tv_usec);
 		message[ MAX_MESS] = '\0';
 		if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message,(void *)th);
+		if (probe_context->redis_enable==1)send_message_to_redis ("session.flow.report", message);
 	}
 
 	//open a file
@@ -179,6 +179,7 @@ void flush_messages_to_file_thread( void *arg){
 	int ret = pthread_spin_lock(&th->lock);
 	if( th->cache_count == 0 ){
 		//printf ("nothing to write = %d",th->thread_number);
+		pthread_spin_unlock(&th->lock);
 		return;
 	}
 
@@ -188,16 +189,16 @@ void flush_messages_to_file_thread( void *arg){
 				perror("this message should not be NULL");
 			}else{
 				fprintf ( file, "%s\n", th->cache_message_list[ i ]);
-				//printf("message ,th->nd =%d,= %s\n",th->thread_number,th->cache_message_list1[ i ]);
+				//printf("message ,th->nd =%d,= %s\n",th->thread_number,th->cache_message_list[ i ]);
 				if (th->cache_message_list[ i ]) free( th->cache_message_list[ i ] );
 				th->cache_message_list[ i ] = NULL;
 			}
 		}
 		th->cache_count = 0;
-		pthread_spin_unlock(&th->lock);
+		//pthread_spin_unlock(&th->lock);
 	}
+	pthread_spin_unlock(&th->lock);
 
-	if (probe_context->redis_enable==1)send_message_to_redis ("session.flow.report", message);
 	//close the file
 	i = fclose( file );
 
@@ -205,7 +206,7 @@ void flush_messages_to_file_thread( void *arg){
 		fprintf ( stderr , "\n1: Error %d closing of sampled_file failed: %s" , errno ,strerror( errno ) );
 		//exit(1);
 	}
-//char * const command_str[] = {"cp",file_name_str,probe_context->behaviour_output_location, NULL};
+	//char * const command_str[] = {"cp",file_name_str,probe_context->behaviour_output_location, NULL};
 	//duplicate the file for behaviour
 	if (probe_context->behaviour_enable==1){
 
@@ -215,13 +216,10 @@ void flush_messages_to_file_thread( void *arg){
 			fprintf(stderr,"No processor available on the system,while running system() command");
 			//exit(1);
 		}else{
-
 			//duplicate file
 			valid = snprintf( command_str, MAX_FILE_NAME, "cp %s %s", file_name_str , probe_context->behaviour_output_location);
 			command_str[ valid ]='\0';
 			valid = system( command_str );
-			//valid=execv("/bin/cp",command_str);
-			//printf("valid = %d",valid);
 
 			if ( valid != 0 ){
 				fprintf(stderr,"\n5 Error code %d, while coping output file %s to %s ", valid, dup_file_name_str, probe_context->behaviour_output_location);
@@ -280,10 +278,10 @@ void send_message_to_file_thread (char * message, void *args) {
 			//cache_message_list[ cache_count ] = strdup( message );
 			int len = 0;
 			len = strlen(message);
-			//if (len > 2999 || len < 1) fprintf ( stderr ,"Warning: 201: %d, %d\n", len, (int)cache_count);
+			//if (len > 2999 || len < 1) fprintf ( stderr ,"Warning: 201: %d, %d\n", len, (int)th->cache_count);
 			th->cache_message_list[ th->cache_count ] = malloc(len+1);
 			if( th->cache_message_list[ th->cache_count ]  == NULL ){
-				//fprintf ( stderr ,"Warning: 202, %d, %d\n", len, (int)cache_count);
+				//fprintf ( stderr ,"Warning: 202, %d, %d\n", len, (int)th->cache_count);
 			}
 			else {
 				memcpy(th->cache_message_list[ th->cache_count ], message, len);

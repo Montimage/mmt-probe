@@ -470,7 +470,7 @@ void *Reader(void *arg) {
 		pcap_loop(handle, num_packets, got_packet, NULL);
 	}else {
 		while (1){
-			pcap_dispatch(handle, 1000, got_packet, NULL);
+			pcap_dispatch(handle, num_packets, got_packet, NULL);
 			if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time  >= mmt_probe->mmt_conf->stats_reporting_period){
 				mmt_probe->smp_threads->report_counter++;
 				mmt_probe->smp_threads->last_stat_report_time = time(NULL);
