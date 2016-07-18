@@ -22,6 +22,8 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 	struct smp_thread *th = (struct smp_thread *) args;
 	proto_statistics_t * proto_stats = get_protocol_stats(th->mmt_handler, proto_id);
 
+	//printf ("report_number = %lu \n", th->report_counter);
+
 	while (proto_stats != NULL) {
 		proto_hierarchy_t proto_hierarchy = {0};
 		get_protocol_stats_path(th->mmt_handler, proto_stats, &proto_hierarchy);
@@ -36,8 +38,8 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 				long int ip_nodf_data_volume = (long int)(proto_stats->ip_frag_data_volume - proto_stats->ip_df_data_volume);
 				long int ip_nodf_packets_count = (long int)(proto_stats->ip_frag_packets_count - proto_stats->ip_df_packets_count);
 				snprintf(ip_message, MAX_MESS,
-						"%u,%u,\"%s\",%lu.%06lu,\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%ld,%ld",
-						101,probe_context->probe_id_number,probe_context->input_source, proto_stats->last_packet_time.tv_sec, proto_stats->last_packet_time.tv_usec,path,
+						"%u,%u,\"%s\",%lu.%06lu,%"PRIu64",\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%ld,%ld",
+						101,probe_context->probe_id_number,probe_context->input_source, proto_stats->last_packet_time.tv_sec, proto_stats->last_packet_time.tv_usec,th->report_counter,path,
 						proto_stats->ip_frag_data_volume,proto_stats->ip_frag_packets_count,proto_stats->ip_df_data_volume, proto_stats->ip_df_packets_count,ip_nodf_data_volume, ip_nodf_packets_count);
 
 				ip_message[ MAX_MESS ] = '\0';
@@ -64,8 +66,8 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 		//report the stats instance if there is anything to report
 		if(proto_stats->touched) {
 			snprintf(message, MAX_MESS,
-					"%u,%u,\"%s\",%lu.%06lu,%u,\"%s\",%u,%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%u,%u,%lu.%06lu,\"%s\",\"%s\",\"%s\",\"%s\",%u,%u,%u",
-					MMT_STATISTICS_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, proto_stats->last_packet_time.tv_sec, proto_stats->last_packet_time.tv_usec, proto_id, path,
+					"%u,%u,\"%s\",%lu.%06lu,%"PRIu64",%u,\"%s\",%u,%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%u,%u,%lu.%06lu,\"%s\",\"%s\",\"%s\",\"%s\",%u,%u,%u",
+					MMT_STATISTICS_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, proto_stats->last_packet_time.tv_sec, proto_stats->last_packet_time.tv_usec, th->report_counter, proto_id, path,
 					0,proto_stats->data_volume, proto_stats->payload_volume,proto_stats->packets_count,0,0,0,
 					0,0,0,proto_stats->first_packet_time.tv_sec,proto_stats->first_packet_time.tv_usec,"null","null","null","null",0,0,0);
 

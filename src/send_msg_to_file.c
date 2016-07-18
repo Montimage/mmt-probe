@@ -205,7 +205,7 @@ void flush_messages_to_file_thread( void *arg){
 		fprintf ( stderr , "\n1: Error %d closing of sampled_file failed: %s" , errno ,strerror( errno ) );
 		//exit(1);
 	}
-
+//char * const command_str[] = {"cp",file_name_str,probe_context->behaviour_output_location, NULL};
 	//duplicate the file for behaviour
 	if (probe_context->behaviour_enable==1){
 
@@ -220,7 +220,10 @@ void flush_messages_to_file_thread( void *arg){
 			valid = snprintf( command_str, MAX_FILE_NAME, "cp %s %s", file_name_str , probe_context->behaviour_output_location);
 			command_str[ valid ]='\0';
 			valid = system( command_str );
-			if ( valid !=0 ){
+			//valid=execv("/bin/cp",command_str);
+			//printf("valid = %d",valid);
+
+			if ( valid != 0 ){
 				fprintf(stderr,"\n5 Error code %d, while coping output file %s to %s ", valid, dup_file_name_str, probe_context->behaviour_output_location);
 				//exit(1);
 			}else {
