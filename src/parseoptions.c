@@ -548,7 +548,7 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
             break;
         case 'v':
         	versions_only = 1;
-            fprintf(stderr,"Versions: \n Probe v0.9.5 \n DPI v1.4.1 \n Security v0.9b \n Compatible with Operator v1.3 \n");
+            fprintf(stderr,"Versions: \n Probe v1.0.0 \n DPI v%s \n Security v0.9b \n Compatible with Operator v1.5 \n",mmt_version());
            break;
         case 'h':
         default: usage(argv[0]);
