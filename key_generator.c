@@ -1,5 +1,5 @@
 /*
-	 gcc -o license_key_generator key_generator2.c
+	 gcc -o license_key_generator key_generator.c
 
 	 Information that needs to be changed in the code for generating new license
 	 Provide expiry date of the license in year (4-digits),month(2-digits) and date(2-digits)
