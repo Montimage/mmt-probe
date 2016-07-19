@@ -158,7 +158,11 @@ void flush_messages_to_file_thread( void *arg){
 		if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message,(void *)th);
 		if (probe_context->redis_enable==1)send_message_to_redis ("session.flow.report", message);
 	}
-
+	if( th->cache_count == 0 ){
+		//printf ("nothing to write = %d",th->thread_number);
+		//pthread_spin_unlock(&th->lock);
+		return;
+	}
 	//open a file
 	valid = snprintf(file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s",probe_context->output_location,present_time,th->thread_number,probe_context->data_out);
 	file_name_str[valid] = '\0';
@@ -177,11 +181,6 @@ void flush_messages_to_file_thread( void *arg){
 
 
 	int ret = pthread_spin_lock(&th->lock);
-	if( th->cache_count == 0 ){
-		//printf ("nothing to write = %d",th->thread_number);
-		pthread_spin_unlock(&th->lock);
-		return;
-	}
 
 	if (ret == 0) {
 		for( i=0; i<th->cache_count; i++ ){
@@ -293,11 +292,9 @@ void send_message_to_file_thread (char * message, void *args) {
 				fprintf ( stderr ,"Warning: 203: %s", message);
 				return;
 			}
-
 			th->cache_count++;
-			pthread_spin_unlock(&th->lock);
-
 		}
+		pthread_spin_unlock(&th->lock);
 	}else if (probe_context->sampled_report == 0) {
 		fprintf (probe_context->data_out_file, "%s\n", message);
 	}
