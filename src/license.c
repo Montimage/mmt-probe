@@ -86,16 +86,17 @@ int license_expiry_check(int status){
 	char license_decrypt_key[300];
 	int i =0;
 
-
+	int return_ok = 0;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	//convert timeval time into epoch time
 	struct timeval current_time;
 	gettimeofday (&current_time, NULL);
 
 	license_key= fopen(probe_context->license_location, "r");
+	//license_key= fopen("license.key", "r");
 
 	if(license_key == NULL) {
-		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_KEY_DOES_NOT_EXIST);
+		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_KEY_DOES_NOT_EXIST);
 		license_message[ MAX_MESS ] = '\0';
 		if (probe_context->output_to_file_enable==1 && status ==0)send_message_to_file (license_message);
 		if (probe_context->redis_enable==1 && status ==0)send_message_to_redis ("license.stat", license_message);
@@ -130,6 +131,25 @@ int license_expiry_check(int status){
 
 	int length = strlen (license_decrypt_key);
 
+	if (length < 11){
+		//printf("modified \n");
+		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_MODIFIED);
+
+		license_message[ MAX_MESS ] = '\0';
+		if (probe_context->output_to_file_enable==1 && status ==0)send_message_to_file (license_message);
+		if (probe_context->redis_enable==1 && status ==0)send_message_to_redis ("license.stat", license_message);
+
+		sprintf(lg_msg,"\n\t*************************************\n"
+				"\t*        MMT LICENSE MODIFIED       *\n"
+				"\t*          BUY MMT LICENSE          *\n"
+				"\t*   Website: http://montimage.com   *\n"
+				"\t*   Contact: contact@montimage.com  *\n"
+				"\t**************************************\n\n");
+		mmt_log(probe_context, MMT_L_INFO, MMT_LICENSE, lg_msg);
+		return_ok = 1;
+		return return_ok;
+	}
+
 	strncpy(year,&license_decrypt_key[0],4);
 	strncpy(month,&license_decrypt_key[4],2);
 	strncpy(day,&license_decrypt_key[6],2);
@@ -142,10 +162,46 @@ int license_expiry_check(int status){
 	int mac_length=0;
 	mac_length=no_of_mac*12;
 
-	read_mac_address=malloc(sizeof(char)* (mac_length+1));
+	if (length-11 <= mac_length){
+		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_MODIFIED);
 
+		license_message[ MAX_MESS ] = '\0';
+		if (probe_context->output_to_file_enable==1 && status ==0)send_message_to_file (license_message);
+		if (probe_context->redis_enable==1 && status ==0)send_message_to_redis ("license.stat", license_message);
+
+		sprintf(lg_msg,"\n\t*************************************\n"
+				"\t*        MMT LICENSE MODIFIED       *\n"
+				"\t*          BUY MMT LICENSE          *\n"
+				"\t*   Website: http://montimage.com   *\n"
+				"\t*   Contact: contact@montimage.com  *\n"
+				"\t**************************************\n\n");
+		mmt_log(probe_context, MMT_L_INFO, MMT_LICENSE, lg_msg);
+		return_ok = 1;
+		return return_ok;
+
+	}
+	read_mac_address=malloc(sizeof(char)* (mac_length+1));
 	strncpy(read_mac_address,&license_decrypt_key[11],mac_length);
 	read_mac_address[mac_length]='\0';
+
+	if (length-11-mac_length <= 0){
+		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_MODIFIED);
+
+		license_message[ MAX_MESS ] = '\0';
+		if (probe_context->output_to_file_enable==1 && status ==0)send_message_to_file (license_message);
+		if (probe_context->redis_enable==1 && status ==0)send_message_to_redis ("license.stat", license_message);
+
+		sprintf(lg_msg,"\n\t*************************************\n"
+				"\t*        MMT LICENSE MODIFIED       *\n"
+				"\t*          BUY MMT LICENSE          *\n"
+				"\t*   Website: http://montimage.com   *\n"
+				"\t*   Contact: contact@montimage.com  *\n"
+				"\t**************************************\n\n");
+		mmt_log(probe_context, MMT_L_INFO, MMT_LICENSE, lg_msg);
+		return_ok = 1;
+		return return_ok;
+
+	}
 	strncpy(read_sum_license,&license_decrypt_key[11+mac_length],length-(mac_length+11));
 	read_sum_license[length-(mac_length+11)] = '\0';
 
@@ -202,7 +258,7 @@ int license_expiry_check(int status){
 	struct timeval expired_date;
 	expired_date.tv_sec=expiry_date;
 	expired_date.tv_usec=0;
-	int return_ok = 0;
+
 
 	//if (strncmp(key,message,valid)==0 && yr==atoi(year) && mn==atoi(month) && dy==atoi(day) && strncmp(read_sum_mac,sum_mac_str,valid1)==0 && strncmp(read_sum_block,sum_block_str,valid2)==0){
 	if (sum_license_calc == atoi(read_sum_license)){
@@ -210,7 +266,7 @@ int license_expiry_check(int status){
 		int valid_mac = gethostMACaddress(read_mac_address,no_of_mac);
 
 		if (valid_mac == 0){
-			snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,%d,\"%s\",%lu.%lu,\"%s\",\"%s\"",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,BUY_MMT_LICENSE_FOR_THIS_DEVICE,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec,version_probe,version_sdk);
+			snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d,%d,\"%s\",%lu.%06lu,\"%s\",\"%s\"",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,BUY_MMT_LICENSE_FOR_THIS_DEVICE,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec,version_probe,version_sdk);
 
 			license_message[ MAX_MESS ] = '\0';
 			if (probe_context->output_to_file_enable==1 && status ==0)send_message_to_file (license_message);
@@ -226,7 +282,7 @@ int license_expiry_check(int status){
 		}
 
 		if (seconds <= 0){
-			snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,%d,\"%s\",%lu.%lu,\"%s\",\"%s\"",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_EXPIRED,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec,version_probe,version_sdk);
+			snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d,%d,\"%s\",%lu.%06lu,\"%s\",\"%s\"",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_EXPIRED,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec,version_probe,version_sdk);
 
 			license_message[ MAX_MESS ] = '\0';
 			if (probe_context->output_to_file_enable==1 && status ==0)send_message_to_file (license_message);
@@ -245,7 +301,7 @@ int license_expiry_check(int status){
 
 		//Seven days =7*24*60*60
 		if ( seconds<=604800 && seconds>0){
-			snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,%d,\"%s\",%lu.%lu,\"%s\",\"%s\"",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_WILL_EXPIRE_SOON,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec,version_probe,version_sdk);
+			snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d,%d,\"%s\",%lu.%06lu,\"%s\",\"%s\"",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_WILL_EXPIRE_SOON,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec,version_probe,version_sdk);
 			license_message[ MAX_MESS ] = '\0';
 			if (probe_context->output_to_file_enable==1 && status ==0)send_message_to_file (license_message);
 			if (probe_context->redis_enable==1 && status ==0)send_message_to_redis ("license.stat", license_message);
@@ -267,7 +323,7 @@ int license_expiry_check(int status){
 		}
 	}else{
 
-		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,%d,\"%s\",%lu.%lu,\"%s\",\"%s\"",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_MODIFIED,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec,version_probe,version_sdk);
+		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d,%d,\"%s\",%lu.%06lu,\"%s\",\"%s\"",30,probe_context->probe_id_number,probe_context->input_source,current_time.tv_sec,current_time.tv_usec,MMT_LICENSE_MODIFIED,no_of_mac,mac_address,expired_date.tv_sec,expired_date.tv_usec,version_probe,version_sdk);
 
 		license_message[ MAX_MESS ] = '\0';
 		if (probe_context->output_to_file_enable==1 && status ==0)send_message_to_file (license_message);

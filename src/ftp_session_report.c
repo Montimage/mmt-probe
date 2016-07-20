@@ -386,14 +386,15 @@ void print_ftp_app_format(const mmt_session_t * expired_session,void *args) {
 void print_initial_ftp_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid){
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
 	snprintf(&message[valid], MAX_MESS-valid,
-			",%u,%u,%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%"PRIu8",%"PRIu64"",
+			",%u,%u,%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%"PRIu8",%"PRIu64",%"PRIu64"",
 			temp_session->app_format_id,get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
 			((ftp_session_attr_t*) temp_session->app_data)->session_conn_type,
 			(((ftp_session_attr_t*) temp_session->app_data)->session_conn_type == 2)?"null":(((ftp_session_attr_t*) temp_session->app_data)->session_username == NULL)?"null":((ftp_session_attr_t*) temp_session->app_data)->session_username,
 			(((ftp_session_attr_t*) temp_session->app_data)->session_conn_type == 2)?"null":(((ftp_session_attr_t*) temp_session->app_data)->session_password == NULL)?"null":((ftp_session_attr_t*) temp_session->app_data)->session_password,
 			((ftp_session_attr_t*) temp_session->app_data)->file_size,
 			(((ftp_session_attr_t*) temp_session->app_data)->filename == NULL)?"null":((ftp_session_attr_t*) temp_session->app_data)->filename,
-			((ftp_session_attr_t*) temp_session->app_data)->direction,((ftp_session_attr_t*) temp_session->app_data)->session_id_control_channel
+			((ftp_session_attr_t*) temp_session->app_data)->direction,((ftp_session_attr_t*) temp_session->app_data)->session_id_control_channel,
+			(((ftp_session_attr_t*) temp_session->app_data)->data_response_time_seen == 1)?((ftp_session_attr_t*) temp_session->app_data)->response_time:0
 	);
 
 	temp_session->session_attr->touched = 1;

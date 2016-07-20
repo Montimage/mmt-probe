@@ -336,11 +336,13 @@ typedef struct web_session_attr_struct {
     struct timeval response_time;
     struct timeval method_time;
     struct timeval interaction_time;
+    struct timeval first_response_seen_time;
+    struct timeval data_transfer_time;
     char mimetype[64];
     char hostname[96];
     char referer[64];
     char useragent[64];
-    uint8_t has_referer : 1, has_useragent : 1, xcdn_seen : 1, seen_response : 1;
+    uint8_t has_referer : 1, has_useragent : 1, xcdn_seen : 1, seen_response : 1, seen_response_dtt: 1;
     uint8_t trans_nb;
     char method[20];
     char uri[1024];
