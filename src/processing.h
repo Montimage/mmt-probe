@@ -352,7 +352,6 @@ typedef struct web_session_attr_struct {
     uint16_t psh_flag;
     time_t last_report_time_sec;
     uint32_t touched;
-    uint64_t request_counter;
     uint32_t state_http_request_response;
     temp_session_statistics_t * http_session_attr;
 } web_session_attr_t;
