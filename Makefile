@@ -11,13 +11,13 @@ INSTALL_DIR = /opt/mmt/probe
 #set of library
 LIBS     = -L /opt/mmt/dpi/lib -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
 
-CFLAGS   = -O3 -Wall -Wno-unused-variable
-CLDFLAGS = -I /opt/mmt/dpi/include
+CFLAGS   = -O3 -Wall -Wno-unused-variable -DNDEBUG
+CLDFLAGS = -I /opt/mmt/dpi/include -DNDEBUG
 
 #for debuging
 ifdef DEBUG
-	CFLAGS   += -g
-	CLDFLAGS += -g
+	CFLAGS   += -g -DNDEBUG
+	CLDFLAGS += -g -DNDEBUG
 endif
 
 #folders containing source files
