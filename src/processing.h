@@ -282,7 +282,6 @@ typedef struct ftp_session_attr_struct {
     uint8_t direction;
     char * session_username;
     char * session_password;
-    char * packet_request;
     char * response_value;
     uint32_t file_size;
     uint8_t data_type;
@@ -534,14 +533,7 @@ struct timeval mmt_time_diff(struct timeval tstart, struct timeval tend);
 void register_ftp_attributes(void * handler);
 
 //handlers
-void ftp_file_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void ftp_response_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void ftp_file_size_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void ftp_packet_request_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void ftp_password_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void ftp_user_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void ftp_data_direction_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void ftp_session_connection_type_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void xcdn_seen_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
@@ -564,7 +556,7 @@ void content_len_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 void flush_messages_to_file_thread( void *arg);
 void iterate_session( void *arg);
 void throughput(const mmt_session_t * session,session_struct_t * temp_session,int keep_direction, double throughput []);
-void reconstruct_data(const ipacket_t * ipacket);
+void reconstruct_ftp_data(const ipacket_t * ipacket);
 
 //prototypes
 //void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session);

@@ -256,11 +256,7 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 
 int packet_handler(const ipacket_t * ipacket, void * args) {
 
-	printf("packet_id: %lu\n", ipacket->packet_id);
-
-	 if (probe_context.ftp_reconstruct_enable==1)
-        reconstruct_data(ipacket);
-
+	// printf("packet_id: %lu\n", ipacket->packet_id);
 	return 0;
 
 }
@@ -273,34 +269,13 @@ void proto_stats_cleanup(void * handler) {
 	(void) unregister_packet_handler((mmt_handler_t *) handler, 1);
 }
 void * get_handler_by_name(char * func_name){
-
-/*	if (strcmp(func_name,"ftp_file_name_handle")==0){
-		return ftp_file_name_handle;
-	}*/
 	if (strcmp(func_name,"ftp_session_connection_type_handle")==0){
 		return ftp_session_connection_type_handle;
 	}
-	/*if (strcmp(func_name,"ftp_user_name_handle")==0){
-		return ftp_user_name_handle;
-	}
-	if (strcmp(func_name,"ftp_password_handle")==0){
-		return ftp_password_handle;
-	}*/
 	if (strcmp(func_name,"ftp_response_value_handle")==0){
 		return ftp_response_value_handle;
 	}
-	/*if (strcmp(func_name,"ftp_file_size_handle")==0){
-		return ftp_file_size_handle;
-	}
-	if (strcmp(func_name,"ftp_packet_request_handle")==0){
-		return ftp_packet_request_handle;
-	}
-	if (strcmp(func_name,"ftp_data_direction_handle")==0){
-		return ftp_data_direction_handle;
-	}
-	if (strcmp(func_name,"ftp_response_code_handle")==0){
-	    return ftp_response_code_handle;
-	}*/
+	
 	if (strcmp(func_name,"http_method_handle")==0){
 		return http_method_handle;
 	}
@@ -602,7 +577,6 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 		//Free the application specific data
 		if (temp_session->app_format_id == probe_context->ftp_id){
 			free (((ftp_session_attr_t*) temp_session->app_data)->filename);
-			free(((ftp_session_attr_t*) temp_session->app_data)->packet_request);
 			free(((ftp_session_attr_t*) temp_session->app_data)->response_value);
 			free(((ftp_session_attr_t*) temp_session->app_data)->session_username);
 			free(((ftp_session_attr_t*) temp_session->app_data)->session_password);
