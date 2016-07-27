@@ -9,10 +9,10 @@ OUTPUT   = probe
 INSTALL_DIR = /opt/mmt/probe
 
 #set of library
-LIBS     = -L /opt/mmt/lib -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
+LIBS     = -L /opt/mmt/dpi/lib -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
 
 CFLAGS   = -O3 -Wall -Wno-unused-variable
-CLDFLAGS = -I /opt/mmt/include
+CLDFLAGS = -I /opt/mmt/dpi/include
 
 #for debuging
 ifdef DEBUG

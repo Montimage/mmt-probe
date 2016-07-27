@@ -813,7 +813,7 @@ int main(int argc, char **argv) {
 			if(mmt_conf->radius_enable==1)radius_ext_init((void *)mmt_probe.smp_threads); // initialize radius extraction and attribute event handler
 		}
 
-		//proto_stats_init(mmt_probe.smp_threads->mmt_handler);
+		proto_stats_init(mmt_probe.smp_threads->mmt_handler);
 
 
 		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, "MMT Extraction engine! successfully initialized in a single threaded operation.");

@@ -276,6 +276,8 @@ typedef struct rtp_session_attr_struct {
 }ftp_reconstruction_t;*/
 
 typedef struct ftp_session_attr_struct {
+	struct timeval first_response_seen_time;
+	struct timeval data_transfer_time;
     uint8_t session_conn_type;
     uint8_t direction;
     char * session_username;
@@ -286,7 +288,6 @@ typedef struct ftp_session_attr_struct {
     uint8_t data_type;
     uint64_t response_time;
     uint8_t data_response_time_seen;
-    char * location;
     char * filename;
     uint16_t response_code;
     uint64_t session_id_control_channel;
@@ -352,7 +353,6 @@ typedef struct web_session_attr_struct {
     uint16_t psh_flag;
     time_t last_report_time_sec;
     uint32_t touched;
-    uint64_t request_counter;
     uint32_t state_http_request_response;
     temp_session_statistics_t * http_session_attr;
 } web_session_attr_t;
@@ -564,6 +564,7 @@ void content_len_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 void flush_messages_to_file_thread( void *arg);
 void iterate_session( void *arg);
 void throughput(const mmt_session_t * session,session_struct_t * temp_session,int keep_direction, double throughput []);
+void reconstruct_data(const ipacket_t * ipacket);
 
 //prototypes
 //void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session);
