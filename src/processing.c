@@ -275,7 +275,6 @@ void * get_handler_by_name(char * func_name){
 	if (strcmp(func_name,"ftp_response_value_handle")==0){
 		return ftp_response_value_handle;
 	}
-	
 	if (strcmp(func_name,"http_method_handle")==0){
 		return http_method_handle;
 	}
@@ -379,7 +378,6 @@ void flowstruct_init(void * args) {
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_DST);
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_SERVER_PORT);
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_CLIENT_PORT);
-
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_ACTIVE_SESSIONS_COUNT);
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, PROTO_ACTIVE_SESSIONS_COUNT);
 	i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_FRAG_PACKET_COUNT);

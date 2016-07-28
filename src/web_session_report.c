@@ -310,12 +310,10 @@ void tcp_fin_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		if (temp_session->app_format_id == probe_context->web_id ){
 			if (((web_session_attr_t *) temp_session->app_data)->seen_response_dtt == 1 ){
 				((web_session_attr_t *) temp_session->app_data)->data_transfer_time = mmt_time_diff(((web_session_attr_t *) temp_session->app_data)->first_response_seen_time,ipacket->p_hdr->ts);
-				printf ("web_dtt =%lu \n",(uint64_t) TIMEVAL_2_USEC(((web_session_attr_t *) temp_session->app_data)->data_transfer_time));
 			}
 		}else if(temp_session->app_format_id == probe_context->ftp_id){
 			if (((ftp_session_attr_t *) temp_session->app_data)->data_response_time_seen == 1 ){
 				((ftp_session_attr_t *) temp_session->app_data)->data_transfer_time = mmt_time_diff(((ftp_session_attr_t *) temp_session->app_data)->first_response_seen_time,ipacket->p_hdr->ts);
-				printf ("ftp_dtt =%lu \n",(uint64_t) TIMEVAL_2_USEC(((ftp_session_attr_t *) temp_session->app_data)->data_transfer_time));
 			}
 		}
 	}

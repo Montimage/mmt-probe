@@ -36,6 +36,7 @@ void reset_ftp_parameters(const ipacket_t * ipacket, session_struct_t *temp_sess
 	((ftp_session_attr_t*) temp_session->app_data)->file_download_starttime_usec = 0;
 	((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_sec = 0;
 	((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_usec = 0;
+	((ftp_session_attr_t*) temp_session->app_data)->filename = NULL;
 }
 /**
  * Handle a FTP attribute
@@ -94,27 +95,27 @@ void ftp_session_connection_type_handle(const ipacket_t * ipacket, attribute_t *
 	}
 	ftp_data->session_conn_type = *conn_type;
 	if (ftp_data->session_conn_type == 2) {
+		uint64_t * control_session_id = (uint64_t *) get_attribute_extracted_data(ipacket, PROTO_FTP, FTP_CONT_IP_SESSION_ID);
+		if (control_session_id != NULL)ftp_data->session_id_control_channel = * control_session_id;
 		// Report response time
 		if (ftp_data->data_response_time_seen == 0) {
-			uint64_t * control_session_id = (uint64_t *) get_attribute_extracted_data(ipacket, PROTO_FTP, FTP_CONT_IP_SESSION_ID);
-			if (control_session_id != NULL) {
-				ftp_data->session_id_control_channel = * control_session_id; //need to identify the control session for corresponding data session
-				ftp_data->first_response_seen_time = ipacket->p_hdr->ts; //Needed for data transfer time
-				uint8_t * data_type = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_FTP, FTP_DATA_TYPE);
-				if (data_type != NULL) {
-					ftp_data->data_type = * data_type;
-					if (ftp_data->data_type == 1) {
-						// response time defined here
-						// * http://www.igi-global.com/chapter/future-networked-healthcare-systems/131381
-						// * FTP Response Time: It is the time elapsed between a client application sending a request to the FTP server and receiving the response packet.
-						// * The response time includes the 3 way TCP handshake.
-						// *
-						ftp_data->response_time = TIMEVAL_2_USEC(mmt_time_diff(get_session_init_time(ipacket->session), ipacket->p_hdr->ts));
-						ftp_data->data_response_time_seen = 1;
-						debug("[FTP_REPORT: %lu] ftp_response_time = %lu\n", ipacket->packet_id, ftp_data->response_time);
-					}
+			//need to identify the control session for corresponding data session
+			ftp_data->first_response_seen_time = ipacket->p_hdr->ts; //Needed for data transfer time
+			uint8_t * data_type = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_FTP, FTP_DATA_TYPE);
+			if (data_type != NULL) {
+				ftp_data->data_type = * data_type;
+				if (ftp_data->data_type == 1) {
+					// response time defined here
+					// * http://www.igi-global.com/chapter/future-networked-healthcare-systems/131381
+					// * FTP Response Time: It is the time elapsed between a client application sending a request to the FTP server and receiving the response packet.
+					// * The response time includes the 3 way TCP handshake.
+					// *
+					ftp_data->response_time = TIMEVAL_2_USEC(mmt_time_diff(get_session_init_time(ipacket->session), ipacket->p_hdr->ts));
+					ftp_data->data_response_time_seen = 1;
+					debug("[FTP_REPORT: %lu] ftp_response_time = %lu\n", ipacket->packet_id, ftp_data->response_time);
 				}
 			}
+
 		}
 
 		// Reconstruct file
@@ -202,7 +203,6 @@ void ftp_session_connection_type_handle(const ipacket_t * ipacket, attribute_t *
 }
 
 void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-
 	char * response_value = (char *) attribute->data;
 	if (response_value == NULL) {
 		debug("[FTP_REPORT: %lu] Packet does not have response_value\n", ipacket->packet_id);
@@ -229,7 +229,7 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
 		return;
 	}
 
-	if (temp_session->app_data != NULL) {
+	if (temp_session->app_data == NULL) {
 		debug("[FTP_REPORT: %lu] Cannot get temp_session->app_data\n", ipacket->packet_id);
 		free (response_value);
 		return;
@@ -269,15 +269,15 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
 		inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
 		inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
 	}
-
 	for (i = 0; i < probe_context->condition_reports_nb; i++) {
 		mmt_condition_report_t * condition_report = &probe_context->condition_reports[i];
+
 		if (strcmp(ftp_data->response_value, "Transfer complete.") == 0 && strcmp(condition_report->condition.condition, "FTP") == 0 && probe_context->ftp_reconstruct_enable == 1) {
 
 			ftp_data->file_download_finishtime_sec = ipacket->p_hdr->ts.tv_sec;
 			ftp_data->file_download_finishtime_usec = ipacket->p_hdr->ts.tv_usec;
 			snprintf(message, MAX_MESS,
-			         "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%"PRIu32",\"%s\",\"%s\",%hu,%hu,%"PRIu8",%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%lu.%06lu,%lu.%06lu,%"PRIu64",%u,%"PRIu64"",
+			         "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%"PRIu32",\"%s\",\"%s\",%hu,%hu,%"PRIu8",%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%lu.%06lu,%lu.%06lu,%"PRIu64",%u",
 			         probe_context->ftp_reconstruct_id, probe_context->probe_id_number, probe_context->input_source, end_time.tv_sec, end_time.tv_usec, temp_session->session_id, temp_session->thread_number,
 			         ip_dst_str, ip_src_str,
 			         temp_session->serverport, temp_session->clientport,
@@ -292,12 +292,9 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
 			         ftp_data->file_download_starttime_sec,
 			         ftp_data->file_download_starttime_usec,
 			         temp_session ->session_id,
-			         temp_session ->thread_number, ftp_data->session_id_control_channel
+			         temp_session ->thread_number
 			        );
 			message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-			//send_message_to_file ("ftp.download.report", message);
-			//if (probe_context->output_to_file_enable==1)send_message_to_file (message);
-			//if (probe_context->redis_enable==1)send_message_to_redis ("ftp.download.report", message);
 
 			if (probe_context->output_to_file_enable == 1)send_message_to_file_thread (message, (void *)user_args);
 			if (probe_context->redis_enable == 1)send_message_to_redis ("ftp.download.report", message);
@@ -324,16 +321,17 @@ void print_initial_ftp_report(const mmt_session_t * session, session_struct_t * 
 	ftp_session_attr_t * ftp_data;
 	ftp_data = (ftp_session_attr_t*)temp_session->app_data;
 	snprintf(&message[valid], MAX_MESS - valid,
-	         ",%u,%u,%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%"PRIu8",%"PRIu64",%"PRIu64"",
+	         ",%u,%u,%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%"PRIu8",%"PRIu64",%"PRIu64",%"PRIu64"",
 	         temp_session->app_format_id, get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16) ? (proto_hierarchy->len - 1) : (16 - 1)]),
 	         ftp_data->session_conn_type,
-	         (ftp_data->session_conn_type == 2) ? "null" : (ftp_data->session_username == NULL) ? "null" : ftp_data->session_username,
-	         (ftp_data->session_conn_type == 2) ? "null" : (ftp_data->session_password == NULL) ? "null" : ftp_data->session_password,
+	         (ftp_data->session_username == NULL) ? "null" : ftp_data->session_username,
+	         (ftp_data->session_password == NULL) ? "null" : ftp_data->session_password,
 	         ftp_data->file_size,
 	         (ftp_data->filename == NULL) ? "null" : ftp_data->filename,
 	         ftp_data->direction,
 	         ftp_data->session_id_control_channel,
-	         ftp_data->response_time
+	         ftp_data->response_time,
+			 (uint64_t) TIMEVAL_2_USEC(((ftp_session_attr_t *) temp_session->app_data)->data_transfer_time)
 	        );
 
 	temp_session->session_attr->touched = 1;
