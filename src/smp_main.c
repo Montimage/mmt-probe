@@ -137,7 +137,7 @@ static void *smp_thread_routine(void *arg) {
 	}
 
 
-	//proto_stats_init(th->mmt_handler);
+	proto_stats_init(th->mmt_handler);
 	th->nb_packets = 0;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	char message[MAX_MESS + 1];
@@ -520,6 +520,8 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		mmt_close_handler(mmt_probe.smp_threads->mmt_handler);
 		report_all_protocols_microflows_stats((void *)mmt_probe.smp_threads);
 		if (mmt_conf->output_to_file_enable == 1)flush_messages_to_file_thread((void *)mmt_probe.smp_threads);
+		free (mmt_probe.smp_threads->cache_message_list);
+		mmt_probe.smp_threads->cache_message_list =NULL;
 		exit_timers();
 
 	} else {
@@ -543,6 +545,8 @@ void terminate_probe_processing(int wait_thread_terminate) {
 				//if (mmt_probe.smp_threads->report_counter == 0)mmt_probe.smp_threads->report_counter++;
 				//if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[i]);
 				if (mmt_conf->output_to_file_enable == 1)flush_messages_to_file_thread(&mmt_probe.smp_threads[i]);
+				free(mmt_probe.smp_threads[i].cache_message_list);
+				mmt_probe.smp_threads[i].cache_message_list =NULL;
 			}
 			exit_timers();
 		} else {
@@ -568,6 +572,8 @@ void terminate_probe_processing(int wait_thread_terminate) {
 					if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[i]);
 					mmt_close_handler(mmt_probe.smp_threads[i].mmt_handler);
 					mmt_probe.smp_threads[i].mmt_handler = NULL;
+					free(mmt_probe.smp_threads[i].cache_message_list);
+					mmt_probe.smp_threads[i].cache_message_list =NULL;
 				}
 				report_all_protocols_microflows_stats(&mmt_probe.smp_threads[i].iprobe);
 				exit_timers();
@@ -813,7 +819,7 @@ int main(int argc, char **argv) {
 			if(mmt_conf->radius_enable==1)radius_ext_init((void *)mmt_probe.smp_threads); // initialize radius extraction and attribute event handler
 		}
 
-		//proto_stats_init(mmt_probe.smp_threads->mmt_handler);
+		proto_stats_init(mmt_probe.smp_threads->mmt_handler);
 
 
 		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, "MMT Extraction engine! successfully initialized in a single threaded operation.");

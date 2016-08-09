@@ -179,7 +179,6 @@ void flush_messages_to_file_thread( void *arg){
 
 	//write messages to the file
 
-
 	int ret = pthread_spin_lock(&th->lock);
 
 	if (ret == 0) {
@@ -270,17 +269,20 @@ void send_message_to_file_thread (char * message, void *args) {
 		int ret = pthread_spin_lock(&th->lock);
 		if (ret == 1)printf("lock failed \n");
 		if (ret == 0) {
-			if( th->cache_count >= MAX_CACHE_SIZE - 1 ){
+			if( th->cache_count >= probe_context->report_cache_size_before_flushing - 1 ){
 				perror("Warning: cache size is too small");
 				//exit( 1 );
 			}
 			//cache_message_list[ cache_count ] = strdup( message );
+			//allocate memory for number of reports
+			if (th->cache_message_list == NULL)th->cache_message_list = malloc(probe_context->report_cache_size_before_flushing * sizeof( char * ) +1 );
 			int len = 0;
 			len = strlen(message);
 			//if (len > 2999 || len < 1) fprintf ( stderr ,"Warning: 201: %d, %d\n", len, (int)th->cache_count);
 			th->cache_message_list[ th->cache_count ] = malloc(len+1);
 			if( th->cache_message_list[ th->cache_count ]  == NULL ){
-				//fprintf ( stderr ,"Warning: 202, %d, %d\n", len, (int)th->cache_count);
+				fprintf ( stderr ,"Warning: 202, %d, %d\n", len, (int)th->cache_count);
+				perror("this array should not be NULL");
 			}
 			else {
 				memcpy(th->cache_message_list[ th->cache_count ], message, len);

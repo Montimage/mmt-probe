@@ -11,7 +11,7 @@
 #include "tcpip/mmt_tcpip.h"
 #include "processing.h"
 
-void print_default_app_format(const mmt_session_t * expired_session,void *args) {
+/*void print_default_app_format(const mmt_session_t * expired_session,void *args) {
     int keep_direction = 1;
     session_struct_t * temp_session = get_user_session_context(expired_session);
     char message[MAX_MESS + 1];
@@ -67,7 +67,7 @@ void print_default_app_format(const mmt_session_t * expired_session,void *args) 
     //send_message_to_file ("flow.report", message);
     if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,(void*)args);
     if (probe_context->redis_enable==1)send_message_to_redis ("flow.report", message);
-    /*
+
     fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,\n", // app specific
         temp_session->app_format_id, end_time.tv_sec, end_time.tv_usec,
         session_id,
@@ -83,8 +83,8 @@ void print_default_app_format(const mmt_session_t * expired_session,void *args) 
         get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
         temp_session->contentclass, path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]
     );
-     */
-}
+
+}*/
 void print_initial_default_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid){
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
 	snprintf(&message[valid], MAX_MESS-valid,

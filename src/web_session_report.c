@@ -114,12 +114,14 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 			//printf("((web_session_attr_t *) temp_session->app_data)->touched  = %u\n",((web_session_attr_t *) temp_session->app_data)->touched   );
 			((web_session_attr_t *) temp_session->app_data)->touched = 1;
 			((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;//response is not finished
+			//((web_session_attr_t *) temp_session->app_data)->request_counter = 1;
 			((web_session_attr_t *) temp_session->app_data)->trans_nb = 1;
 		}else{
 			((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 1;// response is finished
 			 temp_session->report_counter = th->report_counter;
 			 print_ip_session_report (ipacket->session,user_args);
 			 http_reset_report(temp_session);
+			 //((web_session_attr_t *) temp_session->app_data)->request_counter++;
 			 ((web_session_attr_t *) temp_session->app_data)->trans_nb++;
 			//((web_session_attr_t *) temp_session->app_data)->touched = 0;
 		}
@@ -229,10 +231,6 @@ void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, vo
 		}
 
 		if(temp_session->app_format_id == probe_context->web_id) {
-			if (((web_session_attr_t *) temp_session->app_data)->seen_response_dtt == 0){ //needed for data transfer time
-				((web_session_attr_t *) temp_session->app_data)->first_response_seen_time = ipacket->p_hdr->ts;
-				((web_session_attr_t *) temp_session->app_data)->seen_response_dtt = 1;
-			}
 			if (((web_session_attr_t *) temp_session->app_data)->trans_nb >= 1) { //Needed for response_time calculation
 				((web_session_attr_t *) temp_session->app_data)->response_time = mmt_time_diff(((web_session_attr_t *) temp_session->app_data)->method_time, ipacket->p_hdr->ts);
 				((web_session_attr_t *) temp_session->app_data)->seen_response = 1;
@@ -272,54 +270,8 @@ void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_
 	}
 }
 
-void tcp_fin_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-	if(ipacket->session == NULL) return;
-	mmt_probe_context_t * probe_context = get_probe_context_config();
-	session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
 
-	if (temp_session == NULL || temp_session->app_data == NULL) {
-		return;
-	}
-	uint16_t * fin = (uint16_t *) attribute->data;
-
-	mmt_ipv4_ipv6_id_t ipv4_address;
-	mmt_ipv4_ipv6_id_t ipv6_address;
-
-	int is_client_address =0;
-	char ip_client_str[46];
-	char ip_src_str[46];
-	if (temp_session->ipversion == 4) {
-		uint32_t * ip_src= (uint32_t *) get_attribute_extracted_data(ipacket,PROTO_IP, IP_SRC);
-		ipv4_address.ipv4 = (*ip_src);
-		inet_ntop(AF_INET, (void *) &temp_session->ipclient.ipv4, ip_client_str, INET_ADDRSTRLEN);
-		inet_ntop(AF_INET, (void *) &ipv4_address.ipv4, ip_src_str, INET_ADDRSTRLEN);
-		if (strcmp(ip_client_str,ip_src_str)==0) is_client_address =1;
-		//printf ("src=%s, client =%s \n",ip_src_str,ip_client_str);
-	}else if (temp_session->ipversion == 6){
-		void * ipv6_src = (void *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SRC);
-		if (ipv6_src) {
-			memcpy(&ipv6_address.ipv6, ipv6_src, 16);
-		}
-		inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_client_str, INET6_ADDRSTRLEN);
-		inet_ntop(AF_INET6, (void *) &ipv6_address.ipv6, ip_src_str, INET6_ADDRSTRLEN);
-		if (strcmp(ip_client_str,ip_src_str)==0) is_client_address =1;
-		//printf ("srcv6=%s, clientv6 =%s \n",ip_src_str,ip_client_str);
-	}
-
-	if (fin != NULL && is_client_address == 1) {
-		if (temp_session->app_format_id == probe_context->web_id ){
-			if (((web_session_attr_t *) temp_session->app_data)->seen_response_dtt == 1 ){
-				((web_session_attr_t *) temp_session->app_data)->data_transfer_time = mmt_time_diff(((web_session_attr_t *) temp_session->app_data)->first_response_seen_time,ipacket->p_hdr->ts);
-			}
-		}else if(temp_session->app_format_id == probe_context->ftp_id){
-			if (((ftp_session_attr_t *) temp_session->app_data)->data_response_time_seen == 1 ){
-				((ftp_session_attr_t *) temp_session->app_data)->data_transfer_time = mmt_time_diff(((ftp_session_attr_t *) temp_session->app_data)->first_response_seen_time,ipacket->p_hdr->ts);
-			}
-		}
-	}
-}
-
-void print_web_app_format(const mmt_session_t * expired_session, void *args) {
+/*void print_web_app_format(const mmt_session_t * expired_session, void *args) {
 	int keep_direction = 1;
 	session_struct_t * temp_session = get_user_session_context(expired_session);
 	char path[128];
@@ -396,7 +348,7 @@ void print_web_app_format(const mmt_session_t * expired_session, void *args) {
 	message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
 	if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,(void*)args);
 	if (probe_context->redis_enable==1)send_message_to_redis ("web.flow.report", message);
-}
+}*/
 
 void print_initial_web_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid){
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -405,7 +357,7 @@ void print_initial_web_report(const mmt_session_t * session,session_struct_t * t
 	else if (get_session_content_flags(session) & MMT_CONTENT_CDN) cdn_flag = 2;
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
 	snprintf(&message[valid], MAX_MESS-valid,
-			",%u,%u,%u,%"PRIu64",%u,%"PRIu64",\"%s\",\"%s\",\"%s\",%u,\"%s\",\"%s\",\"%s\",%s,%u,%"PRIu64"", // app specific
+			",%u,%u,%u,%"PRIu64",%u,%"PRIu64",\"%s\",\"%s\",\"%s\",%u,\"%s\",\"%s\",\"%s\",%s,%u", // app specific
 			temp_session->app_format_id,get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
 			temp_session->contentclass,
 			(((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint64_t) TIMEVAL_2_USEC(((web_session_attr_t *) temp_session->app_data)->response_time) : 0,
@@ -415,8 +367,7 @@ void print_initial_web_report(const mmt_session_t * session,session_struct_t * t
 									((web_session_attr_t *) temp_session->app_data)->mimetype, ((web_session_attr_t *) temp_session->app_data)->referer,cdn_flag,
 									((web_session_attr_t *) temp_session->app_data)->uri,((web_session_attr_t *) temp_session->app_data)->method,((web_session_attr_t *) temp_session->app_data)->response,
 									(((web_session_attr_t *) temp_session->app_data)->content_len[0] == '\0')? "0":((web_session_attr_t *) temp_session->app_data)->content_len,
-									((web_session_attr_t *) temp_session->app_data)->state_http_request_response,
-									(uint64_t) TIMEVAL_2_USEC(((web_session_attr_t *) temp_session->app_data)->data_transfer_time)
+									((web_session_attr_t *) temp_session->app_data)->state_http_request_response
 	);
 
 	if(temp_session->app_format_id == probe_context->web_id ){

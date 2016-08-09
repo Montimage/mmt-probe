@@ -263,8 +263,8 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
 	struct timeval end_time = get_session_last_activity_time(ipacket->session);
 
 	if (temp_session->ipversion == 4) {
-		inet_ntop(AF_INET, (void *) &temp_session->ipclient.ipv4, ip_src_str, INET_ADDRSTRLEN);
-		inet_ntop(AF_INET, (void *) &temp_session->ipserver.ipv4, ip_dst_str, INET_ADDRSTRLEN);
+		/*inet_ntop(AF_INET, (void *) &temp_session->ipclient.ipv4, ip_src_str, INET_ADDRSTRLEN);
+		inet_ntop(AF_INET, (void *) &temp_session->ipserver.ipv4, ip_dst_str, INET_ADDRSTRLEN);*/
 	} else {
 		inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
 		inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
@@ -321,7 +321,7 @@ void print_initial_ftp_report(const mmt_session_t * session, session_struct_t * 
 	ftp_session_attr_t * ftp_data;
 	ftp_data = (ftp_session_attr_t*)temp_session->app_data;
 	snprintf(&message[valid], MAX_MESS - valid,
-	         ",%u,%u,%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%"PRIu8",%"PRIu64",%"PRIu64",%"PRIu64"",
+	         ",%u,%u,%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%"PRIu8",%"PRIu64",%"PRIu64"",
 	         temp_session->app_format_id, get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16) ? (proto_hierarchy->len - 1) : (16 - 1)]),
 	         ftp_data->session_conn_type,
 	         (ftp_data->session_username == NULL) ? "null" : ftp_data->session_username,
@@ -330,8 +330,7 @@ void print_initial_ftp_report(const mmt_session_t * session, session_struct_t * 
 	         (ftp_data->filename == NULL) ? "null" : ftp_data->filename,
 	         ftp_data->direction,
 	         ftp_data->session_id_control_channel,
-	         ftp_data->response_time,
-			 (uint64_t) TIMEVAL_2_USEC(((ftp_session_attr_t *) temp_session->app_data)->data_transfer_time)
+	         ftp_data->response_time
 	        );
 
 	temp_session->session_attr->touched = 1;

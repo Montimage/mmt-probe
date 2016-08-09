@@ -93,7 +93,7 @@ void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, v
     }
 }
 
-void print_rtp_app_format(const mmt_session_t * expired_session, void * args) {
+/*void print_rtp_app_format(const mmt_session_t * expired_session, void * args) {
     int keep_direction = 1;
     session_struct_t * temp_session = get_user_session_context(expired_session);
     //common fields
@@ -164,7 +164,7 @@ void print_rtp_app_format(const mmt_session_t * expired_session, void * args) {
     //send_message_to_file ("rtp.flow.report", message);
     if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,(void*)args);
     if (probe_context->redis_enable==1)send_message_to_redis ("rtp.flow.report", message);
-    /*
+
     // Packet loss rate, Packet loss burstiness, max jitter, Order error rate
     fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,%f,%f,%u,%f\n", // app specific
         temp_session->app_format_id, end_time.tv_sec, end_time.tv_usec,
@@ -186,8 +186,8 @@ void print_rtp_app_format(const mmt_session_t * expired_session, void * args) {
         loss_burstiness,
         ((rtp_session_attr_t*) temp_session->app_data)->jitter, order_error
     );
-     */
-}
+
+}*/
 void print_initial_rtp_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid){
     //case 1://missing dev_prop, cdn_flag
 

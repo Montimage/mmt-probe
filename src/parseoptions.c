@@ -137,6 +137,7 @@ cfg_t * parse_conf(const char *filename) {
             CFG_INT("thread-nb", 1, CFGF_NONE),
             CFG_INT("thread-queue", 0, CFGF_NONE),
             CFG_INT("thread-data", 0, CFGF_NONE),
+			CFG_INT("cache-size-for-reporting", 0, CFGF_NONE),
             CFG_INT_CB("input-mode", 0, CFGF_NONE, conf_parse_input_mode),
             CFG_STR("input-source", "nosource", CFGF_NONE),
             CFG_INT("probe-id-number", 0, CFGF_NONE),
@@ -260,6 +261,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         if (mmt_conf->thread_queue_plen == 0) mmt_conf->thread_queue_plen = 1000; //default value is 1000
         if (mmt_conf->thread_queue_blen == 0) mmt_conf->thread_queue_blen = 0xFFFFFFFF; //No limitation
         mmt_conf->input_mode = (uint32_t) cfg_getint(cfg, "input-mode");
+        mmt_conf->report_cache_size_before_flushing = (uint64_t) cfg_getint(cfg, "cache-size-for-reporting");
+        if (mmt_conf->report_cache_size_before_flushing  == 0) mmt_conf->report_cache_size_before_flushing  = 300000;
+
 
         if(mmt_conf->input_mode==0){
             printf("Error: Specify the input-mode in the configuration file, for example input-mode = \"offline\" or \"online\" \n");
@@ -490,9 +494,6 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
     }
     return 1;
 }
-
-
-
 
 void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
     int opt, optcount = 0;

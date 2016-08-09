@@ -256,7 +256,28 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 
 int packet_handler(const ipacket_t * ipacket, void * args) {
 
-	// printf("packet_id: %lu\n", ipacket->packet_id);
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+
+	session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
+	if (temp_session == NULL) {
+		return 0;
+	}
+    // only for packet based on TCP
+	if (temp_session->dtt_seen == 0){
+		//this will exclude all the protocols except TCP
+		if(TIMEVAL_2_USEC(get_session_rtt(ipacket->session))==0)return 0;
+		struct timeval t1;
+		t1.tv_sec=0;
+		t1.tv_usec=0;
+		//The download direction is opposite to set_up_direction, the download direction is from server to client
+		if (get_session_last_packet_direction(ipacket->session)!= get_session_setup_direction(ipacket->session)){
+			t1 = get_session_last_data_packet_time_by_direction(ipacket->session,get_session_last_packet_direction(ipacket->session));
+		}
+		if (TIMEVAL_2_USEC(mmt_time_diff(get_session_init_time(ipacket->session),ipacket->p_hdr->ts)) > TIMEVAL_2_USEC(get_session_rtt(ipacket->session)) && t1.tv_sec > 0){
+			temp_session->dtt_seen =1;
+			temp_session->dtt_start_time = ipacket->p_hdr->ts;
+		}
+	}
 	return 0;
 
 }
@@ -384,10 +405,8 @@ void flowstruct_init(void * args) {
 	i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_FRAG_DATA_VOLUME);
 	i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_DF_PACKET_COUNT);
 	i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_DF_DATA_VOLUME);
-
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
-	i &= register_attribute_handler(th->mmt_handler, PROTO_TCP, TCP_FIN, tcp_fin_handle, NULL, (void *)args);
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, IP_RTT, ip_rtt_handler, NULL, (void *)args);
 	/*if(probe_context->ftp_enable == 1){
 		register_ftp_attributes(th->mmt_handler);
@@ -540,6 +559,7 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 
 			temp_session->report_counter = th->report_counter;
 			print_ip_session_report (expired_session,th);
+
 	}else{
 		temp_session->report_counter = th->report_counter;
 		print_ip_session_report (expired_session,th);

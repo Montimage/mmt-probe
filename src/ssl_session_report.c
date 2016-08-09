@@ -42,7 +42,7 @@ void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, 
     }
     temp_session->contentclass = get_content_class_by_content_flags(get_session_content_flags(ipacket->session));
 }
-
+/*
 void print_ssl_app_format(const mmt_session_t * expired_session,void *args) {
     int keep_direction = 1;
     session_struct_t * temp_session = get_user_session_context(expired_session);
@@ -100,7 +100,7 @@ void print_ssl_app_format(const mmt_session_t * expired_session,void *args) {
     //send_message_to_file ("ssl.flow.report", message);
     if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,(void*)args);
     if (probe_context->redis_enable==1)send_message_to_redis ("ssl.flow.report", message);
-    /*
+
     fprintf(out_file, "%hu,%lu.%lu,%"PRIu64",%lu.%lu,%u,%s,%s,%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%s,%u,%s,%u\n", // app specific
         (uint16_t) MMT_SSL_APP_REPORT_FORMAT, end_time.tv_sec, end_time.tv_usec,
         session_id,
@@ -117,8 +117,8 @@ void print_ssl_app_format(const mmt_session_t * expired_session,void *args) {
         temp_session->contentclass, path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)],
         (((ssl_session_attr_t *) temp_session->app_data) != NULL) ? ((ssl_session_attr_t *) temp_session->app_data)->hostname : "", (get_session_content_flags(expired_session) & MMT_CONTENT_CDN) ? 2 : 0
     );
-     */
-}
+
+}*/
 void print_initial_ssl_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid){
 
     //case 1://missing dev_prop, cdn_flag
