@@ -67,15 +67,15 @@ install: all
 #copy probe to bin
 	$(QUIET) $(CP) $(OUTPUT) $(INSTALL_DIR)/bin/probe
 #create link
-	$(QUIET) $(CP) $(INSTALL_DIR)/bin/probe $(INSTALL_DIR)/bin/probe_online
-	$(QUIET) $(CP) $(INSTALL_DIR)/bin/probe $(INSTALL_DIR)/bin/probe_offline
+#	$(QUIET) $(CP) $(INSTALL_DIR)/bin/probe $(INSTALL_DIR)/bin/probe_online
+#	$(QUIET) $(CP) $(INSTALL_DIR)/bin/probe $(INSTALL_DIR)/bin/probe_offline
 #copy config files
 	$(QUIET) $(CP) mmt_offline.conf $(INSTALL_DIR)/conf/offline.conf
 	$(QUIET) $(CP) mmt_online.conf  $(INSTALL_DIR)/conf/online.conf
 #install deamon -e: regex expression
-	$(QUIET) sed "s|/opt/mmt/probe|$(INSTALL_DIR)|g" deamon.sh  > /tmp/probe_deamon
-	$(QUIET) sed "s|runing_mode|online|g" /tmp/probe_deamon     > /etc/init.d/probe_online_d
-	$(QUIET) sed "s|runing_mode|offline|g" /tmp/probe_deamon    > /etc/init.d/probe_offline_d
+	$(QUIET) sed "s|/opt/mmt/probe|$(INSTALL_DIR)|g" daemon.sh  > /tmp/probe_daemon
+	$(QUIET) sed "s|runing_mode|online|g" /tmp/probe_daemon     > /etc/init.d/probe_online_d
+	$(QUIET) sed "s|runing_mode|offline|g" /tmp/probe_daemon    > /etc/init.d/probe_offline_d
 	$(QUIET) chmod +x /etc/init.d/probe_*_d
 #
 	@echo
