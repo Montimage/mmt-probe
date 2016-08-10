@@ -433,7 +433,7 @@ void *Reader(void *arg) {
 	handle = pcap_create(mmt_probe->mmt_conf->input_source, errbuf);
 	if (handle == NULL) {
 		fprintf(stderr, "Couldn't open device %s\n", errbuf);
-		exit(EXIT_FAILURE);
+		exit(0);
 	}
 	pcap_set_snaplen(handle, d_snap_len);
 	pcap_set_promisc(handle, 1);
@@ -446,7 +446,7 @@ void *Reader(void *arg) {
 	/* make sure we're capturing on an Ethernet device */
 	if (pcap_datalink(handle) != DLT_EN10MB) {
 		fprintf(stderr, "%s is not an Ethernet\n", mmt_probe->mmt_conf->input_source);
-		exit(EXIT_FAILURE);
+		exit(0);
 	}
 
 	/* compile the filter expression */
@@ -559,7 +559,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 				int s;
 				s = pthread_cancel(mmt_probe.smp_threads[i].handle);
 				if (s != 0) {
-					exit(0);
+					exit(1);
 				}
 			}
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
@@ -692,17 +692,17 @@ void signal_handler(int type) {
                             }
                         }
 		 */
-		exit(0);
+		exit(1);
 	case SIGTERM:
 		mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_TERMINATION, "Termination signal received! Cleaning up before exiting!");
 		//terminate_probe_processing();
 		//fprintf(stdout, "Terminating\n");
-		exit(0);
+		exit(1);
 	case SIGABRT:
 		mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_TERMINATION, "Abort signal received! Cleaning up before exiting!");
 		//terminate_probe_processing();
 		//fprintf(stdout, "Terminating\n");
-		exit(0);
+		exit(1);
 	case SIGINT:
 		mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_TERMINATION, "Interruption Termination signal received! Cleaning up before exiting!");
 		//terminate_probe_processing();
@@ -713,11 +713,11 @@ void signal_handler(int type) {
 		mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_TERMINATION, "Kill signal received! Cleaning up before exiting!");
 		//terminate_probe_processing();
 		//fprintf(stdout, "Terminating\n");
-		exit(0);
+		exit(1);
 #endif
 	default:
 		mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_TERMINATION, "Received an unexpected signal!");
-		exit(0);
+		exit(1);
 	}
 }
 
@@ -757,7 +757,7 @@ int main(int argc, char **argv) {
 
 		if (mmt_conf->data_out_file == NULL){
 			fprintf ( stderr , "\n[e] Error: %d creation of \"%s\" failed: %s\n" , errno ,single_file, strerror( errno ) );
-			exit(1);
+			exit(0);
 		}
 
 		sprintf(lg_msg, "Open output results file: %s", single_file);
@@ -848,7 +848,7 @@ int main(int argc, char **argv) {
 				//free memory allocated
 				for(j=0; j<=i; j++)
 					data_spsc_ring_free( &mmt_probe.smp_threads[j].fifo );
-				exit( 1 );
+				exit( 0 );
 			}
 
 			pthread_create(&mmt_probe.smp_threads[i].handle, NULL,

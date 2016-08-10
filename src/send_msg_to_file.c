@@ -271,7 +271,7 @@ void send_message_to_file_thread (char * message, void *args) {
 		if (ret == 0) {
 			if( th->cache_count >= probe_context->report_cache_size_before_flushing - 1 ){
 				perror("Warning: cache size is too small");
-				//exit( 1 );
+				exit( 0 );
 			}
 			//cache_message_list[ cache_count ] = strdup( message );
 			//allocate memory for number of reports

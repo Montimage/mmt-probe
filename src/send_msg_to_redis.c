@@ -33,13 +33,13 @@ void init_redis (char * hostname, int port) {
             } else {
                 printf("Connection error: can't allocate redis context\n");
             }
-            exit(1);
+            exit(0);
         }
         if (thredis == NULL){
             thredis = thredis_new(redis);
             if(thredis == NULL) {
                 printf("Thredis wrapper thredis_new failed\n");
-                exit(1);
+                exit(0);
             }
         }
     }

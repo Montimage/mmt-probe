@@ -267,7 +267,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
         if(mmt_conf->input_mode==0){
             printf("Error: Specify the input-mode in the configuration file, for example input-mode = \"offline\" or \"online\" \n");
-            exit(1);
+            exit(0);
         }
 
 
@@ -279,7 +279,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
         if ((char *) cfg_getstr(cfg, "logfile")==NULL){
             printf("Error: Specify the logfile name  configuration file, for example logfile = \"log.data\"\n");
-            exit(1);
+            exit(0);
         }
         strncpy(mmt_conf->log_file, (char *) cfg_getstr(cfg, "logfile"), 256);
 
@@ -287,7 +287,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
         if ((char *) cfg_getstr(cfg, "license_file_path")==NULL){
             printf("Error: Specify the license_file_path full path in the configuration file\n");
-            exit(1);
+            exit(0);
         }
         strncpy(mmt_conf->license_location, (char *) cfg_getstr(cfg, "license_file_path"), 256);
 
@@ -312,11 +312,11 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
                 mmt_conf->sampled_report = (uint32_t) cfg_getint(output, "sampled_report");
                 if (mmt_conf->sampled_report>1){
                     printf("Error: Sample_report inside the output section in the configuration file has a value either 1 or 0, 1 for sampled output and 0 for single output\n");
-                    exit(1);
+                    exit(0);
                 }
             }else{
                 printf("Error: Output section missing in the configuration file i.e. specify output_file_name, location, sample_report etc\n");
-                exit(1);
+                exit(0);
             }
         }
         if (cfg_size(cfg, "security")) {
@@ -399,7 +399,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         		temp_er->id = (uint32_t)cfg_getint(event_opts, "id");
         		if (parse_dot_proto_attribute((char *) cfg_getstr(event_opts, "event"), &temp_er->event)) {
         			fprintf(stderr, "Error: invalid event_report event value '%s'\n", (char *) cfg_getstr(event_opts, "event"));
-        			exit(-1);
+        			exit(0);
         		}
         		event_attributes_nb = cfg_size(event_opts, "attributes");
         		temp_er->attributes_nb = event_attributes_nb;
@@ -409,7 +409,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         			for(i = 0; i < event_attributes_nb; i++) {
         				if (parse_dot_proto_attribute(cfg_getnstr(event_opts, "attributes", i), &temp_er->attributes[i])) {
         					fprintf(stderr, "Error: invalid event_report attribute value '%s'\n", (char *) cfg_getnstr(event_opts, "attributes", i));
-        					exit(-1);
+        					exit(0);
         				}
         			}
         		}
@@ -432,7 +432,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
         		if (parse_condition_attribute((char *) cfg_getstr(condition_opts, "condition"), &temp_condn->condition)) {
         			fprintf(stderr, "Error: invalid condition_report condition value '%s'\n", (char *) cfg_getstr(condition_opts, "condition"));
-        			exit(-1);
+        			exit(0);
         		}
 
         		// if (parse_location_attribute((char *) cfg_getstr(condition_opts, "location"), &temp_condn->condition)) {
@@ -469,7 +469,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         				for(i = 0; i < condition_attributes_nb; i++) {
         					if (condition_parse_dot_proto_attribute(cfg_getnstr(condition_opts, "attributes", i), &temp_condn->attributes[i])) {
         						fprintf(stderr, "Error: invalid condition_report attribute value '%s'\n", (char *) cfg_getnstr(condition_opts, "attributes", i));
-        						exit(-1);
+        						exit(0);
         					}
         				}
         			}
@@ -482,7 +482,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         				for(i = 0; i < condition_handlers_nb; i++) {
         					if (parse_handlers_attribute((char *) cfg_getnstr(condition_opts, "handlers",i), &temp_condn->handlers[i])) {
         						fprintf(stderr, "Error: invalid condition_report handler attribute value '%s'\n", (char *) cfg_getnstr(condition_opts, "handlers", i));
-        						exit(-1);
+        						exit(0);
         					}
         				}
         			}
@@ -559,7 +559,7 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
     cfg_t *cfg = parse_conf(config_file);
     if(cfg == NULL) {
         if(versions_only != 1) fprintf(stderr, "Configuration file not found: use -c <config file> or create default file /etc/mmtprobe/mmt.conf\n");
-        exit(EXIT_FAILURE);
+        exit(0);
     }
     process_conf_result(cfg, mmt_conf);
 
@@ -568,7 +568,7 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
     }
     else if (strlen(mmt_conf->input_source)==0){
     	if(versions_only != 1) printf("Error:Specify the input-source in the configuration file, for example, for offline analysis: trace file name and for online analysis: network interface\n");
-        exit(1);
+        exit(0);
     }
 
     if(output) {

@@ -54,13 +54,13 @@ void parseOptions(int argc, char ** argv) {
 
 	if (optcount > 2 || optcount < 2 ) {
 		usage(argv[0]);
-		exit(EXIT_FAILURE);
+		exit(0);
 	}
 
 	int count = 0;
 	if (length == 0){
 		usage(argv[0]);
-		exit(EXIT_FAILURE);
+		exit(0);
 	}
 
 	for (count = 0; count < length; count++)
@@ -78,12 +78,12 @@ void parseOptions(int argc, char ** argv) {
 	int mac_address_length = (no_of_mac_address *17 + no_of_mac_address-1);
 	if(!write_mac_address || length < mac_address_length || length > mac_address_length) {
 		printf("Error: Specify 12 digit MAC addressess separated by - \"for example: 2A:3Z:45:6T:12:34-45:67:34:T5:78:FG also check number of mac address\" \n");
-		exit(EXIT_FAILURE);
+		exit(0);
 	}
 
 	if(strlen(expiry_date)<10 ||strlen(expiry_date)>10) {
 		printf("Error: Specify expiry date in format YYYY/MM/DD \n");
-		exit(EXIT_FAILURE);
+		exit(0);
 	}
 
 	return;
