@@ -548,8 +548,20 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 
 	int sslindex;
-	temp_session->report_counter = th->report_counter;
-	print_ip_session_report (expired_session,th);
+	if(temp_session->app_format_id == probe_context->web_id && temp_session->session_attr->total_byte_count != 0 ){
+			if (temp_session->app_data == NULL) return;
+			if (((web_session_attr_t *) temp_session->app_data)->state_http_request_response != 0)((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;
+				if (temp_session->session_attr == NULL) {
+					temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
+					memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+				}
+				temp_session->report_counter = th->report_counter;
+				print_ip_session_report (expired_session,th);
+
+		}else{
+			temp_session->report_counter = th->report_counter;
+			print_ip_session_report (expired_session,th);
+		}
 
 	if (is_microflow(expired_session)) {
 		microsessions_stats_t * mf_stats = &th->iprobe.mf_stats[get_session_protocol_hierarchy(expired_session)->proto_path[(get_session_protocol_hierarchy(expired_session)->len <= 16)?(get_session_protocol_hierarchy(expired_session)->len - 1):(16 - 1)]];
