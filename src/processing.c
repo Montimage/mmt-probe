@@ -548,7 +548,7 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 
 	int sslindex;
-	if(temp_session->app_format_id == probe_context->web_id && temp_session->session_attr->total_byte_count != 0 ){
+	if(temp_session->app_format_id == probe_context->web_id ){
 			if (temp_session->app_data == NULL) return;
 			if (((web_session_attr_t *) temp_session->app_data)->state_http_request_response != 0)((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;
 				if (temp_session->session_attr == NULL) {
