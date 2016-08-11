@@ -408,6 +408,7 @@ void flowstruct_init(void * args) {
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, IP_RTT, ip_rtt_handler, NULL, (void *)args);
+	i &=register_attribute_handler(th->mmt_handler, PROTO_TCP,TCP_CONN_CLOSED, tcp_closed_handler, NULL, (void *)args);
 	/*if(probe_context->ftp_enable == 1){
 		register_ftp_attributes(th->mmt_handler);
 	}*/
@@ -547,23 +548,8 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 
 	int sslindex;
-	if(temp_session->app_format_id == probe_context->web_id ){
-		if (temp_session->app_data == NULL) return;
-			if (((web_session_attr_t *) temp_session->app_data)->state_http_request_response == 0)((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 1;
-			if (temp_session->session_attr == NULL) {
-				temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
-				memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
-			}
-			temp_session->session_attr->last_activity_time.tv_sec =0;
-			temp_session->session_attr->last_activity_time.tv_usec =0;
-
-			temp_session->report_counter = th->report_counter;
-			print_ip_session_report (expired_session,th);
-
-	}else{
-		temp_session->report_counter = th->report_counter;
-		print_ip_session_report (expired_session,th);
-	}
+	temp_session->report_counter = th->report_counter;
+	print_ip_session_report (expired_session,th);
 
 	if (is_microflow(expired_session)) {
 		microsessions_stats_t * mf_stats = &th->iprobe.mf_stats[get_session_protocol_hierarchy(expired_session)->proto_path[(get_session_protocol_hierarchy(expired_session)->len <= 16)?(get_session_protocol_hierarchy(expired_session)->len - 1):(16 - 1)]];
@@ -571,25 +557,7 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 		if (is_microflow_stats_reportable(mf_stats)) {
 			report_microflows_stats(mf_stats,args);
 		}
-	} /*else {
-		//First we check if we should skip the reporting for this flow
-		if (temp_session->app_format_id != MMT_SKIP_APP_REPORT_FORMAT) {
-			if (probe_context->web_enable==1 && temp_session->app_format_id==probe_context->web_id)print_web_app_format(expired_session,(void *) th);
-			else if (probe_context->ssl_enable==1 && temp_session->app_format_id==probe_context->ssl_id)print_ssl_app_format(expired_session,(void *) th);
-			else if(probe_context->rtp_enable==1 && temp_session->app_format_id==probe_context->rtp_id)print_rtp_app_format(expired_session,(void *) th);
-			else if(probe_context->ftp_enable==1 && temp_session->app_format_id==probe_context->ftp_id)print_ftp_app_format(expired_session, (void *)th);
-			else{
-				sslindex = get_protocol_index_from_session(get_session_protocol_hierarchy(expired_session), PROTO_SSL);
-				if (sslindex != -1 && probe_context->ssl_enable==1 ){
-					temp_session->app_format_id = probe_context->ssl_id;
-					if (probe_context->ssl_enable==1 && temp_session->app_format_id==probe_context->ssl_id)print_ssl_app_format(expired_session, (void *)th);
-				}
-				//else print_default_app_format(expired_session,(void *)th);//jeevan if no report are enable , comment it
-			}
-
-		}
-	}*/
-
+	}
 
 	if (temp_session->app_data != NULL) {
 		//Free the application specific data

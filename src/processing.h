@@ -559,6 +559,7 @@ void flush_messages_to_file_thread( void *arg);
 void iterate_session( void *arg);
 //void throughput(const mmt_session_t * session,session_struct_t * temp_session,int keep_direction, double throughput []);
 void reconstruct_ftp_data(const ipacket_t * ipacket);
+void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 
 //prototypes
 //void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session);

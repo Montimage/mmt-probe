@@ -113,11 +113,11 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 		if (((web_session_attr_t *) temp_session->app_data)->touched == 0){
 			//printf("((web_session_attr_t *) temp_session->app_data)->touched  = %u\n",((web_session_attr_t *) temp_session->app_data)->touched   );
 			((web_session_attr_t *) temp_session->app_data)->touched = 1;
-			((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;//response is not finished
+			((web_session_attr_t *) temp_session->app_data)->state_http_request_response++;//response is not finished
 			//((web_session_attr_t *) temp_session->app_data)->request_counter = 1;
 			((web_session_attr_t *) temp_session->app_data)->trans_nb = 1;
 		}else{
-			((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 1;// response is finished
+			((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;// response is finished
 			 temp_session->report_counter = th->report_counter;
 			 print_ip_session_report (ipacket->session,user_args);
 			 http_reset_report(temp_session);
@@ -270,6 +270,34 @@ void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_
 	}
 }
 
+void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
+
+	if(ipacket->session == NULL) return;
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+	session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
+	struct smp_thread *th = (struct smp_thread *) user_args;
+	if (temp_session == NULL || temp_session->app_data == NULL) {
+		return;
+	}
+	uint16_t * tcp_close = (uint16_t *) attribute->data;
+
+	if (tcp_close != NULL ) {
+		if(temp_session->app_format_id == probe_context->web_id ){
+			if (((web_session_attr_t *) temp_session->app_data)->state_http_request_response != 0)((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;
+			if (temp_session->session_attr == NULL) {
+				temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
+				memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+			}
+			temp_session->session_attr->last_activity_time.tv_sec =0;
+			temp_session->session_attr->last_activity_time.tv_usec =0;
+
+			temp_session->report_counter = th->report_counter;
+			print_ip_session_report (ipacket->session,th);
+		}
+		print_ip_session_report (ipacket->session,th);
+	}
+
+}
 
 /*void print_web_app_format(const mmt_session_t * expired_session, void *args) {
 	int keep_direction = 1;
@@ -372,8 +400,10 @@ void print_initial_web_report(const mmt_session_t * session,session_struct_t * t
 
 	if(temp_session->app_format_id == probe_context->web_id ){
 		if (temp_session->app_data == NULL) return;
-		if (((web_session_attr_t *) temp_session->app_data)->state_http_request_response ==1)((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;
+		if (((web_session_attr_t *) temp_session->app_data)->state_http_request_response !=0)((web_session_attr_t *) temp_session->app_data)->state_http_request_response++;
 	}
+	((web_session_attr_t *) temp_session->app_data)->response_time.tv_sec = 0;
+	((web_session_attr_t *) temp_session->app_data)->response_time.tv_usec = 0;
 	temp_session->session_attr->touched = 1;
 
 }
