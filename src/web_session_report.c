@@ -111,7 +111,6 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 			memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
 		}
 		if (((web_session_attr_t *) temp_session->app_data)->touched == 0){
-			//printf("((web_session_attr_t *) temp_session->app_data)->touched  = %u\n",((web_session_attr_t *) temp_session->app_data)->touched   );
 			((web_session_attr_t *) temp_session->app_data)->touched = 1;
 			((web_session_attr_t *) temp_session->app_data)->state_http_request_response++;//response is not finished
 			//((web_session_attr_t *) temp_session->app_data)->request_counter = 1;
@@ -290,7 +289,6 @@ void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void
 			}
 			temp_session->session_attr->last_activity_time.tv_sec =0;
 			temp_session->session_attr->last_activity_time.tv_usec =0;
-
 			temp_session->report_counter = th->report_counter;
 			print_ip_session_report (ipacket->session,th);
 		}

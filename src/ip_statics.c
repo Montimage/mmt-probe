@@ -79,8 +79,6 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 
 	int sslindex;
 
-	uint64_t rtt_ms = TIMEVAL_2_USEC(get_session_rtt(session));
-
 	const proto_hierarchy_t * proto_path_0 =  get_session_proto_path_direction(session,1);
 	proto_hierarchy_ids_to_str(get_session_proto_path_direction(session,1), temp_session->path_ul);
 
@@ -103,6 +101,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 		temp_session->data_transfer_time =  TIMEVAL_2_USEC(mmt_time_diff(temp_session->dtt_start_time,t1)) ;
 		temp_session->dtt_start_time.tv_sec = t1.tv_sec;
 		temp_session->dtt_start_time.tv_usec = t1.tv_usec;
+		//printf("session_id =%lu,report_number= %lu, dtt= %lu\n",temp_session ->session_id,report_number,temp_session->data_transfer_time);
 	}
 	uint64_t active_session_count = get_active_session_count(th->mmt_handler);
 	if (keep_direction == 1){
@@ -123,9 +122,17 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 				get_session_dl_cap_packet_count(session) - temp_session->session_attr->packet_count[0],
 				temp_session->session_attr->start_time.tv_sec, temp_session->session_attr->start_time.tv_usec,
 				ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,temp_session ->session_id,
-				temp_session->serverport, temp_session->clientport,temp_session->thread_number,rtt_ms,temp_session->session_attr->rtt_min_usec[1] ,temp_session->session_attr->rtt_min_usec[0],
-				temp_session->session_attr->rtt_max_usec[1] ,temp_session->session_attr->rtt_max_usec[0],temp_session->session_attr->rtt_avg_usec[1],temp_session->session_attr->rtt_avg_usec[0],
-				temp_session->data_transfer_time,get_session_retransmission_count (session)-temp_session->session_attr->retransmission_count);
+				temp_session->serverport, temp_session->clientport,
+				temp_session->thread_number,
+			    (temp_session->rtt_at_handshake == 0)?TIMEVAL_2_USEC(get_session_rtt(session)):0,
+				temp_session->session_attr->rtt_min_usec[1],
+				temp_session->session_attr->rtt_min_usec[0],
+				temp_session->session_attr->rtt_max_usec[1],
+				temp_session->session_attr->rtt_max_usec[0],
+				temp_session->session_attr->rtt_avg_usec[1],
+				temp_session->session_attr->rtt_avg_usec[0],
+				temp_session->data_transfer_time,
+				get_session_retransmission_count (session)-temp_session->session_attr->retransmission_count);
 	}else{
 		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%"PRIu64",%u,\"%s\",\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%06lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u",
 				MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source,temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec,report_number,
@@ -144,9 +151,17 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 				get_session_dl_cap_packet_count(session) - temp_session->session_attr->packet_count[1],
 				temp_session->session_attr->start_time.tv_sec, temp_session->session_attr->start_time.tv_usec,
 				ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,temp_session ->session_id,
-				temp_session->serverport, temp_session->clientport,temp_session->thread_number,rtt_ms,temp_session->session_attr->rtt_min_usec[1] ,temp_session->session_attr->rtt_min_usec[0],
-				temp_session->session_attr->rtt_max_usec[1] ,temp_session->session_attr->rtt_max_usec[0],temp_session->session_attr->rtt_avg_usec[1],temp_session->session_attr->rtt_avg_usec[0],
-				temp_session->data_transfer_time,get_session_retransmission_count (session)-temp_session->session_attr->retransmission_count);
+				temp_session->serverport, temp_session->clientport,
+				temp_session->thread_number,
+			    (temp_session->rtt_at_handshake == 0)?TIMEVAL_2_USEC(get_session_rtt(session)):0,
+				temp_session->session_attr->rtt_min_usec[1],
+				temp_session->session_attr->rtt_min_usec[0],
+				temp_session->session_attr->rtt_max_usec[1],
+				temp_session->session_attr->rtt_max_usec[0],
+				temp_session->session_attr->rtt_avg_usec[1],
+				temp_session->session_attr->rtt_avg_usec[0],
+				temp_session->data_transfer_time,
+				get_session_retransmission_count (session)-temp_session->session_attr->retransmission_count);
 	}
 	valid = strlen(message);
 
@@ -194,6 +209,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	temp_session->session_attr->rtt_counter[1]=0;
 	temp_session->session_attr->sum_rtt[0]=0;
 	temp_session->session_attr->sum_rtt[1]=0;
+	temp_session->rtt_at_handshake = TIMEVAL_2_USEC(get_session_rtt(session));
 }
 void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 

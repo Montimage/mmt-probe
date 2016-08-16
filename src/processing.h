@@ -381,6 +381,7 @@ typedef struct session_struct {
     uint8_t dtt_seen;
     struct timeval dtt_start_time;
     uint64_t data_transfer_time;
+    uint64_t rtt_at_handshake;
     uint8_t proto;
     uint8_t isFlowExtracted;
     uint8_t isClassified;
