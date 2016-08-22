@@ -36,6 +36,7 @@ void reset_ftp_parameters(const ipacket_t * ipacket, session_struct_t *temp_sess
 	((ftp_session_attr_t*) temp_session->app_data)->file_download_starttime_usec = 0;
 	((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_sec = 0;
 	((ftp_session_attr_t*) temp_session->app_data)->file_download_finishtime_usec = 0;
+	if (((ftp_session_attr_t*) temp_session->app_data)->filename != NULL)free(((ftp_session_attr_t*) temp_session->app_data)->filename);
 	((ftp_session_attr_t*) temp_session->app_data)->filename = NULL;
 }
 /**
@@ -121,24 +122,26 @@ void ftp_session_connection_type_handle(const ipacket_t * ipacket, attribute_t *
 		// Reconstruct file
 		// if (probe_context->ftp_reconstruct_enable == 1)reconstruct_ftp_data(ipacket);
 		// Get data type - only reconstruct the FILE data
-		uint8_t * data_type = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_FTP, FTP_DATA_TYPE);
-		if(data_type && *data_type == 1){
-			// Get file name
-			char * file_name = (char *) get_attribute_extracted_data(ipacket, PROTO_FTP, FTP_FILE_NAME);
-			// Get packet len
-			uint32_t * data_len = (uint32_t *) get_attribute_extracted_data(ipacket, PROTO_FTP, FTP_PACKET_DATA_LEN);
-			if(data_len && *data_len>0){
-				// Get packet payload pointer - after TCP
-				char * data_payload = (char *) get_attribute_extracted_data(ipacket, PROTO_FTP, PROTO_PAYLOAD);
-				if (file_name && data_payload) {
-					char filename[MAX_FILE_NAME];
-					char *file_path;
-					file_path = str_replace(file_name, "/", "_");
-					snprintf(filename, MAX_FILE_NAME, "%s%"PRIu64"_%s", probe_context->ftp_reconstruct_output_location, get_session_id(ipacket->session), file_path);
-					filename[MAX_FILE_NAME-1] = '\0';
-					debug("[FTP_RECONSTRUCT] Going to write data of packet %lu into file: %s\n", ipacket->packet_id,filename);
-					write_data_to_file(filename, data_payload, *data_len);
-					free(file_path);
+		if (probe_context->ftp_reconstruct_enable == 1){
+			uint8_t * data_type = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_FTP, FTP_DATA_TYPE);
+			if(data_type && *data_type == 1){
+				// Get file name
+				char * file_name = (char *) get_attribute_extracted_data(ipacket, PROTO_FTP, FTP_FILE_NAME);
+				// Get packet len
+				uint32_t * data_len = (uint32_t *) get_attribute_extracted_data(ipacket, PROTO_FTP, FTP_PACKET_DATA_LEN);
+				if(data_len && *data_len>0){
+					// Get packet payload pointer - after TCP
+					char * data_payload = (char *) get_attribute_extracted_data(ipacket, PROTO_FTP, PROTO_PAYLOAD);
+					if (file_name && data_payload) {
+						char filename[MAX_FILE_NAME];
+						char *file_path;
+						file_path = str_replace(file_name, "/", "_");
+						snprintf(filename, MAX_FILE_NAME, "%s%"PRIu64"_%s", probe_context->ftp_reconstruct_output_location, get_session_id(ipacket->session), file_path);
+						filename[MAX_FILE_NAME-1] = '\0';
+						debug("[FTP_RECONSTRUCT] Going to write data of packet %lu into file: %s\n", ipacket->packet_id,filename);
+						write_data_to_file(filename, data_payload, *data_len);
+						free(file_path);
+					}
 				}
 			}
 		}
@@ -180,7 +183,6 @@ void ftp_session_connection_type_handle(const ipacket_t * ipacket, attribute_t *
 		ftp_data->file_size = * file_size;
 	}
 	char * file_name = (char *) get_attribute_extracted_data(ipacket, PROTO_FTP, FTP_FILE_NAME);
-	//fprintf(stderr,"packet_id =%lu, filename %s, id=%lu \n",ipacket->packet_id,file_name,get_session_id(ipacket->session));
 	if (file_name != NULL) {
 		if (ftp_data->filename != NULL) {
 			if (strcmp(ftp_data->filename, file_name) != 0 ) {
@@ -263,17 +265,15 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
 	struct timeval end_time = get_session_last_activity_time(ipacket->session);
 
 	if (temp_session->ipversion == 4) {
-		/*inet_ntop(AF_INET, (void *) &temp_session->ipclient.ipv4, ip_src_str, INET_ADDRSTRLEN);
-		inet_ntop(AF_INET, (void *) &temp_session->ipserver.ipv4, ip_dst_str, INET_ADDRSTRLEN);*/
+		inet_ntop(AF_INET, (void *) &temp_session->ipclient.ipv4, ip_src_str, INET_ADDRSTRLEN);
+		inet_ntop(AF_INET, (void *) &temp_session->ipserver.ipv4, ip_dst_str, INET_ADDRSTRLEN);
 	} else {
 		inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
 		inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
 	}
 	for (i = 0; i < probe_context->condition_reports_nb; i++) {
 		mmt_condition_report_t * condition_report = &probe_context->condition_reports[i];
-
 		if (strcmp(ftp_data->response_value, "Transfer complete.") == 0 && strcmp(condition_report->condition.condition, "FTP") == 0 && probe_context->ftp_reconstruct_enable == 1) {
-
 			ftp_data->file_download_finishtime_sec = ipacket->p_hdr->ts.tv_sec;
 			ftp_data->file_download_finishtime_usec = ipacket->p_hdr->ts.tv_usec;
 			snprintf(message, MAX_MESS,
@@ -283,10 +283,10 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
 			         temp_session->serverport, temp_session->clientport,
 			         ftp_data->session_conn_type,
 			         ftp_data->direction,
-			         ftp_data->session_username,
-			         ftp_data->session_password,
+			         (ftp_data->session_username == NULL) ? "null" : ftp_data->session_username,
+			         (ftp_data->session_password == NULL) ? "null" : ftp_data->session_password,
 			         ftp_data->file_size,
-			         ftp_data->filename,
+					 (ftp_data->filename == NULL) ? "null" : ftp_data->filename,
 			         ftp_data->file_download_finishtime_sec,
 			         ftp_data->file_download_finishtime_usec,
 			         ftp_data->file_download_starttime_sec,
@@ -334,7 +334,5 @@ void print_initial_ftp_report(const mmt_session_t * session, session_struct_t * 
 	        );
 
 	temp_session->session_attr->touched = 1;
-	ftp_data->ftp_throughput[0] = 0;
-	ftp_data->ftp_throughput[1] = 0;
-}
 
+}

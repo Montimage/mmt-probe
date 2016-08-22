@@ -297,84 +297,6 @@ void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void
 
 }
 
-/*void print_web_app_format(const mmt_session_t * expired_session, void *args) {
-	int keep_direction = 1;
-	session_struct_t * temp_session = get_user_session_context(expired_session);
-	char path[128];
-	char message[MAX_MESS + 1];
-	struct smp_thread *th = (struct smp_thread *) args;
-	//common fields
-	//format id, timestamp
-	//Flow_id, Start timestamp, IP version, Server_Address, Client_Address, Server_Port, Client_Port, Transport Protocol ID,
-	//Uplink Packet Count, Downlink Packet Count, Uplink Byte Count, Downlink Byte Count, TCP RTT, Retransmissions,
-	//Application_Family, Content Class, Protocol_Path, Application_Name
-
-	//proto_hierarchy_to_str(&expired_session->proto_path, path);
-
-	mmt_probe_context_t * probe_context = get_probe_context_config();
-	proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(expired_session), path);
-
-	//printf("print_web_app_format_th_nb=%d \n",th->thread_number);
-
-	char dev_prop[12];
-
-	if ((probe_context->user_agent_parsing_threshold) && (get_session_byte_count(expired_session) > probe_context->user_agent_parsing_threshold)) {
-		mmt_dev_properties_t dev_p = get_dev_properties_from_user_agent(((web_session_attr_t *) temp_session->app_data)->useragent, 128);
-		sprintf(dev_prop, "%hu:%hu", dev_p.dev_id, dev_p.os_id);
-	} else {
-		dev_prop[0] = '\0';
-	}
-	//IP strings
-	char ip_src_str[46];
-	char ip_dst_str[46];
-	if (temp_session->ipversion == 4) {
-		inet_ntop(AF_INET, (void *) &temp_session->ipclient.ipv4, ip_src_str, INET_ADDRSTRLEN);
-		inet_ntop(AF_INET, (void *) &temp_session->ipserver.ipv4, ip_dst_str, INET_ADDRSTRLEN);
-		keep_direction = is_local_net(temp_session->ipclient.ipv4);
-	} else {
-		inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
-		inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
-		keep_direction = is_localv6_net(ip_src_str);
-	}
-
-	uint32_t rtt_ms = TIMEVAL_2_USEC(get_session_rtt(expired_session));
-	uint32_t cdn_flag = 0;
-
-	if (((web_session_attr_t *) temp_session->app_data)->xcdn_seen) cdn_flag = ((web_session_attr_t *) temp_session->app_data)->xcdn_seen;
-	else if (get_session_content_flags(expired_session) & MMT_CONTENT_CDN) cdn_flag = 2;
-
-	struct timeval init_time = get_session_init_time(expired_session);
-	struct timeval end_time = get_session_last_activity_time(expired_session);
-	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
-
-
-	snprintf(message, MAX_MESS,
-			"%u,%u,\"%s\",%lu.%lu,%"PRIu64",%"PRIu32",%lu.%lu,%u,\"%s\",\"%s\",%hu,%hu,%hu,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,\"%s\",%u,%u,%u,%u,\"%s\",\"%s\",\"%s\",\"%s\",%u", // app specific
-			temp_session->app_format_id, probe_context->probe_id_number, probe_context->input_source, end_time.tv_sec, end_time.tv_usec,
-			temp_session->session_id,temp_session->thread_number,
-			init_time.tv_sec, init_time.tv_usec,
-			(int) temp_session->ipversion,
-			ip_dst_str, ip_src_str,
-			temp_session->serverport, temp_session->clientport, (unsigned short) temp_session->proto,
-			(keep_direction)?get_session_ul_packet_count(expired_session):get_session_dl_packet_count(expired_session),
-					(keep_direction)?get_session_dl_packet_count(expired_session):get_session_ul_packet_count(expired_session),
-							(keep_direction)?get_session_ul_byte_count(expired_session):get_session_dl_byte_count(expired_session),
-									(keep_direction)?get_session_dl_byte_count(expired_session):get_session_ul_byte_count(expired_session),
-											rtt_ms, get_session_retransmission_count(expired_session),
-											get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
-											temp_session->contentclass, path, proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)],
-											(((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint32_t) TIMEVAL_2_USEC(((web_session_attr_t *) temp_session->app_data)->response_time) : 0,
-													(((web_session_attr_t *) temp_session->app_data)->seen_response) ? ((web_session_attr_t *) temp_session->app_data)->trans_nb : 0,
-															(((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint32_t) TIMEVAL_2_USEC(mmt_time_diff(((web_session_attr_t *) temp_session->app_data)->first_request_time, ((web_session_attr_t *) temp_session->app_data)->interaction_time)) : 0,
-																	((web_session_attr_t *) temp_session->app_data)->hostname,
-																	((web_session_attr_t *) temp_session->app_data)->mimetype, ((web_session_attr_t *) temp_session->app_data)->referer,
-																	dev_prop, cdn_flag
-	);
-
-	message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-	if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,(void*)args);
-	if (probe_context->redis_enable==1)send_message_to_redis ("web.flow.report", message);
-}*/
 
 void print_initial_web_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid){
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -405,23 +327,3 @@ void print_initial_web_report(const mmt_session_t * session,session_struct_t * t
 	temp_session->session_attr->touched = 1;
 
 }
-
-/*
-void register_web_attributes(void * handler){
-    int i = 1;
-    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_METHOD, http_method_handle, NULL, NULL);
-    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_RESPONSE, http_response_handle, NULL, NULL);
-    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_CONTENT_TYPE, mime_handle, NULL, NULL);
-    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_HOST, host_handle, NULL, NULL);
-    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_REFERER, referer_handle, NULL, NULL);
-    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_USER_AGENT, useragent_handle, NULL, NULL);
-    i &= register_attribute_handler(handler, PROTO_HTTP, RFC2822_XCDN_SEEN, xcdn_seen_handle, NULL, NULL);
-
-    if(!i) {
-        //TODO: we need a sound error handling mechanism! Anyway, we should never get here :)
-        fprintf(stderr, "Error while initializing MMT handlers and extractions!\n");
-    }
-
-}*/
-
-

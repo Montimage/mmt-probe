@@ -578,6 +578,10 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 			free(((ftp_session_attr_t*) temp_session->app_data)->response_value);
 			free(((ftp_session_attr_t*) temp_session->app_data)->session_username);
 			free(((ftp_session_attr_t*) temp_session->app_data)->session_password);
+			((ftp_session_attr_t*) temp_session->app_data)->filename = NULL;
+			((ftp_session_attr_t*) temp_session->app_data)->response_value = NULL;
+			((ftp_session_attr_t*) temp_session->app_data)->session_username = NULL;
+			((ftp_session_attr_t*) temp_session->app_data)->session_password = NULL;
 		}
 		if(temp_session->app_data) free(temp_session->app_data);
 		temp_session->app_data = NULL;

@@ -40,7 +40,6 @@ extern "C" {
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
 #define TIMEVAL_2_USEC(tval) ((tval.tv_sec * 1000000) + (tval.tv_usec))
 
-uint64_t total_session_count;
 pthread_mutex_t mutex_lock;
 pthread_spinlock_t spin_lock;
 time_t update_reporting_time;
@@ -255,28 +254,6 @@ typedef struct rtp_session_attr_struct {
     uint64_t rtp_throughput[2];
 } rtp_session_attr_t;
 
-/*typedef struct ftp_command_struct{
-    uint16_t cmd;
-    char *str_cmd;
-    char *param;
-}ftp_command_t;*/
-
-/**
- * FTP response structure
- */
-/*typedef struct ftp_response_struct{
-    uint16_t code;
-    char *str_code;
-    char *value;
-}ftp_response_t;*/
-
-
-/*typedef struct ftp_reconstruction_struct {
-    time_t file_reconstruction_starttime_sec;
-    time_t file_reconstruction_starttime_usec;
-
-}ftp_reconstruction_t;*/
-
 typedef struct ftp_session_attr_struct {
 	struct timeval first_response_seen_time;
     uint8_t session_conn_type;
@@ -295,21 +272,10 @@ typedef struct ftp_session_attr_struct {
     time_t file_download_starttime_usec;
     time_t file_download_finishtime_sec;
     time_t file_download_finishtime_usec;
-    uint64_t ftp_throughput[2];
+    //uint64_t ftp_throughput[2];
 	//ftp_reconstruction_t * ftp_reconstruct;
 
 } ftp_session_attr_t;
-
-/*typedef struct ftp_packet_attr_struct {
-    uint8_t packet_type;
-    char * request;
-    char * request_parameter;
-    uint16_t response;
-    char * response_value;
-    uint32_t data_len;
-
-} ftp_packet_attr_t;*/
-
 
 typedef struct temp_session_statistics_struct{
     struct timeval start_time;
@@ -330,7 +296,6 @@ typedef struct temp_session_statistics_struct{
     uint64_t rtt_avg_usec[2];
     uint64_t rtt_counter[2];
     uint32_t retransmission_count;
-    uint64_t tcp_outoforder_count;
 }temp_session_statistics_t;
 
 typedef struct web_session_attr_struct {
@@ -350,10 +315,7 @@ typedef struct web_session_attr_struct {
     char response[1024];
     char content_len[20];
     uint8_t has_uri;
-    uint16_t psh_flag;
-    time_t last_report_time_sec;
     uint32_t touched;
-    //uint32_t request_counter;
     uint32_t state_http_request_response;
     temp_session_statistics_t * http_session_attr;
 } web_session_attr_t;
@@ -365,8 +327,6 @@ typedef struct ssl_session_attr_struct {
 typedef struct session_struct {
     uint16_t format_id;
     uint16_t app_format_id;
-    struct timeval latest_packet_time;
-    struct timeval previous_packet_time;
     int proto_path;
     int application_class;
     char path[128];
@@ -474,8 +434,6 @@ struct smp_thread {
     struct smp_pkt pkt_head; /* pointer on first packet */
     struct smp_pkt null_pkt; /* Null packet used to indicate end of packet feeding for the thread. */
     time_t last_stat_report_time;
-    time_t last_msg_report_time;
-    int check_timer;
     uint64_t report_counter;
     mmt_event_report_t * event_reports;
     char **cache_message_list;
@@ -515,7 +473,6 @@ int is_localv6_net(char * addr);
 int register_event_report_handle(void * args);
 uint32_t get_2_power(uint32_t nb);
 const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt);
-//void write_data_to_file (const ipacket_t * ipacket,const char * path, const char * content, int len, uint32_t * file_size);
 uint32_t is_microflow(const mmt_session_t * expired_session);
 uint32_t is_microflow_stats_reportable(microsessions_stats_t * stats);
 void report_microflows_stats(microsessions_stats_t * stats, void *args);
@@ -525,15 +482,12 @@ void report_all_protocols_microflows_stats(void *args);
 int license_expiry_check(int status);
 void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf);
 void todo_at_start(char *file_path);
-//void reconstruct_data(const ipacket_t * ipacket );
 void todo_at_end();
 void init_mmt_security(mmt_handler_t *mmt_handler, char * property_file, void *args);
 void exit_timers();
 void flush_messages_to_file_thread( void *);
 int start_timer( uint32_t period, void *callback, void *user_data);
 struct timeval mmt_time_diff(struct timeval tstart, struct timeval tend);
-
-void register_ftp_attributes(void * handler);
 
 //handlers
 void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
@@ -552,23 +506,12 @@ void rtp_order_error_handle(const ipacket_t * ipacket, attribute_t * attribute, 
 void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void tcp_fin_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void print_http_request_response_report(const mmt_session_t * session, void *user_args);
 void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void content_len_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void flush_messages_to_file_thread( void *arg);
-void iterate_session( void *arg);
-//void throughput(const mmt_session_t * session,session_struct_t * temp_session,int keep_direction, double throughput []);
-void reconstruct_ftp_data(const ipacket_t * ipacket);
 void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 
 //prototypes
-//void reset_rtp (const ipacket_t * ipacket,mmt_session_t * rtp_session,session_struct_t *temp_session);
-//void print_web_app_format(const mmt_session_t * expired_session, void *args);
-//void print_ssl_app_format(const mmt_session_t * expired_session, void *args);
-//void print_rtp_app_format(const mmt_session_t * expired_session, void *args);
-//void print_ftp_app_format(const mmt_session_t * expired_session, void *args);
-//void print_default_app_format(const mmt_session_t * expired_session, void *args);
 void print_ip_session_report (const mmt_session_t * session, void *user_args);
 void print_initial_web_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
 void print_initial_rtp_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);

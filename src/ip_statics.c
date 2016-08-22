@@ -23,12 +23,6 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	if (temp_session == NULL) {
 		return;
 	}
-	/*if(temp_session->app_format_id == probe_context->web_id){
-
-		if (temp_session->app_data == NULL) return;
-		if (((web_session_attr_t *) temp_session->app_data)->touched == 0)
-			return;
-	}*/
 
 	char message[MAX_MESS + 1];
 	uint8_t *ea = 0;
@@ -54,7 +48,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	}else {
 		report_number = th->report_counter;
 	}
-	//printf ("report_counter = %lu \n", report_number);
+
 	ea = temp_session->src_mac;
 	snprintf(src_mac_pretty , 18, "%02x:%02x:%02x:%02x:%02x:%02x", ea[0], ea[1], ea[2], ea[3], ea[4], ea[5] );
 	ea = temp_session->dst_mac;

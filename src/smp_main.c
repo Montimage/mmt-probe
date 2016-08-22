@@ -51,7 +51,7 @@ src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c s
 #define SNAP_LEN 65535	/* apparently what tcpdump uses for -s 0 */
 #define READER_CPU	0	/* assign Reader thread to this CPU */
 #define MAX_FILE_NAME 500
-static int okcode  = EXIT_SUCCESS;
+//static int okcode  = EXIT_SUCCESS;
 static int errcode = EXIT_FAILURE;
 
 
@@ -788,7 +788,6 @@ int main(int argc, char **argv) {
 		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_INIT, "Initializating MMT Extraction engine! Single threaded operation.");
 		mmt_probe.smp_threads = (struct smp_thread *) calloc(mmt_conf->thread_nb,sizeof (struct smp_thread));
 		mmt_probe.smp_threads->last_stat_report_time = time(0);
-		//mmt_probe.smp_threads->last_msg_report_time = time(0);
 		//One thread for reading packets and processing them
 		//Initialize an MMT handler
 		mmt_probe.smp_threads->mmt_handler = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
