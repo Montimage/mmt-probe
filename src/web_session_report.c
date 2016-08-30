@@ -281,7 +281,7 @@ void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void
 	uint16_t * tcp_close = (uint16_t *) attribute->data;
 
 	if (tcp_close != NULL ) {
-		if(temp_session->app_format_id == probe_context->web_id ){
+		if(temp_session->app_format_id == probe_context->web_id){
 			if (((web_session_attr_t *) temp_session->app_data)->state_http_request_response != 0)((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;
 			if (temp_session->session_attr == NULL) {
 				temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
@@ -292,7 +292,6 @@ void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void
 			temp_session->report_counter = th->report_counter;
 			print_ip_session_report (ipacket->session,th);
 		}
-		print_ip_session_report (ipacket->session,th);
 	}
 
 }
