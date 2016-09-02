@@ -19,7 +19,7 @@
 uint32_t is_microflow(const mmt_session_t * expired_session) {
     mmt_probe_context_t * probe_context = get_probe_context_config();
 
-    if (probe_context->microflow_enable==1){
+    if (probe_context->microf_enable==1){
         if ((get_session_packet_count(expired_session) <= probe_context->microf_pthreshold) || (get_session_byte_count(expired_session) <= probe_context->microf_bthreshold)) {
             return 1;
         }
@@ -50,7 +50,6 @@ void report_all_protocols_microflows_stats(void *args) {
     int i;
     struct smp_thread *th = (struct smp_thread *) args;
 
-    //FILE * out_file = (probe_context->data_out_file != NULL) ? probe_context->data_out_file : stdout;
     for (i = 0; i < PROTO_MAX_IDENTIFIER; i++) {
         if (th->iprobe.mf_stats[i].flows_nb) {
             report_microflows_stats(&th->iprobe.mf_stats[i],(void *)th);
@@ -66,24 +65,12 @@ void report_microflows_stats(microsessions_stats_t * stats, void *args) {
     char message[MAX_MESS + 1];
     snprintf(message, MAX_MESS,
             "%u,%u,\"%s\",%lu.%lu,%u,%u,%u,%u,%u,%u",
-            MMT_MICROFLOWS_STATS_FORMAT, probe_context->probe_id_number, probe_context->input_source, stats->end_time.tv_sec, stats->end_time.tv_usec,
+            probe_context->microf_id, probe_context->probe_id_number, probe_context->input_source, stats->end_time.tv_sec, stats->end_time.tv_usec,
             stats->application_id, stats->flows_nb, stats->dl_pcount, stats->ul_pcount, stats->dl_bcount, stats->ul_bcount);
 
     message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-    //send_message_to_file ("microflows.report", message);
     if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,(void *)th);
     if (probe_context->redis_enable==1)send_message_to_redis ("microflows.report", message);
-    /*
-     fprintf(out_file, "%i,%lu.%lu,"
-         //"%lu.%lu,"
-         "%u,%u,%u,%u,%u,%u\n",
-         MMT_MICROFLOWS_STATS_FORMAT,
-         //stats->start_time.tv_sec, stats->start_time.tv_usec,
-         stats->end_time.tv_sec, stats->end_time.tv_usec,
-         stats->application_id,
-         stats->flows_nb, stats->dl_pcount, stats->ul_pcount, stats->dl_bcount, stats->ul_bcount);
-     */
-    //Now clean the stats
     reset_microflows_stats(stats);
 }
 

@@ -46,11 +46,19 @@ int conf_parse_input_mode(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *r
 cfg_t * parse_conf(const char *filename) {
     cfg_opt_t micro_flows_opts[] = {
             CFG_INT("enable", 0, CFGF_NONE),
+			CFG_INT("id", 0, CFGF_NONE),
             CFG_INT("include-packet-count", 10, CFGF_NONE),
             CFG_INT("include-byte-count", 5, CFGF_NONE),
             CFG_INT("report-packet-count", 10000, CFGF_NONE),
             CFG_INT("report-byte-count", 5000, CFGF_NONE),
             CFG_INT("report-flow-count", 1000, CFGF_NONE),
+            CFG_END()
+    };
+    cfg_opt_t session_timeout_opts[] = {
+            CFG_INT("default-session-timeout", 60, CFGF_NONE),
+            CFG_INT("long-session-timeout", 600, CFGF_NONE),
+            CFG_INT("short-session-timeout", 15, CFGF_NONE),
+            CFG_INT("live-session-timeout", 1500, CFGF_NONE),
             CFG_END()
     };
 
@@ -123,6 +131,7 @@ cfg_t * parse_conf(const char *filename) {
 
     cfg_opt_t opts[] = {
             CFG_SEC("micro-flows", micro_flows_opts, CFGF_NONE),
+			CFG_SEC("session-timeout", session_timeout_opts, CFGF_NONE),
             CFG_SEC("output", output_opts, CFGF_NONE),
             CFG_SEC("redis-output", redis_output_opts, CFGF_NONE),
             CFG_SEC("data-output", data_output_opts, CFGF_NONE),
@@ -137,7 +146,8 @@ cfg_t * parse_conf(const char *filename) {
             CFG_INT("thread-nb", 1, CFGF_NONE),
             CFG_INT("thread-queue", 0, CFGF_NONE),
             CFG_INT("thread-data", 0, CFGF_NONE),
-			CFG_INT("cache-size-for-reporting", 0, CFGF_NONE),
+			CFG_INT("snap-len", 65535, CFGF_NONE),
+			CFG_INT("cache-size-for-reporting", 300000, CFGF_NONE),
             CFG_INT_CB("input-mode", 0, CFGF_NONE, conf_parse_input_mode),
             CFG_STR("input-source", "nosource", CFGF_NONE),
             CFG_INT("probe-id-number", 0, CFGF_NONE),
@@ -264,6 +274,10 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         mmt_conf->report_cache_size_before_flushing = (uint64_t) cfg_getint(cfg, "cache-size-for-reporting");
         if (mmt_conf->report_cache_size_before_flushing  == 0) mmt_conf->report_cache_size_before_flushing  = 300000;
 
+        mmt_conf->requested_snap_len = (uint32_t) cfg_getint(cfg, "snap-len");
+        if (mmt_conf->requested_snap_len  == 0) mmt_conf->requested_snap_len  = 65535;
+
+
 
         if(mmt_conf->input_mode==0){
             printf("Error: Specify the input-mode in the configuration file, for example input-mode = \"offline\" or \"online\" \n");
@@ -293,8 +307,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
         if (cfg_size(cfg, "micro-flows")) {
             cfg_t *microflows = cfg_getnsec(cfg, "micro-flows", 0);
-            if (microflows->line!=0){
-                mmt_conf->microflow_enable = (uint32_t) cfg_getint(microflows, "enable");
+            if (microflows->line != 0){
+                mmt_conf->microf_enable = (uint32_t) cfg_getint(microflows, "enable");
+                mmt_conf->microf_id = (uint32_t) cfg_getint(microflows, "id");
                 mmt_conf->microf_pthreshold = (uint32_t) cfg_getint(microflows, "include-packet-count");
                 mmt_conf->microf_bthreshold = (uint32_t) cfg_getint(microflows, "include-byte-count")*1000/*in Bytes*/;
                 mmt_conf->microf_report_pthreshold = (uint32_t) cfg_getint(microflows, "report-packet-count");
@@ -302,15 +317,27 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
                 mmt_conf->microf_report_fthreshold = (uint32_t) cfg_getint(microflows, "report-flow-count");
             }
         }
-
+        if (cfg_size(cfg, "session-timeout")) {
+        	cfg_t *session_timeout = cfg_getnsec(cfg, "session-timeout", 0);
+        	if (session_timeout->line != 0){
+        		mmt_conf->default_session_timeout = (uint32_t) cfg_getint(session_timeout, "default-session-timeout");
+        		if (mmt_conf->default_session_timeout == 0)mmt_conf->default_session_timeout = 60;
+        		mmt_conf->long_session_timeout = (uint32_t) cfg_getint(session_timeout, "long-session-timeout");
+        		if (mmt_conf->long_session_timeout == 0)mmt_conf->long_session_timeout = 600;
+        		mmt_conf->short_session_timeout = (uint32_t) cfg_getint(session_timeout, "short-session-timeout");
+        		if (mmt_conf->short_session_timeout == 0)mmt_conf->short_session_timeout = 15;
+        		mmt_conf->live_session_timeout = (uint32_t) cfg_getint(session_timeout, "live-session-timeout");
+        		if (mmt_conf->live_session_timeout == 0)mmt_conf->live_session_timeout = 1500;
+        	}
+        }
         if (cfg_size(cfg, "output")) {
             cfg_t *output = cfg_getnsec(cfg, "output", 0);
-            if (output->line!=0){
+            if (output->line != 0){
                 mmt_conf->output_to_file_enable = (uint32_t) cfg_getint(output, "enable");
                 strncpy(mmt_conf->data_out, (char *) cfg_getstr(output, "data-file"), 256);
                 strncpy(mmt_conf->output_location, (char *) cfg_getstr(output, "location"), 256);
                 mmt_conf->sampled_report = (uint32_t) cfg_getint(output, "sampled_report");
-                if (mmt_conf->sampled_report>1){
+                if (mmt_conf->sampled_report > 1){
                     printf("Error: Sample_report inside the output section in the configuration file has a value either 1 or 0, 1 for sampled output and 0 for single output\n");
                     exit(0);
                 }
@@ -321,7 +348,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         }
         if (cfg_size(cfg, "security")) {
             cfg_t *security = cfg_getnsec(cfg, "security", 0);
-            if (security->line!=0){
+            if (security->line != 0){
                 mmt_conf->security_enable = (uint32_t) cfg_getint(security, "enable");
                 mmt_conf->security_id = (uint16_t) cfg_getint(security, "id");
                 strncpy(mmt_conf->dir_out, (char *) cfg_getstr(security, "results-dir"), 256);
@@ -331,7 +358,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
         if (cfg_size(cfg, "behaviour")) {
             cfg_t *behaviour = cfg_getnsec(cfg, "behaviour", 0);
-            if (behaviour->line!=0){
+            if (behaviour->line != 0){
                 mmt_conf->behaviour_enable = (uint32_t) cfg_getint(behaviour, "enable");
                 strncpy(mmt_conf->behaviour_output_location, (char *) cfg_getstr(behaviour, "location"), 256);
                 if(strcmp(mmt_conf->output_location,mmt_conf->behaviour_output_location)==0){
@@ -342,7 +369,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         }
         if (cfg_size(cfg, "reconstruct-ftp")) {
             cfg_t *reconstruct_ftp = cfg_getnsec(cfg, "reconstruct-ftp", 0);
-            if (reconstruct_ftp->line!=0){
+            if (reconstruct_ftp->line != 0){
                 mmt_conf->ftp_reconstruct_enable = (uint32_t) cfg_getint(reconstruct_ftp, "enable");
                 mmt_conf->ftp_reconstruct_id = (uint16_t) cfg_getint(reconstruct_ftp, "id");
                 strncpy(mmt_conf->ftp_reconstruct_output_location, (char *) cfg_getstr(reconstruct_ftp, "location"), 256);
@@ -351,7 +378,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
         if (cfg_size(cfg, "redis-output")) {
             cfg_t *redis_output = cfg_getnsec(cfg, "redis-output", 0);
-            if (redis_output->line!=0){
+            if (redis_output->line != 0){
                 char hostname[256 + 1];
                 int port = (uint32_t) cfg_getint(redis_output, "port");
                 mmt_conf->redis_enable = (uint32_t) cfg_getint(redis_output, "enabled");
@@ -441,23 +468,23 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         		// }
         		if(strcmp(temp_condn->condition.condition,"FTP")==0){
         			mmt_conf->ftp_id=temp_condn->id;
-        			if (temp_condn->enable ==1)mmt_conf->ftp_enable=1;
-        			if (temp_condn->enable ==0)mmt_conf->ftp_enable=0;
+        			if (temp_condn->enable == 1)mmt_conf->ftp_enable=1;
+        			if (temp_condn->enable == 0)mmt_conf->ftp_enable=0;
         		}
         		if(strcmp(temp_condn->condition.condition,"WEB")==0){
         			mmt_conf->web_id=temp_condn->id;
-        			if (temp_condn->enable ==1)mmt_conf->web_enable=1;
-        			if (temp_condn->enable ==0)mmt_conf->web_enable=0;
+        			if (temp_condn->enable == 1)mmt_conf->web_enable=1;
+        			if (temp_condn->enable == 0)mmt_conf->web_enable=0;
         		}
         		if(strcmp(temp_condn->condition.condition,"RTP")==0){
         			mmt_conf->rtp_id=temp_condn->id;
-        			if (temp_condn->enable ==1)mmt_conf->rtp_enable=1;
-        			if (temp_condn->enable ==0)mmt_conf->rtp_enable=0;
+        			if (temp_condn->enable == 1)mmt_conf->rtp_enable=1;
+        			if (temp_condn->enable == 0)mmt_conf->rtp_enable=0;
         		}
         		if(strcmp(temp_condn->condition.condition,"SSL")==0){
         			mmt_conf->ssl_id=temp_condn->id;
-        			if (temp_condn->enable ==1)mmt_conf->ssl_enable=1;
-        			if (temp_condn->enable ==0)mmt_conf->ssl_enable=0;
+        			if (temp_condn->enable == 1)mmt_conf->ssl_enable=1;
+        			if (temp_condn->enable == 0)mmt_conf->ssl_enable=0;
         		}
         		if (temp_condn->enable == 1){
         			condition_attributes_nb = cfg_size(condition_opts, "attributes");

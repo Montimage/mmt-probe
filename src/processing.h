@@ -162,6 +162,7 @@ typedef struct mmt_probe_context_struct {
     uint32_t input_mode;
     uint32_t probe_id_number;
     uint64_t report_cache_size_before_flushing;
+    uint32_t requested_snap_len;
     char input_source[256 + 1];
     char log_file[256 + 1];
     char data_out[256 + 1];
@@ -190,7 +191,12 @@ typedef struct mmt_probe_context_struct {
     uint32_t condition_based_reporting_enable;
     uint32_t ftp_reconstruct_enable;
     uint32_t radius_enable;
-    uint32_t microflow_enable;
+
+    uint32_t default_session_timeout;
+    uint32_t long_session_timeout;
+    uint32_t short_session_timeout;
+    uint32_t live_session_timeout;
+
     uint32_t output_to_file_enable;
     uint32_t redis_enable;
 
@@ -209,6 +215,8 @@ typedef struct mmt_probe_context_struct {
     uint32_t radius_message_id;
     uint32_t radius_condition_id;
 
+    uint32_t microf_enable;
+    uint16_t microf_id;
     uint32_t microf_pthreshold;
     uint32_t microf_bthreshold;
     uint32_t microf_report_pthreshold;
@@ -488,6 +496,12 @@ void exit_timers();
 void flush_messages_to_file_thread( void *);
 int start_timer( uint32_t period, void *callback, void *user_data);
 struct timeval mmt_time_diff(struct timeval tstart, struct timeval tend);
+
+// Timeout for different types of appplications
+int set_default_session_timed_out(mmt_handler_t *mmt_handler,uint32_t timedout_value);
+int set_long_session_timed_out(mmt_handler_t *mmt_handler,uint32_t timedout_value);
+int set_short_session_timed_out(mmt_handler_t *mmt_handler,uint32_t timedout_value);
+int set_live_session_timed_out(mmt_handler_t *mmt_handler,uint32_t timedout_value);
 
 //handlers
 void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);

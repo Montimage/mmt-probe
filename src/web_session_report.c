@@ -122,7 +122,6 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 			 http_reset_report(temp_session);
 			 //((web_session_attr_t *) temp_session->app_data)->request_counter++;
 			 ((web_session_attr_t *) temp_session->app_data)->trans_nb++;
-			//((web_session_attr_t *) temp_session->app_data)->touched = 0;
 		}
 
 		http_line_struct_t * method = (http_line_struct_t *) attribute->data;

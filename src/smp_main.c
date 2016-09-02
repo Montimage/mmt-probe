@@ -48,7 +48,7 @@ src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c s
 
 #define DLT_EN10MB 1    /* Ethernet (10Mb) */
 #define READ_PRIO	-15	/* niceness value for Reader thread */
-#define SNAP_LEN 65535	/* apparently what tcpdump uses for -s 0 */
+//#define SNAP_LEN 65535	/* apparently what tcpdump uses for -s 0 */
 #define READER_CPU	0	/* assign Reader thread to this CPU */
 #define MAX_FILE_NAME 500
 //static int okcode  = EXIT_SUCCESS;
@@ -61,8 +61,8 @@ pcap_t *handle = 0; /* packet capture handle */
 struct pcap_stat pcs; /* packet capture filter stats */
 int got_stats = 0; /* capture stats have been obtained */
 int push, stop; /* flags for inter-thread communication */
-int d_snap_len = SNAP_LEN; /* actual limit on packet capture size */
-int snap_len = SNAP_LEN; /* requested limit on packet capture size */
+//int d_snap_len = SNAP_LEN; /* actual limit on packet capture size */
+//int snap_len = SNAP_LEN; /* requested limit on packet capture size */
 int volatile reader_ready = 0; /* reader thread no longer needs root */
 char *filter_exp = ""; /* decapsulation filter expression */
 int captured = 0; /* number of packets captured for stats */
@@ -135,7 +135,10 @@ static void *smp_thread_routine(void *arg) {
 		conditional_reports_init(th);// initialize our condition reports
 		if(mmt_probe.mmt_conf->radius_enable==1)radius_ext_init(th); // initialize radius extraction and attribute event handler
 	}
-
+	set_default_session_timed_out(th->mmt_handler,mmt_probe.mmt_conf->default_session_timeout);
+	set_long_session_timed_out(th->mmt_handler,mmt_probe.mmt_conf->long_session_timeout);
+	set_short_session_timed_out(th->mmt_handler,mmt_probe.mmt_conf->short_session_timeout);
+	set_live_session_timed_out(th->mmt_handler,mmt_probe.mmt_conf->live_session_timeout);
 
 	proto_stats_init(th->mmt_handler);
 	th->nb_packets = 0;
@@ -435,7 +438,7 @@ void *Reader(void *arg) {
 		fprintf(stderr, "Couldn't open device %s\n", errbuf);
 		exit(0);
 	}
-	pcap_set_snaplen(handle, d_snap_len);
+	pcap_set_snaplen(handle, mmt_probe->mmt_conf->requested_snap_len);
 	pcap_set_promisc(handle, 1);
 	pcap_set_timeout(handle, 0);
 	pcap_set_buffer_size(handle, 100*1000*1000);
@@ -817,7 +820,10 @@ int main(int argc, char **argv) {
 			conditional_reports_init((void *)mmt_probe.smp_threads);// initialize our conditional reports
 			if(mmt_conf->radius_enable==1)radius_ext_init((void *)mmt_probe.smp_threads); // initialize radius extraction and attribute event handler
 		}
-
+		set_default_session_timed_out(mmt_probe.smp_threads->mmt_handler,mmt_conf->default_session_timeout);
+		set_long_session_timed_out(mmt_probe.smp_threads->mmt_handler,mmt_conf->long_session_timeout);
+		set_short_session_timed_out(mmt_probe.smp_threads->mmt_handler,mmt_conf->short_session_timeout);
+		set_live_session_timed_out(mmt_probe.smp_threads->mmt_handler,mmt_conf->live_session_timeout);
 		proto_stats_init(mmt_probe.smp_threads->mmt_handler);
 
 
@@ -842,7 +848,7 @@ int main(int argc, char **argv) {
 			mmt_probe.smp_threads[i].nb_dropped_packets = 0;
 			mmt_probe.smp_threads[i].nb_packets         = 0;
 
-			if( data_spsc_ring_init( &mmt_probe.smp_threads[i].fifo, mmt_conf->thread_queue_plen, snap_len ) != 0 ){
+			if( data_spsc_ring_init( &mmt_probe.smp_threads[i].fifo, mmt_conf->thread_queue_plen, mmt_conf->requested_snap_len ) != 0 ){
 				perror("Not enough memory. Please reduce thread-queue or thread-nb in .conf");
 				//free memory allocated
 				for(j=0; j<=i; j++)
