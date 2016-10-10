@@ -92,7 +92,6 @@ int is_localv6_net(char * addr) {
 
 int is_local_net(int addr) {
 
-
 	if ((ntohl(addr) & 0xFF000000 /* 255.0.0.0 */) == 0x0A000000 /* 10.0.0.0 */) {
 		return 1;
 	}
@@ -253,15 +252,42 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	temp_session->isFlowExtracted = 1;
 	set_user_session_context(session, temp_session);
 }
+void write_to_socket(unsigned char buffer[],int buffer_len,struct smp_thread *th){
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+	int n=0;
+	if (buffer_len > 10){
+		//printf("Packet_send_count = %d\n",count++);
+		th->packet_send++;
+	}
+	n = send(th->sockfd,buffer,buffer_len,0);
 
+	if (n <= 0)
+		fprintf(stderr,"ERROR Cannot write to socket (check availability of server):%s\n",strerror(errno));
+		//error("ERROR writing to socket");
+
+}
 int packet_handler(const ipacket_t * ipacket, void * args) {
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
-
+	struct smp_thread *th = (struct smp_thread *) args;
 	session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
+	attribute_t * attr_extract;
+	unsigned char length_buffer[5];
+	struct user_data *p = ( struct user_data *) args;
+
+	th = p->smp_thread;
+	int i = 0,j=0;
+	uint32_t length=0;
 	if (temp_session == NULL) {
 		return 0;
 	}
+    if (th->pcap_current_packet_time == 0){
+    	th->pcap_last_stat_report_time = ipacket->p_hdr->ts.tv_sec;
+
+    }
+    th->pcap_current_packet_time = ipacket->p_hdr->ts.tv_sec;
+    //printf("here = %lu,%lu\n",th->pcap_last_stat_report_time,th->pcap_current_packet_time);
+
     // only for packet based on TCP
 	if (temp_session->dtt_seen == 0){
 		//this will exclude all the protocols except TCP
@@ -278,12 +304,66 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 			temp_session->dtt_start_time = ipacket->p_hdr->ts;
 		}
 	}
+
+	if (probe_context->enable_security_report == 1){
+		mmt_probe_context_t * probe_context = get_probe_context_config();
+		mmt_event_report_t * event_report   = p->event_reports; //(mmt_event_report_t *) args;
+
+		int initial_buffer_size =2000;
+		if (event_report->event.proto_id != 0 && event_report->event.attribute_id !=0){
+			attr_extract = get_extracted_attribute(ipacket,event_report->event.proto_id, event_report->event.attribute_id);
+			if (attr_extract == NULL)return 1;
+		}
+
+		length=0;
+		memcpy(&th->report_buffer[length],&ipacket->p_hdr->ts,sizeof(struct timeval));
+		length += sizeof(struct timeval);
+
+		for(j = 0; j < event_report->attributes_nb; j++) {
+			mmt_event_attribute_t * event_attribute = &event_report->attributes[j];
+			attr_extract = get_extracted_attribute(ipacket,event_attribute->proto_id, event_attribute->attribute_id);
+
+			int rem_buffer = initial_buffer_size-(length+10);
+
+			if(attr_extract != NULL) {
+				if(attr_extract->data_len > rem_buffer){
+					printf("Buffer_overflow\n");
+				}
+				memcpy(&th->report_buffer[length],&attr_extract->proto_id,4);
+				length += 4;
+				memcpy(&th->report_buffer[length],&attr_extract->field_id,4);
+				length += 4;
+				memcpy(&th->report_buffer[length],&attr_extract->data_len,2);
+				length += 2;
+				memcpy(&th->report_buffer[length],attr_extract->data,attr_extract->data_len);
+				length +=  attr_extract->data_len;;
+				i++;
+				//printf("proto_id = %u, attribute_id =%u, length =%u,\n",attr_extract->proto_id,attr_extract->field_id,attr_extract->data_len);
+
+			}
+
+		}
+		if (i==0){
+			return 1;
+		}
+
+		th->report_buffer[length]='\0';
+		memcpy(length_buffer,&length,4);
+		//length_buffer[5]='\0';
+		pthread_spin_lock(&spin_lock);
+		if (probe_context->socket_enable == 1)write_to_socket(length_buffer,4,th);
+		if (probe_context->socket_enable == 1)write_to_socket(th->report_buffer,length,th);
+	    if (probe_context->redis_enable==1)send_message_to_redis ("event.report", (char *)th->report_buffer);
+		pthread_spin_unlock(&spin_lock);
+	}
+
 	return 0;
 
 }
 
-void proto_stats_init(void * handler) {
-	register_packet_handler(handler, 5, packet_handler, NULL);
+void proto_stats_init(void * arg) {
+	struct smp_thread *th = (struct smp_thread *) arg;
+	register_packet_handler(th->mmt_handler, 5, packet_handler, arg);
 }
 
 void proto_stats_cleanup(void * handler) {
@@ -348,17 +428,26 @@ int register_conditional_report_handle(void * args, mmt_condition_report_t * con
 	int i = 1,j;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	struct smp_thread *th = (struct smp_thread *) args;
+
 	for(j = 0; j < condition_report->attributes_nb; j++) {
 		mmt_condition_attribute_t * condition_attribute = &condition_report->attributes[j];
 		mmt_condition_attribute_t * handler_attribute = &condition_report->handlers[j];
+
+		uint32_t protocol_id = get_protocol_id_by_name (condition_attribute->proto);
+		uint32_t attribute_id = get_attribute_id_by_protocol_and_attribute_names(condition_attribute->proto,condition_attribute->attribute);
+
 		if (strcmp(handler_attribute->handler,"NULL")==0){
-			i &= register_extraction_attribute_by_name(th->mmt_handler, condition_attribute->proto, condition_attribute->attribute);
-
+			if (is_registered_attribute(th->mmt_handler, protocol_id, attribute_id) == 0){
+				i &= register_extraction_attribute_by_name(th->mmt_handler, condition_attribute->proto, condition_attribute->attribute);
+			}
 		}else{
-			i &= register_attribute_handler_by_name(th->mmt_handler, condition_attribute->proto,condition_attribute->attribute, get_handler_by_name (handler_attribute->handler), NULL, args);
+			if (is_registered_attribute_handler(th->mmt_handler, protocol_id, attribute_id, get_handler_by_name (handler_attribute->handler)) == 0){
+				i &= register_attribute_handler_by_name(th->mmt_handler, condition_attribute->proto,condition_attribute->attribute, get_handler_by_name (handler_attribute->handler), NULL, args);
+			}
 		}
-	}
+		//printf ("proto = %s, attribute = %s, output = %d\n",condition_attribute->proto,condition_attribute->attribute, output);
 
+	}
 	return i;
 }
 void conditional_reports_init(void * args) {
@@ -556,6 +645,7 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 		}
 	}else{
 		if(temp_session->app_format_id == probe_context->web_id ){
+			//printf ("HEERRER2, session_id = %lu\n", temp_session->session_id);
 			if (temp_session->app_data == NULL) return;
 			if (((web_session_attr_t *) temp_session->app_data)->state_http_request_response != 0)((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;
 			if (temp_session->session_attr == NULL) {

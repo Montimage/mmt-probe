@@ -89,23 +89,6 @@ void radius_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void
                     //send_message_to_file ("radius.report", message);
                     if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,(void *)user_args);
                     if (probe_context->redis_enable==1)send_message_to_redis ("radius.report", message);
-                    /*
-                    fprintf(out_file, "%i,%lu.%lu,%i,%s,%s,%i,%s,%s,%s,%s,%s,%s,%i,%s,%i,%i\n", MMT_RADIUS_REPORT_FORMAT, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec,
-                        (int) code, (framed_ip_address != NULL) ? f_ipv4 : "",
-                        (calling_station_id != NULL) ? &calling_station_id[4] : "",
-                        (account_status_type != NULL) ? *account_status_type : 0,
-                        (account_session_id != NULL) ? &account_session_id[4] : "",
-                        (imsi != NULL) ? &imsi[4] : "",
-                        (imei != NULL) ? &imei[4] : "",
-                        (ggsn_ip_address != NULL) ? ggsn_ip : "",
-                        (sgsn_ip_address != NULL) ? sgsn_ip : "",
-                        (sgsn_mccmnc != NULL) ? &sgsn_mccmnc[4] : "",
-                        (rat_type != NULL) ? (int) *((uint8_t *) rat_type) : 0,
-                        (charg_charact != NULL) ? &charg_charact[4] : "",
-                        (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_lac) : 0,
-                        (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_id) : 0
-                    );
-                     */
                 }
             } else { //Report anyway
                 uint32_t * account_status_type = get_attribute_extracted_data(ipacket, PROTO_RADIUS, RADIUS_ACCT_STATUS_TYPE);
@@ -153,23 +136,6 @@ void radius_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void
                 //send_message_to_file ("radius.report", message);
                 if (probe_context->output_to_file_enable==1)send_message_to_file (message);
                 if (probe_context->redis_enable==1)send_message_to_redis ("radius.report", message);
-                /*
-                fprintf(out_file, "%i,%lu.%lu,%i,%s,%s,%i,%s,%s,%s,%s,%s,%s,%i,%s,%i,%i\n", MMT_RADIUS_REPORT_FORMAT, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec,
-                    (int) code, (framed_ip_address != NULL) ? f_ipv4 : "",
-                    (calling_station_id != NULL) ? &calling_station_id[4] : "",
-                    (account_status_type != NULL) ? *account_status_type : 0,
-                    (account_session_id != NULL) ? &account_session_id[4] : "",
-                    (imsi != NULL) ? &imsi[4] : "",
-                    (imei != NULL) ? &imei[4] : "",
-                    (ggsn_ip_address != NULL) ? ggsn_ip : "",
-                    (sgsn_ip_address != NULL) ? sgsn_ip : "",
-                    (sgsn_mccmnc != NULL) ? &sgsn_mccmnc[4] : "",
-                    (rat_type != NULL) ? (int) *((uint8_t *) rat_type) : 0,
-                    (charg_charact != NULL) ? &charg_charact[4] : "",
-                    (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_lac) : 0,
-                    (user_loc != NULL) ? (int) ntohs(((struct mmt_location_info_struct *) user_loc)->cell_id) : 0
-                    );
-                 */
             }
         }
     }

@@ -10,7 +10,310 @@
 #include "processing.h"
 #include <pthread.h>
 #include <sys/timerfd.h>
+#include "confuse.h"
+#include <sys/stat.h>
 
+int file_is_modified(const char *path) {
+    struct stat file_stat;
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+
+    int ret=0;
+    int err = stat(path, &file_stat);
+    if (err != 0) {
+        perror(" [file_is_modified] stat");
+        exit(errno);
+    }
+    if (file_stat.st_mtime > probe_context->file_modified_time || file_stat.st_ctime > probe_context->file_modified_time){
+    	probe_context->file_modified_time = file_stat.st_mtime;
+    	ret=1;
+    }
+    return ret;
+}
+
+
+cfg_t * parse_conf_new_attribute(const char *filename) {
+
+    cfg_opt_t new_condition_report_opts[] = {
+            CFG_INT("enable", 0, CFGF_NONE),
+            CFG_INT("id", 0, CFGF_NONE),
+            CFG_STR("condition", "", CFGF_NONE),
+            CFG_STR_LIST("attributes", "{}", CFGF_NONE),
+            CFG_STR_LIST("handlers", "{}", CFGF_NONE),
+            CFG_END()
+    };
+
+    cfg_opt_t new_event_report_opts[] = {
+            CFG_INT("enable", 0, CFGF_NONE),
+            CFG_INT("id", 0, CFGF_NONE),
+            CFG_STR("event", "", CFGF_NONE),
+            CFG_STR_LIST("attributes", "{}", CFGF_NONE),
+            CFG_END()
+    };
+
+    cfg_opt_t socket_opts[] = {
+            CFG_INT("enable", 0, CFGF_NONE),
+            CFG_INT("domain", 0, CFGF_NONE),
+            CFG_STR_LIST("port", "{}", CFGF_NONE),
+            CFG_STR("server-address", 0, CFGF_NONE),
+            CFG_STR("socket-descriptor", "", CFGF_NONE),
+			CFG_INT("num_of_server_thread", 0, CFGF_NONE),
+
+            CFG_END()
+    };
+    cfg_opt_t opts[] = {
+             CFG_SEC("condition_report", new_condition_report_opts, CFGF_TITLE | CFGF_MULTI),
+			 CFG_SEC("event_report", new_event_report_opts, CFGF_TITLE | CFGF_MULTI),
+	         CFG_SEC("socket", socket_opts, CFGF_NONE),
+             CFG_END()
+    };
+
+    cfg_t *cfg = cfg_init(opts, CFGF_NONE);
+
+    switch (cfg_parse(cfg, filename)) {
+    case CFG_FILE_ERROR:
+        fprintf(stderr, "warning: configuration file '%s' could not be read: %s\n", filename, strerror(errno));
+        return 0;
+    case CFG_SUCCESS:
+        break;
+    case CFG_PARSE_ERROR:
+        return 0;
+    }
+
+    return cfg;
+}
+
+void new_conditional_reports_init(void * args) {
+	int i;
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+
+	for(i = 0; i < probe_context->new_condition_reports_nb; i++) {
+		mmt_condition_report_t * condition_report = &probe_context->register_new_condition_reports[i];
+		//printf ("complete......\n");
+		if(register_conditional_report_handle(args, condition_report) == 0) {
+			fprintf(stderr, "Error while initializing condition report number %i!\n", condition_report->id);
+			printf( "Error while initializing condition report number %i!\n", condition_report->id);
+		}
+	}
+
+}
+
+void new_event_reports_init(void * args) {
+    int i;
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+	struct smp_thread *th = (struct smp_thread *) args;
+    struct user_data *p;
+
+    for(i = 0; i < probe_context->new_event_reports_nb; i++) {
+       		th->new_event_reports = &probe_context->register_new_event_reports[i];
+       		if(th->new_event_reports->enable == 1){
+       			if (th->new_event_reports->id == 2000){
+       				p = malloc( sizeof( struct user_data ));
+       				p->smp_thread    = th;
+       				p->event_reports = th->new_event_reports;
+       				if (is_registered_packet_handler(th->mmt_handler,6)==1)unregister_packet_handler(th->mmt_handler,6);
+       				register_packet_handler(th->mmt_handler, 6, packet_handler, (void *) p);
+       				/*.....socket */
+
+       				if (probe_context->socket_enable == 1 && probe_context->socket_active == 0){
+       					create_socket(probe_context, args);
+       				}
+       			} else 	{
+       				p = malloc( sizeof( struct user_data ));
+       				p->smp_thread    = th;
+       				p->event_reports = th->new_event_reports;
+       				if (is_registered_packet_handler(th->mmt_handler,6)==0)register_packet_handler(th->mmt_handler, 6, packet_handler, (void *) p);
+       			}
+       			if(register_event_report_handle((void *) p) == 0) {
+       				fprintf(stderr, "Error while initializing event report number %i!\n", th->new_event_reports->id);
+       			}
+       		}
+       	}
+
+/*    for(i = 0; i < probe_context->new_event_reports_nb; i++) {
+        th->new_event_reports = &probe_context->register_new_event_reports[i];
+
+        p = malloc( sizeof( struct user_data ));
+        p->smp_thread    = th;
+        p->event_reports = th->new_event_reports;
+        if(register_event_report_handle((void *) p) == 0) {
+            fprintf(stderr, "Error while initializing event report number %i!\n", th->new_event_reports->id);
+        }
+    }*/
+}
+void read_attributes(){
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+
+	char * config_file = probe_context->dynamic_config_file;
+	cfg_t * cfg = parse_conf_new_attribute(config_file);
+
+	probe_context->new_attribute_register_flag = 1;
+	int p=0;
+
+	for (p=0; p < probe_context->new_condition_reports_nb; p++){
+		free (probe_context->register_new_condition_reports[p].attributes);
+		probe_context->register_new_condition_reports[p].attributes = NULL;
+		free (probe_context->register_new_condition_reports[p].handlers);
+		probe_context->register_new_condition_reports[p].handlers = NULL;
+	}
+
+	for (p=0; p < probe_context->new_event_reports_nb; p++){
+		free (probe_context->register_new_event_reports[p].attributes);
+		probe_context->register_new_event_reports[p].attributes = NULL;
+	}
+
+	if (probe_context->register_new_condition_reports != NULL) {
+		free (probe_context->register_new_condition_reports);
+		probe_context->register_new_condition_reports = NULL;
+	}
+
+	if (probe_context->register_new_event_reports != NULL){
+		free (probe_context->register_new_event_reports);
+		probe_context->register_new_event_reports = NULL;
+	}
+	if (probe_context->socket_active != 1){
+		int nb_port_address =0, k=0;
+		if (cfg_size(cfg, "socket")) {
+			cfg_t *socket = cfg_getnsec(cfg, "socket", 0);
+			int len=0;
+			if (socket->line != 0){
+				probe_context->socket_enable = (uint32_t) cfg_getint(socket, "enable");
+				probe_context->socket_domain = (uint8_t) cfg_getint(socket, "domain");
+				nb_port_address = cfg_size(socket, "port");
+				if(nb_port_address > 0) {
+					if (nb_port_address != probe_context->thread_nb && probe_context->socket_domain == 1){
+						printf("Error: Number of port address should be equal to thread number\n");
+						exit(0);
+					}
+					probe_context->port_address = malloc(sizeof(int)*nb_port_address);
+					for(k = 0; k < nb_port_address; k++) {
+						probe_context->port_address[k] = atoi(cfg_getnstr(socket, "port", k));
+					}
+				}
+
+				strncpy(probe_context->server_address, (char *) cfg_getstr(socket, "server-address"), 18);
+				strncpy(probe_context->unix_socket_descriptor, (char *) cfg_getstr(socket, "socket-descriptor"), 256);
+				probe_context->num_server_thread = (uint8_t) cfg_getint(socket, "num_of_server_thread");
+
+			}
+		}
+	}
+
+	int j =0, i=0;
+	cfg_t *event_opts;
+    int event_reports_nb = cfg_size(cfg, "event_report");
+    int event_attributes_nb = 0;
+    probe_context ->register_new_event_reports = NULL;
+    mmt_event_report_t * temp_er;
+    probe_context->new_event_reports_nb = event_reports_nb;
+
+
+    if (event_reports_nb > 0) {
+    	probe_context ->register_new_event_reports = calloc(sizeof(mmt_event_report_t), event_reports_nb);
+    	for(j = 0; j < event_reports_nb; j++) {
+    		event_opts = cfg_getnsec(cfg, "event_report", j);
+    		//probe_context->event_based_reporting_enable = (uint32_t) cfg_getint(event_opts, "enable");
+    		temp_er = &probe_context ->register_new_event_reports[j];
+    		temp_er->enable = (uint32_t) cfg_getint(event_opts, "enable");
+
+    		if (temp_er->enable == 1){
+    			temp_er->id = (uint32_t)cfg_getint(event_opts, "id");
+    			if (temp_er->id ==2000)probe_context->enable_security_report = 1;
+    			if (parse_dot_proto_attribute((char *) cfg_getstr(event_opts, "event"), &temp_er->event)) {
+    				fprintf(stderr, "Error: invalid event_report event value '%s'\n", (char *) cfg_getstr(event_opts, "event"));
+    				exit(0);
+    			}
+    			probe_context->event_based_reporting_enable = (uint32_t) cfg_getint(event_opts, "enable");
+
+    			event_attributes_nb = cfg_size(event_opts, "attributes");
+    			temp_er->attributes_nb = event_attributes_nb;
+    			if(event_attributes_nb > 0) {
+    				temp_er->attributes = calloc(sizeof(mmt_event_attribute_t), event_attributes_nb);
+
+    				for(i = 0; i < event_attributes_nb; i++) {
+    					if (parse_dot_proto_attribute(cfg_getnstr(event_opts, "attributes", i), &temp_er->attributes[i])) {
+    						fprintf(stderr, "Error: invalid event_report attribute value '%s'\n", (char *) cfg_getnstr(event_opts, "attributes", i));
+    						exit(0);
+    					}
+    				}
+    			}
+    		}
+    	}
+    }
+	cfg_t * condition_opts;
+	j =0;
+	i=0;
+	int condition_reports_nb = cfg_size(cfg, "condition_report");
+	int condition_attributes_nb = 0;
+	int condition_handlers_nb=0;
+	probe_context->register_new_condition_reports = NULL;
+	mmt_condition_report_t * temp_condn;
+	probe_context->new_condition_reports_nb = condition_reports_nb;
+	if (condition_reports_nb > 0) {
+		probe_context->register_new_condition_reports = calloc(sizeof(mmt_condition_report_t), condition_reports_nb);
+		for(j = 0; j < condition_reports_nb; j++) {
+			condition_opts = cfg_getnsec(cfg, "condition_report", j);
+			temp_condn = & probe_context->register_new_condition_reports[j];
+			temp_condn->id = (uint16_t)cfg_getint(condition_opts, "id");
+			temp_condn->enable = (uint32_t)cfg_getint(condition_opts, "enable");
+
+			if (parse_condition_attribute((char *) cfg_getstr(condition_opts, "condition"), &temp_condn->condition)) {
+				fprintf(stderr, "Error: invalid condition_report condition value '%s'\n", (char *) cfg_getstr(condition_opts, "condition"));
+				exit(0);
+			}
+
+			if(strcmp(temp_condn->condition.condition,"FTP")==0){
+				probe_context->ftp_id = temp_condn->id;
+				if (temp_condn->enable == 1)probe_context->ftp_enable=1;
+				if (temp_condn->enable == 0)probe_context->ftp_enable=0;
+			}
+			if(strcmp(temp_condn->condition.condition,"WEB")==0){
+				probe_context->web_id = temp_condn->id;
+				if (temp_condn->enable == 1)probe_context->web_enable=1;
+				if (temp_condn->enable == 0)probe_context->web_enable=0;
+			}
+			if(strcmp(temp_condn->condition.condition,"RTP")==0){
+				probe_context->rtp_id = temp_condn->id;
+				if (temp_condn->enable == 1)probe_context->rtp_enable=1;
+				if (temp_condn->enable == 0)probe_context->rtp_enable=0;
+			}
+			if(strcmp(temp_condn->condition.condition,"SSL")==0){
+				probe_context->ssl_id = temp_condn->id;
+				if (temp_condn->enable == 1)probe_context->ssl_enable=1;
+				if (temp_condn->enable == 0)probe_context->ssl_enable=0;
+			}
+			if (temp_condn->enable == 1){
+				condition_attributes_nb = cfg_size(condition_opts, "attributes");
+				temp_condn->attributes_nb = condition_attributes_nb;
+
+				if(condition_attributes_nb > 0) {
+					temp_condn->attributes = calloc(sizeof(mmt_condition_attribute_t), condition_attributes_nb);
+
+					for(i = 0; i < condition_attributes_nb; i++) {
+						if (condition_parse_dot_proto_attribute(cfg_getnstr(condition_opts, "attributes", i), &temp_condn->attributes[i])) {
+							fprintf(stderr, "Error: invalid condition_report attribute value '%s'\n", (char *) cfg_getnstr(condition_opts, "attributes", i));
+							exit(0);
+						}
+					}
+				}
+				condition_handlers_nb = cfg_size(condition_opts, "handlers");
+				temp_condn->handlers_nb = condition_handlers_nb;
+
+				if(condition_handlers_nb > 0) {
+					temp_condn->handlers = calloc(sizeof(mmt_condition_attribute_t), condition_handlers_nb);
+
+					for(i = 0; i < condition_handlers_nb; i++) {
+						if (parse_handlers_attribute((char *) cfg_getnstr(condition_opts, "handlers",i), &temp_condn->handlers[i])) {
+							fprintf(stderr, "Error: invalid condition_report handler attribute value '%s'\n", (char *) cfg_getnstr(condition_opts, "handlers", i));
+							exit(0);
+						}
+					}
+				}
+			}
+
+		}
+	}
+	cfg_free(cfg);
+}
 void exit_timers(){
 	//struct smp_thread *th = (struct smp_thread *) arg;
 	//flush_messages_to_file_thread( th );
@@ -38,7 +341,8 @@ static void *wait_to_do_something( void *arg ){
 	mmt_probe_struct_t * probe = (mmt_probe_struct_t *)p_data->user_data;
 	uint32_t seconds   = p_data->period;
 	int i=0;
-
+	FILE * register_attributes;
+	int file_modified_flag = 0;
 	// Create the timer
 	timer_fd = timerfd_create (CLOCK_MONOTONIC, 0);
 	if (timer_fd == -1){
@@ -69,6 +373,8 @@ static void *wait_to_do_something( void *arg ){
 		//fflush( stdout );
 		/* Wait for the next timer event. If we have missed any the
 		 *         number is written to "expirations"*/
+
+
 		ret = read (timer_fd, &expirations, sizeof (expirations));
 		if( ret == -1 ){
 			perror ("read timer");
@@ -81,10 +387,23 @@ static void *wait_to_do_something( void *arg ){
 			printf("missed %lu", expirations - 1);
 			fflush( stdout );
 		}
+		register_attributes = fopen(probe_context->dynamic_config_file, "r");
+
+		if (register_attributes != NULL ){
+			file_modified_flag = file_is_modified (probe_context->dynamic_config_file);
+			if (file_modified_flag){
+				read_attributes(); // initialize once if file changed
+			}
+		}
+		if (register_attributes != NULL)fclose(register_attributes);
 		for (i = 0; i < probe_context->thread_nb;i++){
 			//printf("thread number_wait_to_do_something = %d \n",probe->smp_threads[i].thread_number);
+			if (file_modified_flag){
+				probe->smp_threads[i].file_read_flag =1;
+			}
 			p_data->user_data = (void *) &probe->smp_threads[i];
 			(* p_data->callback)( p_data->user_data );
+
 		}
 
 	}
@@ -101,13 +420,11 @@ static void *wait_to_do_something( void *arg ){
 	return NULL;
 };
 
-
 int start_timer( uint32_t period, void *callback, void *user_data){
 	int ret;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	pthread_user_data_t *data = malloc( sizeof( pthread_user_data_t ));
 	//pthread_t pthread;
-
 	data->period   = period;
 	data->callback = callback;
 	data->user_data = user_data;
@@ -142,10 +459,8 @@ void flush_messages_to_file_thread( void *arg){
 	char message[MAX_MESS + 1];
 	struct timeval ts;
 	//Print this report every 5 second
-
 	time_t present_time;
 	present_time = time(0);
-
 	gettimeofday(&ts, NULL);
 	struct smp_thread *th = (struct smp_thread *) arg;
 
@@ -163,6 +478,7 @@ void flush_messages_to_file_thread( void *arg){
 		//pthread_spin_unlock(&th->lock);
 		return;
 	}
+
 	//open a file
 	valid = snprintf(file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s",probe_context->output_location,present_time,th->thread_number,probe_context->data_out);
 	file_name_str[valid] = '\0';

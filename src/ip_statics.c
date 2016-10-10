@@ -17,7 +17,9 @@
 #include <unistd.h>
 
 void print_ip_session_report (const mmt_session_t * session, void *user_args){
-
+	if (is_microflow(session)) {
+		return;
+	}
 	session_struct_t * temp_session = (session_struct_t *) get_user_session_context(session);
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	if (temp_session == NULL) {
@@ -36,9 +38,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 		temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
 		memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
 	}
-	if (is_microflow(session)) {
-		return;
-	}
+
 	// To  check whether the session activity occurs between the reporting time interval
 	if (TIMEVAL_2_USEC(mmt_time_diff(temp_session->session_attr->last_activity_time,get_session_last_activity_time(session))) == 0)return; // check the condition if in the last interval there was a protocol activity or not
 	//if (get_session_byte_count(session) - temp_session->session_attr->total_byte_count == 0)return;
@@ -89,6 +89,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	if (proto_path_1->len == 0){
 		temp_session->path_dl[0] = '\0';
 	}
+	// Data transfer time calculation
 	if (temp_session->dtt_seen == 1){
 		struct timeval t1;
 		//The download direction is opposite to set_up_direction, the download direction is from server to client
@@ -97,7 +98,6 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 		temp_session->data_transfer_time =  TIMEVAL_2_USEC(mmt_time_diff(temp_session->dtt_start_time,t1)) ;
 		temp_session->dtt_start_time.tv_sec = t1.tv_sec;
 		temp_session->dtt_start_time.tv_usec = t1.tv_usec;
-		//printf("session_id =%lu,report_number= %lu, dtt= %lu\n",temp_session ->session_id,report_number,temp_session->data_transfer_time);
 	}
 	uint64_t active_session_count = get_active_session_count(th->mmt_handler);
 	if (keep_direction == 1){
@@ -243,7 +243,6 @@ void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		temp_session->session_attr->sum_rtt[ip_rtt.direction] += latest_rtt;
 		temp_session->session_attr->rtt_avg_usec[ip_rtt.direction] = temp_session->session_attr->sum_rtt [ip_rtt.direction]/temp_session->session_attr->rtt_counter[ip_rtt.direction];
 
-		//printf("packet_id = %lu, direction = %u, rtt_latest = %lu rtt_min = %lu, rtt_max = %lu rtt_avg = %lu, counter = %lu\n",ipacket->packet_id, ip_rtt.direction,latest_rtt,temp_session->session_attr->rtt_min_usec[ip_rtt.direction],temp_session->session_attr->rtt_max_usec[ip_rtt.direction],temp_session->session_attr->rtt_avg_usec[ip_rtt.direction],temp_session->session_attr->rtt_counter[ip_rtt.direction]);
 	}
 }
 

@@ -205,7 +205,6 @@ int license_expiry_check(int status){
 	strncpy(read_sum_license,&license_decrypt_key[11+mac_length],length-(mac_length+11));
 	read_sum_license[length-(mac_length+11)] = '\0';
 
-	//printf("sum_license =%s\n",read_sum_license);
 	int yr = atoi(year);
 	int mn = atoi(month);
 	int dy = atoi(day);
@@ -220,8 +219,6 @@ int license_expiry_check(int status){
 
 	}
 	long int sum_license_calc = date_sum + sum_mac + no_of_mac;
-
-	//printf("sum_license_calc =%li\n",sum_license_calc);
 
 	char * mac_address;
 	mac_address=malloc(sizeof(char)*no_of_mac*13);
@@ -252,7 +249,6 @@ int license_expiry_check(int status){
 	expiry_time.tm_mday = dy;expiry_time.tm_mon = mn-1; expiry_time.tm_year = yr-1900;
 	time_t expiry_date =mktime(&expiry_time);
 	seconds=difftime(mktime(&expiry_time),now);
-	// printf("seconds=%f\n",seconds);
 
 	//convert time_t into epoch time
 	struct timeval expired_date;

@@ -44,19 +44,19 @@ int conf_parse_input_mode(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *r
 }
 
 cfg_t * parse_conf(const char *filename) {
-    cfg_opt_t micro_flows_opts[] = {
-            CFG_INT("enable", 0, CFGF_NONE),
+	cfg_opt_t micro_flows_opts[] = {
+			CFG_INT("enable", 0, CFGF_NONE),
 			CFG_INT("id", 0, CFGF_NONE),
-            CFG_INT("include-packet-count", 10, CFGF_NONE),
-            CFG_INT("include-byte-count", 5, CFGF_NONE),
-            CFG_INT("report-packet-count", 10000, CFGF_NONE),
-            CFG_INT("report-byte-count", 5000, CFGF_NONE),
-            CFG_INT("report-flow-count", 1000, CFGF_NONE),
-            CFG_END()
-    };
-    cfg_opt_t session_timeout_opts[] = {
-            CFG_INT("default-session-timeout", 60, CFGF_NONE),
-            CFG_INT("long-session-timeout", 600, CFGF_NONE),
+			CFG_INT("include-packet-count", 10, CFGF_NONE),
+			CFG_INT("include-byte-count", 5, CFGF_NONE),
+			CFG_INT("report-packet-count", 10000, CFGF_NONE),
+			CFG_INT("report-byte-count", 5000, CFGF_NONE),
+			CFG_INT("report-flow-count", 1000, CFGF_NONE),
+			CFG_END()
+	};
+	cfg_opt_t session_timeout_opts[] = {
+			CFG_INT("default-session-timeout", 60, CFGF_NONE),
+			CFG_INT("long-session-timeout", 600, CFGF_NONE),
             CFG_INT("short-session-timeout", 15, CFGF_NONE),
             CFG_INT("live-session-timeout", 1500, CFGF_NONE),
             CFG_END()
@@ -127,7 +127,15 @@ cfg_t * parse_conf(const char *filename) {
             CFG_STR_LIST("handlers", "{}", CFGF_NONE),
             CFG_END()
     };
-
+    cfg_opt_t socket_opts[] = {
+            CFG_INT("enable", 0, CFGF_NONE),
+            CFG_INT("domain", 0, CFGF_NONE),
+            CFG_STR_LIST("port", "{}", CFGF_NONE),
+            CFG_STR("server-address", 0, CFGF_NONE),
+            CFG_STR("socket-descriptor", "", CFGF_NONE),
+			CFG_INT("num_of_server_thread", 0, CFGF_NONE),
+            CFG_END()
+    };
 
     cfg_opt_t opts[] = {
             CFG_SEC("micro-flows", micro_flows_opts, CFGF_NONE),
@@ -136,6 +144,7 @@ cfg_t * parse_conf(const char *filename) {
             CFG_SEC("redis-output", redis_output_opts, CFGF_NONE),
             CFG_SEC("data-output", data_output_opts, CFGF_NONE),
             CFG_SEC("security", security_opts, CFGF_NONE),
+            CFG_SEC("socket", socket_opts, CFGF_NONE),
             CFG_SEC("behaviour", behaviour_opts, CFGF_NONE),
             CFG_SEC("reconstruct-ftp", reconstruct_ftp_opts, CFGF_NONE),
             CFG_SEC("radius-output", radius_output_opts, CFGF_NONE),
@@ -150,6 +159,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_INT("cache-size-for-reporting", 300000, CFGF_NONE),
             CFG_INT_CB("input-mode", 0, CFGF_NONE, conf_parse_input_mode),
             CFG_STR("input-source", "nosource", CFGF_NONE),
+			CFG_STR("dynamic-config-file", "noconfig", CFGF_NONE),
             CFG_INT("probe-id-number", 0, CFGF_NONE),
             CFG_STR("logfile", 0, CFGF_NONE),
 			CFG_STR("license_file_path", 0, CFGF_NONE),
@@ -252,7 +262,7 @@ int parse_handlers_attribute(char * inputstring, mmt_condition_attribute_t * han
 }
 
 int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
-    int i, j;
+    int i=0, j=0;
     cfg_t *event_opts;
     cfg_t *condition_opts;
 
@@ -287,6 +297,10 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
         if (strcmp((char *) cfg_getstr(cfg, "input-source"),"nosource")!=0){
             strncpy(mmt_conf->input_source, (char *) cfg_getstr(cfg, "input-source"), 256);
+        }
+
+        if (strcmp((char *) cfg_getstr(cfg, "dynamic-config-file"),"noconfig")!=0){
+                  strncpy(mmt_conf->dynamic_config_file, (char *) cfg_getstr(cfg, "dynamic-config-file"), 256);
         }
 
         mmt_conf->probe_id_number = (uint32_t) cfg_getint(cfg, "probe-id-number");
@@ -403,6 +417,36 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
             }
         }
 
+        int nb_port_address =0;
+        if (cfg_size(cfg, "socket")) {
+        	cfg_t *socket = cfg_getnsec(cfg, "socket", 0);
+        	int len=0;
+        	if (socket->line != 0){
+        		mmt_conf->socket_enable = (uint32_t) cfg_getint(socket, "enable");
+        		if (mmt_conf->socket_enable ==1 ){
+        			mmt_conf->socket_domain = (uint8_t) cfg_getint(socket, "domain");
+        			nb_port_address = cfg_size(socket, "port");
+        			mmt_conf->num_server_thread = (uint8_t) cfg_getint(socket, "num_of_server_thread");
+
+        			if(nb_port_address > 0) {
+        				if (nb_port_address != mmt_conf->thread_nb && mmt_conf->socket_domain == 1 && mmt_conf->num_server_thread > 0){
+        					printf("Error: Number of port address should be equal to thread number\n");
+        					exit(0);
+        				}
+        				mmt_conf->port_address = malloc(sizeof(int)*nb_port_address);
+        				for(i = 0; i < nb_port_address; i++) {
+        					mmt_conf->port_address[i] = atoi(cfg_getnstr(socket, "port", i));
+        				}
+        			}
+
+        			//mmt_conf->portnb = (uint32_t) cfg_getint(socket, "port");
+        			strncpy(mmt_conf->server_address, (char *) cfg_getstr(socket, "server-address"), 18);
+        			strncpy(mmt_conf->unix_socket_descriptor, (char *) cfg_getstr(socket, "socket-descriptor"), 256);
+
+        		}
+        	}
+        }
+
         if (cfg_size(cfg, "data-output")) {
             cfg_t *doutput = cfg_getnsec(cfg, "data-output", 0);
             if (doutput->line!=0){
@@ -415,28 +459,40 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         mmt_conf->event_reports = NULL;
         mmt_event_report_t * temp_er;
         mmt_conf->event_reports_nb = event_reports_nb;
-
+        i=0,j=0;
 
         if (event_reports_nb > 0) {
         	mmt_conf->event_reports = calloc(sizeof(mmt_event_report_t), event_reports_nb);
         	for(j = 0; j < event_reports_nb; j++) {
         		event_opts = cfg_getnsec(cfg, "event_report", j);
-        		mmt_conf->event_based_reporting_enable = (uint32_t) cfg_getint(event_opts, "enable");
+        		//mmt_conf->event_based_reporting_enable = (uint32_t) cfg_getint(event_opts, "enable");
         		temp_er = & mmt_conf->event_reports[j];
-        		temp_er->id = (uint32_t)cfg_getint(event_opts, "id");
-        		if (parse_dot_proto_attribute((char *) cfg_getstr(event_opts, "event"), &temp_er->event)) {
-        			fprintf(stderr, "Error: invalid event_report event value '%s'\n", (char *) cfg_getstr(event_opts, "event"));
-        			exit(0);
-        		}
-        		event_attributes_nb = cfg_size(event_opts, "attributes");
-        		temp_er->attributes_nb = event_attributes_nb;
-        		if(event_attributes_nb > 0) {
-        			temp_er->attributes = calloc(sizeof(mmt_event_attribute_t), event_attributes_nb);
+        		temp_er->enable = (uint32_t) cfg_getint(event_opts, "enable");
 
-        			for(i = 0; i < event_attributes_nb; i++) {
-        				if (parse_dot_proto_attribute(cfg_getnstr(event_opts, "attributes", i), &temp_er->attributes[i])) {
-        					fprintf(stderr, "Error: invalid event_report attribute value '%s'\n", (char *) cfg_getnstr(event_opts, "attributes", i));
-        					exit(0);
+        		if (temp_er->enable == 1){
+
+        			temp_er->id = (uint32_t)cfg_getint(event_opts, "id");
+
+        			if (temp_er->id ==2000)mmt_conf->enable_security_report = 1;
+        			if (parse_dot_proto_attribute((char *) cfg_getstr(event_opts, "event"), &temp_er->event)) {
+        				fprintf(stderr, "Error: invalid event_report event value '%s'\n", (char *) cfg_getstr(event_opts, "event"));
+        				exit(0);
+        			}
+        			mmt_conf->event_based_reporting_enable = (uint32_t) cfg_getint(event_opts, "enable");
+
+
+
+
+        			event_attributes_nb = cfg_size(event_opts, "attributes");
+        			temp_er->attributes_nb = event_attributes_nb;
+        			if(event_attributes_nb > 0) {
+        				temp_er->attributes = calloc(sizeof(mmt_event_attribute_t), event_attributes_nb);
+
+        				for(i = 0; i < event_attributes_nb; i++) {
+        					if (parse_dot_proto_attribute(cfg_getnstr(event_opts, "attributes", i), &temp_er->attributes[i])) {
+        						fprintf(stderr, "Error: invalid event_report attribute value '%s'\n", (char *) cfg_getnstr(event_opts, "attributes", i));
+        						exit(0);
+        					}
         				}
         			}
         		}
@@ -449,6 +505,8 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         mmt_conf->condition_reports = NULL;
         mmt_condition_report_t * temp_condn;
         mmt_conf->condition_reports_nb = condition_reports_nb;
+        i=0,j=0;
+
         if (condition_reports_nb > 0) {
         	mmt_conf->condition_reports = calloc(sizeof(mmt_condition_report_t), condition_reports_nb);
         	for(j = 0; j < condition_reports_nb; j++) {

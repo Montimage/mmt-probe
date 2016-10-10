@@ -9,11 +9,7 @@
 
 #include "mmt_core.h"
 #include "processing.h"
-
-struct user_data{
-   void *smp_thread;
-   void *event_reports;
-};
+#include <pthread.h>
 
 void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     int j;
@@ -21,8 +17,7 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
     int offset = 0, valid;
     char message[MAX_MESS + 1];
     struct user_data *p   = (struct user_data *) user_args;
-	 struct smp_thread *th = (struct smp_thread *) p->smp_thread;
-
+	struct smp_thread *th = (struct smp_thread *) p->smp_thread;
     mmt_probe_context_t * probe_context = get_probe_context_config();
     mmt_event_report_t * event_report   = p->event_reports; //(mmt_event_report_t *) user_args;
 
@@ -64,29 +59,55 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
     //send_message_to_file ("event.report", message);
     if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,th);
     if (probe_context->redis_enable==1)send_message_to_redis ("event.report", message);
+
 }
 
 int register_event_report_handle(void * args) {
-    int i = 1, j;
-	 struct smp_thread *th ;
-    struct user_data *p = ( struct user_data *) args;
-    th = p->smp_thread;
+	int i = 1, j;
+	mmt_probe_context_t * probe_context = get_probe_context_config();
 
-    i &= register_attribute_handler_by_name(th->mmt_handler, th->event_reports->event.proto, th->event_reports->event.attribute, event_report_handle, NULL, (void *) p);
-    for(j = 0; j < th->event_reports->attributes_nb; j++) {
-        mmt_event_attribute_t * event_attribute = &th->event_reports->attributes[j];
-        i &= register_extraction_attribute_by_name(th->mmt_handler, event_attribute->proto, event_attribute->attribute);
-        // printf ("%s \tAttribute=%s, i=%d\n\n",event_attribute->proto,event_attribute->attribute,i);
-    }
-    return i;
+	struct smp_thread *th ;
+	struct user_data *p = ( struct user_data *) args;
+	th = p->smp_thread;
+	mmt_event_report_t * event_report   = p->event_reports;
+	if (strcmp(event_report->event.proto,"null") != 0 && strcmp(event_report->event.attribute,"null") !=0){
+
+		event_report->event.proto_id = get_protocol_id_by_name (event_report->event.proto);
+		event_report->event.attribute_id = get_attribute_id_by_protocol_and_attribute_names(event_report->event.proto,event_report->event.attribute);
+	}else {
+		event_report->event.proto_id = 0;
+		event_report->event.attribute_id = 0;
+
+
+	}
+	//printf ("proto_id = %u, attr_id = %u",event_report->event.proto_id,event_report->event.attribute_id);
+
+	if(event_report->id != 2000){
+
+		if (is_registered_attribute_handler(th->mmt_handler, event_report->event.proto_id, event_report->event.attribute_id, event_report_handle) == 0){
+			i &= register_attribute_handler(th->mmt_handler, event_report->event.proto_id, event_report->event.attribute_id, event_report_handle, NULL, (void *) p);
+		}
+	}
+
+	for(j = 0; j < event_report->attributes_nb; j++) {
+		mmt_event_attribute_t * event_attribute = &event_report->attributes[j];
+
+		event_attribute->proto_id = get_protocol_id_by_name (event_attribute->proto);
+		event_attribute->attribute_id = get_attribute_id_by_protocol_and_attribute_names(event_attribute->proto,event_attribute->attribute);
+		if (is_registered_attribute(th->mmt_handler, event_attribute->proto_id, event_attribute->attribute_id) == 0){
+			i &= register_extraction_attribute(th->mmt_handler, event_attribute->proto_id, event_attribute->attribute_id);
+		}
+		//printf ("proto=%s \tAttribute=%s\n\n",event_attribute->proto,event_attribute->attribute);
+	}
+	return i;
 }
 void event_reports_init(void * args) {
     int i;
     mmt_probe_context_t * probe_context = get_probe_context_config();
-	 struct smp_thread *th = (struct smp_thread *) args;
+	struct smp_thread *th = (struct smp_thread *) args;
     struct user_data *p; 
 
-    for(i = 0; i < probe_context->event_reports_nb; i++) {
+/*    for(i = 0; i < probe_context->event_reports_nb; i++) {
         th->event_reports = &probe_context->event_reports[i];
 
         p = malloc( sizeof( struct user_data ));
@@ -96,5 +117,40 @@ void event_reports_init(void * args) {
         if(register_event_report_handle((void *) p) == 0) {
             fprintf(stderr, "Error while initializing event report number %i!\n", th->event_reports->id);
         }
-    }
+    }*/
+
+	for(i = 0; i < probe_context->event_reports_nb; i++) {
+		th->event_reports = &probe_context->event_reports[i];
+		if(th->event_reports->enable == 1){
+			if (th->event_reports->id == 2000){
+				p = malloc( sizeof( struct user_data ));
+				p->smp_thread    = th;
+				p->event_reports = th->event_reports;
+				if (is_registered_packet_handler(th->mmt_handler,6)==1)unregister_packet_handler(th->mmt_handler,6);
+				register_packet_handler(th->mmt_handler, 6, packet_handler, (void *) p);
+				/*.....socket */
+
+				if (probe_context->socket_enable == 1){
+					create_socket(probe_context, args);
+					probe_context->socket_active = 1;
+				}
+			} else 	{
+				p = malloc( sizeof( struct user_data ));
+				p->smp_thread    = th;
+				p->event_reports = th->event_reports;
+				if (is_registered_packet_handler(th->mmt_handler,6)==0)register_packet_handler(th->mmt_handler, 6, packet_handler, (void *) p);
+			}
+			if(register_event_report_handle((void *) p) == 0) {
+				fprintf(stderr, "Error while initializing event report number %i!\n", th->event_reports->id);
+			}
+		}
+	}
+
+
+	if (is_registered_packet_handler(th->mmt_handler,6)==0){
+		p = malloc( sizeof( struct user_data ));
+		p->smp_thread    = th;
+		p->event_reports = NULL;
+		register_packet_handler(th->mmt_handler, 6, packet_handler, (void *) p);
+	}
 }

@@ -110,20 +110,21 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 			temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
 			memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
 		}
-		if (((web_session_attr_t *) temp_session->app_data)->touched == 0){
-			((web_session_attr_t *) temp_session->app_data)->touched = 1;
-			((web_session_attr_t *) temp_session->app_data)->state_http_request_response++;//response is not finished
-			//((web_session_attr_t *) temp_session->app_data)->request_counter = 1;
-			((web_session_attr_t *) temp_session->app_data)->trans_nb = 1;
-		}else{
-			((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;// response is finished
-			 temp_session->report_counter = th->report_counter;
-			 print_ip_session_report (ipacket->session,user_args);
-			 http_reset_report(temp_session);
-			 //((web_session_attr_t *) temp_session->app_data)->request_counter++;
-			 ((web_session_attr_t *) temp_session->app_data)->trans_nb++;
+		if (probe_context->web_enable == 1){
+			if (((web_session_attr_t *) temp_session->app_data)->touched == 0){
+				((web_session_attr_t *) temp_session->app_data)->touched = 1;
+				((web_session_attr_t *) temp_session->app_data)->state_http_request_response++;//response is not finished
+				//((web_session_attr_t *) temp_session->app_data)->request_counter = 1;
+				((web_session_attr_t *) temp_session->app_data)->trans_nb = 1;
+			}else{
+				((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;// response is finished
+				temp_session->report_counter = th->report_counter;
+				print_ip_session_report (ipacket->session,user_args);
+				http_reset_report(temp_session);
+				//((web_session_attr_t *) temp_session->app_data)->request_counter++;
+				((web_session_attr_t *) temp_session->app_data)->trans_nb++;
+			}
 		}
-
 		http_line_struct_t * method = (http_line_struct_t *) attribute->data;
 		if (method != NULL && temp_session->app_format_id == probe_context->web_id) {
 			int max = (method->len > 20) ? 20 : method->len;
@@ -281,6 +282,7 @@ void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void
 
 	if (tcp_close != NULL ) {
 		if(temp_session->app_format_id == probe_context->web_id){
+			//printf ("HEERRER1, session_id = %lu\n", temp_session->session_id);
 			if (((web_session_attr_t *) temp_session->app_data)->state_http_request_response != 0)((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;
 			if (temp_session->session_attr == NULL) {
 				temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
@@ -294,7 +296,6 @@ void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void
 	}
 
 }
-
 
 void print_initial_web_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid){
 	mmt_probe_context_t * probe_context = get_probe_context_config();

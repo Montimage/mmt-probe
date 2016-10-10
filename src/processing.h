@@ -126,10 +126,13 @@ typedef struct mmt_dev_properties_struct {
 typedef struct mmt_event_attribute_struct {
     char proto[256 + 1];
     char attribute[256 + 1];
+    uint32_t proto_id;
+    uint32_t attribute_id;
 } mmt_event_attribute_t;
 
 
 typedef struct mmt_event_report_struct {
+	uint32_t enable;
     uint32_t id;
     mmt_event_attribute_t event;
     uint32_t attributes_nb;
@@ -175,6 +178,7 @@ typedef struct mmt_probe_context_struct {
     char license_location[256 + 1];
     char behaviour_output_location[256 + 1];
     char ftp_reconstruct_output_location[256 + 1];
+    char dynamic_config_file[256 + 1];
     uint32_t ftp_enable;
     uint32_t web_enable;
     uint32_t rtp_enable;
@@ -189,6 +193,8 @@ typedef struct mmt_probe_context_struct {
     uint32_t security_enable;
     uint32_t event_based_reporting_enable;
     uint32_t condition_based_reporting_enable;
+    uint32_t enable_security_report;
+
     uint32_t ftp_reconstruct_enable;
     uint32_t radius_enable;
 
@@ -228,10 +234,29 @@ typedef struct mmt_probe_context_struct {
     uint32_t sampled_report;
     uint32_t event_reports_nb;
     uint32_t condition_reports_nb;
+    uint32_t new_condition_reports_nb;
+    uint32_t new_event_reports_nb;
     mmt_event_report_t * event_reports;
     mmt_condition_report_t * condition_reports;
+    mmt_condition_report_t * register_new_condition_reports;
+    mmt_event_report_t * register_new_event_reports;
+
+    uint8_t socket_domain;
+    uint32_t portnb;
+    uint32_t socket_enable;
+    uint8_t socket_active;
+    uint8_t num_server_thread;
+    char server_address[18 + 1];
+    char unix_socket_descriptor[256 + 1];
+    uint32_t *port_address;
+    uint32_t sockfd;
 
     unsigned char *mac_address_host;	//
+
+    uint32_t new_attribute_register_flag;
+    time_t file_modified_time;
+
+
 
 } mmt_probe_context_t;
 
@@ -442,12 +467,20 @@ struct smp_thread {
     struct smp_pkt pkt_head; /* pointer on first packet */
     struct smp_pkt null_pkt; /* Null packet used to indicate end of packet feeding for the thread. */
     time_t last_stat_report_time;
+    time_t pcap_last_stat_report_time;
+    time_t pcap_current_packet_time;
     uint64_t report_counter;
     mmt_event_report_t * event_reports;
+    mmt_event_report_t * new_event_reports;
     char **cache_message_list;
     int cache_count;
     data_spsc_ring_t fifo;
     uint64_t nb_packets, nb_dropped_packets;
+    uint8_t file_read_flag;
+    unsigned char report_buffer[2000];
+    uint32_t sockfd;
+    uint32_t packet_send;
+
 };
 
 typedef struct mmt_probe_struct {
@@ -459,9 +492,16 @@ typedef struct mmt_probe_struct {
     uint64_t packets_nb;
 }mmt_probe_struct_t;
 
+struct user_data{
+   void *smp_thread;
+   void *event_reports;
+};
+struct sockaddr_un {
+    unsigned short sun_family;  /* AF_UNIX */
+    char sun_path[108];
+};
 void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char * log_msg);
 void init_redis (char * hostname, int port);
-void proto_stats_init(void * handler);
 void proto_stats_cleanup(void * handler);
 void flowstruct_init(void * handler);
 void flowstruct_cleanup(void * handler);
@@ -496,6 +536,14 @@ void exit_timers();
 void flush_messages_to_file_thread( void *);
 int start_timer( uint32_t period, void *callback, void *user_data);
 struct timeval mmt_time_diff(struct timeval tstart, struct timeval tend);
+void proto_stats_init(void * arg);
+void read_attributes();
+int condition_parse_dot_proto_attribute(char * inputstring, mmt_condition_attribute_t * protoattr);
+int parse_condition_attribute(char * inputstring, mmt_condition_attribute_t * conditionattr);
+int parse_handlers_attribute(char * inputstring, mmt_condition_attribute_t * handlersattr);
+void new_conditional_reports_init(void * args);
+void new_event_reports_init(void * args);
+int parse_dot_proto_attribute(char * inputstring, mmt_event_attribute_t * protoattr);
 
 // Timeout for different types of appplications
 int set_default_session_timed_out(mmt_handler_t *mmt_handler,uint32_t timedout_value);
@@ -524,6 +572,10 @@ void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * u
 void content_len_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void flush_messages_to_file_thread( void *arg);
 void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+int file_is_modified(const char *path);
+void write_to_socket(unsigned char buffer[],int buffer_len,struct smp_thread *th);
+void create_socket(mmt_probe_context_t * mmt_conf,void *args);
+int packet_handler(const ipacket_t * ipacket, void * args);
 
 //prototypes
 void print_ip_session_report (const mmt_session_t * session, void *user_args);
