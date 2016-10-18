@@ -84,6 +84,12 @@ uint32_t get_2_power(uint32_t nb) {
 	return ret;
 }
 
+void error(const char *msg)
+{
+    perror(msg);
+    exit(1);
+}
+
 static void *smp_thread_routine(void *arg) {
 	struct timeval tv;
 	struct smp_thread *th = (struct smp_thread *) arg;
