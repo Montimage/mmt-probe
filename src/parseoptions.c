@@ -133,7 +133,7 @@ cfg_t * parse_conf(const char *filename) {
             CFG_STR_LIST("port", "{}", CFGF_NONE),
             CFG_STR("server-address", 0, CFGF_NONE),
             CFG_STR("socket-descriptor", "", CFGF_NONE),
-			CFG_INT("num_of_server_thread", 0, CFGF_NONE),
+			CFG_INT("one_socket_server", 0, CFGF_NONE),
             CFG_END()
     };
 
@@ -151,6 +151,7 @@ cfg_t * parse_conf(const char *filename) {
             CFG_INT("stats-period", 5, CFGF_NONE),
             CFG_INT("enable-proto-without-session-stat", 0, CFGF_NONE),
 			CFG_INT("enable-IP-fragmentation-report", 0, CFGF_NONE),
+			CFG_INT("enable-session-report", 0, CFGF_NONE),
             CFG_INT("file-output-period", 5, CFGF_NONE),
             CFG_INT("thread-nb", 1, CFGF_NONE),
             CFG_INT("thread-queue", 0, CFGF_NONE),
@@ -270,6 +271,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         //mmt_conf->enable_proto_stats = 1; //enabled by default
         mmt_conf->enable_proto_without_session_stats = (uint32_t) cfg_getint(cfg, "enable-proto-without-session-stat");
         mmt_conf->enable_IP_fragmentation_report = (uint32_t) cfg_getint(cfg, "enable-IP-fragmentation-report");
+        mmt_conf->enable_session_report = (uint32_t) cfg_getint(cfg, "enable-session-report");
         mmt_conf->enable_flow_stats = 1;  //enabled by default
         mmt_conf->stats_reporting_period = (uint32_t) cfg_getint(cfg, "stats-period");
         mmt_conf->sampled_report_period = (uint32_t) cfg_getint(cfg, "file-output-period");
@@ -426,10 +428,10 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         		if (mmt_conf->socket_enable ==1 ){
         			mmt_conf->socket_domain = (uint8_t) cfg_getint(socket, "domain");
         			nb_port_address = cfg_size(socket, "port");
-        			mmt_conf->num_server_thread = (uint8_t) cfg_getint(socket, "num_of_server_thread");
+        			mmt_conf->one_socket_server = (uint8_t) cfg_getint(socket, "one_socket_server");
 
         			if(nb_port_address > 0) {
-        				if (nb_port_address != mmt_conf->thread_nb && mmt_conf->socket_domain == 1 && mmt_conf->num_server_thread > 0){
+        				if (nb_port_address != mmt_conf->thread_nb && mmt_conf->socket_domain >= 1 && mmt_conf->one_socket_server < 1){
         					printf("Error: Number of port address should be equal to thread number\n");
         					exit(0);
         				}
@@ -479,9 +481,6 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         				exit(0);
         			}
         			mmt_conf->event_based_reporting_enable = (uint32_t) cfg_getint(event_opts, "enable");
-
-
-
 
         			event_attributes_nb = cfg_size(event_opts, "attributes");
         			temp_er->attributes_nb = event_attributes_nb;

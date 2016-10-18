@@ -252,14 +252,26 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	temp_session->isFlowExtracted = 1;
 	set_user_session_context(session, temp_session);
 }
-void write_to_socket(unsigned char buffer[],int buffer_len,struct smp_thread *th){
+void write_to_socket_unix(unsigned char buffer[],int buffer_len,struct smp_thread *th){
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	int n=0;
 	if (buffer_len > 10){
-		//printf("Packet_send_count = %d\n",count++);
 		th->packet_send++;
 	}
-	n = send(th->sockfd,buffer,buffer_len,0);
+	n = send(th->sockfd_unix,buffer,buffer_len,0);
+
+	if (n <= 0)
+		fprintf(stderr,"ERROR Cannot write to socket (check availability of server):%s\n",strerror(errno));
+		//error("ERROR writing to socket");
+
+}
+void write_to_socket_internet(unsigned char buffer[],int buffer_len,struct smp_thread *th){
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+	int n=0;
+	if (buffer_len > 10){
+		th->packet_send++;
+	}
+	n = send(th->sockfd_internet,buffer,buffer_len,0);
 
 	if (n <= 0)
 		fprintf(stderr,"ERROR Cannot write to socket (check availability of server):%s\n",strerror(errno));
@@ -269,39 +281,37 @@ void write_to_socket(unsigned char buffer[],int buffer_len,struct smp_thread *th
 int packet_handler(const ipacket_t * ipacket, void * args) {
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
-	struct smp_thread *th = (struct smp_thread *) args;
-	session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
 	attribute_t * attr_extract;
-	unsigned char length_buffer[5];
+	struct smp_thread *th ;
 	struct user_data *p = ( struct user_data *) args;
+	session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
+	unsigned char length_buffer[5];
 
 	th = p->smp_thread;
 	int i = 0,j=0;
 	uint32_t length=0;
-	if (temp_session == NULL) {
-		return 0;
+
+	if (th->pcap_current_packet_time == 0){
+		th->pcap_last_stat_report_time = ipacket->p_hdr->ts.tv_sec;
 	}
-    if (th->pcap_current_packet_time == 0){
-    	th->pcap_last_stat_report_time = ipacket->p_hdr->ts.tv_sec;
-
-    }
-    th->pcap_current_packet_time = ipacket->p_hdr->ts.tv_sec;
-    //printf("here = %lu,%lu\n",th->pcap_last_stat_report_time,th->pcap_current_packet_time);
-
-    // only for packet based on TCP
-	if (temp_session->dtt_seen == 0){
-		//this will exclude all the protocols except TCP
-		if(TIMEVAL_2_USEC(get_session_rtt(ipacket->session))==0)return 0;
-		struct timeval t1;
-		t1.tv_sec=0;
-		t1.tv_usec=0;
-		//The download direction is opposite to set_up_direction, the download direction is from server to client
-		if (get_session_last_packet_direction(ipacket->session)!= get_session_setup_direction(ipacket->session)){
-			t1 = get_session_last_data_packet_time_by_direction(ipacket->session,get_session_last_packet_direction(ipacket->session));
-		}
-		if (TIMEVAL_2_USEC(mmt_time_diff(get_session_init_time(ipacket->session),ipacket->p_hdr->ts)) > TIMEVAL_2_USEC(get_session_rtt(ipacket->session)) && t1.tv_sec > 0){
-			temp_session->dtt_seen =1;
-			temp_session->dtt_start_time = ipacket->p_hdr->ts;
+	th->pcap_current_packet_time = ipacket->p_hdr->ts.tv_sec;
+	if (temp_session != NULL) {
+		// only for packet based on TCP
+		if (temp_session->dtt_seen == 0){
+			//this will exclude all the protocols except TCP
+			if(TIMEVAL_2_USEC(get_session_rtt(ipacket->session)) != 0){
+				struct timeval t1;
+				t1.tv_sec=0;
+				t1.tv_usec=0;
+				//The download direction is opposite to set_up_direction, the download direction is from server to client
+				if (get_session_last_packet_direction(ipacket->session)!= get_session_setup_direction(ipacket->session)){
+					t1 = get_session_last_data_packet_time_by_direction(ipacket->session,get_session_last_packet_direction(ipacket->session));
+				}
+				if (TIMEVAL_2_USEC(mmt_time_diff(get_session_init_time(ipacket->session),ipacket->p_hdr->ts)) > TIMEVAL_2_USEC(get_session_rtt(ipacket->session)) && t1.tv_sec > 0){
+					temp_session->dtt_seen =1;
+					temp_session->dtt_start_time = ipacket->p_hdr->ts;
+				}
+			}
 		}
 	}
 
@@ -349,22 +359,30 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 
 		th->report_buffer[length]='\0';
 		memcpy(length_buffer,&length,4);
-		//length_buffer[5]='\0';
-		pthread_spin_lock(&spin_lock);
-		if (probe_context->socket_enable == 1)write_to_socket(length_buffer,4,th);
-		if (probe_context->socket_enable == 1)write_to_socket(th->report_buffer,length,th);
-	    if (probe_context->redis_enable==1)send_message_to_redis ("event.report", (char *)th->report_buffer);
-		pthread_spin_unlock(&spin_lock);
+		length_buffer[5]='\0';
+		//pthread_spin_lock(&spin_lock);
+		if (probe_context->socket_enable == 1){
+			if (probe_context->socket_domain == 0 || probe_context->socket_domain == 2){
+				write_to_socket_unix(length_buffer,4,th);
+				write_to_socket_unix(th->report_buffer,length,th);
+			}
+
+			if (probe_context->socket_domain == 1|| probe_context->socket_domain == 2){
+				write_to_socket_internet(length_buffer,4,th);
+				write_to_socket_internet(th->report_buffer,length,th);}
+		}
+		if (probe_context->redis_enable==1)send_message_to_redis ("event.report", (char *)th->report_buffer);
+		//pthread_spin_unlock(&spin_lock);
 	}
 
 	return 0;
 
 }
 
-void proto_stats_init(void * arg) {
+/*void proto_stats_init(void * arg) {
 	struct smp_thread *th = (struct smp_thread *) arg;
 	register_packet_handler(th->mmt_handler, 5, packet_handler, arg);
-}
+}*/
 
 void proto_stats_cleanup(void * handler) {
 	(void) unregister_packet_handler((mmt_handler_t *) handler, 1);
@@ -488,16 +506,19 @@ void flowstruct_init(void * args) {
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_DST);
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_SERVER_PORT);
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_CLIENT_PORT);
-	i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_ACTIVE_SESSIONS_COUNT);
-	i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, PROTO_ACTIVE_SESSIONS_COUNT);
-	i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_FRAG_PACKET_COUNT);
-	i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_FRAG_DATA_VOLUME);
-	i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_DF_PACKET_COUNT);
-	i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_DF_DATA_VOLUME);
+	//i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_ACTIVE_SESSIONS_COUNT);
+	//i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, PROTO_ACTIVE_SESSIONS_COUNT);
+	if (probe_context->enable_IP_fragmentation_report == 1){
+		i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_FRAG_PACKET_COUNT);
+		i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_FRAG_DATA_VOLUME);
+		i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_DF_PACKET_COUNT);
+		i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_DF_DATA_VOLUME);
+	}
+
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
-	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, IP_RTT, ip_rtt_handler, NULL, (void *)args);
-	i &=register_attribute_handler(th->mmt_handler, PROTO_TCP,TCP_CONN_CLOSED, tcp_closed_handler, NULL, (void *)args);
+	//i &= register_attribute_handler(th->mmt_handler, PROTO_IP, IP_RTT, ip_rtt_handler, NULL, (void *)args);
+	//i &=register_attribute_handler(th->mmt_handler, PROTO_TCP,TCP_CONN_CLOSED, tcp_closed_handler, NULL, (void *)args);
 	/*if(probe_context->ftp_enable == 1){
 		register_ftp_attributes(th->mmt_handler);
 	}*/

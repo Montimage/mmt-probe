@@ -56,7 +56,7 @@ cfg_t * parse_conf_new_attribute(const char *filename) {
             CFG_STR_LIST("port", "{}", CFGF_NONE),
             CFG_STR("server-address", 0, CFGF_NONE),
             CFG_STR("socket-descriptor", "", CFGF_NONE),
-			CFG_INT("num_of_server_thread", 0, CFGF_NONE),
+			CFG_INT("one_socket_server", 0, CFGF_NONE),
 
             CFG_END()
     };
@@ -180,7 +180,7 @@ void read_attributes(){
 				probe_context->socket_domain = (uint8_t) cfg_getint(socket, "domain");
 				nb_port_address = cfg_size(socket, "port");
 				if(nb_port_address > 0) {
-					if (nb_port_address != probe_context->thread_nb && probe_context->socket_domain == 1){
+					if (nb_port_address != probe_context->thread_nb && probe_context->socket_domain == 1&& probe_context->one_socket_server > 0){
 						printf("Error: Number of port address should be equal to thread number\n");
 						exit(0);
 					}
@@ -192,7 +192,7 @@ void read_attributes(){
 
 				strncpy(probe_context->server_address, (char *) cfg_getstr(socket, "server-address"), 18);
 				strncpy(probe_context->unix_socket_descriptor, (char *) cfg_getstr(socket, "socket-descriptor"), 256);
-				probe_context->num_server_thread = (uint8_t) cfg_getint(socket, "num_of_server_thread");
+				probe_context->one_socket_server = (uint8_t) cfg_getint(socket, "one_socket_server");
 
 			}
 		}
@@ -392,7 +392,11 @@ static void *wait_to_do_something( void *arg ){
 		if (register_attributes != NULL ){
 			file_modified_flag = file_is_modified (probe_context->dynamic_config_file);
 			if (file_modified_flag){
+				pthread_spin_lock(&spin_lock);
+
 				read_attributes(); // initialize once if file changed
+				pthread_spin_unlock(&spin_lock);
+
 			}
 		}
 		if (register_attributes != NULL)fclose(register_attributes);

@@ -107,18 +107,6 @@ void event_reports_init(void * args) {
 	struct smp_thread *th = (struct smp_thread *) args;
     struct user_data *p; 
 
-/*    for(i = 0; i < probe_context->event_reports_nb; i++) {
-        th->event_reports = &probe_context->event_reports[i];
-
-        p = malloc( sizeof( struct user_data ));
-        p->smp_thread    = th;
-        p->event_reports = th->event_reports; 
-
-        if(register_event_report_handle((void *) p) == 0) {
-            fprintf(stderr, "Error while initializing event report number %i!\n", th->event_reports->id);
-        }
-    }*/
-
 	for(i = 0; i < probe_context->event_reports_nb; i++) {
 		th->event_reports = &probe_context->event_reports[i];
 		if(th->event_reports->enable == 1){

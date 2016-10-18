@@ -216,6 +216,7 @@ typedef struct mmt_probe_context_struct {
     uint32_t enable_proto_without_session_stats;
     uint32_t enable_flow_stats;
     uint32_t enable_IP_fragmentation_report;
+    uint32_t enable_session_report;
 
     uint32_t radius_starategy;
     uint32_t radius_message_id;
@@ -245,7 +246,7 @@ typedef struct mmt_probe_context_struct {
     uint32_t portnb;
     uint32_t socket_enable;
     uint8_t socket_active;
-    uint8_t num_server_thread;
+    uint8_t one_socket_server;
     char server_address[18 + 1];
     char unix_socket_descriptor[256 + 1];
     uint32_t *port_address;
@@ -478,7 +479,8 @@ struct smp_thread {
     uint64_t nb_packets, nb_dropped_packets;
     uint8_t file_read_flag;
     unsigned char report_buffer[2000];
-    uint32_t sockfd;
+    uint32_t sockfd_unix;
+    uint32_t sockfd_internet;
     uint32_t packet_send;
 
 };
@@ -573,7 +575,8 @@ void content_len_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 void flush_messages_to_file_thread( void *arg);
 void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 int file_is_modified(const char *path);
-void write_to_socket(unsigned char buffer[],int buffer_len,struct smp_thread *th);
+void write_to_socket_unix(unsigned char buffer[],int buffer_len,struct smp_thread *th);
+void write_to_socket_internet(unsigned char buffer[],int buffer_len,struct smp_thread *th);
 void create_socket(mmt_probe_context_t * mmt_conf,void *args);
 int packet_handler(const ipacket_t * ipacket, void * args);
 
