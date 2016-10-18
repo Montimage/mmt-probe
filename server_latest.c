@@ -28,6 +28,8 @@ typedef struct terminal_input_struct{
 	int thread_num;
 	int count;
 	pthread_t th_handler;
+
+
 }terminal_input_t;
 
 void * create_socket(void *arg){
@@ -95,7 +97,7 @@ void * create_socket(void *arg){
 		valid = snprintf(input->socket_name, 256,"%s%u",
 				common_socket_name, input->thread_num);
 		input->socket_name[ valid] = '\0';
-		printf("thread_num = %u,socket_name = %s\n",input->thread_num,input->socket_name);
+		//printf("thread_num = %u,socket_name = %s\n",input->thread_num,input->socket_name);
 
 		fopen(input->socket_name,"w");
 		sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -127,7 +129,7 @@ void * create_socket(void *arg){
 	}
 	while(1){
 		bzero(buffer,256);
-/*		bzero(length_buffer,5);
+		bzero(length_buffer,5);
 		n=read(newsockfd, length_buffer, 4);///
 
 		if (n < 0) {
@@ -135,14 +137,14 @@ void * create_socket(void *arg){
 		}
 
 		memcpy(&length_of_packet,&length_buffer,4);
-		n = read(newsockfd,buffer,length_of_packet);*/
-		n = read(newsockfd,buffer,255);
+		n = read(newsockfd,buffer,length_of_packet);
+
 		buffer[n]='\0';
-	/*	length =0;
+		length =0;
 		proto_id =0;
 		field_id=0;
 		field_length =0;
-		data_ex[0] = '\0';*/
+		data_ex[0] = '\0';
 		if (n > 10){
 			input->count++;
 	//printf("packet received count_multithread=%d,length=%u,id=%u \n",input->count++,n,input->thread_num);
@@ -189,7 +191,7 @@ void *task1 (void *sock_des)
     while(1)
     {
              	bzero(buffer,256);
-        	/*	bzero(length_buffer,5);
+        		bzero(length_buffer,5);
         		n=read(threadsockfd, length_buffer, 4);///
 
         		if (n < 0) {
@@ -197,19 +199,18 @@ void *task1 (void *sock_des)
         		}
 
         		memcpy(&length_of_packet,&length_buffer,4);
-        		n = read(threadsockfd,buffer,length_of_packet);*/
-             	n = read(threadsockfd,buffer,255);
+        		n = read(threadsockfd,buffer,length_of_packet);
 
         		buffer[n]='\0';
-      /*  		length =0;
+        		length =0;
         		proto_id =0;
         		field_id=0;
         		field_length =0;
-        		data_ex[0] = '\0';*/
+        		data_ex[0] = '\0';
         		if (n > 10){
-        			//pthread_spin_lock(&lock);
+        			pthread_spin_lock(&lock);
         			count++;
-        			//pthread_spin_unlock(&lock);
+        			pthread_spin_unlock(&lock);
         			//printf("packet received_single_thread_length=%u, count= %u\n",n,count);
      /*   			memcpy(&time_attr,&buffer[length],sizeof(struct timeval));
         			length = sizeof (struct timeval);
@@ -359,8 +360,8 @@ void socket_single_thread(void *arg){
 			exit(1);
 		}
 	}
-    printf("count = %d\n", count);
-    exit(1);
+	printf("\npacket received count=%d \n",count);
+	exit(1);
 
 }
 int main(int argc, char *argv[])
@@ -381,7 +382,6 @@ int main(int argc, char *argv[])
 	if (num_thread < 1){
 		input_unix = (terminal_input_t *)calloc (1,sizeof (terminal_input_t));
 		pthread_spin_init(&lock, 0);
-
 		input_unix->thread_num = atoi(argv[2]);
 		input_unix->argc = argc;
 		input_unix->domain = atoi(argv[1]);
@@ -416,6 +416,5 @@ int main(int argc, char *argv[])
 
 		}
 	}
-
 	return 0;
 }
