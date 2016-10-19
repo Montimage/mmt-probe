@@ -339,14 +339,18 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 				if(attr_extract->data_len > rem_buffer){
 					printf("Buffer_overflow\n");
 				}
+				int report_len = attr_extract->data_len + 14;
+
+				memcpy(&th->report_buffer[length],&report_len,4);
+				length += 4;
 				memcpy(&th->report_buffer[length],&attr_extract->proto_id,4);
 				length += 4;
 				memcpy(&th->report_buffer[length],&attr_extract->field_id,4);
 				length += 4;
 				memcpy(&th->report_buffer[length],&attr_extract->data_len,2);
 				length += 2;
-				memcpy(&th->report_buffer[length],attr_extract->data,attr_extract->data_len);
-				length +=  attr_extract->data_len;;
+				memcpy(&th->report_buffer[length],&attr_extract->data,attr_extract->data_len);
+				length +=  attr_extract->data_len;
 				i++;
 				//printf("proto_id = %u, attribute_id =%u, length =%u,\n",attr_extract->proto_id,attr_extract->field_id,attr_extract->data_len);
 
@@ -358,17 +362,20 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 		}
 
 		th->report_buffer[length]='\0';
-		memcpy(length_buffer,&length,4);
-		length_buffer[5]='\0';
+		//memcpy(length_buffer,&length,4);
+		//length_buffer[5]='\0';
+		
+		
+		
 		//pthread_spin_lock(&spin_lock);
 		if (probe_context->socket_enable == 1){
 			if (probe_context->socket_domain == 0 || probe_context->socket_domain == 2){
-				write_to_socket_unix(length_buffer,4,th);
+			//write_to_socket_unix(length_buffer,4,th);
 				write_to_socket_unix(th->report_buffer,length,th);
 			}
 
 			if (probe_context->socket_domain == 1|| probe_context->socket_domain == 2){
-				write_to_socket_internet(length_buffer,4,th);
+				//write_to_socket_internet(length_buffer,4,th);
 				write_to_socket_internet(th->report_buffer,length,th);}
 		}
 		if (probe_context->redis_enable==1)send_message_to_redis ("event.report", (char *)th->report_buffer);
