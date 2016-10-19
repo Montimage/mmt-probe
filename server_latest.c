@@ -137,7 +137,7 @@ void * create_socket(void *arg){
 		}
 
 		memcpy(&length_of_packet,&length_buffer,4);
-		n = read(newsockfd,buffer,length_of_packet);
+		n = read(newsockfd,buffer,length_of_packet-4);
 
 		buffer[n]='\0';
 		length =0;
@@ -199,7 +199,7 @@ void *task1 (void *sock_des)
         		}
 
         		memcpy(&length_of_packet,&length_buffer,4);
-        		n = read(threadsockfd,buffer,length_of_packet);
+        		n = read(threadsockfd,buffer,length_of_packet-4);
 
         		buffer[n]='\0';
         		length =0;

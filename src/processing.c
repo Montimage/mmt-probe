@@ -326,8 +326,8 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 		}
 
 		length=0;
-		memcpy(&th->report_buffer[length],&ipacket->p_hdr->ts,sizeof(struct timeval));
-		length += sizeof(struct timeval);
+		memcpy(&th->report_buffer[length +4],&ipacket->p_hdr->ts,sizeof(struct timeval));
+		length += sizeof(struct timeval)+4; //4 bytes are reserved to assign the total length of the report
 
 		for(j = 0; j < event_report->attributes_nb; j++) {
 			mmt_event_attribute_t * event_attribute = &event_report->attributes[j];
@@ -339,10 +339,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 				if(attr_extract->data_len > rem_buffer){
 					printf("Buffer_overflow\n");
 				}
-				int report_len = attr_extract->data_len + 14;
 
-				memcpy(&th->report_buffer[length],&report_len,4);
-				length += 4;
 				memcpy(&th->report_buffer[length],&attr_extract->proto_id,4);
 				length += 4;
 				memcpy(&th->report_buffer[length],&attr_extract->field_id,4);
@@ -360,7 +357,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 		if (i==0){
 			return 1;
 		}
-
+		memcpy(&th->report_buffer[0],&length,4);//First 4 bytes contains the total length of the report
 		th->report_buffer[length]='\0';
 		//memcpy(length_buffer,&length,4);
 		//length_buffer[5]='\0';
