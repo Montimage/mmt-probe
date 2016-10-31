@@ -135,7 +135,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_STR_LIST("server-address", "{}", CFGF_NONE),
 
 			CFG_STR("socket-descriptor", "", CFGF_NONE),
-			CFG_INT("one_socket_server", 0, CFGF_NONE),
+			//CFG_INT("one_socket_server", 0, CFGF_NONE),
 			CFG_END()
 	};
 	cfg_opt_t security_report_opts[] = {
@@ -459,6 +459,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 		int nb_port_address =0;
 		int nb_server_address = 0;
+		mmt_conf->one_socket_server = 1;
 		if (cfg_size(cfg, "socket")) {
 			cfg_t *socket = cfg_getnsec(cfg, "socket", 0);
 			int len=0;
@@ -467,7 +468,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				if (mmt_conf->socket_enable ==1 ){
 					mmt_conf->socket_domain = (uint8_t) cfg_getint(socket, "domain");
 					nb_port_address = cfg_size(socket, "port");
-					mmt_conf->one_socket_server = (uint8_t) cfg_getint(socket, "one_socket_server");
+					//mmt_conf->one_socket_server = (uint8_t) cfg_getint(socket, "one_socket_server");
 					//eliminate
 					if(nb_port_address > 0) {
 						if (nb_port_address != mmt_conf->thread_nb && mmt_conf->socket_domain >= 1 && mmt_conf->one_socket_server < 1){
@@ -495,7 +496,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 							printf("Error: Number of port_nb should be equal to number of server-address\n");
 
 						}
-					}else if (mmt_conf->one_socket_server == 0){
+					}/*else if (mmt_conf->one_socket_server == 0){
 						if(mmt_conf->thread_nb == mmt_conf->server_port_nb) {
 							mmt_conf->server_adresses = calloc(sizeof(ip_port_t), nb_server_address);
 
@@ -510,7 +511,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 							printf("Error: Number of port_nb should be equal to number of threads\n");
 
 						}
-					}
+					}*/
 					//eliminate
 					strncpy(mmt_conf->unix_socket_descriptor, (char *) cfg_getstr(socket, "socket-descriptor"), 256);
 

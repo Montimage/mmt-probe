@@ -854,11 +854,11 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 			valid = snprintf(socket_name, 256,"%s%s",
 					mmt_conf->unix_socket_descriptor,common_socket_name);
 			socket_name[ valid] = '\0';
-		}else{
+		}/*else{
 			valid = snprintf(socket_name, 256,"%s%s%u",
 					mmt_conf->unix_socket_descriptor,common_socket_name,th->thread_number);
 			socket_name[ valid] = '\0';
-		}
+		}*/
 		strcpy(un_serv_addr.sun_path, socket_name);
 		len = strlen(un_serv_addr.sun_path) + sizeof(un_serv_addr.sun_family);
 		if (connect(th->sockfd_unix, (struct sockaddr *)&un_serv_addr, len) == -1) {
@@ -895,9 +895,9 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 				in_serv_addr.sin_port = htons(mmt_conf->server_adresses[i].server_portnb[0]);
 
 				//in_serv_addr.sin_port = htons(mmt_conf->port_address[0]);
-			}else{
+			}/*else{
 				in_serv_addr.sin_port = htons(mmt_conf->port_address[th->thread_number]);
-			}
+			}*/
             //printf("th_nb=%u,ip = %s,port = %u \n",th->thread_number,mmt_conf->server_adresses[i].server_ip_address,mmt_conf->server_adresses[i].server_portnb);
 			if (connect(th->sockfd_internet[i],(struct sockaddr *) &in_serv_addr,sizeof(in_serv_addr)) < 0)
 				fprintf(stderr,"ERROR cannot connect to a socket(check availability of server):%s\n",strerror(errno));
