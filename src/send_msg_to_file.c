@@ -170,34 +170,6 @@ void read_attributes(){
 		free (probe_context->register_new_event_reports);
 		probe_context->register_new_event_reports = NULL;
 	}
-	if (probe_context->socket_active != 1){
-		int nb_port_address =0, k=0;
-		if (cfg_size(cfg, "socket")) {
-			cfg_t *socket = cfg_getnsec(cfg, "socket", 0);
-			int len=0;
-			if (socket->line != 0){
-				probe_context->socket_enable = (uint32_t) cfg_getint(socket, "enable");
-				probe_context->socket_domain = (uint8_t) cfg_getint(socket, "domain");
-				nb_port_address = cfg_size(socket, "port");
-				if(nb_port_address > 0) {
-					if (nb_port_address != probe_context->thread_nb && probe_context->socket_domain == 1&& probe_context->one_socket_server > 0){
-						printf("Error: Number of port address should be equal to thread number\n");
-						exit(0);
-					}
-					probe_context->port_address = malloc(sizeof(int)*nb_port_address);
-					for(k = 0; k < nb_port_address; k++) {
-						probe_context->port_address[k] = atoi(cfg_getnstr(socket, "port", k));
-					}
-				}
-
-				strncpy(probe_context->server_address, (char *) cfg_getstr(socket, "server-address"), 18);
-				strncpy(probe_context->unix_socket_descriptor, (char *) cfg_getstr(socket, "socket-descriptor"), 256);
-				probe_context->one_socket_server = (uint8_t) cfg_getint(socket, "one_socket_server");
-
-			}
-		}
-	}
-
 	int j =0, i=0;
 	cfg_t *event_opts;
     int event_reports_nb = cfg_size(cfg, "event_report");

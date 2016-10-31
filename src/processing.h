@@ -157,6 +157,26 @@ typedef struct mmt_condition_report_struct {
     mmt_condition_attribute_t * handlers;
 } mmt_condition_report_t;
 
+typedef struct mmt_security_attribute_struct {
+	char proto[256 + 1];
+	char attribute[256 + 1];
+	uint32_t proto_id;
+	uint32_t attribute_id;
+} mmt_security_attribute_t;
+
+
+typedef struct mmt_security_report_struct {
+	uint32_t enable;
+	uint32_t attributes_nb;
+	mmt_security_attribute_t event;
+	mmt_security_attribute_t * attributes;
+} mmt_security_report_t;
+
+typedef struct ip_port_struct {
+	char server_ip_address[18 + 1];
+	uint32_t *server_portnb;
+} ip_port_t;
+
 typedef struct mmt_probe_context_struct {
     uint32_t thread_nb;
     uint32_t thread_nb_2_power;
@@ -247,15 +267,21 @@ typedef struct mmt_probe_context_struct {
     uint32_t socket_enable;
     uint8_t socket_active;
     uint8_t one_socket_server;
-    char server_address[18 + 1];
     char unix_socket_descriptor[256 + 1];
     uint32_t *port_address;
-    uint32_t sockfd;
 
     unsigned char *mac_address_host;	//
 
     uint32_t new_attribute_register_flag;
     time_t file_modified_time;
+
+	ip_port_t * server_adresses;
+	uint32_t server_ip_nb;
+	uint32_t server_port_nb;
+	mmt_security_report_t * security_reports;
+	uint32_t total_security_attribute_nb;
+	uint32_t security_reports_nb;
+
 
 
 
@@ -453,6 +479,16 @@ typedef struct probe_internal_struct {
     //FILE * data_out;
     //FILE * radius_out;
 } probe_internal_t;
+
+typedef struct security_report_buffer_struct {
+	 uint32_t length;
+	 unsigned char report_buffer[2000];
+} security_report_buffer_t;
+
+typedef struct mmt_security_attributes_struct {
+	 uint32_t proto_id;
+	 uint32_t attribute_id;
+} mmt_security_attributes_t;
 /*
  * List of packets for a thread
  */
@@ -473,14 +509,15 @@ struct smp_thread {
     uint64_t report_counter;
     mmt_event_report_t * event_reports;
     mmt_event_report_t * new_event_reports;
+	mmt_security_attributes_t * security_attributes;
+	security_report_buffer_t * report;
     char **cache_message_list;
     int cache_count;
     data_spsc_ring_t fifo;
     uint64_t nb_packets, nb_dropped_packets;
     uint8_t file_read_flag;
-    unsigned char report_buffer[2000];
     uint32_t sockfd_unix;
-    uint32_t sockfd_internet;
+	uint32_t * sockfd_internet;
     uint32_t packet_send;
 
 };
@@ -575,10 +612,11 @@ void content_len_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 void flush_messages_to_file_thread( void *arg);
 void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 int file_is_modified(const char *path);
-void write_to_socket_unix(unsigned char buffer[],int buffer_len,struct smp_thread *th);
-void write_to_socket_internet(unsigned char buffer[],int buffer_len,struct smp_thread *th);
+void write_to_socket_internet(struct smp_thread *th);
+void write_to_socket_unix(struct smp_thread *th);
 void create_socket(mmt_probe_context_t * mmt_conf,void *args);
 int packet_handler(const ipacket_t * ipacket, void * args);
+void security_reports_init(void * args);
 
 //prototypes
 void print_ip_session_report (const mmt_session_t * session, void *user_args);

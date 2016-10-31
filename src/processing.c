@@ -252,64 +252,95 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	temp_session->isFlowExtracted = 1;
 	set_user_session_context(session, temp_session);
 }
-void write_to_socket_unix(unsigned char buffer[],int buffer_len,struct smp_thread *th){
+void security_reports_extraction(const ipacket_t * ipacket,attribute_t * attr_extract,struct smp_thread *th) {
+	int i,j;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
-	int n=0;
-	if (buffer_len > 10){
-		th->packet_send++;
+	attribute_t * attr_extract_event;
+	for(i = 0; i < probe_context->security_reports_nb; i++) {
+		if (probe_context->security_reports[i].enable == 0) continue;
+		if (probe_context->security_reports[i].event.proto_id != 0 && probe_context->security_reports[i].event.attribute_id !=0){
+			attr_extract_event = get_extracted_attribute(ipacket,probe_context->security_reports[i].event.proto_id, probe_context->security_reports[i].event.attribute_id);
+			if (attr_extract_event == NULL) continue;
+		}
+		for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
+			mmt_security_attribute_t * security_attribute = &probe_context->security_reports[i].attributes[j];
+			if (attr_extract->proto_id == security_attribute->proto_id && attr_extract->field_id == security_attribute->attribute_id){
+				memcpy(&th->report[i].report_buffer[th->report[i].length],&attr_extract->proto_id,4);
+				th->report[i].length += 4;
+				memcpy(&th->report[i].report_buffer[th->report[i].length],&attr_extract->field_id,4);
+				th->report[i].length += 4;
+				memcpy(&th->report[i].report_buffer[th->report[i].length],&attr_extract->data_len,2);
+				th->report[i].length += 2;
+				memcpy(&th->report[i].report_buffer[th->report[i].length],&attr_extract->data,attr_extract->data_len);
+				th->report[i].length +=  attr_extract->data_len;
+				break;
+			}
+		}
 	}
-	n = send(th->sockfd_unix,buffer,buffer_len,0);
-
-	if (n <= 0)
-		fprintf(stderr,"ERROR Cannot write to socket (check availability of server):%s\n",strerror(errno));
-		//error("ERROR writing to socket");
-
 }
-void write_to_socket_internet(unsigned char buffer[],int buffer_len,struct smp_thread *th){
-	mmt_probe_context_t * probe_context = get_probe_context_config();
-	int n=0;
-	if (buffer_len > 10){
-		th->packet_send++;
-	}
-	n = send(th->sockfd_internet,buffer,buffer_len,0);
+void write_to_socket_unix(struct smp_thread *th){
+	//mmt_probe_context_t * probe_context = get_probe_context_config();
+	int i=0,n=0;
+	if(th->report[0].length >20){
+	th->packet_send++;
+
+	n = send(th->sockfd_unix,th->report[0].report_buffer,th->report[0].length,MSG_DONTROUTE | MSG_EOR);
 
 	if (n <= 0)
 		fprintf(stderr,"ERROR Cannot write to socket (check availability of server):%s\n",strerror(errno));
-		//error("ERROR writing to socket");
+	//error("ERROR writing to socket");
+	}
+}
+void write_to_socket_internet(struct smp_thread *th){
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+	int i=0,n=0;
 
+	for (i=0; i < probe_context->server_ip_nb;i++){
+		if (probe_context->security_reports[i+1].enable == 1){
+			if(th->report[i+1].length >20){
+			th->packet_send++;
+			//printf ("socket_id =%u\n",th->sockfd_internet[i]);
+			n = send(th->sockfd_internet[i],th->report[i+1].report_buffer,th->report[i+1].length,MSG_DONTROUTE | MSG_EOR);
+			if (n <= 0)
+				fprintf(stderr,"ERROR Cannot write to socket (check availability of server):%s\n",strerror(errno));
+			//error("ERROR writing to socket");
+
+			}
+		}
+	}
 }
 int packet_handler(const ipacket_t * ipacket, void * args) {
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	attribute_t * attr_extract;
-	struct smp_thread *th ;
-	struct user_data *p = ( struct user_data *) args;
-	session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
-	unsigned char length_buffer[5];
-
-	th = p->smp_thread;
-	int i = 0,j=0;
+	struct smp_thread *th = (struct smp_thread *) args;
+	//unsigned char length_buffer[5];
+	int i = 0,j=0, k=0;
 	uint32_t length=0;
+	if (probe_context->enable_session_report == 1){
+		session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
 
-	if (th->pcap_current_packet_time == 0){
-		th->pcap_last_stat_report_time = ipacket->p_hdr->ts.tv_sec;
-	}
-	th->pcap_current_packet_time = ipacket->p_hdr->ts.tv_sec;
-	if (temp_session != NULL) {
-		// only for packet based on TCP
-		if (temp_session->dtt_seen == 0){
-			//this will exclude all the protocols except TCP
-			if(TIMEVAL_2_USEC(get_session_rtt(ipacket->session)) != 0){
-				struct timeval t1;
-				t1.tv_sec=0;
-				t1.tv_usec=0;
-				//The download direction is opposite to set_up_direction, the download direction is from server to client
-				if (get_session_last_packet_direction(ipacket->session)!= get_session_setup_direction(ipacket->session)){
-					t1 = get_session_last_data_packet_time_by_direction(ipacket->session,get_session_last_packet_direction(ipacket->session));
-				}
-				if (TIMEVAL_2_USEC(mmt_time_diff(get_session_init_time(ipacket->session),ipacket->p_hdr->ts)) > TIMEVAL_2_USEC(get_session_rtt(ipacket->session)) && t1.tv_sec > 0){
-					temp_session->dtt_seen =1;
-					temp_session->dtt_start_time = ipacket->p_hdr->ts;
+		if (th->pcap_current_packet_time == 0){
+			th->pcap_last_stat_report_time = ipacket->p_hdr->ts.tv_sec;
+		}
+		th->pcap_current_packet_time = ipacket->p_hdr->ts.tv_sec;
+
+		if (temp_session != NULL) {
+			// only for packet based on TCP
+			if (temp_session->dtt_seen == 0){
+				//this will exclude all the protocols except TCP
+				if(TIMEVAL_2_USEC(get_session_rtt(ipacket->session)) != 0){
+					struct timeval t1;
+					t1.tv_sec=0;
+					t1.tv_usec=0;
+					//The download direction is opposite to set_up_direction, the download direction is from server to client
+					if (get_session_last_packet_direction(ipacket->session)!= get_session_setup_direction(ipacket->session)){
+						t1 = get_session_last_data_packet_time_by_direction(ipacket->session,get_session_last_packet_direction(ipacket->session));
+					}
+					if (TIMEVAL_2_USEC(mmt_time_diff(get_session_init_time(ipacket->session),ipacket->p_hdr->ts)) > TIMEVAL_2_USEC(get_session_rtt(ipacket->session)) && t1.tv_sec > 0){
+						temp_session->dtt_seen =1;
+						temp_session->dtt_start_time = ipacket->p_hdr->ts;
+					}
 				}
 			}
 		}
@@ -317,76 +348,126 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 
 	if (probe_context->enable_security_report == 1){
 		mmt_probe_context_t * probe_context = get_probe_context_config();
-		mmt_event_report_t * event_report   = p->event_reports; //(mmt_event_report_t *) args;
+		//int initial_buffer_size =2000;
 
-		int initial_buffer_size =2000;
-		if (event_report->event.proto_id != 0 && event_report->event.attribute_id !=0){
-			attr_extract = get_extracted_attribute(ipacket,event_report->event.proto_id, event_report->event.attribute_id);
-			if (attr_extract == NULL)return 1;
-		}
-
-		length=0;
-		memcpy(&th->report_buffer[length +4],&ipacket->p_hdr->ts,sizeof(struct timeval));
-		length += sizeof(struct timeval)+4; //4 bytes are reserved to assign the total length of the report
-
-		for(j = 0; j < event_report->attributes_nb; j++) {
-			mmt_event_attribute_t * event_attribute = &event_report->attributes[j];
-			attr_extract = get_extracted_attribute(ipacket,event_attribute->proto_id, event_attribute->attribute_id);
-
-			int rem_buffer = initial_buffer_size-(length+10);
-
-			if(attr_extract != NULL) {
-				if(attr_extract->data_len > rem_buffer){
-					printf("Buffer_overflow\n");
+		//another method1
+		/*
+			for(i = 0; i < probe_context->security_reports_nb; i++) {
+				if (probe_context->security_reports[i].enable == 1){
+					th->report[i].length =0;
+					memset(th->report[i].report_buffer,'\0',2000);
+					memcpy(&th->report[i].report_buffer[length +4],&ipacket->p_hdr->ts,sizeof(struct timeval));
+					th->report[i].length += sizeof(struct timeval)+ 4; //4 bytes are reserved to assign the total length of the report
 				}
-
-				memcpy(&th->report_buffer[length],&attr_extract->proto_id,4);
-				length += 4;
-				memcpy(&th->report_buffer[length],&attr_extract->field_id,4);
-				length += 4;
-				memcpy(&th->report_buffer[length],&attr_extract->data_len,2);
-				length += 2;
-				memcpy(&th->report_buffer[length],&attr_extract->data,attr_extract->data_len);
-				length +=  attr_extract->data_len;
-				i++;
-				//printf("proto_id = %u, attribute_id =%u, length =%u,\n",attr_extract->proto_id,attr_extract->field_id,attr_extract->data_len);
-
 			}
 
+			for(j = 0; j < probe_context->total_security_attribute_nb; j++) {
+				//mmt_security_attributes_t * security_attributes   = th->security_attributes;
+				attr_extract = get_extracted_attribute(ipacket,th->security_attributes[j].proto_id, th->security_attributes[j].attribute_id);
+				//printf("n= %u, proto_id = %u, attribute_id =%u \n",j,th->security_attributes[j].proto_id,th->security_attributes[j].attribute_id);
+				int rem_buffer = initial_buffer_size-(length+10);
+				//TODO...put it in right place
+				if(attr_extract != NULL) {
+					if(attr_extract->data_len > rem_buffer){
+						printf("Buffer_overflow\n");
+					}
+					security_reports_extraction(ipacket,attr_extract,th);
+					k++;
+				}
+			}
+			if (k==0){
+				return 1;
+			}*/
+
+		//another method1
+
+
+		//method 2
+		for(i = 0; i < probe_context->security_reports_nb; i++) {
+			if (probe_context->security_reports[i].enable == 0)continue;
+
+			if (probe_context->security_reports[i].event.proto_id != 0 && probe_context->security_reports[i].event.attribute_id !=0){
+				attr_extract = get_extracted_attribute(ipacket,probe_context->security_reports[i].event.proto_id, probe_context->security_reports[i].event.attribute_id);
+				if (attr_extract == NULL) continue;
+			}
+			int initial_buffer_size =2000;
+			th->report[i].length =0;
+			memset(th->report[i].report_buffer,'\0',2000);
+			memcpy(&th->report[i].report_buffer[length +4],&ipacket->p_hdr->ts,sizeof(struct timeval));
+			th->report[i].length += sizeof(struct timeval)+ 4; //4 bytes are reserved to assign the total length of the report
+			k=0;
+			for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
+				mmt_security_attribute_t * security_attribute = &probe_context->security_reports[i].attributes[j];
+				attr_extract = get_extracted_attribute(ipacket,security_attribute->proto_id, security_attribute->attribute_id);
+				int rem_buffer = initial_buffer_size-(length+10);
+
+				if(attr_extract != NULL) {
+					if(attr_extract->data_len > rem_buffer){
+						printf("Buffer_overflow\n");
+						break;
+					}
+					memcpy(&th->report[i].report_buffer[th->report[i].length],&attr_extract->proto_id,4);
+					th->report[i].length += 4;
+					memcpy(&th->report[i].report_buffer[th->report[i].length],&attr_extract->field_id,4);
+					th->report[i].length += 4;
+					memcpy(&th->report[i].report_buffer[th->report[i].length],&attr_extract->data_len,2);
+					th->report[i].length += 2;
+					memcpy(&th->report[i].report_buffer[th->report[i].length],&attr_extract->data,attr_extract->data_len);
+					th->report[i].length +=  attr_extract->data_len;
+					k++;
+				}
+			}
+			if (k ==0)continue;
+			memcpy(&th->report[i].report_buffer,&th->report[i].length,4);//First 4 bytes contains the total length of the report
+			th->report[i].report_buffer[th->report[i].length]='\0';
+			if (probe_context->redis_enable==1)send_message_to_redis ("event.report", (char *)th->report[i].report_buffer);
 		}
-		if (i==0){
-			return 1;
-		}
-		memcpy(&th->report_buffer[0],&length,4);//First 4 bytes contains the total length of the report
-		th->report_buffer[length]='\0';
-		//memcpy(length_buffer,&length,4);
-		//length_buffer[5]='\0';
-		
-		
-		
-		//pthread_spin_lock(&spin_lock);
+
+
 		if (probe_context->socket_enable == 1){
 			if (probe_context->socket_domain == 0 || probe_context->socket_domain == 2){
-			//write_to_socket_unix(length_buffer,4,th);
-				write_to_socket_unix(th->report_buffer,length,th);
+				write_to_socket_unix(th);
+			}
+			if (probe_context->socket_domain == 1|| probe_context->socket_domain == 2){
+				write_to_socket_internet(th);
+			}
+		}
+		//method_2
+
+		//another method1
+		/*
+			for(i = 0; i < probe_context->security_reports_nb; i++) {
+				if (probe_context->security_reports[i].enable == 1){
+					memcpy(&th->report[i].report_buffer,&th->report[i].length,4);//First 4 bytes contains the total length of the report
+					th->report[i].report_buffer[th->report[i].length]='\0';
+					//printf ("n=%u,length=%u\n",i,th->report[i].length);
+					if (probe_context->redis_enable==1)send_message_to_redis ("event.report", (char *)th->report[i].report_buffer);
+				}
 			}
 
-			if (probe_context->socket_domain == 1|| probe_context->socket_domain == 2){
-				//write_to_socket_internet(length_buffer,4,th);
-				write_to_socket_internet(th->report_buffer,length,th);}
-		}
-		if (probe_context->redis_enable==1)send_message_to_redis ("event.report", (char *)th->report_buffer);
-		//pthread_spin_unlock(&spin_lock);
+			//pthread_spin_lock(&spin_lock);
+			if (probe_context->socket_enable == 1){
+				if (probe_context->socket_domain == 0 || probe_context->socket_domain == 2){
+					write_to_socket_unix(th);
+				}
+
+				if (probe_context->socket_domain == 1|| probe_context->socket_domain == 2){
+					write_to_socket_internet(th);
+				}
+			}
+			//pthread_spin_unlock(&spin_lock);
+		 */
+		//another method1
 	}
 
 	return 0;
 
 }
 
-/*void proto_stats_init(void * arg) {
+void proto_stats_init(void * arg) {
 	struct smp_thread *th = (struct smp_thread *) arg;
-	register_packet_handler(th->mmt_handler, 5, packet_handler, arg);
-}*/
+	register_packet_handler(th->mmt_handler, 6, packet_handler, arg);
+}
 
 void proto_stats_cleanup(void * handler) {
 	(void) unregister_packet_handler((mmt_handler_t *) handler, 1);
