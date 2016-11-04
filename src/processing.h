@@ -168,7 +168,10 @@ typedef struct mmt_security_attribute_struct {
 typedef struct mmt_security_report_struct {
 	uint32_t enable;
 	uint32_t attributes_nb;
-	mmt_security_attribute_t event;
+	uint32_t event_name_nb;
+	//mmt_security_attribute_t * event;
+	char ** event_name;
+	uint32_t *event_id;
 	mmt_security_attribute_t * attributes;
 } mmt_security_report_t;
 
@@ -281,8 +284,6 @@ typedef struct mmt_probe_context_struct {
 	mmt_security_report_t * security_reports;
 	uint32_t total_security_attribute_nb;
 	uint32_t security_reports_nb;
-
-
 
 
 } mmt_probe_context_t;

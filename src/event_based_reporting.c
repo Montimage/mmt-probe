@@ -87,14 +87,14 @@ int register_event_report_handle(void * args) {
 	return i;
 }
 int register_security_report_handle(void * args) {
-	int i=1,j =0, k=0;
+	int i=1,j =0, k=0, l=0;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 
 	struct smp_thread *th = (struct smp_thread *) args;
 
 	for(i = 0; i < probe_context->security_reports_nb; i++) {
 		if (probe_context->security_reports[i].enable == 1){
-			if (strcmp(probe_context->security_reports[i].event.proto,"null") != 0 && strcmp(probe_context->security_reports[i].event.attribute,"null") !=0){
+			/*			if (strcmp(probe_context->security_reports[i].event.proto,"null") != 0 && strcmp(probe_context->security_reports[i].event.attribute,"null") !=0){
 
 				probe_context->security_reports[i].event.proto_id = get_protocol_id_by_name (probe_context->security_reports[i].event.proto);
 				probe_context->security_reports[i].event.attribute_id = get_attribute_id_by_protocol_and_attribute_names(probe_context->security_reports[i].event.proto,probe_context->security_reports[i].event.attribute);
@@ -105,7 +105,7 @@ int register_security_report_handle(void * args) {
 			}else {
 				probe_context->security_reports[i].event.proto_id = 0;
 				probe_context->security_reports[i].event.attribute_id = 0;
-			}
+			}*/
 
 			for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
 				mmt_security_attribute_t * security_attribute = &probe_context->security_reports[i].attributes[j];

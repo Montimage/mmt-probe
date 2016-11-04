@@ -558,7 +558,7 @@ void process_interface(char * ifname, struct mmt_probe_struct * mmt_probe) {
 void terminate_probe_processing(int wait_thread_terminate) {
 	char lg_msg[1024];
 	mmt_probe_context_t * mmt_conf = mmt_probe.mmt_conf;
-	int i,j=0;
+	int i,j=0,l=0;
 
 	//For MMT_Security
 	//To finish results file (e.g. write summary in the XML file)
@@ -684,6 +684,14 @@ void terminate_probe_processing(int wait_thread_terminate) {
 	for (i=0; i < mmt_conf->security_reports_nb; i++){
 		free (mmt_conf->security_reports[i].attributes);
 		mmt_conf->security_reports[i].attributes = NULL;
+		for (l=0; l<mmt_conf->security_reports[i].event_name_nb;l++ ){
+			free (mmt_conf->security_reports[i].event_name[l]);
+			mmt_conf->security_reports[i].event_name[l] = NULL;
+		}
+		free (mmt_conf->security_reports[i].event_name);
+		mmt_conf->security_reports[i].event_name = NULL;
+		free (mmt_conf->security_reports[i].event_id);
+		mmt_conf->security_reports[i].event_id = NULL;
 	}
 	free (mmt_conf->security_reports);
 
@@ -840,9 +848,10 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 	char common_socket_name[256] = "mysocket\0";
 	int valid=0;
 	struct smp_thread *th = (struct smp_thread *) args;
-	int i=0;
+	int i=0,on;
+	on =1;
 
-	/*...UNIX socket..*/
+	/*...UNIX socket..
 	if (mmt_conf->socket_domain == 0 || mmt_conf->socket_domain == 2){
 		un_serv_addr.sun_family = AF_UNIX;
 		th->sockfd_unix = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -850,66 +859,76 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 			error("ERROR opening socket");
 		//printf ("socket_id =%u\n",th->sockfd_unix);
 
+		if (setsockopt(th->sockfd_unix , SOL_SOCKET, SO_REUSEADDR, (char *) &on, sizeof(on)) == -1) {
+			perror("setsockopt(SO_REUSEADDR)");
+			exit(1);
+		}
+
 		if (mmt_conf->one_socket_server ==1){
 			valid = snprintf(socket_name, 256,"%s%s",
 					mmt_conf->unix_socket_descriptor,common_socket_name);
 			socket_name[ valid] = '\0';
-		}/*else{
+		}else{
 			valid = snprintf(socket_name, 256,"%s%s%u",
 					mmt_conf->unix_socket_descriptor,common_socket_name,th->thread_number);
 			socket_name[ valid] = '\0';
-		}*/
+		}
 		strcpy(un_serv_addr.sun_path, socket_name);
 		len = strlen(un_serv_addr.sun_path) + sizeof(un_serv_addr.sun_family);
+
 		if (connect(th->sockfd_unix, (struct sockaddr *)&un_serv_addr, len) == -1) {
 			perror("ERROR connecting socket");
 			//exit(0);
 
 		}
 
-	}
+	}*/
 	/*Internet socket*/
-	if (mmt_conf->socket_domain == 1|| mmt_conf->socket_domain == 2){
-		th->sockfd_internet = calloc(sizeof(uint32_t), mmt_conf->server_ip_nb);
+	//if (mmt_conf->socket_domain == 1|| mmt_conf->socket_domain == 2){
+	th->sockfd_internet = calloc(sizeof(uint32_t), mmt_conf->server_ip_nb);
 
-		for (i=0; i < mmt_conf->server_ip_nb;i++){
-			th->sockfd_internet[i] = socket(AF_INET, SOCK_STREAM, 0);
-			if (th->sockfd_internet[i] < 0)
-				error("ERROR opening socket");
-			//printf ("socket_id =%u\t",th->sockfd_internet[i]);
+	for (i=0; i < mmt_conf->server_ip_nb;i++){
+		th->sockfd_internet[i] = socket(AF_INET, SOCK_STREAM, 0);
+		if (th->sockfd_internet[i] < 0)
+			error("ERROR opening socket");
+		//printf ("socket_id =%u\t",th->sockfd_internet[i]);
+		if (setsockopt(th->sockfd_internet[i] , SOL_SOCKET, SO_REUSEADDR, (char *) &on, sizeof(on)) == -1) {
+			perror("setsockopt(SO_REUSEADDR)");
+			exit(1);
+		}
 
-			//in_serv_addr.sin_port = htons(mmt_conf->server_adresses[i]->server_portnb);
-			server = gethostbyname(mmt_conf->server_adresses[i].server_ip_address);
-			//server = gethostbyname(mmt_conf->server_address);
-			if (server == NULL) {
-				fprintf(stderr,"ERROR, no such host\n");
-				//exit(0);
-			}
-			bzero((char *) &in_serv_addr, sizeof(in_serv_addr));
-			in_serv_addr.sin_family = AF_INET;
-			bcopy((char *)server->h_addr,
-					(char *)&in_serv_addr.sin_addr.s_addr,
-					server->h_length);
-			if (mmt_conf->one_socket_server == 1){
+		//in_serv_addr.sin_port = htons(mmt_conf->server_adresses[i]->server_portnb);
+		server = gethostbyname(mmt_conf->server_adresses[i].server_ip_address);
+		//server = gethostbyname(mmt_conf->server_address);
+		if (server == NULL) {
+			fprintf(stderr,"ERROR, no such host\n");
+			//exit(0);
+		}
+		bzero((char *) &in_serv_addr, sizeof(in_serv_addr));
+		in_serv_addr.sin_family = AF_INET;
+		bcopy((char *)server->h_addr,
+				(char *)&in_serv_addr.sin_addr.s_addr,
+				server->h_length);
+		if (mmt_conf->one_socket_server == 1){
 
-				in_serv_addr.sin_port = htons(mmt_conf->server_adresses[i].server_portnb[0]);
+			in_serv_addr.sin_port = htons(mmt_conf->server_adresses[i].server_portnb[0]);
 
-				//in_serv_addr.sin_port = htons(mmt_conf->port_address[0]);
-			}/*else{
+			//in_serv_addr.sin_port = htons(mmt_conf->port_address[0]);
+		}/*else{
 				in_serv_addr.sin_port = htons(mmt_conf->port_address[th->thread_number]);
 			}*/
-            //printf("th_nb=%u,ip = %s,port = %u \n",th->thread_number,mmt_conf->server_adresses[i].server_ip_address,mmt_conf->server_adresses[i].server_portnb);
-			if (connect(th->sockfd_internet[i],(struct sockaddr *) &in_serv_addr,sizeof(in_serv_addr)) < 0)
-				fprintf(stderr,"ERROR cannot connect to a socket(check availability of server):%s\n",strerror(errno));
-			//error("ERROR connecting");
-		}
+		//printf("th_nb=%u,ip = %s,port = %u \n",th->thread_number,mmt_conf->server_adresses[i].server_ip_address,mmt_conf->server_adresses[i].server_portnb);
+		if (connect(th->sockfd_internet[i],(struct sockaddr *) &in_serv_addr,sizeof(in_serv_addr)) < 0)
+			fprintf(stderr,"ERROR cannot connect to a socket(check availability of server):%s\n",strerror(errno));
+		//error("ERROR connecting");
 	}
+	//}
 
 }
 
 int main(int argc, char **argv) {
 	char mmt_errbuf[1024];
-	int i,j;
+	int i,j,l=0;
 	char lg_msg[1024];
 	sigset_t signal_set;
 	char single_file [MAX_FILE_NAME+1]={0};
@@ -974,6 +993,23 @@ int main(int argc, char **argv) {
     	create_socket(mmt_probe.mmt_conf, NULL);
     	mmt_probe.mmt_conf->socket_active = 1;
     }*/
+
+    for(i = 0; i < mmt_conf->security_reports_nb; i++) {
+    	if (mmt_conf->security_reports[i].enable == 1){
+    		mmt_conf->security_reports[i].event_id = malloc (mmt_conf->security_reports[i].event_name_nb * sizeof (uint32_t *));
+    		if (strcmp(mmt_conf->security_reports[i].event_name[0],"null") != 0){
+    			if (mmt_conf->security_reports[i].event_name_nb > 0){
+    				for (l = 0; l < mmt_conf->security_reports[i].event_name_nb; l++){
+    					mmt_conf->security_reports[i].event_id[l]=get_protocol_id_by_name (mmt_conf->security_reports[i].event_name[l]);
+						//printf("name=%s\n",mmt_conf->security_reports[i].event_name[l]);
+
+    				}
+    			}
+    		}else{
+    			mmt_conf->security_reports[i].event_id[0]=0;//incase when the event_name is NULL;
+    		}
+    	}
+    }
 
 	if (mmt_conf->thread_nb == 1) {
 

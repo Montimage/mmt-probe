@@ -258,10 +258,10 @@ void security_reports_extraction(const ipacket_t * ipacket,attribute_t * attr_ex
 	attribute_t * attr_extract_event;
 	for(i = 0; i < probe_context->security_reports_nb; i++) {
 		if (probe_context->security_reports[i].enable == 0) continue;
-		if (probe_context->security_reports[i].event.proto_id != 0 && probe_context->security_reports[i].event.attribute_id !=0){
+/*		if (probe_context->security_reports[i].event.proto_id != 0 && probe_context->security_reports[i].event.attribute_id !=0){
 			attr_extract_event = get_extracted_attribute(ipacket,probe_context->security_reports[i].event.proto_id, probe_context->security_reports[i].event.attribute_id);
 			if (attr_extract_event == NULL) continue;
-		}
+		}*/
 		for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
 			mmt_security_attribute_t * security_attribute = &probe_context->security_reports[i].attributes[j];
 			if (attr_extract->proto_id == security_attribute->proto_id && attr_extract->field_id == security_attribute->attribute_id){
@@ -278,45 +278,45 @@ void security_reports_extraction(const ipacket_t * ipacket,attribute_t * attr_ex
 		}
 	}
 }
-void write_to_socket_unix(struct smp_thread *th){
+/*void write_to_socket_unix(struct smp_thread *th){
 	//mmt_probe_context_t * probe_context = get_probe_context_config();
 	int i=0,n=0;
 	if(th->report[0].length >20){
 	th->packet_send++;
 
-	n = send(th->sockfd_unix,th->report[0].report_buffer,th->report[0].length,MSG_DONTROUTE | MSG_EOR);
+	n = send(th->sockfd_unix,th->report[0].report_buffer,th->report[0].length,0);
 
 	if (n <= 0)
 		fprintf(stderr,"ERROR Cannot write to socket (check availability of server):%s\n",strerror(errno));
 	//error("ERROR writing to socket");
 	}
-}
-void write_to_socket_internet(struct smp_thread *th){
+}*/
+/*void write_to_socket_internet(struct smp_thread *th){
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	int i=0,n=0;
 
 	for (i=0; i < probe_context->server_ip_nb;i++){
-		if (probe_context->security_reports[i+1].enable == 1){
-			if(th->report[i+1].length >20){
-			th->packet_send++;
-			//printf ("socket_id =%u\n",th->sockfd_internet[i]);
-			n = send(th->sockfd_internet[i],th->report[i+1].report_buffer,th->report[i+1].length,MSG_DONTROUTE | MSG_EOR);
-			if (n <= 0)
-				fprintf(stderr,"ERROR Cannot write to socket (check availability of server):%s\n",strerror(errno));
-			//error("ERROR writing to socket");
+		if (probe_context->security_reports[i].enable == 1){
+			if(th->report[i].length >20){
+				th->packet_send++;
+				//printf ("socket_id =%u\n",th->sockfd_internet[i]);
+				n = send(th->sockfd_internet[i],th->report[i].report_buffer,th->report[i].length,0);
+				if (n <= 0)
+					fprintf(stderr,"ERROR Cannot write to socket (check availability of server):%s\n",strerror(errno));
+				//error("ERROR writing to socket");
 
 			}
 		}
 	}
-}
+}*/
 int packet_handler(const ipacket_t * ipacket, void * args) {
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	attribute_t * attr_extract;
 	struct smp_thread *th = (struct smp_thread *) args;
 	//unsigned char length_buffer[5];
-	int i = 0,j=0, k=0;
-	uint32_t length=0;
+	int i = 0,j=0, k=0,l=0,p=0;
+	uint32_t length=0,n=0;
 	if (probe_context->enable_session_report == 1){
 		session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
 
@@ -383,19 +383,32 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 
 
 		//method 2
+		int proto_id=0;
 		for(i = 0; i < probe_context->security_reports_nb; i++) {
+			p=0;
 			if (probe_context->security_reports[i].enable == 0)continue;
-
-			if (probe_context->security_reports[i].event.proto_id != 0 && probe_context->security_reports[i].event.attribute_id !=0){
+			/*if (probe_context->security_reports[i].event.proto_id != 0 && probe_context->security_reports[i].event.attribute_id !=0){
 				attr_extract = get_extracted_attribute(ipacket,probe_context->security_reports[i].event.proto_id, probe_context->security_reports[i].event.attribute_id);
 				if (attr_extract == NULL) continue;
+			}*/
+			if (probe_context->security_reports[i].event_id[0] != 0){ //handling null event
+				for (j = 1;j < ipacket->proto_hierarchy->len;j++){
+					for (l=0; l<probe_context->security_reports[i].event_name_nb;l++ ){
+						if (ipacket->proto_hierarchy->proto_path[j] == probe_context->security_reports[i].event_id[l]){
+							p++;
+						}
+					}
+					if (p > 0)break;
+				}
+				if (p ==0)continue;
 			}
+			//printf("here\n");
 			int initial_buffer_size =2000;
 			th->report[i].length =0;
 			memset(th->report[i].report_buffer,'\0',2000);
 			memcpy(&th->report[i].report_buffer[length +4],&ipacket->p_hdr->ts,sizeof(struct timeval));
 			th->report[i].length += sizeof(struct timeval)+ 4; //4 bytes are reserved to assign the total length of the report
-			k=0;
+			k=0,n=0;
 			for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
 				mmt_security_attribute_t * security_attribute = &probe_context->security_reports[i].attributes[j];
 				attr_extract = get_extracted_attribute(ipacket,security_attribute->proto_id, security_attribute->attribute_id);
@@ -421,17 +434,22 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 			memcpy(&th->report[i].report_buffer,&th->report[i].length,4);//First 4 bytes contains the total length of the report
 			th->report[i].report_buffer[th->report[i].length]='\0';
 			if (probe_context->redis_enable==1)send_message_to_redis ("event.report", (char *)th->report[i].report_buffer);
+			if (probe_context->socket_enable == 1){
+				n = send(th->sockfd_internet[i],th->report[i].report_buffer,th->report[i].length,0);
+				if (n <= 0)
+					fprintf(stderr,"ERROR Cannot write to socket (check availability of server):%s\n",strerror(errno));
+				th->packet_send++;
+			}
 		}
 
-
-		if (probe_context->socket_enable == 1){
+/*    	if (probe_context->socket_enable == 1){
 			if (probe_context->socket_domain == 0 || probe_context->socket_domain == 2){
 				write_to_socket_unix(th);
 			}
 			if (probe_context->socket_domain == 1|| probe_context->socket_domain == 2){
 				write_to_socket_internet(th);
 			}
-		}
+		}*/
 		//method_2
 
 		//another method1

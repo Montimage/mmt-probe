@@ -129,18 +129,19 @@ cfg_t * parse_conf(const char *filename) {
 	};
 	cfg_opt_t socket_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
-			CFG_INT("domain", 0, CFGF_NONE),
+            //CFG_INT("domain", 0, CFGF_NONE),
 			CFG_STR_LIST("port", "{}", CFGF_NONE),
 			//CFG_STR("server-address", 0, CFGF_NONE),
 			CFG_STR_LIST("server-address", "{}", CFGF_NONE),
 
-			CFG_STR("socket-descriptor", "", CFGF_NONE),
+			//CFG_STR("socket-descriptor", "", CFGF_NONE),
 			//CFG_INT("one_socket_server", 0, CFGF_NONE),
 			CFG_END()
 	};
 	cfg_opt_t security_report_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
-			CFG_STR("event", "", CFGF_NONE),
+			//CFG_STR("event", "", CFGF_NONE),
+			CFG_STR_LIST("event", "{}", CFGF_NONE),
 			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
 			CFG_END()
 	};
@@ -299,7 +300,7 @@ int parse_handlers_attribute(char * inputstring, mmt_condition_attribute_t * han
 }
 
 int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
-	int i=0, j=0;
+	int i=0, j=0,k=0;
 	cfg_t *event_opts;
 	cfg_t *condition_opts;
 	cfg_t *security_report_opts;
@@ -466,11 +467,11 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			if (socket->line != 0){
 				mmt_conf->socket_enable = (uint32_t) cfg_getint(socket, "enable");
 				if (mmt_conf->socket_enable ==1 ){
-					mmt_conf->socket_domain = (uint8_t) cfg_getint(socket, "domain");
+					//mmt_conf->socket_domain = (uint8_t) cfg_getint(socket, "domain");
 					nb_port_address = cfg_size(socket, "port");
 					//mmt_conf->one_socket_server = (uint8_t) cfg_getint(socket, "one_socket_server");
 					//eliminate
-					if(nb_port_address > 0) {
+				/*	if(nb_port_address > 0) {
 						if (nb_port_address != mmt_conf->thread_nb && mmt_conf->socket_domain >= 1 && mmt_conf->one_socket_server < 1){
 							printf("Error: Number of port address should be equal to thread number\n");
 							exit(0);
@@ -479,7 +480,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 						for(i = 0; i < nb_port_address; i++) {
 							mmt_conf->port_address[i] = atoi(cfg_getnstr(socket, "port", i));
 						}
-					}
+					}*/
 					nb_server_address = cfg_size(socket, "server-address");
 					//mmt_conf->portnb = (uint32_t) cfg_getint(socket, "port");
 					mmt_conf->server_ip_nb = nb_server_address;
@@ -513,7 +514,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 						}
 					}*/
 					//eliminate
-					strncpy(mmt_conf->unix_socket_descriptor, (char *) cfg_getstr(socket, "socket-descriptor"), 256);
+					//strncpy(mmt_conf->unix_socket_descriptor, (char *) cfg_getstr(socket, "socket-descriptor"), 256);
 
 				}
 			}
@@ -528,10 +529,11 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 		int security_reports_nb = cfg_size(cfg, "security-report");
 		int security_attributes_nb = 0;
+		int security_event_nb =0;
 		mmt_conf->security_reports = NULL;
 		mmt_security_report_t * temp_sr;
 		mmt_conf->security_reports_nb = security_reports_nb;
-		i=0,j=0;
+		i=0,j=0,k=0;
 
 		if (security_reports_nb > 0) {
 			mmt_conf->security_reports = calloc(sizeof(mmt_security_report_t), security_reports_nb);
@@ -541,11 +543,27 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				temp_sr->enable = (uint32_t) cfg_getint(security_report_opts, "enable");
 
 				if (temp_sr->enable == 1){
+
 					mmt_conf->enable_security_report = 1;
-					if (parse_security_dot_proto_attribute((char *) cfg_getstr(security_report_opts, "event"), &temp_sr->event)) {
+					security_event_nb = cfg_size(security_report_opts, "event");
+					temp_sr->event_name_nb = security_event_nb;
+
+					if(security_event_nb > 0) {
+						//temp_sr->event= calloc(sizeof(mmt_security_attribute_t),security_attributes_nb);
+						temp_sr->event_name = malloc(security_event_nb * sizeof (char *)+1);
+						for (k = 0; k < security_event_nb; k++){
+							temp_sr->event_name[k]= malloc(sizeof (char)*20);
+							strcpy(temp_sr->event_name[k], (char *) cfg_getnstr(security_report_opts, "event", k));
+							int len = strlen(temp_sr->event_name[k]);
+							temp_sr->event_name[k][len]='\0';
+							//printf("name=%s\n",temp_sr->event_name[k]);
+
+						}
+					}
+/*					if (parse_security_dot_proto_attribute((char *) cfg_getstr(security_report_opts, "event"), &temp_sr->event)) {
 						fprintf(stderr, "Error: invalid event_report event value '%s'\n", (char *) cfg_getstr(security_report_opts, "event"));
 						exit(0);
-					}
+					}*/
 					security_attributes_nb = cfg_size(security_report_opts, "attributes");
 					temp_sr->attributes_nb = security_attributes_nb;
 					if(security_attributes_nb > 0) {
