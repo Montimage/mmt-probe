@@ -1,6 +1,7 @@
 #ifndef PROCESSING_H
 #define	PROCESSING_H
-
+#include <sys/socket.h>
+#define _GNU_SOURCE
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -39,6 +40,7 @@ extern "C" {
 #define MAX_MESS 3000
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
 #define TIMEVAL_2_USEC(tval) ((tval.tv_sec * 1000000) + (tval.tv_usec))
+
 
 pthread_mutex_t mutex_lock;
 pthread_spinlock_t spin_lock;
@@ -284,6 +286,7 @@ typedef struct mmt_probe_context_struct {
 	mmt_security_report_t * security_reports;
 	uint32_t total_security_attribute_nb;
 	uint32_t security_reports_nb;
+	uint32_t nb_of_report_per_msg;
 
 
 } mmt_probe_context_t;
@@ -480,11 +483,23 @@ typedef struct probe_internal_struct {
     //FILE * data_out;
     //FILE * radius_out;
 } probe_internal_t;
+struct mmsghdr1
+  {
+    struct msghdr msg_hdr;	 //Actual message header.
+    unsigned int msg_len;	 //Number of received or sent bytes for the  entry.
+  };
 
 typedef struct security_report_buffer_struct {
 	 uint32_t length;
 	 unsigned char report_buffer[2000];
+	 struct mmsghdr1 grouped_msg[1];
+	 struct iovec * msg;
+	 uint64_t security_report_counter;
+	 unsigned char ** data;
+
 } security_report_buffer_t;
+
+
 
 typedef struct mmt_security_attributes_struct {
 	 uint32_t proto_id;
@@ -494,6 +509,7 @@ typedef struct mmt_security_attributes_struct {
  * List of packets for a thread
  */
 //#define MAX_CACHE_SIZE 300000
+
 struct smp_thread {
     int thread_number;
     mmt_handler_t *mmt_handler;

@@ -94,6 +94,9 @@ int register_security_report_handle(void * args) {
 
 	for(i = 0; i < probe_context->security_reports_nb; i++) {
 		if (probe_context->security_reports[i].enable == 1){
+			   th->report[i].data = malloc (sizeof (unsigned char *) * probe_context->nb_of_report_per_msg +1);
+			   th->report[i].msg = malloc (sizeof (struct iovec)*probe_context->nb_of_report_per_msg +1);
+			   for (l=0; l < probe_context->nb_of_report_per_msg; l++)th->report[i].data[l]= malloc(2000);
 			/*			if (strcmp(probe_context->security_reports[i].event.proto,"null") != 0 && strcmp(probe_context->security_reports[i].event.attribute,"null") !=0){
 
 				probe_context->security_reports[i].event.proto_id = get_protocol_id_by_name (probe_context->security_reports[i].event.proto);
@@ -132,6 +135,7 @@ void security_reports_init(void * args) {
 
 	struct smp_thread *th = (struct smp_thread *) args;
 	th->report = calloc(sizeof(security_report_buffer_t), probe_context->security_reports_nb);
+
 	//method1
 	//th->security_attributes =calloc(sizeof(mmt_security_attributes_t), probe_context->total_security_attribute_nb);
 	if(register_security_report_handle((void *) th) == 0) {

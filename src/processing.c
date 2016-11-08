@@ -18,7 +18,6 @@
 #include <time.h>
 #include <windows.h>
 #endif
-
 #include "processing.h"
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -28,6 +27,10 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <pthread.h>
+#include <sys/types.h>
+
+#define _GNU_SOURCE
+#include <netinet/ip.h>
 
 
 
@@ -315,8 +318,8 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 	attribute_t * attr_extract;
 	struct smp_thread *th = (struct smp_thread *) args;
 	//unsigned char length_buffer[5];
-	int i = 0,j=0, k=0,l=0,p=0;
-	uint32_t length=0,n=0;
+	int i = 0,j=0, k=0, l=0, p=0;
+    int retval =0;
 	if (probe_context->enable_session_report == 1){
 		session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
 
@@ -405,41 +408,85 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 			//printf("here\n");
 			int initial_buffer_size =2000;
 			th->report[i].length =0;
-			memset(th->report[i].report_buffer,'\0',2000);
-			memcpy(&th->report[i].report_buffer[length +4],&ipacket->p_hdr->ts,sizeof(struct timeval));
-			th->report[i].length += sizeof(struct timeval)+ 4; //4 bytes are reserved to assign the total length of the report
-			k=0,n=0;
+			//memset(th->report[i].report_buffer,'\0',2000);
+			//memcpy(&th->report[i].report_buffer[th->report[i].length +4],&ipacket->p_hdr->ts,sizeof(struct timeval));
+			//th->report[i].length += sizeof(struct timeval)+ 4; //4 bytes are reserved to assign the total length of the report
+
+			memset(th->report[i].data[th->report[i].security_report_counter],'\0',2000);
+			memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length +4],&ipacket->p_hdr->ts,sizeof(struct timeval));
+			th->report[i].length += sizeof(struct timeval)+ 4; //4 bytes are reserved to assign the total length of the
+			//k=0,n=0;
+			k=0;
 			for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
 				mmt_security_attribute_t * security_attribute = &probe_context->security_reports[i].attributes[j];
 				attr_extract = get_extracted_attribute(ipacket,security_attribute->proto_id, security_attribute->attribute_id);
-				int rem_buffer = initial_buffer_size-(length+10);
+				int rem_buffer = initial_buffer_size-(th->report[i].length+10);
 
 				if(attr_extract != NULL) {
 					if(attr_extract->data_len > rem_buffer){
 						printf("Buffer_overflow\n");
 						break;
 					}
-					memcpy(&th->report[i].report_buffer[th->report[i].length],&attr_extract->proto_id,4);
+				/*	memcpy(&th->report[i].report_buffer[th->report[i].length], &attr_extract->proto_id, 4);
 					th->report[i].length += 4;
-					memcpy(&th->report[i].report_buffer[th->report[i].length],&attr_extract->field_id,4);
+					memcpy(&th->report[i].report_buffer[th->report[i].length], &attr_extract->field_id, 4);
 					th->report[i].length += 4;
-					memcpy(&th->report[i].report_buffer[th->report[i].length],&attr_extract->data_len,2);
+					memcpy(&th->report[i].report_buffer[th->report[i].length], &attr_extract->data_len, 2);
 					th->report[i].length += 2;
-					memcpy(&th->report[i].report_buffer[th->report[i].length],&attr_extract->data,attr_extract->data_len);
+					memcpy(&th->report[i].report_buffer[th->report[i].length], &attr_extract->data, attr_extract->data_len);
+					th->report[i].length +=  attr_extract->data_len;*/
+
+					memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], &attr_extract->proto_id, 4);
+					th->report[i].length += 4;
+					memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], &attr_extract->field_id, 4);
+					th->report[i].length += 4;
+					memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], &attr_extract->data_len, 2);
+					th->report[i].length += 2;
+					memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], &attr_extract->data, attr_extract->data_len);
 					th->report[i].length +=  attr_extract->data_len;
 					k++;
 				}
 			}
 			if (k ==0)continue;
-			memcpy(&th->report[i].report_buffer,&th->report[i].length,4);//First 4 bytes contains the total length of the report
-			th->report[i].report_buffer[th->report[i].length]='\0';
-			if (probe_context->redis_enable==1)send_message_to_redis ("event.report", (char *)th->report[i].report_buffer);
+			//memcpy(&th->report[i].report_buffer,&th->report[i].length,4);//First 4 bytes contains the total length of the report
+			//th->report[i].report_buffer[th->report[i].length]='\0';
+
+			memcpy(&th->report[i].data[th->report[i].security_report_counter][0],&th->report[i].length,4);//First 4 bytes contains the total length of the report
+			th->report[i].data[th->report[i].security_report_counter][th->report[i].length]='\0';
+
+			//if (probe_context->redis_enable == 1)send_message_to_redis ("event.report", (char *)th->report[i].report_buffer);
+			if (probe_context->redis_enable == 1)send_message_to_redis ("event.report", (char *)th->report[i].data[th->report[i].security_report_counter]);
+
 			if (probe_context->socket_enable == 1){
-				n = send(th->sockfd_internet[i],th->report[i].report_buffer,th->report[i].length,0);
+			/*	n = send(th->sockfd_internet[i],th->report[i].report_buffer, th->report[i].length, 0);
 				if (n <= 0)
-					fprintf(stderr,"ERROR Cannot write to socket (check availability of server):%s\n",strerror(errno));
+					fprintf(stderr, "ERROR Cannot write to socket (check availability of server):%s\n", strerror(errno));
+				th->packet_send++;*/
+
+				//memcpy(th->report[i].data[th->report[i].security_report_counter], &th->report[i].report_buffer, th->report[i].length);
+				//th->report[i].data[th->report[i].security_report_counter][th->report[i].length] = '\0';
+				th->report[i].msg[th->report[i].security_report_counter].iov_base = th->report[i].data[th->report[i].security_report_counter];
+				th->report[i].msg[th->report[i].security_report_counter].iov_len = th->report[i].length;
+				//printf("th->report[i].length = %u, report_counter = %u\n",th->report[i].length,th->report[i].security_report_counter);
+
+				th->report[i].security_report_counter ++;
 				th->packet_send++;
+				if (th->report[i].security_report_counter == probe_context->nb_of_report_per_msg){
+					memset(th->report[i].grouped_msg, 0, sizeof(th->report[i].grouped_msg));
+					th->report[i].grouped_msg[0].msg_hdr.msg_iov = th->report[i].msg;
+					th->report[i].grouped_msg[0].msg_hdr.msg_iovlen = probe_context->nb_of_report_per_msg;
+					retval = sendmmsg(th->sockfd_internet[i], &th->report[i].grouped_msg, 1, 0);
+					if (retval == -1)
+						perror("sendmmsg()");
+					th->report[i].security_report_counter = 0;
+					memset(th->report[i].msg, 0, sizeof(th->report[i].msg));
+					//memset(th->report[i].data, 0, sizeof(th->report[i].data));
+
+					//printf("packet_send = %u\n",th->packet_send);
+				}
+
 			}
+
 		}
 
 /*    	if (probe_context->socket_enable == 1){

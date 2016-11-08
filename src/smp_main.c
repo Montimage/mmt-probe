@@ -262,26 +262,26 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 			header.caplen = pkthdr.caplen;
 			header.len = pkthdr.len;
 			header.user_args = NULL;
+			if (mmt_probe->mmt_conf->output_to_file_enable==1){
+				if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period ||
+						mmt_probe->smp_threads->pcap_current_packet_time - mmt_probe->smp_threads->pcap_last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
+					mmt_probe->smp_threads->report_counter++;
+					mmt_probe->smp_threads->last_stat_report_time =time(NULL);
+					mmt_probe->smp_threads->pcap_last_stat_report_time = mmt_probe->smp_threads->pcap_current_packet_time;
+					if (mmt_probe->mmt_conf->enable_session_report==1)process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
+					if (mmt_probe->mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
 
-			if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period ||
-					mmt_probe->smp_threads->pcap_current_packet_time - mmt_probe->smp_threads->pcap_last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
-				mmt_probe->smp_threads->report_counter++;
-				mmt_probe->smp_threads->last_stat_report_time =time(NULL);
-				mmt_probe->smp_threads->pcap_last_stat_report_time = mmt_probe->smp_threads->pcap_current_packet_time;
-				if (mmt_probe->mmt_conf->enable_session_report==1)process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
-				if (mmt_probe->mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
+					//Each thread need to call these function one by one to register the attributes
+					//Need a handler, problem when flushing after all handlers are closed
+					if (mmt_probe->smp_threads->file_read_flag == 1){
+						new_conditional_reports_init((void *)mmt_probe->smp_threads);
+						new_event_reports_init((void *)mmt_probe->smp_threads);
+						printf("Added new attributes_th_id= %u\n",mmt_probe->smp_threads->thread_number);
+						mmt_probe->smp_threads->file_read_flag = 0;
+					}
 
-				//Each thread need to call these function one by one to register the attributes
-				//Need a handler, problem when flushing after all handlers are closed
-				if (mmt_probe->smp_threads->file_read_flag == 1){
-					new_conditional_reports_init((void *)mmt_probe->smp_threads);
-					new_event_reports_init((void *)mmt_probe->smp_threads);
-					printf("Added new attributes_th_id= %u\n",mmt_probe->smp_threads->thread_number);
-					mmt_probe->smp_threads->file_read_flag = 0;
 				}
-
 			}
-
 
 			//Call mmt_core function that will parse the packet and analyse it.
 
@@ -402,20 +402,22 @@ void got_packet(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *da
 		header.caplen = pkthdr->caplen;
 		header.len = pkthdr->len;
 		header.user_args = NULL;
+		if (mmt_probe.mmt_conf->output_to_file_enable==1){
 
-		if(time(NULL)- mmt_probe.smp_threads->last_stat_report_time >= mmt_probe.mmt_conf->stats_reporting_period){
-			mmt_probe.smp_threads->report_counter++;
-			mmt_probe.smp_threads->last_stat_report_time =time(NULL);
-			if (mmt_probe.mmt_conf->enable_session_report == 1)process_session_timer_handler(mmt_probe.smp_threads->mmt_handler);
-			if (mmt_probe.mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe.smp_threads);
+			if(time(NULL)- mmt_probe.smp_threads->last_stat_report_time >= mmt_probe.mmt_conf->stats_reporting_period){
+				mmt_probe.smp_threads->report_counter++;
+				mmt_probe.smp_threads->last_stat_report_time =time(NULL);
+				if (mmt_probe.mmt_conf->enable_session_report == 1)process_session_timer_handler(mmt_probe.smp_threads->mmt_handler);
+				if (mmt_probe.mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe.smp_threads);
 
-			if (mmt_probe.smp_threads->file_read_flag == 1){
-				new_conditional_reports_init((void *)mmt_probe.smp_threads);
-				new_event_reports_init((void *)mmt_probe.smp_threads);
-				printf("Added new attributes_th_id= %u\n",mmt_probe.smp_threads->thread_number);
-				mmt_probe.smp_threads->file_read_flag = 0;
+				if (mmt_probe.smp_threads->file_read_flag == 1){
+					new_conditional_reports_init((void *)mmt_probe.smp_threads);
+					new_event_reports_init((void *)mmt_probe.smp_threads);
+					printf("Added new attributes_th_id= %u\n",mmt_probe.smp_threads->thread_number);
+					mmt_probe.smp_threads->file_read_flag = 0;
+				}
+
 			}
-
 		}
 
 		if (!packet_process(mmt_probe.smp_threads->mmt_handler, &header, data)) {
@@ -521,18 +523,21 @@ void *Reader(void *arg) {
 	}else {
 		while (1){
 			pcap_dispatch(handle, num_packets, got_packet, NULL);
-			if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time  >= mmt_probe->mmt_conf->stats_reporting_period){
-				mmt_probe->smp_threads->report_counter++;
-				mmt_probe->smp_threads->last_stat_report_time = time(NULL);
-				if(mmt_probe->mmt_conf->enable_session_report == 1)process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
-				if (mmt_probe->mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
-				if (mmt_probe->smp_threads->file_read_flag == 1){
-					new_conditional_reports_init((void *)mmt_probe->smp_threads);
-					new_event_reports_init((void *)mmt_probe->smp_threads);
-					printf("Added new attributes_th_id= %u\n",mmt_probe->smp_threads->thread_number);
-					mmt_probe->smp_threads->file_read_flag = 0;
-				}
+			if (mmt_probe->mmt_conf->output_to_file_enable==1){
 
+				if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time  >= mmt_probe->mmt_conf->stats_reporting_period){
+					mmt_probe->smp_threads->report_counter++;
+					mmt_probe->smp_threads->last_stat_report_time = time(NULL);
+					if(mmt_probe->mmt_conf->enable_session_report == 1)process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
+					if (mmt_probe->mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
+					if (mmt_probe->smp_threads->file_read_flag == 1){
+						new_conditional_reports_init((void *)mmt_probe->smp_threads);
+						new_event_reports_init((void *)mmt_probe->smp_threads);
+						printf("Added new attributes_th_id= %u\n",mmt_probe->smp_threads->thread_number);
+						mmt_probe->smp_threads->file_read_flag = 0;
+					}
+
+				}
 			}
 		}
 	}
@@ -558,7 +563,7 @@ void process_interface(char * ifname, struct mmt_probe_struct * mmt_probe) {
 void terminate_probe_processing(int wait_thread_terminate) {
 	char lg_msg[1024];
 	mmt_probe_context_t * mmt_conf = mmt_probe.mmt_conf;
-	int i,j=0,l=0;
+	int i, j=0, l=0, k=0;
 
 	//For MMT_Security
 	//To finish results file (e.g. write summary in the XML file)
@@ -701,14 +706,22 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			printf ("3..th_nb =%u, packet_send = %u \n",i,mmt_probe.smp_threads[i].packet_send);
 			count += mmt_probe.smp_threads[i].packet_send;
 			data_spsc_ring_free( &mmt_probe.smp_threads[i].fifo );
-			if(mmt_probe.smp_threads[i].sockfd_unix > 0)close(mmt_probe.smp_threads[i].sockfd_unix);
+			//if(mmt_probe.smp_threads[i].sockfd_unix > 0)close(mmt_probe.smp_threads[i].sockfd_unix);
 			if (mmt_probe.smp_threads[i].sockfd_internet != NULL){
 				for (j=0; j < mmt_conf->server_ip_nb;j++){
 					if(mmt_probe.smp_threads[i].sockfd_internet[j] > 0)close(mmt_probe.smp_threads[i].sockfd_internet[j]);
 				}
 				free (mmt_probe.smp_threads[i].sockfd_internet);
 			}
+
+
 			if (mmt_probe.smp_threads[i].report != NULL){
+				for(j = 0; j < mmt_conf->security_reports_nb; j++) {
+					if (mmt_probe.smp_threads[i].report[j].data != NULL){
+						for (l=0; l < mmt_conf->nb_of_report_per_msg;l++)free (mmt_probe.smp_threads[i].report[j].data[l]);
+					}
+					free (mmt_probe.smp_threads[i].report[j].data);
+				}
 				free (mmt_probe.smp_threads[i].report);
 			}
 
@@ -730,6 +743,27 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			free(mmt_probe.smp_threads->event_reports);
 			mmt_probe.smp_threads->event_reports = NULL;
 		}*/
+		if (mmt_probe.smp_threads->sockfd_internet != NULL){
+			for (j=0; j < mmt_conf->server_ip_nb;j++){
+				if(mmt_probe.smp_threads->sockfd_internet[j] > 0)close(mmt_probe.smp_threads->sockfd_internet[j]);
+			}
+			free (mmt_probe.smp_threads->sockfd_internet);
+		}
+
+
+		if (mmt_probe.smp_threads->report != NULL){
+			for(j = 0; j < mmt_conf->security_reports_nb; j++) {
+				if (mmt_probe.smp_threads->report[j].data != NULL){
+					for (l=0; l < mmt_conf->nb_of_report_per_msg;l++)free (mmt_probe.smp_threads->report[j].data[l]);
+				}
+				free (mmt_probe.smp_threads->report[j].data);
+			}
+			free (mmt_probe.smp_threads->report);
+		}
+
+		if (mmt_probe.smp_threads->security_attributes != NULL){
+			free (mmt_probe.smp_threads->security_attributes);
+		}
 		printf ("3.. packet_send = %u \n",mmt_probe.smp_threads->packet_send);
 
 		free (mmt_probe.smp_threads);
@@ -1042,7 +1076,7 @@ int main(int argc, char **argv) {
 		if(mmt_probe.mmt_conf->enable_flow_stats) {
 			if (mmt_probe.mmt_conf->enable_session_report == 1)register_session_timer_handler(mmt_probe.smp_threads->mmt_handler,print_ip_session_report,(void *) mmt_probe.smp_threads);
 			if (mmt_probe.mmt_conf->enable_session_report == 1)register_session_timeout_handler(mmt_probe.smp_threads->mmt_handler, classification_expiry_session, (void *) mmt_probe.smp_threads);
-			flowstruct_init((void *)mmt_probe.smp_threads); // initialize our event handler
+			if (mmt_probe.mmt_conf->enable_session_report==1)flowstruct_init((void *)mmt_probe.smp_threads); // initialize our event handler
 			if(mmt_conf->event_based_reporting_enable==1)event_reports_init((void *)mmt_probe.smp_threads); // initialize our event reports
 			if(mmt_conf->condition_based_reporting_enable==1)conditional_reports_init((void *)mmt_probe.smp_threads);// initialize our conditional reports
 			if(mmt_conf->radius_enable==1)radius_ext_init((void *)mmt_probe.smp_threads); // initialize radius extraction and attribute event handler
