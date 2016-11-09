@@ -1,11 +1,14 @@
 #ifndef PROCESSING_H
 #define	PROCESSING_H
-#include <sys/socket.h>
-#define _GNU_SOURCE
 #ifdef	__cplusplus
 extern "C" {
 #endif
+#define _GNU_SOURCE
 #include "lib/data_spsc_ring.h"
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include "/usr/include/x86_64-linux-gnu/sys/socket.h"
+
 #define ONLINE_ANALYSIS 0x1
 #define OFFLINE_ANALYSIS 0x2
 #define OFFLINE_ANALYSIS_CONTINUOUS 0x3 
@@ -491,7 +494,7 @@ struct mmsghdr1
 
 typedef struct security_report_buffer_struct {
 	 uint32_t length;
-	 unsigned char report_buffer[2000];
+	 //unsigned char report_buffer[2000];
 	 struct mmsghdr1 grouped_msg[1];
 	 struct iovec * msg;
 	 uint64_t security_report_counter;

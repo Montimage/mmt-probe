@@ -86,8 +86,8 @@ uint32_t get_2_power(uint32_t nb) {
 
 void error(const char *msg)
 {
-    perror(msg);
-    exit(1);
+	perror(msg);
+	exit(1);
 }
 
 static void *smp_thread_routine(void *arg) {
@@ -144,13 +144,14 @@ static void *smp_thread_routine(void *arg) {
 		if (mmt_probe.mmt_conf->condition_based_reporting_enable==1)conditional_reports_init(th);// initialize our condition reports
 		if (mmt_probe.mmt_conf->radius_enable==1)radius_ext_init(th); // initialize radius extraction and attribute event handler
 	}
-	proto_stats_init(th);
+	if (mmt_probe.mmt_conf->enable_security_report == 0)proto_stats_init(th);//initialise this before security_reports_init
 	if (mmt_probe.mmt_conf->enable_security_report == 1)security_reports_init(th);
 
 	set_default_session_timed_out(th->mmt_handler,mmt_probe.mmt_conf->default_session_timeout);
 	set_long_session_timed_out(th->mmt_handler,mmt_probe.mmt_conf->long_session_timeout);
 	set_short_session_timed_out(th->mmt_handler,mmt_probe.mmt_conf->short_session_timeout);
 	set_live_session_timed_out(th->mmt_handler,mmt_probe.mmt_conf->live_session_timeout);
+
 
 
 	th->nb_packets = 0;
@@ -161,7 +162,7 @@ static void *smp_thread_routine(void *arg) {
 	while ( 1 ) {
 		if (probe_context->output_to_file_enable==1){
 			if(time(NULL)- th->last_stat_report_time >= mmt_probe.mmt_conf->stats_reporting_period ||
-				th->pcap_current_packet_time - th->pcap_last_stat_report_time >= mmt_probe.mmt_conf->stats_reporting_period){
+					th->pcap_current_packet_time - th->pcap_last_stat_report_time >= mmt_probe.mmt_conf->stats_reporting_period){
 				th->report_counter++;
 				th->last_stat_report_time=time(NULL);
 				th->pcap_last_stat_report_time = th->pcap_current_packet_time;
@@ -642,7 +643,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			}
 		}
 	}
-
 	//Now close the reporting files.
 	//Offline or Online processing
 	if (mmt_conf->input_mode == OFFLINE_ANALYSIS||mmt_conf->input_mode == ONLINE_ANALYSIS) {
@@ -699,7 +699,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		mmt_conf->security_reports[i].event_id = NULL;
 	}
 	free (mmt_conf->security_reports);
-
+	int retval =0;
 	uint32_t count =0;
 	if (mmt_conf->thread_nb > 1){
 		for(i=0; i<mmt_conf->thread_nb; i++){
@@ -707,6 +707,24 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			count += mmt_probe.smp_threads[i].packet_send;
 			data_spsc_ring_free( &mmt_probe.smp_threads[i].fifo );
 			//if(mmt_probe.smp_threads[i].sockfd_unix > 0)close(mmt_probe.smp_threads[i].sockfd_unix);
+			if (mmt_probe.smp_threads[i].report != NULL){
+				for(j = 0; j < mmt_conf->security_reports_nb; j++) {
+					if (mmt_probe.smp_threads[i].report[j].data != NULL){
+						retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_internet[j], &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
+						if (retval == -1)
+							perror("sendmmsg()");
+						if (mmt_probe.smp_threads[i].report[j].msg != NULL){
+								free (mmt_probe.smp_threads[i].report[j].msg);
+							}
+						for (l=0; l < mmt_conf->nb_of_report_per_msg;l++)free (mmt_probe.smp_threads[i].report[j].data[l]);
+					}
+					free (mmt_probe.smp_threads[i].report[j].data);
+				}
+
+				free (mmt_probe.smp_threads[i].report);
+
+			}
+
 			if (mmt_probe.smp_threads[i].sockfd_internet != NULL){
 				for (j=0; j < mmt_conf->server_ip_nb;j++){
 					if(mmt_probe.smp_threads[i].sockfd_internet[j] > 0)close(mmt_probe.smp_threads[i].sockfd_internet[j]);
@@ -715,15 +733,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			}
 
 
-			if (mmt_probe.smp_threads[i].report != NULL){
-				for(j = 0; j < mmt_conf->security_reports_nb; j++) {
-					if (mmt_probe.smp_threads[i].report[j].data != NULL){
-						for (l=0; l < mmt_conf->nb_of_report_per_msg;l++)free (mmt_probe.smp_threads[i].report[j].data[l]);
-					}
-					free (mmt_probe.smp_threads[i].report[j].data);
-				}
-				free (mmt_probe.smp_threads[i].report);
-			}
+
 
 			if (mmt_probe.smp_threads[i].security_attributes != NULL){
 				free (mmt_probe.smp_threads[i].security_attributes);
@@ -743,6 +753,24 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			free(mmt_probe.smp_threads->event_reports);
 			mmt_probe.smp_threads->event_reports = NULL;
 		}*/
+		if (mmt_probe.smp_threads->report != NULL){
+			for(j = 0; j < mmt_conf->security_reports_nb; j++) {
+				if (mmt_probe.smp_threads->report[j].data != NULL){
+					retval = sendmmsg(mmt_probe.smp_threads->sockfd_internet[j], &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
+					if (retval == -1)
+						perror("sendmmsg()");
+
+					if (mmt_probe.smp_threads->report[j].msg != NULL){
+						free (mmt_probe.smp_threads->report[j].msg);
+					}
+					for (l=0; l < mmt_conf->nb_of_report_per_msg;l++)free (mmt_probe.smp_threads->report[j].data[l]);
+				}
+				free (mmt_probe.smp_threads->report[j].data);
+
+			}
+			free (mmt_probe.smp_threads->report);
+		}
+
 		if (mmt_probe.smp_threads->sockfd_internet != NULL){
 			for (j=0; j < mmt_conf->server_ip_nb;j++){
 				if(mmt_probe.smp_threads->sockfd_internet[j] > 0)close(mmt_probe.smp_threads->sockfd_internet[j]);
@@ -750,16 +778,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			free (mmt_probe.smp_threads->sockfd_internet);
 		}
 
-
-		if (mmt_probe.smp_threads->report != NULL){
-			for(j = 0; j < mmt_conf->security_reports_nb; j++) {
-				if (mmt_probe.smp_threads->report[j].data != NULL){
-					for (l=0; l < mmt_conf->nb_of_report_per_msg;l++)free (mmt_probe.smp_threads->report[j].data[l]);
-				}
-				free (mmt_probe.smp_threads->report[j].data);
-			}
-			free (mmt_probe.smp_threads->report);
-		}
 
 		if (mmt_probe.smp_threads->security_attributes != NULL){
 			free (mmt_probe.smp_threads->security_attributes);
@@ -885,38 +903,7 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 	int i=0,on;
 	on =1;
 
-	/*...UNIX socket..
-	if (mmt_conf->socket_domain == 0 || mmt_conf->socket_domain == 2){
-		un_serv_addr.sun_family = AF_UNIX;
-		th->sockfd_unix = socket(AF_UNIX, SOCK_STREAM, 0);
-		if (th->sockfd_unix < 0)
-			error("ERROR opening socket");
-		//printf ("socket_id =%u\n",th->sockfd_unix);
 
-		if (setsockopt(th->sockfd_unix , SOL_SOCKET, SO_REUSEADDR, (char *) &on, sizeof(on)) == -1) {
-			perror("setsockopt(SO_REUSEADDR)");
-			exit(1);
-		}
-
-		if (mmt_conf->one_socket_server ==1){
-			valid = snprintf(socket_name, 256,"%s%s",
-					mmt_conf->unix_socket_descriptor,common_socket_name);
-			socket_name[ valid] = '\0';
-		}else{
-			valid = snprintf(socket_name, 256,"%s%s%u",
-					mmt_conf->unix_socket_descriptor,common_socket_name,th->thread_number);
-			socket_name[ valid] = '\0';
-		}
-		strcpy(un_serv_addr.sun_path, socket_name);
-		len = strlen(un_serv_addr.sun_path) + sizeof(un_serv_addr.sun_family);
-
-		if (connect(th->sockfd_unix, (struct sockaddr *)&un_serv_addr, len) == -1) {
-			perror("ERROR connecting socket");
-			//exit(0);
-
-		}
-
-	}*/
 	/*Internet socket*/
 	//if (mmt_conf->socket_domain == 1|| mmt_conf->socket_domain == 2){
 	th->sockfd_internet = calloc(sizeof(uint32_t), mmt_conf->server_ip_nb);
@@ -925,15 +912,12 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 		th->sockfd_internet[i] = socket(AF_INET, SOCK_STREAM, 0);
 		if (th->sockfd_internet[i] < 0)
 			error("ERROR opening socket");
-		//printf ("socket_id =%u\t",th->sockfd_internet[i]);
 		if (setsockopt(th->sockfd_internet[i] , SOL_SOCKET, SO_REUSEADDR, (char *) &on, sizeof(on)) == -1) {
 			perror("setsockopt(SO_REUSEADDR)");
 			exit(1);
 		}
 
-		//in_serv_addr.sin_port = htons(mmt_conf->server_adresses[i]->server_portnb);
 		server = gethostbyname(mmt_conf->server_adresses[i].server_ip_address);
-		//server = gethostbyname(mmt_conf->server_address);
 		if (server == NULL) {
 			fprintf(stderr,"ERROR, no such host\n");
 			//exit(0);
@@ -946,17 +930,12 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 		if (mmt_conf->one_socket_server == 1){
 
 			in_serv_addr.sin_port = htons(mmt_conf->server_adresses[i].server_portnb[0]);
-
-			//in_serv_addr.sin_port = htons(mmt_conf->port_address[0]);
-		}/*else{
-				in_serv_addr.sin_port = htons(mmt_conf->port_address[th->thread_number]);
-			}*/
-		//printf("th_nb=%u,ip = %s,port = %u \n",th->thread_number,mmt_conf->server_adresses[i].server_ip_address,mmt_conf->server_adresses[i].server_portnb);
+		}
 		if (connect(th->sockfd_internet[i],(struct sockaddr *) &in_serv_addr,sizeof(in_serv_addr)) < 0)
 			fprintf(stderr,"ERROR cannot connect to a socket(check availability of server):%s\n",strerror(errno));
 		//error("ERROR connecting");
 	}
-	//}
+
 
 }
 
@@ -1020,30 +999,30 @@ int main(int argc, char **argv) {
 	if (mmt_conf->security_enable==1)
 		todo_at_start(mmt_conf->dir_out);
 	//End for MMT_Security
-    mmt_conf->file_modified_time = time (0);
+	mmt_conf->file_modified_time = time (0);
 	//Initialization
 
-/*    if (mmt_probe.mmt_conf->num_server_thread < 1){
+	/*    if (mmt_probe.mmt_conf->num_server_thread < 1){
     	create_socket(mmt_probe.mmt_conf, NULL);
     	mmt_probe.mmt_conf->socket_active = 1;
     }*/
 
-    for(i = 0; i < mmt_conf->security_reports_nb; i++) {
-    	if (mmt_conf->security_reports[i].enable == 1){
-    		mmt_conf->security_reports[i].event_id = malloc (mmt_conf->security_reports[i].event_name_nb * sizeof (uint32_t *));
-    		if (strcmp(mmt_conf->security_reports[i].event_name[0],"null") != 0){
-    			if (mmt_conf->security_reports[i].event_name_nb > 0){
-    				for (l = 0; l < mmt_conf->security_reports[i].event_name_nb; l++){
-    					mmt_conf->security_reports[i].event_id[l]=get_protocol_id_by_name (mmt_conf->security_reports[i].event_name[l]);
+	for(i = 0; i < mmt_conf->security_reports_nb; i++) {
+		if (mmt_conf->security_reports[i].enable == 1){
+			mmt_conf->security_reports[i].event_id = malloc (mmt_conf->security_reports[i].event_name_nb * sizeof (uint32_t *));
+			if (strcmp(mmt_conf->security_reports[i].event_name[0],"null") != 0){
+				if (mmt_conf->security_reports[i].event_name_nb > 0){
+					for (l = 0; l < mmt_conf->security_reports[i].event_name_nb; l++){
+						mmt_conf->security_reports[i].event_id[l]=get_protocol_id_by_name (mmt_conf->security_reports[i].event_name[l]);
 						//printf("name=%s\n",mmt_conf->security_reports[i].event_name[l]);
 
-    				}
-    			}
-    		}else{
-    			mmt_conf->security_reports[i].event_id[0]=0;//incase when the event_name is NULL;
-    		}
-    	}
-    }
+					}
+				}
+			}else{
+				mmt_conf->security_reports[i].event_id[0]=0;//incase when the event_name is NULL;
+			}
+		}
+	}
 
 	if (mmt_conf->thread_nb == 1) {
 
@@ -1080,13 +1059,14 @@ int main(int argc, char **argv) {
 			if(mmt_conf->event_based_reporting_enable==1)event_reports_init((void *)mmt_probe.smp_threads); // initialize our event reports
 			if(mmt_conf->condition_based_reporting_enable==1)conditional_reports_init((void *)mmt_probe.smp_threads);// initialize our conditional reports
 			if(mmt_conf->radius_enable==1)radius_ext_init((void *)mmt_probe.smp_threads); // initialize radius extraction and attribute event handler
-			if (mmt_conf->enable_security_report == 1)security_reports_init((void *)mmt_probe.smp_threads);
 		}
+		if (mmt_conf->enable_security_report == 1)security_reports_init((void *)mmt_probe.smp_threads);// should be defined before proto_stats_init
+		if (mmt_conf->enable_security_report == 0)proto_stats_init(mmt_probe.smp_threads);
+
 		set_default_session_timed_out(mmt_probe.smp_threads->mmt_handler,mmt_conf->default_session_timeout);
 		set_long_session_timed_out(mmt_probe.smp_threads->mmt_handler,mmt_conf->long_session_timeout);
 		set_short_session_timed_out(mmt_probe.smp_threads->mmt_handler,mmt_conf->short_session_timeout);
 		set_live_session_timed_out(mmt_probe.smp_threads->mmt_handler,mmt_conf->live_session_timeout);
-		proto_stats_init(mmt_probe.smp_threads);
 		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, "MMT Extraction engine! successfully initialized in a single threaded operation.");
 	} else {
 		//Multiple threads for processing the packets

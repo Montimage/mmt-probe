@@ -133,8 +133,6 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_STR_LIST("port", "{}", CFGF_NONE),
 			//CFG_STR("server-address", 0, CFGF_NONE),
 			CFG_STR_LIST("server-address", "{}", CFGF_NONE),
-			CFG_INT("num-of-report-per-msg", 1, CFGF_NONE),
-
 			//CFG_STR("socket-descriptor", "", CFGF_NONE),
 			//CFG_INT("one_socket_server", 0, CFGF_NONE),
 			CFG_END()
@@ -178,6 +176,8 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_SEC("event_report", event_report_opts, CFGF_TITLE | CFGF_MULTI),
 			CFG_SEC("condition_report", condition_report_opts, CFGF_TITLE | CFGF_MULTI),
 			CFG_SEC("security-report", security_report_opts, CFGF_TITLE | CFGF_MULTI),
+			CFG_INT("num-of-report-per-msg", 1, CFGF_NONE),
+
 
 			CFG_END()
 	};
@@ -329,7 +329,11 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 		mmt_conf->requested_snap_len = (uint32_t) cfg_getint(cfg, "snap-len");
 		if (mmt_conf->requested_snap_len  == 0) mmt_conf->requested_snap_len  = 65535;
 
-
+		mmt_conf->nb_of_report_per_msg = (uint32_t) cfg_getint(cfg, "num-of-report-per-msg");
+        if (mmt_conf->nb_of_report_per_msg < 1){
+        	printf("Error: Number of report per msg should be greater than zero in case of security reporting \n");
+        	exit(0);
+        }
 
 		if(mmt_conf->input_mode==0){
 			printf("Error: Specify the input-mode in the configuration file, for example input-mode = \"offline\" or \"online\" \n");
@@ -482,7 +486,6 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 							mmt_conf->port_address[i] = atoi(cfg_getnstr(socket, "port", i));
 						}
 					}*/
-					mmt_conf->nb_of_report_per_msg = (uint32_t) cfg_getint(socket, "num-of-report-per-msg");
 					nb_server_address = cfg_size(socket, "server-address");
 					//mmt_conf->portnb = (uint32_t) cfg_getint(socket, "port");
 					mmt_conf->server_ip_nb = nb_server_address;

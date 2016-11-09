@@ -94,35 +94,18 @@ int register_security_report_handle(void * args) {
 
 	for(i = 0; i < probe_context->security_reports_nb; i++) {
 		if (probe_context->security_reports[i].enable == 1){
-			   th->report[i].data = malloc (sizeof (unsigned char *) * probe_context->nb_of_report_per_msg +1);
-			   th->report[i].msg = malloc (sizeof (struct iovec)*probe_context->nb_of_report_per_msg +1);
-			   for (l=0; l < probe_context->nb_of_report_per_msg; l++)th->report[i].data[l]= malloc(2000);
-			/*			if (strcmp(probe_context->security_reports[i].event.proto,"null") != 0 && strcmp(probe_context->security_reports[i].event.attribute,"null") !=0){
-
-				probe_context->security_reports[i].event.proto_id = get_protocol_id_by_name (probe_context->security_reports[i].event.proto);
-				probe_context->security_reports[i].event.attribute_id = get_attribute_id_by_protocol_and_attribute_names(probe_context->security_reports[i].event.proto,probe_context->security_reports[i].event.attribute);
-
-				if (is_registered_attribute(th->mmt_handler, probe_context->security_reports[i].event.proto_id, probe_context->security_reports[i].event.attribute_id ) == 0){
-					i &= register_extraction_attribute(th->mmt_handler, probe_context->security_reports[i].event.proto_id, probe_context->security_reports[i].event.attribute_id );
-				}
-			}else {
-				probe_context->security_reports[i].event.proto_id = 0;
-				probe_context->security_reports[i].event.attribute_id = 0;
-			}*/
+			th->report[i].data = malloc (sizeof (unsigned char *) * probe_context->nb_of_report_per_msg +1);
+			th->report[i].msg = malloc (sizeof (struct iovec)*probe_context->nb_of_report_per_msg +1);
+			for (l=0; l < probe_context->nb_of_report_per_msg; l++)th->report[i].data[l]= malloc(2000);
 
 			for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
 				mmt_security_attribute_t * security_attribute = &probe_context->security_reports[i].attributes[j];
 
 				security_attribute->proto_id = get_protocol_id_by_name (security_attribute->proto);
 				security_attribute->attribute_id = get_attribute_id_by_protocol_and_attribute_names(security_attribute->proto,security_attribute->attribute);
-				//method1
-				//th->security_attributes[k].proto_id = security_attribute->proto_id;
-				//th->security_attributes[k].attribute_id = security_attribute->attribute_id ;
 				if (is_registered_attribute(th->mmt_handler, security_attribute->proto_id, security_attribute->attribute_id) == 0){
 					i &= register_extraction_attribute(th->mmt_handler, security_attribute->proto_id, security_attribute->attribute_id);
 				}
-				//printf("th_nb=%u, n= %u,k=%u, proto_id = %u, attribute_id =%u \n",th->thread_number,i,k,security_attribute->proto_id,security_attribute->attribute_id);
-
 				k++;
 			}
 		}
@@ -136,8 +119,6 @@ void security_reports_init(void * args) {
 	struct smp_thread *th = (struct smp_thread *) args;
 	th->report = calloc(sizeof(security_report_buffer_t), probe_context->security_reports_nb);
 
-	//method1
-	//th->security_attributes =calloc(sizeof(mmt_security_attributes_t), probe_context->total_security_attribute_nb);
 	if(register_security_report_handle((void *) th) == 0) {
 		fprintf(stderr, "Error while initializing security report !\n");
 	}

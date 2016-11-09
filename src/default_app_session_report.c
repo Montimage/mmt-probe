@@ -6,10 +6,10 @@
 #include <errno.h>
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
-
 #include "mmt_core.h"
 #include "tcpip/mmt_tcpip.h"
 #include "processing.h"
+
 
 void print_initial_default_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid){
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
