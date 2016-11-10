@@ -474,18 +474,6 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				if (mmt_conf->socket_enable ==1 ){
 					//mmt_conf->socket_domain = (uint8_t) cfg_getint(socket, "domain");
 					nb_port_address = cfg_size(socket, "port");
-					//mmt_conf->one_socket_server = (uint8_t) cfg_getint(socket, "one_socket_server");
-					//eliminate
-				/*	if(nb_port_address > 0) {
-						if (nb_port_address != mmt_conf->thread_nb && mmt_conf->socket_domain >= 1 && mmt_conf->one_socket_server < 1){
-							printf("Error: Number of port address should be equal to thread number\n");
-							exit(0);
-						}
-						mmt_conf->port_address = malloc(sizeof(int)*nb_port_address);
-						for(i = 0; i < nb_port_address; i++) {
-							mmt_conf->port_address[i] = atoi(cfg_getnstr(socket, "port", i));
-						}
-					}*/
 					nb_server_address = cfg_size(socket, "server-address");
 					//mmt_conf->portnb = (uint32_t) cfg_getint(socket, "port");
 					mmt_conf->server_ip_nb = nb_server_address;
@@ -499,27 +487,10 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 								mmt_conf->server_adresses[j].server_portnb[0] = atoi(cfg_getnstr(socket, "port", j));
 							}
 						}else{
-							printf("Error: Number of port_nb should be equal to number of server-address\n");
-
+							printf("Error: Number of port_nb should be equal to number of server-address i.e port number not assigned in config file section socket\n");
+							exit(0);
 						}
-					}/*else if (mmt_conf->one_socket_server == 0){
-						if(mmt_conf->thread_nb == mmt_conf->server_port_nb) {
-							mmt_conf->server_adresses = calloc(sizeof(ip_port_t), nb_server_address);
-
-							for(j = 0; j < nb_server_address; j++) {
-								strncpy(mmt_conf->server_adresses[j].server_ip_address, (char *) cfg_getnstr(socket, "server-address", j),18);
-								mmt_conf->server_adresses[j].server_portnb = malloc(sizeof(uint32_t)*mmt_conf->server_port_nb);
-								for(i = 0; i < nb_port_address; i++) {
-									mmt_conf->server_adresses[j].server_portnb[i] = atoi(cfg_getnstr(socket, "port", i));
-								}
-							}
-						}else{
-							printf("Error: Number of port_nb should be equal to number of threads\n");
-
-						}
-					}*/
-					//eliminate
-					//strncpy(mmt_conf->unix_socket_descriptor, (char *) cfg_getstr(socket, "socket-descriptor"), 256);
+					}
 
 				}
 			}
@@ -565,10 +536,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 						}
 					}
-/*					if (parse_security_dot_proto_attribute((char *) cfg_getstr(security_report_opts, "event"), &temp_sr->event)) {
-						fprintf(stderr, "Error: invalid event_report event value '%s'\n", (char *) cfg_getstr(security_report_opts, "event"));
-						exit(0);
-					}*/
+
 					security_attributes_nb = cfg_size(security_report_opts, "attributes");
 					temp_sr->attributes_nb = security_attributes_nb;
 					if(security_attributes_nb > 0) {

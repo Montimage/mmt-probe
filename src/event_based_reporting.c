@@ -89,7 +89,6 @@ int register_event_report_handle(void * args) {
 int register_security_report_handle(void * args) {
 	int i=1,j =0, k=0, l=0;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
-
 	struct smp_thread *th = (struct smp_thread *) args;
 
 	for(i = 0; i < probe_context->security_reports_nb; i++) {

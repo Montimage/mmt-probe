@@ -300,7 +300,6 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 	if (probe_context->enable_security_report == 1){
 		mmt_probe_context_t * probe_context = get_probe_context_config();
 
-		int proto_id=0;
 		for(i = 0; i < probe_context->security_reports_nb; i++) {
 			p=0;
 			if (probe_context->security_reports[i].enable == 0)continue;
@@ -321,7 +320,6 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 			memset(th->report[i].data[th->report[i].security_report_counter],'\0',2000);
 			memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length +4],&ipacket->p_hdr->ts,sizeof(struct timeval));
 			th->report[i].length += sizeof(struct timeval)+ 4; //4 bytes are reserved to assign the total length of the
-			//k=0,n=0;
 			k=0;
 			for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
 				mmt_security_attribute_t * security_attribute = &probe_context->security_reports[i].attributes[j];
@@ -340,7 +338,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 					th->report[i].length += 4;
 					memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], &attr_extract->data_len, 2);
 					th->report[i].length += 2;
-					memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], &attr_extract->data, attr_extract->data_len);
+					memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], attr_extract->data, attr_extract->data_len);
 					th->report[i].length +=  attr_extract->data_len;
 					k++;
 
@@ -359,6 +357,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 				th->report[i].msg[th->report[i].security_report_counter].iov_len = th->report[i].length;
 				th->report[i].security_report_counter ++;
 				th->packet_send++;
+
 				if (th->report[i].security_report_counter == probe_context->nb_of_report_per_msg){
 					memset(th->report[i].grouped_msg, 0, sizeof(th->report[i].grouped_msg));
 					th->report[i].grouped_msg[0].msg_hdr.msg_iov = th->report[i].msg;
@@ -377,7 +376,6 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 	}
 
 	return 0;
-
 }
 
 void proto_stats_init(void * arg) {
