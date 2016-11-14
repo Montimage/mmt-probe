@@ -45,7 +45,7 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
         if(attr_extract != NULL) {
             valid = mmt_attr_sprintf(&message[offset + 1], MAX_MESS - offset+1, attr_extract);
             if(valid > 0) {
-                offset += valid+1;
+                offset += valid + 1;
             }else {
 
                 return;
@@ -57,8 +57,8 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
     }
     message[ offset ] = '\0';
     //send_message_to_file ("event.report", message);
-    if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,th);
-    if (probe_context->redis_enable==1)send_message_to_redis ("event.report", message);
+    if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message, th);
+    if (probe_context->redis_enable == 1) send_message_to_redis ("event.report", message);
 
 }
 
@@ -69,7 +69,7 @@ int register_event_report_handle(void * args) {
 	struct smp_thread *th ;
 	struct user_data *p = ( struct user_data *) args;
 	th = p->smp_thread;
-	mmt_event_report_t * event_report   = p->event_reports;
+	mmt_event_report_t * event_report = p->event_reports;
 
 	if (is_registered_attribute_handler(th->mmt_handler, event_report->event.proto_id, event_report->event.attribute_id, event_report_handle) == 0){
 		i &= register_attribute_handler(th->mmt_handler, event_report->event.proto_id, event_report->event.attribute_id, event_report_handle, NULL, (void *) p);
@@ -101,7 +101,7 @@ int register_security_report_handle(void * args) {
 				mmt_security_attribute_t * security_attribute = &probe_context->security_reports[i].attributes[j];
 
 				security_attribute->proto_id = get_protocol_id_by_name (security_attribute->proto);
-				security_attribute->attribute_id = get_attribute_id_by_protocol_and_attribute_names(security_attribute->proto,security_attribute->attribute);
+				security_attribute->attribute_id = get_attribute_id_by_protocol_and_attribute_names(security_attribute->proto, security_attribute->attribute);
 				if (is_registered_attribute(th->mmt_handler, security_attribute->proto_id, security_attribute->attribute_id) == 0){
 					i &= register_extraction_attribute(th->mmt_handler, security_attribute->proto_id, security_attribute->attribute_id);
 				}
@@ -126,7 +126,7 @@ void security_reports_init(void * args) {
 		create_socket(probe_context, args);
 		probe_context->socket_active = 1;
 	}
-	if (is_registered_packet_handler(th->mmt_handler,6)==1)unregister_packet_handler(th->mmt_handler,6);
+	if (is_registered_packet_handler(th->mmt_handler,6) == 1)unregister_packet_handler(th->mmt_handler, 6);
 	register_packet_handler(th->mmt_handler, 6, packet_handler, (void *) th);
 }
 

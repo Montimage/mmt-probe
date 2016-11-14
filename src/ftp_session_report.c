@@ -124,12 +124,12 @@ void ftp_session_connection_type_handle(const ipacket_t * ipacket, attribute_t *
 		// Get data type - only reconstruct the FILE data
 		if (probe_context->ftp_reconstruct_enable == 1){
 			uint8_t * data_type = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_FTP, FTP_DATA_TYPE);
-			if(data_type && *data_type == 1){
+			if(data_type && * data_type == 1){
 				// Get file name
 				char * file_name = (char *) get_attribute_extracted_data(ipacket, PROTO_FTP, FTP_FILE_NAME);
 				// Get packet len
 				uint32_t * data_len = (uint32_t *) get_attribute_extracted_data(ipacket, PROTO_FTP, FTP_PACKET_DATA_LEN);
-				if(data_len && *data_len>0){
+				if(data_len && * data_len > 0){
 					// Get packet payload pointer - after TCP
 					char * data_payload = (char *) get_attribute_extracted_data(ipacket, PROTO_FTP, PROTO_PAYLOAD);
 					if (file_name && data_payload) {

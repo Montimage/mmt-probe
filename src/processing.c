@@ -29,8 +29,6 @@
 #include <pthread.h>
 #include <sys/types.h>
 
-#define _GNU_SOURCE
-
 #ifdef linux
 #include <syscall.h>
 #endif
@@ -187,8 +185,8 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	int ipindex = get_protocol_index_by_id(ipacket, PROTO_IP);
 
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(ipacket->session);
-	temp_session->application_class= get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]);
-	temp_session->proto_path=proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)];
+	temp_session->application_class = get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]);
+	temp_session->proto_path = proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)];
 
 	unsigned char *src = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_SRC);
 	unsigned char *dst = (unsigned char *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_DST);
@@ -266,7 +264,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 	attribute_t * attr_extract;
 	struct smp_thread *th = (struct smp_thread *) args;
 	//unsigned char length_buffer[5];
-	int i = 0,j=0, k=0, l=0, p=0;
+	int i = 0, j=0, k=0, l=0, p=0;
 	int retval =0;
 
 #ifdef SESSION_REPORT
@@ -304,30 +302,30 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 		mmt_probe_context_t * probe_context = get_probe_context_config();
 
 		for(i = 0; i < probe_context->security_reports_nb; i++) {
-			p=0;
+			p = 0;
 			if (probe_context->security_reports[i].enable == 0)continue;
 
 			if (probe_context->security_reports[i].event_id[0] != 0){ //handling null event
-				for (j = 1;j < ipacket->proto_hierarchy->len;j++){
-					for (l=0; l<probe_context->security_reports[i].event_name_nb;l++ ){
+				for (j = 1; j < ipacket->proto_hierarchy->len; j++){
+					for (l = 0; l < probe_context->security_reports[i].event_name_nb; l++ ){
 						if (ipacket->proto_hierarchy->proto_path[j] == probe_context->security_reports[i].event_id[l]){
 							p++;
 						}
 					}
 					if (p > 0)break;
 				}
-				if (p ==0)continue;
+				if (p == 0)continue;
 			}
 			int initial_buffer_size =2000;
-			th->report[i].length =0;
-			memset(th->report[i].data[th->report[i].security_report_counter],'\0',2000);
-			memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length +4],&ipacket->p_hdr->ts,sizeof(struct timeval));
+			th->report[i].length = 0;
+			memset(th->report[i].data[th->report[i].security_report_counter], '\0', 2000);
+			memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length +4], &ipacket->p_hdr->ts,sizeof(struct timeval));
 			th->report[i].length += sizeof(struct timeval)+ 4; //4 bytes are reserved to assign the total length of the
 			k=0;
 			for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
 				mmt_security_attribute_t * security_attribute = &probe_context->security_reports[i].attributes[j];
 				attr_extract = get_extracted_attribute(ipacket,security_attribute->proto_id, security_attribute->attribute_id);
-				int rem_buffer = initial_buffer_size-(th->report[i].length+10);
+				int rem_buffer = initial_buffer_size - (th->report[i].length+10);
 
 				if(attr_extract != NULL) {
 					if(attr_extract->data_len > rem_buffer){
@@ -347,9 +345,9 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 
 				}
 			}
-			if (k ==0)continue;
+			if (k == 0)continue;
 
-			memcpy(&th->report[i].data[th->report[i].security_report_counter][0],&th->report[i].length,4);//First 4 bytes contains the total length of the report
+			memcpy(&th->report[i].data[th->report[i].security_report_counter][0], &th->report[i].length, 4);//First 4 bytes contains the total length of the report
 			th->report[i].data[th->report[i].security_report_counter][th->report[i].length]='\0';
 
 			if (probe_context->redis_enable == 1)send_message_to_redis ("event.security_report", (char *)th->report[i].data[th->report[i].security_report_counter]);
@@ -388,55 +386,55 @@ void proto_stats_cleanup(void * handler) {
 	(void) unregister_packet_handler((mmt_handler_t *) handler, 1);
 }
 void * get_handler_by_name(char * func_name){
-	if (strcmp(func_name,"ftp_session_connection_type_handle")==0){
+	if (strcmp(func_name,"ftp_session_connection_type_handle") == 0){
 		return ftp_session_connection_type_handle;
 	}
-	if (strcmp(func_name,"ftp_response_value_handle")==0){
+	if (strcmp(func_name,"ftp_response_value_handle") == 0){
 		return ftp_response_value_handle;
 	}
-	if (strcmp(func_name,"http_method_handle")==0){
+	if (strcmp(func_name,"http_method_handle") == 0){
 		return http_method_handle;
 	}
-	if (strcmp(func_name,"http_response_handle")==0){
+	if (strcmp(func_name,"http_response_handle") == 0){
 		return http_response_handle;
 	}
-	if (strcmp(func_name,"mime_handle")==0){
+	if (strcmp(func_name,"mime_handle") == 0){
 		return mime_handle;
 	}
-	if (strcmp(func_name,"host_handle")==0){
+	if (strcmp(func_name,"host_handle") == 0){
 		return host_handle;
 	}
-	if (strcmp(func_name,"uri_handle")==0){
+	if (strcmp(func_name,"uri_handle") == 0){
 		return uri_handle;
 	}
-	if (strcmp(func_name,"useragent_handle")==0){
+	if (strcmp(func_name,"useragent_handle") == 0){
 		return useragent_handle;
 	}
-	if (strcmp(func_name,"referer_handle")==0){
+	if (strcmp(func_name,"referer_handle") == 0){
 		return referer_handle;
 	}
-	if (strcmp(func_name,"xcdn_seen_handle")==0){
+	if (strcmp(func_name,"xcdn_seen_handle") == 0){
 		return xcdn_seen_handle;
 	}
-	if (strcmp(func_name,"content_len_handle")==0){
+	if (strcmp(func_name,"content_len_handle") == 0){
 		return content_len_handle;
 	}
-	if (strcmp(func_name,"rtp_version_handle")==0){
+	if (strcmp(func_name,"rtp_version_handle") == 0){
 		return rtp_version_handle;
 	}
-	if (strcmp(func_name,"rtp_jitter_handle")==0){
+	if (strcmp(func_name,"rtp_jitter_handle") == 0){
 		return rtp_jitter_handle;
 	}
-	if (strcmp(func_name,"rtp_loss_handle")==0){
+	if (strcmp(func_name,"rtp_loss_handle") == 0){
 		return rtp_loss_handle;
 	}
-	if (strcmp(func_name,"rtp_order_error_handle")==0){
+	if (strcmp(func_name,"rtp_order_error_handle") == 0){
 		return rtp_order_error_handle;
 	}
-	if (strcmp(func_name,"rtp_burst_loss_handle")==0){
+	if (strcmp(func_name,"rtp_burst_loss_handle") == 0){
 		return rtp_burst_loss_handle;
 	}
-	if (strcmp(func_name,"ssl_server_name_handle")==0){
+	if (strcmp(func_name,"ssl_server_name_handle") == 0){
 		return ssl_server_name_handle;
 	}
 	return 0;
@@ -454,13 +452,13 @@ int register_conditional_report_handle(void * args, mmt_condition_report_t * con
 		uint32_t protocol_id = get_protocol_id_by_name (condition_attribute->proto);
 		uint32_t attribute_id = get_attribute_id_by_protocol_and_attribute_names(condition_attribute->proto,condition_attribute->attribute);
 
-		if (strcmp(handler_attribute->handler,"NULL")==0){
+		if (strcmp(handler_attribute->handler,"NULL") == 0){
 			if (is_registered_attribute(th->mmt_handler, protocol_id, attribute_id) == 0){
 				i &= register_extraction_attribute_by_name(th->mmt_handler, condition_attribute->proto, condition_attribute->attribute);
 			}
 		}else{
 			if (is_registered_attribute_handler(th->mmt_handler, protocol_id, attribute_id, get_handler_by_name (handler_attribute->handler)) == 0){
-				i &= register_attribute_handler_by_name(th->mmt_handler, condition_attribute->proto,condition_attribute->attribute, get_handler_by_name (handler_attribute->handler), NULL, args);
+				i &= register_attribute_handler_by_name(th->mmt_handler, condition_attribute->proto, condition_attribute->attribute, get_handler_by_name (handler_attribute->handler), NULL, args);
 			}
 		}
 		//printf ("proto = %s, attribute = %s, output = %d\n",condition_attribute->proto,condition_attribute->attribute, output);
@@ -509,10 +507,10 @@ void flowstruct_init(void * args) {
 	//i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_ACTIVE_SESSIONS_COUNT);
 	//i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, PROTO_ACTIVE_SESSIONS_COUNT);
 	if (probe_context->enable_IP_fragmentation_report == 1){
-		i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_FRAG_PACKET_COUNT);
-		i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_FRAG_DATA_VOLUME);
-		i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_DF_PACKET_COUNT);
-		i &= register_extraction_attribute(th->mmt_handler,PROTO_IP,PROTO_IP_DF_DATA_VOLUME);
+		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_IP_FRAG_PACKET_COUNT);
+		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_IP_FRAG_DATA_VOLUME);
+		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_IP_DF_PACKET_COUNT);
+		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_IP_DF_DATA_VOLUME);
 	}
 
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
@@ -662,7 +660,7 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 		microsessions_stats_t * mf_stats = &th->iprobe.mf_stats[get_session_protocol_hierarchy(expired_session)->proto_path[(get_session_protocol_hierarchy(expired_session)->len <= 16)?(get_session_protocol_hierarchy(expired_session)->len - 1):(16 - 1)]];
 		update_microflows_stats(mf_stats, expired_session);
 		if (is_microflow_stats_reportable(mf_stats)) {
-			report_microflows_stats(mf_stats,args);
+			report_microflows_stats(mf_stats, args);
 		}
 	}else{
 		if(temp_session->app_format_id == probe_context->web_id ){
@@ -674,10 +672,10 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 				memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
 			}
 			temp_session->report_counter = th->report_counter;
-			print_ip_session_report (expired_session,th);
+			print_ip_session_report (expired_session, th);
 		}else{
 			temp_session->report_counter = th->report_counter;
-			print_ip_session_report (expired_session,th);
+			print_ip_session_report (expired_session, th);
 		}
 	}
 

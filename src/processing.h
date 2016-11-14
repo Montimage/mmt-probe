@@ -3,12 +3,10 @@
 #ifdef	__cplusplus
 extern "C" {
 #endif
-#define _GNU_SOURCE
+//#define _GNU_SOURCE
 #include "lib/data_spsc_ring.h"
 #include <sys/socket.h>
-#include <netinet/in.h>
-#include "/usr/include/x86_64-linux-gnu/sys/socket.h"
-
+#include <unistd.h>
 #define ONLINE_ANALYSIS 0x1
 #define OFFLINE_ANALYSIS 0x2
 #define OFFLINE_ANALYSIS_CONTINUOUS 0x3 
@@ -605,10 +603,10 @@ void new_event_reports_init(void * args);
 int parse_dot_proto_attribute(char * inputstring, mmt_event_attribute_t * protoattr);
 
 // Timeout for different types of appplications
-int set_default_session_timed_out(mmt_handler_t *mmt_handler,uint32_t timedout_value);
-int set_long_session_timed_out(mmt_handler_t *mmt_handler,uint32_t timedout_value);
-int set_short_session_timed_out(mmt_handler_t *mmt_handler,uint32_t timedout_value);
-int set_live_session_timed_out(mmt_handler_t *mmt_handler,uint32_t timedout_value);
+int set_default_session_timed_out(mmt_handler_t *mmt_handler, uint32_t timedout_value);
+int set_long_session_timed_out(mmt_handler_t *mmt_handler, uint32_t timedout_value);
+int set_short_session_timed_out(mmt_handler_t *mmt_handler, uint32_t timedout_value);
+int set_live_session_timed_out(mmt_handler_t *mmt_handler, uint32_t timedout_value);
 
 //handlers
 void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
@@ -634,9 +632,10 @@ void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void
 int file_is_modified(const char *path);
 void write_to_socket_internet(struct smp_thread *th);
 void write_to_socket_unix(struct smp_thread *th);
-void create_socket(mmt_probe_context_t * mmt_conf,void *args);
+void create_socket(mmt_probe_context_t * mmt_conf, void *args);
 int packet_handler(const ipacket_t * ipacket, void * args);
 void security_reports_init(void * args);
+//int sendmmsg (int __fd, struct mmsghdr1 *__vmessages,unsigned int __vlen, int __flags);
 
 //prototypes
 void print_ip_session_report (const mmt_session_t * session, void *user_args);

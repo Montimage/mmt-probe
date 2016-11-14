@@ -129,17 +129,12 @@ cfg_t * parse_conf(const char *filename) {
 	};
 	cfg_opt_t socket_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
-            //CFG_INT("domain", 0, CFGF_NONE),
 			CFG_STR_LIST("port", "{}", CFGF_NONE),
-			//CFG_STR("server-address", 0, CFGF_NONE),
 			CFG_STR_LIST("server-address", "{}", CFGF_NONE),
-			//CFG_STR("socket-descriptor", "", CFGF_NONE),
-			//CFG_INT("one_socket_server", 0, CFGF_NONE),
 			CFG_END()
 	};
 	cfg_opt_t security_report_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
-			//CFG_STR("event", "", CFGF_NONE),
 			CFG_STR_LIST("event", "{}", CFGF_NONE),
 			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
 			CFG_END()
@@ -335,23 +330,23 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
         	exit(0);
         }
 
-		if(mmt_conf->input_mode==0){
+		if(mmt_conf->input_mode == 0){
 			printf("Error: Specify the input-mode in the configuration file, for example input-mode = \"offline\" or \"online\" \n");
 			exit(0);
 		}
 
 
-		if (strcmp((char *) cfg_getstr(cfg, "input-source"),"nosource")!=0){
+		if (strcmp((char *) cfg_getstr(cfg, "input-source"),"nosource") != 0){
 			strncpy(mmt_conf->input_source, (char *) cfg_getstr(cfg, "input-source"), 256);
 		}
 
-		if (strcmp((char *) cfg_getstr(cfg, "dynamic-config-file"),"noconfig")!=0){
+		if (strcmp((char *) cfg_getstr(cfg, "dynamic-config-file"), "noconfig")!=0){
 			strncpy(mmt_conf->dynamic_config_file, (char *) cfg_getstr(cfg, "dynamic-config-file"), 256);
 		}
 
 		mmt_conf->probe_id_number = (uint32_t) cfg_getint(cfg, "probe-id-number");
 
-		if ((char *) cfg_getstr(cfg, "logfile")==NULL){
+		if ((char *) cfg_getstr(cfg, "logfile") == NULL){
 			printf("Error: Specify the logfile name  configuration file, for example logfile = \"log.data\"\n");
 			exit(0);
 		}
@@ -359,7 +354,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 		mmt_conf->log_level = (uint32_t) cfg_getint(cfg, "loglevel");
 
-		if ((char *) cfg_getstr(cfg, "license_file_path")==NULL){
+		if ((char *) cfg_getstr(cfg, "license_file_path") == NULL){
 			printf("Error: Specify the license_file_path full path in the configuration file\n");
 			exit(0);
 		}
@@ -482,7 +477,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 						if(mmt_conf->server_ip_nb == mmt_conf->server_port_nb) {
 							mmt_conf->server_adresses = calloc(sizeof(ip_port_t), nb_server_address);
 							for(j = 0; j < nb_server_address; j++) {
-								strncpy(mmt_conf->server_adresses[j].server_ip_address, (char *) cfg_getnstr(socket, "server-address", j),18);
+								strncpy(mmt_conf->server_adresses[j].server_ip_address, (char *) cfg_getnstr(socket, "server-address", j), 18);
 								mmt_conf->server_adresses[j].server_portnb = malloc(sizeof(uint32_t)*1);
 								mmt_conf->server_adresses[j].server_portnb[0] = atoi(cfg_getnstr(socket, "port", j));
 							}
@@ -505,11 +500,11 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 		int security_reports_nb = cfg_size(cfg, "security-report");
 		int security_attributes_nb = 0;
-		int security_event_nb =0;
+		int security_event_nb = 0;
 		mmt_conf->security_reports = NULL;
 		mmt_security_report_t * temp_sr;
 		mmt_conf->security_reports_nb = security_reports_nb;
-		i=0,j=0,k=0;
+		i = 0, j = 0, k = 0;
 
 		if (security_reports_nb > 0) {
 			mmt_conf->security_reports = calloc(sizeof(mmt_security_report_t), security_reports_nb);
@@ -526,12 +521,12 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 					if(security_event_nb > 0) {
 						//temp_sr->event= calloc(sizeof(mmt_security_attribute_t),security_attributes_nb);
-						temp_sr->event_name = malloc(security_event_nb * sizeof (char *)+1);
+						temp_sr->event_name = malloc(security_event_nb * sizeof (char *) + 1);
 						for (k = 0; k < security_event_nb; k++){
-							temp_sr->event_name[k]= malloc(sizeof (char)*20);
+							temp_sr->event_name[k] = malloc(sizeof (char)*20);
 							strcpy(temp_sr->event_name[k], (char *) cfg_getnstr(security_report_opts, "event", k));
 							int len = strlen(temp_sr->event_name[k]);
-							temp_sr->event_name[k][len]='\0';
+							temp_sr->event_name[k][len] = '\0';
 							//printf("name=%s\n",temp_sr->event_name[k]);
 
 						}
@@ -542,7 +537,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					if(security_attributes_nb > 0) {
 						temp_sr->attributes = calloc(sizeof(mmt_security_attribute_t), security_attributes_nb);
 						for(i = 0; i < security_attributes_nb; i++) {
-							mmt_conf->total_security_attribute_nb +=1;
+							mmt_conf->total_security_attribute_nb += 1;
 							if (parse_security_dot_proto_attribute(cfg_getnstr(security_report_opts, "attributes", i), &temp_sr->attributes[i])) {
 								fprintf(stderr, "Error: invalid security_report attribute value '%s'\n", (char *) cfg_getnstr(security_report_opts, "attributes", i));
 								exit(0);
@@ -597,7 +592,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 		int condition_reports_nb = cfg_size(cfg, "condition_report");
 		int condition_attributes_nb = 0;
-		int condition_handlers_nb=0;
+		int condition_handlers_nb = 0;
 		mmt_conf->condition_reports = NULL;
 		mmt_condition_report_t * temp_condn;
 		mmt_conf->condition_reports_nb = condition_reports_nb;
@@ -620,25 +615,25 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					//   fprintf(stderr, "Error: invalid condition_report location value '%s'\n", (char *) cfg_getstr(condition_opts, "location"));
 					//  exit(-1);
 					// }
-					if(strcmp(temp_condn->condition.condition,"FTP")==0){
-						mmt_conf->ftp_id=temp_condn->id;
-						if (temp_condn->enable == 1)mmt_conf->ftp_enable=1;
-						if (temp_condn->enable == 0)mmt_conf->ftp_enable=0;
+					if(strcmp(temp_condn->condition.condition, "FTP") == 0){
+						mmt_conf->ftp_id = temp_condn->id;
+						if (temp_condn->enable == 1) mmt_conf->ftp_enable = 1;
+						if (temp_condn->enable == 0) mmt_conf->ftp_enable = 0;
 					}
-					if(strcmp(temp_condn->condition.condition,"WEB")==0){
-						mmt_conf->web_id=temp_condn->id;
-						if (temp_condn->enable == 1)mmt_conf->web_enable=1;
-						if (temp_condn->enable == 0)mmt_conf->web_enable=0;
+					if(strcmp(temp_condn->condition.condition, "WEB") == 0){
+						mmt_conf->web_id = temp_condn->id;
+						if (temp_condn->enable == 1) mmt_conf->web_enable = 1;
+						if (temp_condn->enable == 0) mmt_conf->web_enable = 0;
 					}
-					if(strcmp(temp_condn->condition.condition,"RTP")==0){
-						mmt_conf->rtp_id=temp_condn->id;
-						if (temp_condn->enable == 1)mmt_conf->rtp_enable=1;
-						if (temp_condn->enable == 0)mmt_conf->rtp_enable=0;
+					if(strcmp(temp_condn->condition.condition, "RTP") == 0){
+						mmt_conf->rtp_id = temp_condn->id;
+						if (temp_condn->enable == 1) mmt_conf->rtp_enable = 1;
+						if (temp_condn->enable == 0) mmt_conf->rtp_enable = 0;
 					}
-					if(strcmp(temp_condn->condition.condition,"SSL")==0){
-						mmt_conf->ssl_id=temp_condn->id;
-						if (temp_condn->enable == 1)mmt_conf->ssl_enable=1;
-						if (temp_condn->enable == 0)mmt_conf->ssl_enable=0;
+					if(strcmp(temp_condn->condition.condition, "SSL") == 0){
+						mmt_conf->ssl_id = temp_condn->id;
+						if (temp_condn->enable == 1) mmt_conf->ssl_enable = 1;
+						if (temp_condn->enable == 0) mmt_conf->ssl_enable = 0;
 					}
 					if (temp_condn->enable == 1){
 						condition_attributes_nb = cfg_size(condition_opts, "attributes");
@@ -661,7 +656,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 							temp_condn->handlers = calloc(sizeof(mmt_condition_attribute_t), condition_handlers_nb);
 
 							for(i = 0; i < condition_handlers_nb; i++) {
-								if (parse_handlers_attribute((char *) cfg_getnstr(condition_opts, "handlers",i), &temp_condn->handlers[i])) {
+								if (parse_handlers_attribute((char *) cfg_getnstr(condition_opts, "handlers", i), &temp_condn->handlers[i])) {
 									fprintf(stderr, "Error: invalid condition_report handler attribute value '%s'\n", (char *) cfg_getnstr(condition_opts, "handlers", i));
 									exit(0);
 								}

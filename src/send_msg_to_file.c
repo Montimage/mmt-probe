@@ -110,7 +110,7 @@ void new_event_reports_init(void * args) {
        				p = malloc( sizeof( struct user_data ));
        				p->smp_thread    = th;
        				p->event_reports = th->new_event_reports;
-       				if (is_registered_packet_handler(th->mmt_handler,6)==1)unregister_packet_handler(th->mmt_handler,6);
+       				if (is_registered_packet_handler(th->mmt_handler,6) == 1)unregister_packet_handler(th->mmt_handler, 6);
        				register_packet_handler(th->mmt_handler, 6, packet_handler, (void *) p);
        				/*.....socket */
 
@@ -121,7 +121,7 @@ void new_event_reports_init(void * args) {
        				p = malloc( sizeof( struct user_data ));
        				p->smp_thread    = th;
        				p->event_reports = th->new_event_reports;
-       				if (is_registered_packet_handler(th->mmt_handler,6)==0)register_packet_handler(th->mmt_handler, 6, packet_handler, (void *) p);
+       				if (is_registered_packet_handler(th->mmt_handler,6) == 0)register_packet_handler(th->mmt_handler, 6, packet_handler, (void *) p);
        			}
        			if(register_event_report_handle((void *) p) == 0) {
        				fprintf(stderr, "Error while initializing event report number %i!\n", th->new_event_reports->id);
@@ -156,7 +156,7 @@ void read_attributes(){
 		probe_context->register_new_condition_reports[p].handlers = NULL;
 	}
 
-	for (p=0; p < probe_context->new_event_reports_nb; p++){
+	for (p = 0; p < probe_context->new_event_reports_nb; p++){
 		free (probe_context->register_new_event_reports[p].attributes);
 		probe_context->register_new_event_reports[p].attributes = NULL;
 	}
@@ -170,7 +170,7 @@ void read_attributes(){
 		free (probe_context->register_new_event_reports);
 		probe_context->register_new_event_reports = NULL;
 	}
-	int j =0, i=0;
+	int j = 0, i = 0;
 	cfg_t *event_opts;
     int event_reports_nb = cfg_size(cfg, "event_report");
     int event_attributes_nb = 0;
@@ -189,7 +189,7 @@ void read_attributes(){
 
     		if (temp_er->enable == 1){
     			temp_er->id = (uint32_t)cfg_getint(event_opts, "id");
-    			if (temp_er->id ==2000)probe_context->enable_security_report = 1;
+    			if (temp_er->id == 2000)probe_context->enable_security_report = 1;
     			if (parse_dot_proto_attribute((char *) cfg_getstr(event_opts, "event"), &temp_er->event)) {
     				fprintf(stderr, "Error: invalid event_report event value '%s'\n", (char *) cfg_getstr(event_opts, "event"));
     				exit(0);
@@ -233,25 +233,25 @@ void read_attributes(){
 				exit(0);
 			}
 
-			if(strcmp(temp_condn->condition.condition,"FTP")==0){
+			if(strcmp(temp_condn->condition.condition,"FTP") == 0){
 				probe_context->ftp_id = temp_condn->id;
-				if (temp_condn->enable == 1)probe_context->ftp_enable=1;
-				if (temp_condn->enable == 0)probe_context->ftp_enable=0;
+				if (temp_condn->enable == 1)probe_context->ftp_enable = 1;
+				if (temp_condn->enable == 0)probe_context->ftp_enable = 0;
 			}
-			if(strcmp(temp_condn->condition.condition,"WEB")==0){
+			if(strcmp(temp_condn->condition.condition,"WEB") == 0){
 				probe_context->web_id = temp_condn->id;
-				if (temp_condn->enable == 1)probe_context->web_enable=1;
-				if (temp_condn->enable == 0)probe_context->web_enable=0;
+				if (temp_condn->enable == 1)probe_context->web_enable = 1;
+				if (temp_condn->enable == 0)probe_context->web_enable = 0;
 			}
 			if(strcmp(temp_condn->condition.condition,"RTP")==0){
 				probe_context->rtp_id = temp_condn->id;
 				if (temp_condn->enable == 1)probe_context->rtp_enable=1;
 				if (temp_condn->enable == 0)probe_context->rtp_enable=0;
 			}
-			if(strcmp(temp_condn->condition.condition,"SSL")==0){
+			if(strcmp(temp_condn->condition.condition,"SSL") == 0){
 				probe_context->ssl_id = temp_condn->id;
-				if (temp_condn->enable == 1)probe_context->ssl_enable=1;
-				if (temp_condn->enable == 0)probe_context->ssl_enable=0;
+				if (temp_condn->enable == 1)probe_context->ssl_enable = 1;
+				if (temp_condn->enable == 0)probe_context->ssl_enable = 0;
 			}
 			if (temp_condn->enable == 1){
 				condition_attributes_nb = cfg_size(condition_opts, "attributes");
@@ -372,10 +372,10 @@ static void *wait_to_do_something( void *arg ){
 			}
 		}
 		if (register_attributes != NULL)fclose(register_attributes);
-		for (i = 0; i < probe_context->thread_nb;i++){
+		for (i = 0; i < probe_context->thread_nb; i++){
 			//printf("thread number_wait_to_do_something = %d \n",probe->smp_threads[i].thread_number);
 			if (file_modified_flag){
-				probe->smp_threads[i].file_read_flag =1;
+				probe->smp_threads[i].file_read_flag = 1;
 			}
 			p_data->user_data = (void *) &probe->smp_threads[i];
 			(* p_data->callback)( p_data->user_data );
@@ -444,10 +444,10 @@ void flush_messages_to_file_thread( void *arg){
 	if (th->thread_number == 0){
 		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu",
 				200, probe_context->probe_id_number,
-				probe_context->input_source,ts.tv_sec, ts.tv_usec);
+				probe_context->input_source, ts.tv_sec, ts.tv_usec);
 		message[ MAX_MESS] = '\0';
-		if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message,(void *)th);
-		if (probe_context->redis_enable==1)send_message_to_redis ("session.flow.report", message);
+		if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message, (void *)th);
+		if (probe_context->redis_enable == 1)send_message_to_redis ("session.flow.report", message);
 	}
 	if( th->cache_count == 0 ){
 		//printf ("nothing to write = %d",th->thread_number);
@@ -456,7 +456,7 @@ void flush_messages_to_file_thread( void *arg){
 	}
 
 	//open a file
-	valid = snprintf(file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s",probe_context->output_location,present_time,th->thread_number,probe_context->data_out);
+	valid = snprintf(file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s",probe_context->output_location, present_time, th->thread_number, probe_context->data_out);
 	file_name_str[valid] = '\0';
 
 	file = fopen(file_name_str, "w");
@@ -464,7 +464,7 @@ void flush_messages_to_file_thread( void *arg){
 	sprintf(lg_msg, "Open output results file: %s", file_name_str );
 	mmt_log(probe_context, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
 
-	if (file==NULL){
+	if (file == NULL){
 		fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , file_name_str , strerror( errno ) );
 		//exit(1);
 	}
@@ -492,23 +492,23 @@ void flush_messages_to_file_thread( void *arg){
 	//close the file
 	i = fclose( file );
 
-	if (i!=0){
+	if (i != 0){
 		fprintf ( stderr , "\n1: Error %d closing of sampled_file failed: %s" , errno ,strerror( errno ) );
 		//exit(1);
 	}
 	//char * const command_str[] = {"cp",file_name_str,probe_context->behaviour_output_location, NULL};
 	//duplicate the file for behaviour
-	if (probe_context->behaviour_enable==1){
+	if (probe_context->behaviour_enable == 1){
 
 		//check if the system command is available
-		valid=system(NULL);
-		if (valid==0){
+		valid = system(NULL);
+		if (valid == 0){
 			fprintf(stderr,"No processor available on the system,while running system() command");
 			//exit(1);
 		}else{
 			//duplicate file
 			valid = snprintf( command_str, MAX_FILE_NAME, "cp %s %s", file_name_str , probe_context->behaviour_output_location);
-			command_str[ valid ]='\0';
+			command_str[ valid ] = '\0';
 			valid = system( command_str );
 
 			if ( valid != 0 ){
@@ -517,18 +517,18 @@ void flush_messages_to_file_thread( void *arg){
 			}else {
 
 				//create semaphore
-				valid = snprintf(sem_file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s.sem", probe_context->behaviour_output_location, present_time,th->thread_number,probe_context->data_out);
-				sem_file_name_str[ valid ]='\0';
+				valid = snprintf(sem_file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s.sem", probe_context->behaviour_output_location, present_time, th->thread_number, probe_context->data_out);
+				sem_file_name_str[ valid ] = '\0';
 				file= fopen(sem_file_name_str, "w");
 
-				if ( file==NULL ){
+				if ( file == NULL ){
 					fprintf ( stderr , "\n2: Error: %d creation of \"%s\" failed: %s\n" , errno , sem_file_name_str , strerror( errno ) );
 					//exit(1);
 				}else{
 
 					valid = fclose( file );
 					if ( valid!=0 ){
-						fprintf ( stderr , "\n4: Error %d closing of temp_behaviour_sem_file failed: %s" , errno ,strerror( errno ) );
+						fprintf ( stderr , "\n4: Error %d closing of temp_behaviour_sem_file failed: %s", errno, strerror( errno ) );
 						//exit(1);
 					}
 				}
@@ -537,17 +537,17 @@ void flush_messages_to_file_thread( void *arg){
 	}
 	//create semaphore
 	valid=snprintf(sem_file_name_str, MAX_FILE_NAME, "%s.sem", file_name_str);
-	sem_file_name_str[ valid ]='\0';
-	file= fopen(sem_file_name_str, "w");
+	sem_file_name_str[ valid ] = '\0';
+	file = fopen(sem_file_name_str, "w");
 
-	if ( file==NULL ){
+	if ( file == NULL ){
 		fprintf ( stderr , "\n2: Error: %d creation of \"%s\" failed: %s\n" , errno , sem_file_name_str , strerror( errno ) );
 		//exit(1);
 	}else {
 
 		valid = fclose( file );
-		if ( valid!=0 ){
-			fprintf ( stderr , "\n4: Error %d closing of temp_behaviour_sem_file failed: %s" , errno ,strerror( errno ) );
+		if ( valid != 0 ){
+			fprintf ( stderr , "\n4: Error %d closing of temp_behaviour_sem_file failed: %s" , errno, strerror( errno ) );
 			//exit(1);
 		}
 	}
@@ -578,7 +578,7 @@ void send_message_to_file_thread (char * message, void *args) {
 			}
 			else {
 				memcpy(th->cache_message_list[ th->cache_count ], message, len);
-				th->cache_message_list[ th->cache_count ][len]='\0';
+				th->cache_message_list[ th->cache_count ][len] ='\0';
 			}
 			//message is NULL or cannot duplicate the message
 			if( th->cache_message_list[ th->cache_count ]  == NULL ){
@@ -597,10 +597,10 @@ void send_message_to_file_thread (char * message, void *args) {
 
 void send_message_to_file (char * message) {
 	FILE * file;
-	char file_name_str [MAX_FILE_NAME+1]={0};
-	char sem_file_name_str [MAX_FILE_NAME+5]={0};	//file_name + ".sem"
+	char file_name_str [MAX_FILE_NAME+1] = {0};
+	char sem_file_name_str [MAX_FILE_NAME+5] = {0};	//file_name + ".sem"
 	char lg_msg[1024];
-	int valid=0;
+	int valid = 0;
 	int i = 0;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	struct timeval ts;
@@ -616,7 +616,7 @@ void send_message_to_file (char * message) {
 	sprintf(lg_msg, "Open output results file: %s", file_name_str );
 	mmt_log(probe_context, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
 
-	if (file==NULL){
+	if (file == NULL){
 		fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , file_name_str , strerror( errno ) );
 		//exit(1);
 	}else{
@@ -624,24 +624,24 @@ void send_message_to_file (char * message) {
 
 		i = fclose( file );
 
-		if (i!=0){
+		if (i != 0){
 			fprintf ( stderr , "\n1: Error %d closing of sampled_file failed: %s" , errno ,strerror( errno ) );
 			//exit(1);
 		}
 	}
 
 	//create semaphore
-	valid=snprintf(sem_file_name_str, MAX_FILE_NAME, "%s.sem", file_name_str);
-	sem_file_name_str[ valid ]='\0';
-	file= fopen(sem_file_name_str, "w");
+	valid = snprintf(sem_file_name_str, MAX_FILE_NAME, "%s.sem", file_name_str);
+	sem_file_name_str[ valid ] ='\0';
+	file = fopen(sem_file_name_str, "w");
 
-	if ( file==NULL ){
+	if ( file == NULL ){
 		fprintf ( stderr , "\n2: Error: %d creation of \"%s\" failed: %s\n" , errno , sem_file_name_str , strerror( errno ) );
 		//exit(1);
 	}else{
 
 		valid = fclose( file );
-		if ( valid!=0 ){
+		if ( valid != 0 ){
 			fprintf ( stderr , "\n4: Error %d closing of temp_behaviour_sem_file failed: %s" , errno ,strerror( errno ) );
 			//exit(1);
 		}
