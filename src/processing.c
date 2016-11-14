@@ -268,6 +268,8 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 	//unsigned char length_buffer[5];
 	int i = 0,j=0, k=0, l=0, p=0;
 	int retval =0;
+
+#ifdef SESSION_REPORT
 	if (probe_context->enable_session_report == 1){
 		session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
 
@@ -296,6 +298,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 			}
 		}
 	}
+#endif
 
 	if (probe_context->enable_security_report == 1){
 		mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -368,13 +371,11 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 					th->report[i].security_report_counter = 0;
 					memset(th->report[i].msg, 0, sizeof(struct iovec) *probe_context->nb_of_report_per_msg);
 				}
-
 			}
 
 		}
 
 	}
-
 	return 0;
 }
 
