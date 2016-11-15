@@ -87,8 +87,8 @@ void radius_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void
                     );
                     message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
                     //send_message_to_file ("radius.report", message);
-                    if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,(void *)user_args);
-                    if (probe_context->redis_enable==1)send_message_to_redis ("radius.report", message);
+                    if (probe_context->output_to_file_enable == 1)send_message_to_file_thread (message,(void *)user_args);
+                    if (probe_context->redis_enable == 1)send_message_to_redis ("radius.report", message);
                 }
             } else { //Report anyway
                 uint32_t * account_status_type = get_attribute_extracted_data(ipacket, PROTO_RADIUS, RADIUS_ACCT_STATUS_TYPE);
@@ -134,8 +134,8 @@ void radius_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 
                 message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
                 //send_message_to_file ("radius.report", message);
-                if (probe_context->output_to_file_enable==1)send_message_to_file (message);
-                if (probe_context->redis_enable==1)send_message_to_redis ("radius.report", message);
+                if (probe_context->output_to_file_enable == 1)send_message_to_file (message);
+                if (probe_context->redis_enable == 1)send_message_to_redis ("radius.report", message);
             }
         }
     }

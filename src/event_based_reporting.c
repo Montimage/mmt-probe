@@ -78,7 +78,7 @@ int register_event_report_handle(void * args) {
 	for(j = 0; j < event_report->attributes_nb; j++) {
 		mmt_event_attribute_t * event_attribute = &event_report->attributes[j];
 		event_attribute->proto_id = get_protocol_id_by_name (event_attribute->proto);
-		event_attribute->attribute_id = get_attribute_id_by_protocol_and_attribute_names(event_attribute->proto,event_attribute->attribute);
+		event_attribute->attribute_id = get_attribute_id_by_protocol_and_attribute_names(event_attribute->proto, event_attribute->attribute);
 		if (is_registered_attribute(th->mmt_handler, event_attribute->proto_id, event_attribute->attribute_id) == 0){
 			i &= register_extraction_attribute(th->mmt_handler, event_attribute->proto_id, event_attribute->attribute_id);
 		}
@@ -87,14 +87,14 @@ int register_event_report_handle(void * args) {
 	return i;
 }
 int register_security_report_handle(void * args) {
-	int i=1,j =0, k=0, l=0;
+	int i=1, j =0, k=0, l=0;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	struct smp_thread *th = (struct smp_thread *) args;
 
 	for(i = 0; i < probe_context->security_reports_nb; i++) {
 		if (probe_context->security_reports[i].enable == 1){
 			th->report[i].data = malloc (sizeof (unsigned char *) * probe_context->nb_of_report_per_msg +1);
-			th->report[i].msg = malloc (sizeof (struct iovec)*probe_context->nb_of_report_per_msg +1);
+			th->report[i].msg = malloc (sizeof (struct iovec) * probe_context->nb_of_report_per_msg +1);
 			for (l=0; l < probe_context->nb_of_report_per_msg; l++)th->report[i].data[l]= malloc(2000);
 
 			for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
@@ -112,7 +112,7 @@ int register_security_report_handle(void * args) {
 	return i;
 }
 void security_reports_init(void * args) {
-	int i,j,k=0;
+
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 
 	struct smp_thread *th = (struct smp_thread *) args;
@@ -131,7 +131,7 @@ void security_reports_init(void * args) {
 }
 
 void event_reports_init(void * args) {
-	int i,j;
+	int i;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	struct smp_thread *th = (struct smp_thread *) args;
 	struct user_data *p;

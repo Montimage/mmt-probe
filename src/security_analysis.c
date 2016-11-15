@@ -71,7 +71,7 @@ void init_mmt_security(mmt_handler_t *mmt_handler, char * property_file, void *a
             OPTION_SATISFIED, OPTION_NOT_SATISFIED,
             todo_when_property_is_satisfied_or_not,
             db_todo_at_start,
-            db_todo_when_property_is_satisfied_or_not,(void *) args);
+            db_todo_when_property_is_satisfied_or_not, (void *) args);
 }
 
 
@@ -82,12 +82,12 @@ void security_event( int prop_id, char *verdict, char *type, char *cause, char *
 	struct smp_thread *th = (struct smp_thread *) user_args;
 	char message[MAX_MESS + 1];
     message[0] = '\0';
-    char *x=" ";
-    char* xverdict=verdict; char* xtype=type; char *xcause=cause; char *xhistory=history;
-    if(xverdict==NULL)xverdict=x;
-    if(xtype==NULL)xtype=x;
-    if(xcause==NULL)xcause=x;
-    if(xhistory==NULL)xhistory=x;
+    char *x = " ";
+    char * xverdict = verdict; char* xtype = type; char *xcause = cause; char *xhistory = history;
+    if(xverdict == NULL) xverdict = x;
+    if(xtype == NULL) xtype = x;
+    if(xcause == NULL) xcause = x;
+    if(xhistory == NULL) xhistory = x;
 
 	snprintf( message, MAX_MESS,
             "%u,%u,\"%s\",%lu.%lu,%d,\"%s\",\"%s\",\"%s\",%s",
@@ -99,7 +99,7 @@ void security_event( int prop_id, char *verdict, char *type, char *cause, char *
 	message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
 	//printf("%s\n",message);
 	if (th == NULL) printf("Thread structure does not exists\n");
-    if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,th);
-    if (probe_context->redis_enable==1)send_message_to_redis ("security.report", message);
+    if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message, th);
+    if (probe_context->redis_enable == 1) send_message_to_redis ("security.report", message);
 }
 //END HN

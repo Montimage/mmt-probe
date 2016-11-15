@@ -26,7 +26,7 @@ void write_data_to_file (char * path,  char * content, int len) {
 	if (len > 0) {
 		debug("[FTP_RECONSTRUCT] Going to write to file: %s\n", path);
 		int buf_len = write ( fd , content , len );
-		debug("[FTP_RECONSTRUCT] %d bytes have been written\n",buf_len);
+		debug("[FTP_RECONSTRUCT] %d bytes have been written\n", buf_len);
 	}
 	close ( fd );
 }

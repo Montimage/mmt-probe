@@ -635,7 +635,6 @@ void write_to_socket_unix(struct smp_thread *th);
 void create_socket(mmt_probe_context_t * mmt_conf, void *args);
 int packet_handler(const ipacket_t * ipacket, void * args);
 void security_reports_init(void * args);
-//int sendmmsg (int __fd, struct mmsghdr1 *__vmessages,unsigned int __vlen, int __flags);
 
 //prototypes
 void print_ip_session_report (const mmt_session_t * session, void *user_args);

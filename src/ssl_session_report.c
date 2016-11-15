@@ -50,12 +50,12 @@ void print_initial_ssl_report(const mmt_session_t * session,session_struct_t * t
 
     snprintf(&message[valid], MAX_MESS-valid,//missing CDN
             ",%u,%u,%u,\"%s\",%u", // app specific
-            temp_session->app_format_id,get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
+            temp_session->app_format_id, get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
             temp_session->contentclass,
             (((ssl_session_attr_t *) temp_session->app_data) != NULL) ? ((ssl_session_attr_t *) temp_session->app_data)->hostname : "",
                     (get_session_content_flags(session) & MMT_CONTENT_CDN) ? 2 : 0
 
     );
-    temp_session->session_attr->touched=1;
+    temp_session->session_attr->touched = 1;
 }
 

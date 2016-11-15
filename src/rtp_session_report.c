@@ -10,11 +10,11 @@
 
 
 void reset_rtp (session_struct_t *temp_session){
-    ((rtp_session_attr_t*) temp_session->app_data)->jitter= 0;
-    ((rtp_session_attr_t*) temp_session->app_data)->nb_lost= 0;
-    ((rtp_session_attr_t*) temp_session->app_data)->nb_loss_bursts= 0;
-    ((rtp_session_attr_t*) temp_session->app_data)->nb_order_error= 0;
-    ((rtp_session_attr_t*) temp_session->app_data)->packets_nb=0;
+    ((rtp_session_attr_t*) temp_session->app_data)->jitter = 0;
+    ((rtp_session_attr_t*) temp_session->app_data)->nb_lost = 0;
+    ((rtp_session_attr_t*) temp_session->app_data)->nb_loss_bursts = 0;
+    ((rtp_session_attr_t*) temp_session->app_data)->nb_order_error = 0;
+    ((rtp_session_attr_t*) temp_session->app_data)->packets_nb = 0;
 }
 
 void rtp_version_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
@@ -113,13 +113,13 @@ void print_initial_rtp_report(const mmt_session_t * session,session_struct_t * t
     snprintf(&message[valid], MAX_MESS-valid,
             ",%u,%u,%u,%f,%f,%u,%f", // app specific
             temp_session->app_format_id,
-            app_class,temp_session->contentclass,
+            app_class, temp_session->contentclass,
             loss_rate,
             loss_burstiness,
             ((rtp_session_attr_t*) temp_session->app_data)->jitter, order_error
     );
     reset_rtp(temp_session);
-    temp_session->session_attr->touched=1;
-	((rtp_session_attr_t*) temp_session->app_data)->rtp_throughput[0]=0;
-	((rtp_session_attr_t*) temp_session->app_data)->rtp_throughput[1]=0;
+    temp_session->session_attr->touched = 1;
+	((rtp_session_attr_t*) temp_session->app_data)->rtp_throughput[0] = 0;
+	((rtp_session_attr_t*) temp_session->app_data)->rtp_throughput[1] = 0;
 }

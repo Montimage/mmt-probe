@@ -40,7 +40,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	}
 
 	// To  check whether the session activity occurs between the reporting time interval
-	if (TIMEVAL_2_USEC(mmt_time_diff(temp_session->session_attr->last_activity_time,get_session_last_activity_time(session))) == 0)return; // check the condition if in the last interval there was a protocol activity or not
+	if (TIMEVAL_2_USEC(mmt_time_diff(temp_session->session_attr->last_activity_time, get_session_last_activity_time(session))) == 0)return; // check the condition if in the last interval there was a protocol activity or not
 	//if (get_session_byte_count(session) - temp_session->session_attr->total_byte_count == 0)return;
 
 	// The report number is maintain to synchronize between the reporting time of the probe and MMT-operator report display time.
@@ -93,18 +93,18 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	if (temp_session->dtt_seen == 1){
 		struct timeval t1;
 		//The download direction is opposite to set_up_direction, the download direction is from server to client
-		if (get_session_setup_direction(session) == 1)t1 = get_session_last_data_packet_time_by_direction(session,0);
-		if (get_session_setup_direction(session) == 0)t1 = get_session_last_data_packet_time_by_direction(session,1);
-		temp_session->data_transfer_time =  TIMEVAL_2_USEC(mmt_time_diff(temp_session->dtt_start_time,t1)) ;
+		if (get_session_setup_direction(session) == 1)t1 = get_session_last_data_packet_time_by_direction(session, 0);
+		if (get_session_setup_direction(session) == 0)t1 = get_session_last_data_packet_time_by_direction(session, 1);
+		temp_session->data_transfer_time =  TIMEVAL_2_USEC(mmt_time_diff(temp_session->dtt_start_time, t1)) ;
 		temp_session->dtt_start_time.tv_sec = t1.tv_sec;
 		temp_session->dtt_start_time.tv_usec = t1.tv_usec;
 	}
 	uint64_t active_session_count = get_active_session_count(th->mmt_handler);
 	if (keep_direction == 1){
 		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%"PRIu64",%u,\"%s\",\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%06lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u",
-				MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source,temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec,report_number,
+				MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec, report_number,
 				proto_id,
-				temp_session->path_ul,temp_session->path_dl,active_session_count,
+				temp_session->path_ul, temp_session->path_dl,active_session_count,
 				get_session_data_cap_volume(session) - temp_session->session_attr->total_byte_count,
 				get_session_data_byte_count(session) - temp_session->session_attr->total_data_byte_count,
 				get_session_packet_cap_count(session) - temp_session->session_attr->total_packet_count,
@@ -131,7 +131,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 				get_session_retransmission_count (session)-temp_session->session_attr->retransmission_count);
 	}else{
 		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%"PRIu64",%u,\"%s\",\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%06lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u",
-				MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source,temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec,report_number,
+				MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec, report_number,
 				proto_id,
 				temp_session->path_ul,temp_session->path_dl,active_session_count,
 				get_session_data_cap_volume(session) - temp_session->session_attr->total_byte_count,
@@ -161,16 +161,16 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	}
 	valid = strlen(message);
 
-	if (temp_session->app_format_id == probe_context->web_id && probe_context->web_enable == 1) print_initial_web_report(session,temp_session,message,valid);
-	else if (temp_session->app_format_id == probe_context->rtp_id && probe_context->rtp_enable == 1) print_initial_rtp_report(session,temp_session,message,valid);
-	else if (temp_session->app_format_id == probe_context->ssl_id && temp_session->session_attr->touched == 0 && probe_context->ssl_enable == 1) print_initial_ssl_report(session,temp_session,message,valid);
-	else if (temp_session->app_format_id == probe_context->ftp_id && probe_context->ftp_enable == 1) print_initial_ftp_report(session,temp_session,message,valid);
+	if (temp_session->app_format_id == probe_context->web_id && probe_context->web_enable == 1) print_initial_web_report(session, temp_session, message,valid);
+	else if (temp_session->app_format_id == probe_context->rtp_id && probe_context->rtp_enable == 1) print_initial_rtp_report(session, temp_session, message,valid);
+	else if (temp_session->app_format_id == probe_context->ssl_id && temp_session->session_attr->touched == 0 && probe_context->ssl_enable == 1) print_initial_ssl_report(session, temp_session, message, valid);
+	else if (temp_session->app_format_id == probe_context->ftp_id && probe_context->ftp_enable == 1) print_initial_ftp_report(session, temp_session, message, valid);
 	else if(temp_session->session_attr->touched == 0){
 		sslindex = get_protocol_index_from_session(proto_hierarchy, PROTO_SSL);
-		if (sslindex != -1 && probe_context->ssl_enable==1 ){
+		if (sslindex != -1 && probe_context->ssl_enable == 1 ){
 			temp_session->app_format_id = probe_context->ssl_id;
-			print_initial_ssl_report(session,temp_session,message,valid);
-		}else print_initial_default_report(session,temp_session,message,valid);
+			print_initial_ssl_report(session, temp_session, message, valid);
+		}else print_initial_default_report(session, temp_session, message, valid);
 	}
 	valid = strlen(message);
 	message[ valid ] = '\0'; // correct end of string in case of truncated message
@@ -190,20 +190,19 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	temp_session->session_attr->data_byte_count[1] = (keep_direction)?get_session_ul_data_byte_count(session):get_session_dl_data_byte_count(session);
 	temp_session->session_attr->data_byte_count[0] = (keep_direction)?get_session_dl_data_byte_count(session):get_session_ul_data_byte_count(session);
 
-
 	temp_session->session_attr->packet_count[1] = (keep_direction)?get_session_ul_cap_packet_count(session):get_session_dl_cap_packet_count(session);
 	temp_session->session_attr->packet_count[0] = (keep_direction)?get_session_dl_cap_packet_count(session):get_session_ul_cap_packet_count(session);
 
-	temp_session->session_attr->rtt_min_usec[1]=0;
-	temp_session->session_attr->rtt_min_usec[0]=0;
-	temp_session->session_attr->rtt_max_usec[1]=0;
-	temp_session->session_attr->rtt_max_usec[0]=0;
-	temp_session->session_attr->rtt_avg_usec[0]=0;
-	temp_session->session_attr->rtt_avg_usec[1]=0;
-	temp_session->session_attr->rtt_counter[0]=0;
-	temp_session->session_attr->rtt_counter[1]=0;
-	temp_session->session_attr->sum_rtt[0]=0;
-	temp_session->session_attr->sum_rtt[1]=0;
+	temp_session->session_attr->rtt_min_usec[1] = 0;
+	temp_session->session_attr->rtt_min_usec[0] = 0;
+	temp_session->session_attr->rtt_max_usec[1] = 0;
+	temp_session->session_attr->rtt_max_usec[0] = 0;
+	temp_session->session_attr->rtt_avg_usec[0] = 0;
+	temp_session->session_attr->rtt_avg_usec[1] = 0;
+	temp_session->session_attr->rtt_counter[0] = 0;
+	temp_session->session_attr->rtt_counter[1] =  0;
+	temp_session->session_attr->sum_rtt[0] = 0;
+	temp_session->session_attr->sum_rtt[1] = 0;
 	temp_session->rtt_at_handshake = TIMEVAL_2_USEC(get_session_rtt(session));
 }
 void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {

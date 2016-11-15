@@ -19,7 +19,7 @@
 uint32_t is_microflow(const mmt_session_t * expired_session) {
     mmt_probe_context_t * probe_context = get_probe_context_config();
 
-    if (probe_context->microf_enable==1){
+    if (probe_context->microf_enable == 1){
         if ((get_session_packet_count(expired_session) <= probe_context->microf_pthreshold) || (get_session_byte_count(expired_session) <= probe_context->microf_bthreshold)) {
             return 1;
         }
@@ -52,7 +52,7 @@ void report_all_protocols_microflows_stats(void *args) {
 
     for (i = 0; i < PROTO_MAX_IDENTIFIER; i++) {
         if (th->iprobe.mf_stats[i].flows_nb) {
-            report_microflows_stats(&th->iprobe.mf_stats[i],(void *)th);
+            report_microflows_stats(&th->iprobe.mf_stats[i], (void *)th);
         }
     }
 }
@@ -69,8 +69,8 @@ void report_microflows_stats(microsessions_stats_t * stats, void *args) {
             stats->application_id, stats->flows_nb, stats->dl_pcount, stats->ul_pcount, stats->dl_bcount, stats->ul_bcount);
 
     message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
-    if (probe_context->output_to_file_enable==1)send_message_to_file_thread (message,(void *)th);
-    if (probe_context->redis_enable==1)send_message_to_redis ("microflows.report", message);
+    if (probe_context->output_to_file_enable == 1)send_message_to_file_thread (message,(void *) th);
+    if (probe_context->redis_enable == 1)send_message_to_redis ("microflows.report", message);
     reset_microflows_stats(stats);
 }
 

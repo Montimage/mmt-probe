@@ -17,7 +17,7 @@ int file_is_modified(const char *path) {
     struct stat file_stat;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 
-    int ret=0;
+    int ret = 0;
     int err = stat(path, &file_stat);
     if (err != 0) {
         perror(" [file_is_modified] stat");
@@ -25,7 +25,7 @@ int file_is_modified(const char *path) {
     }
     if (file_stat.st_mtime > probe_context->file_modified_time || file_stat.st_ctime > probe_context->file_modified_time){
     	probe_context->file_modified_time = file_stat.st_mtime;
-    	ret=1;
+    	ret = 1;
     }
     return ret;
 }
@@ -147,9 +147,9 @@ void read_attributes(){
 	cfg_t * cfg = parse_conf_new_attribute(config_file);
 
 	probe_context->new_attribute_register_flag = 1;
-	int p=0;
+	int p = 0;
 
-	for (p=0; p < probe_context->new_condition_reports_nb; p++){
+	for (p = 0; p < probe_context->new_condition_reports_nb; p++){
 		free (probe_context->register_new_condition_reports[p].attributes);
 		probe_context->register_new_condition_reports[p].attributes = NULL;
 		free (probe_context->register_new_condition_reports[p].handlers);
@@ -213,10 +213,10 @@ void read_attributes(){
     }
 	cfg_t * condition_opts;
 	j =0;
-	i=0;
+	i = 0;
 	int condition_reports_nb = cfg_size(cfg, "condition_report");
 	int condition_attributes_nb = 0;
-	int condition_handlers_nb=0;
+	int condition_handlers_nb = 0;
 	probe_context->register_new_condition_reports = NULL;
 	mmt_condition_report_t * temp_condn;
 	probe_context->new_condition_reports_nb = condition_reports_nb;
@@ -274,7 +274,7 @@ void read_attributes(){
 					temp_condn->handlers = calloc(sizeof(mmt_condition_attribute_t), condition_handlers_nb);
 
 					for(i = 0; i < condition_handlers_nb; i++) {
-						if (parse_handlers_attribute((char *) cfg_getnstr(condition_opts, "handlers",i), &temp_condn->handlers[i])) {
+						if (parse_handlers_attribute((char *) cfg_getnstr(condition_opts, "handlers", i), &temp_condn->handlers[i])) {
 							fprintf(stderr, "Error: invalid condition_report handler attribute value '%s'\n", (char *) cfg_getnstr(condition_opts, "handlers", i));
 							exit(0);
 						}
@@ -425,13 +425,13 @@ void flush_messages_to_file_thread( void *arg){
 
 	if(probe_context->sampled_report == 0)return;
 	FILE * file;
-	char file_name_str [MAX_FILE_NAME+1]={0};
-	char dup_file_name_str [MAX_FILE_NAME+1]={0};
-	char sem_file_name_str [MAX_FILE_NAME+5]={0};	//file_name + ".sem"
+	char file_name_str [MAX_FILE_NAME+1] = {0};
+	char dup_file_name_str [MAX_FILE_NAME+1] = {0};
+	char sem_file_name_str [MAX_FILE_NAME+5] = {0};	//file_name + ".sem"
 	char lg_msg[1024];
-	int valid=0;
-	int i=0;
-	char command_str [500+1]={0};
+	int valid = 0;
+	int i = 0;
+	char command_str [500+1] = {0};
 	char message[MAX_MESS + 1];
 	struct timeval ts;
 	//Print this report every 5 second
@@ -456,7 +456,7 @@ void flush_messages_to_file_thread( void *arg){
 	}
 
 	//open a file
-	valid = snprintf(file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s",probe_context->output_location, present_time, th->thread_number, probe_context->data_out);
+	valid = snprintf(file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s", probe_context->output_location, present_time, th->thread_number, probe_context->data_out);
 	file_name_str[valid] = '\0';
 
 	file = fopen(file_name_str, "w");
@@ -493,7 +493,7 @@ void flush_messages_to_file_thread( void *arg){
 	i = fclose( file );
 
 	if (i != 0){
-		fprintf ( stderr , "\n1: Error %d closing of sampled_file failed: %s" , errno ,strerror( errno ) );
+		fprintf ( stderr , "\n1: Error %d closing of sampled_file failed: %s" , errno, strerror( errno ) );
 		//exit(1);
 	}
 	//char * const command_str[] = {"cp",file_name_str,probe_context->behaviour_output_location, NULL};

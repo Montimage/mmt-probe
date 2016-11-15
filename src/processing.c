@@ -88,9 +88,9 @@ struct timeval mmt_time_diff(struct timeval tstart, struct timeval tend) {
 
 int is_localv6_net(char * addr) {
 
-	if (strncmp(addr,"fec0",4)==0)return 1;
-	if (strncmp(addr,"fc00",4)==0)return 1;
-	if (strncmp(addr,"fe80",4)==0)return 1;
+	if (strncmp(addr, "fec0", 4) == 0)return 1;
+	if (strncmp(addr, "fc00", 4) == 0)return 1;
+	if (strncmp(addr, "fe80", 4) == 0)return 1;
 
 	return 0;
 }
@@ -264,7 +264,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 	attribute_t * attr_extract;
 	struct smp_thread *th = (struct smp_thread *) args;
 	//unsigned char length_buffer[5];
-	int i = 0, j=0, k=0, l=0, p=0;
+	int i = 0, j = 0, k = 0, l = 0, p = 0;
 	int retval =0;
 
 #ifdef SESSION_REPORT
@@ -282,14 +282,14 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 				//this will exclude all the protocols except TCP
 				if(TIMEVAL_2_USEC(get_session_rtt(ipacket->session)) != 0){
 					struct timeval t1;
-					t1.tv_sec=0;
-					t1.tv_usec=0;
+					t1.tv_sec = 0;
+					t1.tv_usec = 0;
 					//The download direction is opposite to set_up_direction, the download direction is from server to client
-					if (get_session_last_packet_direction(ipacket->session)!= get_session_setup_direction(ipacket->session)){
+					if (get_session_last_packet_direction(ipacket->session) != get_session_setup_direction(ipacket->session)){
 						t1 = get_session_last_data_packet_time_by_direction(ipacket->session,get_session_last_packet_direction(ipacket->session));
 					}
 					if (TIMEVAL_2_USEC(mmt_time_diff(get_session_init_time(ipacket->session),ipacket->p_hdr->ts)) > TIMEVAL_2_USEC(get_session_rtt(ipacket->session)) && t1.tv_sec > 0){
-						temp_session->dtt_seen =1;
+						temp_session->dtt_seen = 1;
 						temp_session->dtt_start_time = ipacket->p_hdr->ts;
 					}
 				}
@@ -348,7 +348,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 			if (k == 0)continue;
 
 			memcpy(&th->report[i].data[th->report[i].security_report_counter][0], &th->report[i].length, 4);//First 4 bytes contains the total length of the report
-			th->report[i].data[th->report[i].security_report_counter][th->report[i].length]='\0';
+			th->report[i].data[th->report[i].security_report_counter][th->report[i].length] = '\0';
 
 			if (probe_context->redis_enable == 1)send_message_to_redis ("event.security_report", (char *)th->report[i].data[th->report[i].security_report_counter]);
 

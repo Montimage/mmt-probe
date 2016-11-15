@@ -173,7 +173,7 @@ static void *smp_thread_routine(void *arg) {
 				if (th->file_read_flag == 1){
 					new_conditional_reports_init(arg);
 					new_event_reports_init(arg);
-					printf("Added new attributes_th_id= %u\n",th->thread_number);
+					printf("Added new attributes_th_id= %u\n", th->thread_number);
 					th->file_read_flag = 0;
 				}
 
@@ -191,7 +191,7 @@ static void *smp_thread_routine(void *arg) {
 			pkt = (struct packet_element *) pdata;
 			/* is it a dummy packet ? => means thread must exit */
 			if ( likely(pkt->data != NULL )) {
-				packet_process(th->mmt_handler, &pkt->header,(u_char *) (&pkt->data[0]) );
+				packet_process(th->mmt_handler, &pkt->header, (u_char *) (&pkt->data[0]) );
 				//increase nb packets processed by this thread
 				th->nb_packets ++;
 			}else{
@@ -205,7 +205,7 @@ static void *smp_thread_routine(void *arg) {
 		radius_ext_cleanup(th->mmt_handler); // cleanup our event handler for RADIUS initializations
 		flowstruct_cleanup(th->mmt_handler); // cleanup our event handler
 		th->report_counter++;
-		if (mmt_probe.mmt_conf->enable_proto_without_session_stats ==1)iterate_through_protocols(protocols_stats_iterator, th);
+		if (mmt_probe.mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, th);
 		//process_session_timer_handler(th->mmt_handler);
 		mmt_close_handler(th->mmt_handler);
 		th->mmt_handler = NULL;
@@ -271,14 +271,14 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 					mmt_probe->smp_threads->last_stat_report_time = time(NULL);
 					mmt_probe->smp_threads->pcap_last_stat_report_time = mmt_probe->smp_threads->pcap_current_packet_time;
 					if (mmt_probe->mmt_conf->enable_session_report == 1)process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
-					if (mmt_probe->mmt_conf->enable_proto_without_session_stats ==1 )iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
+					if (mmt_probe->mmt_conf->enable_proto_without_session_stats == 1 )iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
 
 					//Each thread need to call these function one by one to register the attributes
 					//Need a handler, problem when flushing after all handlers are closed
 					if (mmt_probe->smp_threads->file_read_flag == 1){
 						new_conditional_reports_init((void *)mmt_probe->smp_threads);
 						new_event_reports_init((void *)mmt_probe->smp_threads);
-						printf("Added new attributes_th_id= %u\n", mmt_probe->smp_threads->thread_number);
+						printf("Added new attributes_th_id = %u\n", mmt_probe->smp_threads->thread_number);
 						mmt_probe->smp_threads->file_read_flag = 0;
 					}
 
@@ -537,7 +537,7 @@ void *Reader(void *arg) {
 					if (mmt_probe->smp_threads->file_read_flag == 1){
 						new_conditional_reports_init((void *)mmt_probe->smp_threads);
 						new_event_reports_init((void *)mmt_probe->smp_threads);
-						printf("Added new attributes_th_id = %u\n",mmt_probe->smp_threads->thread_number);
+						printf("Added new attributes_th_id = %u\n", mmt_probe->smp_threads->thread_number);
 						mmt_probe->smp_threads->file_read_flag = 0;
 					}
 
@@ -648,6 +648,9 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			}
 		}
 	}
+	sleep (2);	// flight time required between a msg send from sockets to destination socket
+
+
 	//Now close the reporting files.
 	//Offline or Online processing
 	if (mmt_conf->input_mode == OFFLINE_ANALYSIS||mmt_conf->input_mode == ONLINE_ANALYSIS) {
@@ -708,7 +711,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 	uint32_t count = 0;
 	if (mmt_conf->thread_nb > 1){
 		for(i=0; i<mmt_conf->thread_nb; i++){
-			printf ("th_nb =%u, packet_send = %u \n",i,mmt_probe.smp_threads[i].packet_send);
+			printf ("th_nb =%u, packet_send = %u \n", i, mmt_probe.smp_threads[i].packet_send);
 			count += mmt_probe.smp_threads[i].packet_send;
 			data_spsc_ring_free( &mmt_probe.smp_threads[i].fifo );
 			//if(mmt_probe.smp_threads[i].sockfd_unix > 0)close(mmt_probe.smp_threads[i].sockfd_unix);
@@ -721,7 +724,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 						if (mmt_probe.smp_threads[i].report[j].msg != NULL){
 							free (mmt_probe.smp_threads[i].report[j].msg);
 						}
-						for (l = 0; l < mmt_conf->nb_of_report_per_msg;l++)free (mmt_probe.smp_threads[i].report[j].data[l]);
+						for (l = 0; l < mmt_conf->nb_of_report_per_msg; l++)free (mmt_probe.smp_threads[i].report[j].data[l]);
 					}
 					free (mmt_probe.smp_threads[i].report[j].data);
 				}
@@ -729,6 +732,8 @@ void terminate_probe_processing(int wait_thread_terminate) {
 				free (mmt_probe.smp_threads[i].report);
 
 			}
+			//sleep (1);	// flight time required between a msg send from sockets to destination socket
+
 
 			if (mmt_probe.smp_threads[i].sockfd_internet != NULL){
 				for (j = 0; j < mmt_conf->server_ip_nb; j++){
@@ -762,6 +767,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			for(j = 0; j < mmt_conf->security_reports_nb; j++) {
 				if (mmt_probe.smp_threads->report[j].data != NULL){
 					retval = sendmmsg(mmt_probe.smp_threads->sockfd_internet[j], &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
+					// flight time required between a msg send from sockets to destination socket
 					if (retval == -1)
 						perror("sendmmsg()");
 
@@ -775,6 +781,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			}
 			free (mmt_probe.smp_threads->report);
 		}
+		//sleep (1);	// flight time required between a msg send from sockets to destination socket
 
 		if (mmt_probe.smp_threads->sockfd_internet != NULL){
 			for (j = 0; j < mmt_conf->server_ip_nb; j++){
@@ -903,9 +910,9 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 	int len;
 	char socket_name[256];
 	char common_socket_name[256] = "mysocket\0";
-	int valid=0;
+	int valid = 0;
 	struct smp_thread *th = (struct smp_thread *) args;
-	int i=0, on;
+	int i = 0, on;
 	on = 1;
 
 
@@ -913,7 +920,7 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 	//if (mmt_conf->socket_domain == 1|| mmt_conf->socket_domain == 2){
 	th->sockfd_internet = calloc(sizeof(uint32_t), mmt_conf->server_ip_nb);
 
-	for (i = 0; i < mmt_conf->server_ip_nb;i++){
+	for (i = 0; i < mmt_conf->server_ip_nb; i++){
 		th->sockfd_internet[i] = socket(AF_INET, SOCK_STREAM, 0);
 		if (th->sockfd_internet[i] < 0)
 			error("ERROR opening socket");
@@ -946,10 +953,10 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 
 int main(int argc, char **argv) {
 	char mmt_errbuf[1024];
-	int i,j,l=0;
+	int i, j, l = 0;
 	char lg_msg[1024];
 	sigset_t signal_set;
-	char single_file [MAX_FILE_NAME+1]={0};
+	char single_file [MAX_FILE_NAME+1] = {0};
 	pthread_mutex_init(&mutex_lock, NULL);
 	pthread_spin_init(&spin_lock, 0);
 
@@ -974,7 +981,7 @@ int main(int argc, char **argv) {
 		int len = 0;
 		len = snprintf(single_file,MAX_FILE_NAME,"%s%s", mmt_conf->output_location, mmt_conf->data_out);
 		single_file[len] = '\0';
-		update_reporting_time =time(0);
+		update_reporting_time = time(0);
 
 		mmt_conf->data_out_file = fopen(single_file, "w");
 
