@@ -136,6 +136,7 @@ cfg_t * parse_conf(const char *filename) {
 	cfg_opt_t security_report_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
 			CFG_STR_LIST("event", "{}", CFGF_NONE),
+			CFG_INT("event_operation", 0, CFGF_NONE),
 			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
 			CFG_END()
 	};
@@ -460,7 +461,6 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 		int nb_port_address =0;
 		int nb_server_address = 0;
-		mmt_conf->one_socket_server = 1;
 		if (cfg_size(cfg, "socket")) {
 			cfg_t *socket = cfg_getnsec(cfg, "socket", 0);
 			int len=0;
@@ -473,7 +473,6 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					//mmt_conf->portnb = (uint32_t) cfg_getint(socket, "port");
 					mmt_conf->server_ip_nb = nb_server_address;
 					mmt_conf->server_port_nb = nb_port_address;
-					if (mmt_conf->one_socket_server == 1){
 						if(mmt_conf->server_ip_nb == mmt_conf->server_port_nb) {
 							mmt_conf->server_adresses = calloc(sizeof(ip_port_t), nb_server_address);
 							for(j = 0; j < nb_server_address; j++) {
@@ -485,8 +484,6 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 							printf("Error: Number of port_nb should be equal to number of server-address i.e port number not assigned in config file section socket\n");
 							exit(0);
 						}
-					}
-
 				}
 			}
 		}
@@ -518,6 +515,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					mmt_conf->enable_security_report = 1;
 					security_event_nb = cfg_size(security_report_opts, "event");
 					temp_sr->event_name_nb = security_event_nb;
+                    temp_sr->event_operation = 	(uint8_t) cfg_getint(security_report_opts, "event_operation");
 
 					if(security_event_nb > 0) {
 						//temp_sr->event= calloc(sizeof(mmt_security_attribute_t),security_attributes_nb);

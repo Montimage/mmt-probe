@@ -34,8 +34,6 @@
 #endif
 #include <netinet/ip.h>
 
-
-
 #ifdef _WIN32
 #ifndef socklen_t
 typedef int socklen_t;
@@ -72,9 +70,6 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt) {
 	return NULL;
 }
 #endif
-
-uint64_t expired_session_count = 1;
-uint64_t session_id_probe = 1;
 
 struct timeval mmt_time_diff(struct timeval tstart, struct timeval tend) {
 	tstart.tv_sec = tend.tv_sec - tstart.tv_sec;
@@ -314,7 +309,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 					}
 					if (p > 0)break;
 				}
-				if (p == 0)continue;
+				if (p + probe_context->security_reports[i].event_operation == 1)continue;
 			}
 			int initial_buffer_size =2000;
 			th->report[i].length = 0;
@@ -322,6 +317,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 			memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length +4], &ipacket->p_hdr->ts,sizeof(struct timeval));
 			th->report[i].length += sizeof(struct timeval)+ 4; //4 bytes are reserved to assign the total length of the
 			k=0;
+
 			for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
 				mmt_security_attribute_t * security_attribute = &probe_context->security_reports[i].attributes[j];
 				attr_extract = get_extracted_attribute(ipacket,security_attribute->proto_id, security_attribute->attribute_id);
@@ -353,12 +349,13 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 			if (probe_context->redis_enable == 1)send_message_to_redis ("event.security_report", (char *)th->report[i].data[th->report[i].security_report_counter]);
 
 			if (probe_context->socket_enable == 1){
-
-				th->report[i].msg[th->report[i].security_report_counter].iov_base = th->report[i].data[th->report[i].security_report_counter];
-				th->report[i].msg[th->report[i].security_report_counter].iov_len = th->report[i].length;
-				th->report[i].security_report_counter ++;
+                //send (th->sockfd_internet[i],th->report[i].data[th->report[i].security_report_counter],th->report[i].length,0);
 				th->packet_send++;
 
+                th->report[i].msg[th->report[i].security_report_counter].iov_base = th->report[i].data[th->report[i].security_report_counter];
+				th->report[i].msg[th->report[i].security_report_counter].iov_len = th->report[i].length;
+				th->report[i].security_report_counter ++;
+				//th->packet_send++;
 				if (th->report[i].security_report_counter == probe_context->nb_of_report_per_msg){
 					memset(th->report[i].grouped_msg, 0, sizeof(th->report[i].grouped_msg));
 					th->report[i].grouped_msg[0].msg_hdr.msg_iov = th->report[i].msg;

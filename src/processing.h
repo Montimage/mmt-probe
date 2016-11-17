@@ -175,6 +175,7 @@ typedef struct mmt_security_report_struct {
 	//mmt_security_attribute_t * event;
 	char ** event_name;
 	uint32_t *event_id;
+	uint8_t event_operation;
 	mmt_security_attribute_t * attributes;
 } mmt_security_report_t;
 
@@ -268,12 +269,9 @@ typedef struct mmt_probe_context_struct {
     mmt_condition_report_t * register_new_condition_reports;
     mmt_event_report_t * register_new_event_reports;
 
-    uint8_t socket_domain;
     uint32_t portnb;
     uint32_t socket_enable;
     uint8_t socket_active;
-    uint8_t one_socket_server;
-    char unix_socket_descriptor[256 + 1];
     uint32_t *port_address;
 
     unsigned char *mac_address_host;	//

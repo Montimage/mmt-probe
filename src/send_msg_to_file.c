@@ -129,16 +129,6 @@ void new_event_reports_init(void * args) {
        		}
        	}
 
-/*    for(i = 0; i < probe_context->new_event_reports_nb; i++) {
-        th->new_event_reports = &probe_context->register_new_event_reports[i];
-
-        p = malloc( sizeof( struct user_data ));
-        p->smp_thread    = th;
-        p->event_reports = th->new_event_reports;
-        if(register_event_report_handle((void *) p) == 0) {
-            fprintf(stderr, "Error while initializing event report number %i!\n", th->new_event_reports->id);
-        }
-    }*/
 }
 void read_attributes(){
 	mmt_probe_context_t * probe_context = get_probe_context_config();

@@ -39,6 +39,7 @@ src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c s
 #include "lib/data_spsc_ring.h"
 #include "lib/optimization.h"
 #include "lib/system_info.h"
+#include <netinet/tcp.h>
 
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
@@ -648,7 +649,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			}
 		}
 	}
-	sleep (2);	// flight time required between a msg send from sockets to destination socket
+	//sleep (2);	// flight time required between a msg send from sockets to destination socket
 
 
 	//Now close the reporting files.
@@ -915,7 +916,6 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 	int i = 0, on;
 	on = 1;
 
-
 	/*Internet socket*/
 	//if (mmt_conf->socket_domain == 1|| mmt_conf->socket_domain == 2){
 	th->sockfd_internet = calloc(sizeof(uint32_t), mmt_conf->server_ip_nb);
@@ -928,7 +928,7 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 			perror("setsockopt(SO_REUSEADDR)");
 			exit(1);
 		}
-
+		//setsockopt( th->sockfd_internet[i], IPPROTO_TCP, TCP_NODELAY, (void *)&on, sizeof(on)); // need to experiment
 		server = gethostbyname(mmt_conf->server_adresses[i].server_ip_address);
 		if (server == NULL) {
 			fprintf(stderr,"ERROR, no such host\n");
@@ -939,10 +939,9 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 		bcopy((char *)server->h_addr,
 				(char *)&in_serv_addr.sin_addr.s_addr,
 				server->h_length);
-		if (mmt_conf->one_socket_server == 1){
 
-			in_serv_addr.sin_port = htons(mmt_conf->server_adresses[i].server_portnb[0]);
-		}
+			in_serv_addr.sin_port = htons(mmt_conf->server_adresses[i].server_portnb[i]);
+
 		if (connect(th->sockfd_internet[i], (struct sockaddr *) &in_serv_addr, sizeof(in_serv_addr)) < 0)
 			fprintf(stderr,"ERROR cannot connect to a socket(check availability of server):%s\n", strerror(errno));
 		//error("ERROR connecting");
