@@ -314,8 +314,8 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 			int initial_buffer_size =2000;
 			th->report[i].length = 0;
 			memset(th->report[i].data[th->report[i].security_report_counter], '\0', 2000);
-			memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length +4], &ipacket->p_hdr->ts,sizeof(struct timeval));
-			th->report[i].length += sizeof(struct timeval)+ 4; //4 bytes are reserved to assign the total length of the
+			memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length + 5], &ipacket->p_hdr->ts,sizeof(struct timeval));
+			th->report[i].length += sizeof(struct timeval) + 5; //4 bytes are reserved to assign the total length of the report and 1 byte for the number of attributes
 			k=0;
 
 			for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
@@ -344,6 +344,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 			if (k == 0)continue;
 
 			memcpy(&th->report[i].data[th->report[i].security_report_counter][0], &th->report[i].length, 4);//First 4 bytes contains the total length of the report
+			memcpy(&th->report[i].data[th->report[i].security_report_counter][4], &k, 1);//number of attributes
 			th->report[i].data[th->report[i].security_report_counter][th->report[i].length] = '\0';
 
 			if (probe_context->redis_enable == 1)send_message_to_redis ("event.security_report", (char *)th->report[i].data[th->report[i].security_report_counter]);
