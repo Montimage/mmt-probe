@@ -94,7 +94,17 @@ int register_security_report_handle(void * args) {
 	for(i = 0; i < probe_context->security_reports_nb; i++) {
 		if (probe_context->security_reports[i].enable == 1){
 			th->report[i].data = malloc (sizeof (unsigned char *) * probe_context->nb_of_report_per_msg +1);
+
+			if (th->report[i].data == NULL){
+				printf ("Error: Memory allocation of data in register_security_report_handle \n");
+				exit(1);
+			}
 			th->report[i].msg = malloc (sizeof (struct iovec) * probe_context->nb_of_report_per_msg +1);
+
+			if (th->report[i].msg == NULL){
+				printf ("Error: Memory allocation of msg in register_security_report_handle \n");
+				exit(1);
+			}
 			for (l=0; l < probe_context->nb_of_report_per_msg; l++)th->report[i].data[l]= malloc(2000);
 
 			for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
@@ -117,6 +127,10 @@ void security_reports_init(void * args) {
 
 	struct smp_thread *th = (struct smp_thread *) args;
 	th->report = calloc(sizeof(security_report_buffer_t), probe_context->security_reports_nb);
+	if (th->report == NULL){
+		printf ("Error: Memory allocation of report in security_reports_init \n");
+		exit(1);
+	}
 
 	if(register_security_report_handle((void *) th) == 0) {
 		fprintf(stderr, "Error while initializing security report !\n");
@@ -139,6 +153,10 @@ void event_reports_init(void * args) {
 		th->event_reports = &probe_context->event_reports[i];
 		if(th->event_reports->enable == 1){
 				p = malloc( sizeof( struct user_data ));
+				if (p == NULL){
+					printf ("Error: Memory allocation of user_data in event_reports_init \n");
+					exit(1);
+				}
 				p->smp_thread    = th;
 				p->event_reports = th->event_reports;
 			if(register_event_report_handle((void *) p) == 0) {

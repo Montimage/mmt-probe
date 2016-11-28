@@ -356,7 +356,6 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
                 th->report[i].msg[th->report[i].security_report_counter].iov_base = th->report[i].data[th->report[i].security_report_counter];
 				th->report[i].msg[th->report[i].security_report_counter].iov_len = th->report[i].length;
 				th->report[i].security_report_counter ++;
-				//th->packet_send++;
 				if (th->report[i].security_report_counter == probe_context->nb_of_report_per_msg){
 					memset(th->report[i].grouped_msg, 0, sizeof(th->report[i].grouped_msg));
 					th->report[i].grouped_msg[0].msg_hdr.msg_iov = th->report[i].msg;
