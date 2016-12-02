@@ -286,6 +286,7 @@ typedef struct mmt_probe_context_struct {
 	uint32_t total_security_attribute_nb;
 	uint32_t security_reports_nb;
 	uint32_t nb_of_report_per_msg;
+	uint8_t one_socket_server;
 
 
 } mmt_probe_context_t;
@@ -532,7 +533,6 @@ struct smp_thread {
     data_spsc_ring_t fifo;
     uint64_t nb_packets, nb_dropped_packets;
     uint8_t file_read_flag;
-    uint32_t sockfd_unix;
 	uint32_t * sockfd_internet;
     uint32_t packet_send;
 

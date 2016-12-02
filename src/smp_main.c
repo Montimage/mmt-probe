@@ -906,12 +906,7 @@ void signal_handler(int type) {
 void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 	/*.....socket */
 	struct sockaddr_in in_serv_addr;
-	struct sockaddr_un un_serv_addr;
 	struct hostent *server;
-	int len;
-	char socket_name[256];
-	char common_socket_name[256] = "mysocket\0";
-	int valid = 0;
 	struct smp_thread *th = (struct smp_thread *) args;
 	int i = 0, on;
 	on = 1;
@@ -940,14 +935,21 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 				(char *)&in_serv_addr.sin_addr.s_addr,
 				server->h_length);
 
-			in_serv_addr.sin_port = htons(mmt_conf->server_adresses[i].server_portnb[i]);
+		if (mmt_conf->one_socket_server == 1){
+
+			in_serv_addr.sin_port = htons(mmt_conf->server_adresses[i].server_portnb[0]);
+			//printf("th_nb=%u,ip = %s,port = %u \n",th->thread_number,mmt_conf->server_adresses[i].server_ip_address,mmt_conf->server_adresses[i].server_portnb[0]);
+
+		}else{
+
+			in_serv_addr.sin_port = htons(mmt_conf->server_adresses[i].server_portnb[th->thread_number]);
+			//printf("th_nb=%u,ip = %s,port = %u \n",th->thread_number,mmt_conf->server_adresses[i].server_ip_address,mmt_conf->server_adresses[i].server_portnb[th->thread_number]);
+		}
 
 		if (connect(th->sockfd_internet[i], (struct sockaddr *) &in_serv_addr, sizeof(in_serv_addr)) < 0)
 			fprintf(stderr,"ERROR cannot connect to a socket(check availability of server):%s\n", strerror(errno));
 		//error("ERROR connecting");
 	}
-
-
 }
 
 int main(int argc, char **argv) {

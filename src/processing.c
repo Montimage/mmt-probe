@@ -662,7 +662,11 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 	}else{
 		if(temp_session->app_format_id == probe_context->web_id ){
 			//printf ("HEERRER2, session_id = %lu\n", temp_session->session_id);
-			if (temp_session->app_data == NULL) return;
+			if (temp_session->app_data == NULL) {
+				if(temp_session) free(temp_session);
+				temp_session = NULL;
+				return;
+			}
 			if (((web_session_attr_t *) temp_session->app_data)->state_http_request_response != 0)((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;
 			if (temp_session->session_attr == NULL) {
 				temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
