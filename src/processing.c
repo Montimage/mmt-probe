@@ -71,6 +71,13 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt) {
 }
 #endif
 
+
+#ifdef _GNU_SOURCE
+#else
+//       int sendmmsg(int sockfd, struct mmsghdr *msgvec, unsigned int vlen,
+//                    unsigned int flags);
+#endif
+
 struct timeval mmt_time_diff(struct timeval tstart, struct timeval tend) {
 	tstart.tv_sec = tend.tv_sec - tstart.tv_sec;
 	tstart.tv_usec = tend.tv_usec - tstart.tv_usec;

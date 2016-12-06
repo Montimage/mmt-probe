@@ -9,7 +9,9 @@
 #define SRC_QUEUE_DATA_SPSC_RING_H_
 
 #include <stdint.h>
+#include "data_spsc_ring.h"
 #include "lock_free_spsc_ring.h"
+#include "optimization.h"
 
 typedef struct data_spsc_ring_struct{
 	void **_data;
@@ -36,7 +38,15 @@ int data_spsc_ring_init( data_spsc_ring_t *q, uint32_t size, uint32_t element_si
  * @return: 0 if success
  *          1 if q is null
  */
-int data_spsc_ring_get_tmp_element( const data_spsc_ring_t *q, void **tmp_element );
+static inline int __attribute__((always_inline))
+data_spsc_ring_get_tmp_element( const data_spsc_ring_t *q, void **tmp_element ){
+//	if( unlikely( q == NULL ) )
+//		return 1;
+
+	*tmp_element = q->_data[ q->_fifo_index->_head ];
+
+	return QUEUE_SUCCESS;
+}
 
 /**
  * Must be called by producer
@@ -46,7 +56,16 @@ int data_spsc_ring_get_tmp_element( const data_spsc_ring_t *q, void **tmp_elemen
  *          2 if the queue is full
  *          3 if the temporary element does not exist (e.g., it is freed by user)
  */
-int data_spsc_ring_push_tmp_element( data_spsc_ring_t *q );
+static inline int __attribute__((always_inline))
+data_spsc_ring_push_tmp_element( data_spsc_ring_t *q ){
+//	if( unlikely( q == NULL ) )
+//		return 1;
+
+//	if( unlikely( q->_data[ q->_fifo_index->_head ] == NULL ))
+//		return 3;
+
+	return queue_push( q->_fifo_index, q->_fifo_index->_head );
+}
 
 /**
  * Must being called by consumer
@@ -56,9 +75,32 @@ int data_spsc_ring_push_tmp_element( data_spsc_ring_t *q );
  *          1 if q is null
  *          2 if the queue is empty
  */
-int data_spsc_ring_pop ( data_spsc_ring_t *q, void **val );
+static inline int __attribute__((always_inline))
+data_spsc_ring_pop ( data_spsc_ring_t *q, void **val ){
+	uint32_t tail;
+//	if( unlikely( q == NULL ) )
+//		return 1;
+	if( queue_pop( q->_fifo_index, &tail) == QUEUE_EMPTY )
+		return QUEUE_EMPTY;
 
+	*val = q->_data[ tail ];
+	return QUEUE_SUCCESS;
+}
 
+static inline int __attribute__((always_inline))
+data_spsc_ring_pop_bulk ( const data_spsc_ring_t *q, uint32_t *tail ){
+	return queue_pop_bulk( q->_fifo_index, tail);
+}
+
+static inline void* __attribute__((always_inline))
+data_spsc_ring_get_data( const data_spsc_ring_t *q, uint32_t index ){
+	return q->_data[ q->_fifo_index->_data[ index ] ];
+}
+
+static inline void __attribute__((always_inline))
+data_spsc_ring_update_tail( const data_spsc_ring_t *q, uint32_t tail, uint32_t size ){
+	queue_update_tail( q->_fifo_index, tail, size );
+}
 /**
  * Free the ring
  */

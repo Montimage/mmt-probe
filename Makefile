@@ -8,16 +8,24 @@ OUTPUT   = probe
 #directory where probe will be installed on
 INSTALL_DIR = /opt/mmt/probe
 
+#get git version abbrev
+GIT_VERSION := $(shell git log --format="%h" -n 1)
+VERSION     := 1.0
+
+
 #set of library
 LIBS     = -L /opt/mmt/dpi/lib -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
 
-CFLAGS   = -O3 -Wall -Wno-unused-variable -DNDEBUG
+CFLAGS   = -Wall -Wno-unused-variable -DNDEBUG -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"
 CLDFLAGS = -I /opt/mmt/dpi/include -DNDEBUG
 
 #for debuging
 ifdef DEBUG
-	CFLAGS   += -g -DNDEBUG
-	CLDFLAGS += -g -DNDEBUG
+	CFLAGS   += -g -DNDEBUG -O0
+	CLDFLAGS += -g -DNDEBUG -O0
+else
+	CFLAGS   += -O3
+	CLDFLAGS += -O3
 endif
 
 #folders containing source files

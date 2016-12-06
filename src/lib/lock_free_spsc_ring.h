@@ -9,7 +9,9 @@
 #define SRC_QUEUE_LOCK_FREE_SPSC_RING_H_
 
 #include <stdint.h>
-//#include <pthread.h>
+#include <stdlib.h>
+#include <stdatomic.h>
+#include <stdio.h>
 
 #define QUEUE_EMPTY  -1
 #define QUEUE_FULL   -2
@@ -25,8 +27,77 @@ typedef struct lock_free_spsc_ring_struct
 }lock_free_spsc_ring_t;
 
 void queue_init( lock_free_spsc_ring_t *q, uint32_t size );
-int  queue_push( lock_free_spsc_ring_t *q, uint32_t val  );
-int  queue_pop ( lock_free_spsc_ring_t *q, uint32_t *val );
 void queue_free( lock_free_spsc_ring_t *q );
 
+static inline int __attribute__((always_inline))
+queue_push( lock_free_spsc_ring_t *q, uint32_t val  ){
+	uint32_t h;
+	h = q->_head;
+
+	//I always let 2 available elements between head -- tail
+	//1 empty element for future inserting, 1 element being reading by the consumer
+	if( ( h + 3 ) % ( q->_size ) == q->_cached_tail ){
+		q->_cached_tail = atomic_load_explicit( &q->_tail, memory_order_acquire );
+
+	/* tail can only increase since the last time we read it, which means we can only get more space to push into.
+			 If we still have space left from the last time we read, we don't have to read again. */
+		if( ( h + 3 ) % ( q->_size ) == q->_cached_tail ) return QUEUE_FULL;
+	}
+
+	//not full
+	q->_data[ h ] = val;
+	atomic_store_explicit( &q->_head, (h +1) % q->_size, memory_order_release );
+
+	return QUEUE_SUCCESS;
+}
+
+static inline int __attribute__((always_inline))
+	queue_pop ( lock_free_spsc_ring_t *q, uint32_t *val ){
+	uint32_t  t;
+	t = q->_tail;
+
+	if( q->_cached_head == t ){
+		q->_cached_head = atomic_load_explicit ( &q->_head, memory_order_acquire );
+
+	 /* head can only increase since the last time we read it, which means we can only get more items to pop from.
+		 If we still have items left from the last time we read, we don't have to read again. */
+		if( q->_cached_head == t ) return QUEUE_EMPTY;
+	}
+	//not empty
+	*val = q->_data[ t ];
+
+	atomic_store_explicit( &q->_tail, (t+1) % q->_size, memory_order_release );
+
+	return QUEUE_SUCCESS;
+}
+
+
+static inline int __attribute__((always_inline))
+	queue_pop_bulk ( lock_free_spsc_ring_t *q, uint32_t *val ){
+	int size;
+	uint32_t t = q->_tail;
+
+	if( q->_cached_head == t ){
+		q->_cached_head = atomic_load_explicit ( &q->_head, memory_order_acquire );
+
+	 /* head can only increase since the last time we read it, which means we can only get more items to pop from.
+		 If we still have items left from the last time we read, we don't have to read again. */
+		if( q->_cached_head == t ) return QUEUE_EMPTY;
+	}
+
+	//not empty
+	*val = t;
+
+	if( q->_cached_head > t ){
+		return size = q->_cached_head - t;
+	}else{
+		return size = q->_size - t;
+	}
+}
+
+
+static inline void __attribute__((always_inline))
+	queue_update_tail ( lock_free_spsc_ring_t *q, uint32_t tail, uint32_t size ){
+	atomic_store_explicit( &q->_tail, (tail + size) % q->_size, memory_order_release );
+}
 #endif /* SRC_QUEUE_LOCK_FREE_SPSC_RING_H_ */
