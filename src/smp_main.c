@@ -376,6 +376,7 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 
 			}
 		}
+		pcap_close(pcap);
 	}
 }
 
