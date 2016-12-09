@@ -19,7 +19,7 @@
 #include <windows.h>
 #endif
 #include "processing.h"
-#include <sys/socket.h>
+//#include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <unistd.h>
@@ -269,7 +269,6 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 	int i = 0, j = 0, k = 0, l = 0, p = 0;
 	int retval =0;
 
-#ifdef SESSION_REPORT
 	if (probe_context->enable_session_report == 1){
 		session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
 
@@ -298,7 +297,6 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 			}
 		}
 	}
-#endif
 
 	if (probe_context->enable_security_report == 1){
 		mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -364,9 +362,9 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 				th->report[i].msg[th->report[i].security_report_counter].iov_len = th->report[i].length;
 				th->report[i].security_report_counter ++;
 				if (th->report[i].security_report_counter == probe_context->nb_of_report_per_msg){
-					memset(th->report[i].grouped_msg, 0, sizeof(th->report[i].grouped_msg));
-					th->report[i].grouped_msg[0].msg_hdr.msg_iov = th->report[i].msg;
-					th->report[i].grouped_msg[0].msg_hdr.msg_iovlen = probe_context->nb_of_report_per_msg;
+					memset(&th->report[i].grouped_msg, 0, sizeof(th->report[i].grouped_msg));
+					th->report[i].grouped_msg.msg_hdr.msg_iov = th->report[i].msg;
+					th->report[i].grouped_msg.msg_hdr.msg_iovlen = probe_context->nb_of_report_per_msg;
 					retval = sendmmsg(th->sockfd_internet[i], &th->report[i].grouped_msg, 1, 0);
 					if (retval == -1)
 						perror("sendmmsg()");
@@ -670,6 +668,11 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 		if(temp_session->app_format_id == probe_context->web_id ){
 			//printf ("HEERRER2, session_id = %lu\n", temp_session->session_id);
 			if (temp_session->app_data == NULL) {
+				if (temp_session->session_attr != NULL) {
+					//Free the application specific data
+					if (temp_session->session_attr) free(temp_session->session_attr);
+					temp_session->session_attr = NULL;
+				}
 				if(temp_session) free(temp_session);
 				temp_session = NULL;
 				return;
