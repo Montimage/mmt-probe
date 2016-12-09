@@ -55,6 +55,7 @@ void * create_socket(void *arg){
 	int length_of_packet =0;
 	input->count =1;
 	int len;
+	uint8_t attr_num;
 	pthread_t threadA[3];
 
 	/*Enable address reuse*/
@@ -97,7 +98,7 @@ void * create_socket(void *arg){
 		valid = snprintf(input->socket_name, 256,"%s%u",
 				common_socket_name, input->thread_num);
 		input->socket_name[ valid] = '\0';
-		//printf("thread_num = %u,socket_name = %s\n",input->thread_num,input->socket_name);
+		printf("thread_num = %u,socket_name = %s\n",input->thread_num,input->socket_name);
 
 		fopen(input->socket_name,"w");
 		sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -147,9 +148,11 @@ void * create_socket(void *arg){
 		data_ex[0] = '\0';
 		if (n > 10){
 			input->count++;
-	//printf("packet received count_multithread=%d,length=%u,id=%u \n",input->count++,n,input->thread_num);
-			/*memcpy(&time_attr,&buffer[length],sizeof(struct timeval));
+	         printf("packet received count_multithread=%d,length=%u,id=%u \n",input->count,n,input->thread_num);
+			memcpy(&time_attr,&buffer[length],sizeof(struct timeval));
 			length = sizeof (struct timeval);
+			memcpy(&attr_num,&buffer[length],1);
+			length += 1;
 			while (n-length > 0){
 				memcpy(&proto_id,&buffer[length],4);
 				length += 4;
@@ -160,8 +163,8 @@ void * create_socket(void *arg){
 				memcpy(&data_ex[0],&buffer[length],field_length);
 				length += field_length;
 				data_ex[field_length]='\0';
-				//printf("proto_id = %u, attribute_id =%u, length =%u, data= %s\n",proto_id,field_id,field_length, (unsigned char *)buffer);
-			}*/
+				printf("proto_id = %u, attribute_id =%u, length =%u, data= %s\n",proto_id,field_id,field_length, (unsigned char *)buffer);
+			}
 
 		}
 
@@ -186,6 +189,8 @@ void *task1 (void *sock_des)
 	struct timeval time_attr ;
 	int length_of_packet =0;
 	int len,n;
+	uint8_t attr_num;
+
 
 
     while(1)
@@ -211,9 +216,11 @@ void *task1 (void *sock_des)
         			pthread_spin_lock(&lock);
         			count++;
         			pthread_spin_unlock(&lock);
-        			//printf("packet received_single_thread_length=%u, count= %u\n",n,count);
-     /*   			memcpy(&time_attr,&buffer[length],sizeof(struct timeval));
+        			printf("packet received_single_thread_length=%u, count= %u\n",n,count);
+        			memcpy(&time_attr,&buffer[length],sizeof(struct timeval));
         			length = sizeof (struct timeval);
+        			memcpy(&attr_num,&buffer[length],1);
+			        length += 1;
         			while (n-length > 0){
         				memcpy(&proto_id,&buffer[length],4);
         				length += 4;
@@ -224,8 +231,8 @@ void *task1 (void *sock_des)
         				memcpy(&data_ex[0],&buffer[length],field_length);
         				length += field_length;
         				data_ex[field_length]='\0';
-        				//printf("proto_id = %u, attribute_id =%u, length =%u, data= %s\n",proto_id,field_id,field_length, (unsigned char *)buffer);
-        			}*/
+        				printf("proto_id1 = %u, attribute_id =%u, length =%u, data= %s\n",proto_id,field_id,field_length, (unsigned char *)buffer);
+        			}
 
         		}
 
@@ -349,7 +356,7 @@ void socket_single_thread(void *arg){
 
         noThread++;
     }
-    sleep (30);
+    sleep (200);
     i=0;
     int s;
 
@@ -403,7 +410,7 @@ int main(int argc, char *argv[])
 
 		}
 		printf("main() is running...\n");
-		sleep (60);
+		sleep (200);
 		for( i = 0; i < num_thread; i++)
 		{
 			s = pthread_cancel(input_internet[i].th_handler);
