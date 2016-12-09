@@ -3,7 +3,7 @@
 // gcc -g -fPIC -I../../../mmt-sdk/sdk/include -shared -nostartfiles embedded_functions.c -o libembedded_functions.so
 //sudo su
 // export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./embedded_functions 
-// export LD_LIBRARY_PATH=/home/vinh/Dropbox/test/MONTIMAGE/SODIUM/test/mmt-probe/embedded_functions
+// export LD_LIBRARY_PATH=<your directory>/embedded_functions
 
 // Windows don't forget to replace the include directory with the right one on your machine ;)
 // gcc    -c -g -DWIN -I../MMT_SecurityLib/external/include/libmmtext  -MMD -MP -MF embedded_functions.o.d -o embedded_functions.o embedded_functions.c
@@ -251,7 +251,7 @@ int *check_sql_injection(void *p, void *pl){
   }
   uint16_t len = *((uint16_t *)pl);
   //printf("Payload length: %"PRIu16"\n", len);
-  char *str = malloc(len);
+  char *str = malloc(len+1);
   memcpy(str, p, len);
   str[len] = '\0';
   //printf("String to be checked: %s", str);
