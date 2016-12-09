@@ -5,6 +5,10 @@ extern "C" {
 #endif
 //#define _GNU_SOURCE
 #include "lib/data_spsc_ring.h"
+
+#ifndef __USE_GNU
+#define __USE_GNU
+#endif
 #include <sys/socket.h>
 #include <unistd.h>
 #define ONLINE_ANALYSIS 0x1
@@ -483,22 +487,24 @@ typedef struct probe_internal_struct {
     //FILE * data_out;
     //FILE * radius_out;
 } probe_internal_t;
-struct mmsghdr1
+struct mmsghdr
   {
     struct msghdr msg_hdr;	 //Actual message header.
     unsigned int msg_len;	 //Number of received or sent bytes for the  entry.
   };
 
+extern int sendmmsg (int __fd, struct mmsghdr *__vmessages,
+		     unsigned int __vlen, int __flags);
+
 typedef struct security_report_buffer_struct {
 	 uint32_t length;
 	 //unsigned char report_buffer[2000];
-	 struct mmsghdr1 grouped_msg[1];
+	 struct mmsghdr grouped_msg;
 	 struct iovec * msg;
 	 uint64_t security_report_counter;
 	 unsigned char ** data;
 
 } security_report_buffer_t;
-
 
 
 typedef struct mmt_security_attributes_struct {
