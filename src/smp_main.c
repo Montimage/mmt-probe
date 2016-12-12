@@ -138,11 +138,10 @@ static void *smp_thread_routine(void *arg) {
 	th->iprobe.instance_id = th->thread_number;
 	// customized packet and session handling functions are then registered
 
-	if(mmt_probe.mmt_conf->enable_flow_stats) {
-		if (mmt_probe.mmt_conf->enable_session_report == 1)register_session_timer_handler(th->mmt_handler, print_ip_session_report, th);
-		if (mmt_probe.mmt_conf->enable_session_report == 1)register_session_timeout_handler(th->mmt_handler, classification_expiry_session, th);
-		if (mmt_probe.mmt_conf->enable_session_report == 1)flowstruct_init(th); // initialize our event handler
-		if (mmt_probe.mmt_conf->event_based_reporting_enable == 1)event_reports_init(th); // initialize our event reports
+	if(mmt_probe.mmt_conf->enable_session_report == 1) {
+		register_session_timer_handler(th->mmt_handler, print_ip_session_report, th);
+		register_session_timeout_handler(th->mmt_handler, classification_expiry_session, th);
+		flowstruct_init(th); // initialize our event handler
 		if (mmt_probe.mmt_conf->condition_based_reporting_enable == 1)conditional_reports_init(th);// initialize our condition reports
 		if (mmt_probe.mmt_conf->radius_enable == 1)radius_ext_init(th); // initialize radius extraction and attribute event handler
 		set_default_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->default_session_timeout);
@@ -150,7 +149,7 @@ static void *smp_thread_routine(void *arg) {
 		set_short_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->short_session_timeout);
 		set_live_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->live_session_timeout);
 	}
-
+	if (mmt_probe.mmt_conf->event_based_reporting_enable == 1)event_reports_init(th); // initialize our event reports
 	if (mmt_probe.mmt_conf->enable_security_report == 0)proto_stats_init(th);//initialise this before security_reports_init
 	if (mmt_probe.mmt_conf->enable_security_report == 1)security_reports_init(th);
 
@@ -745,7 +744,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 	uint32_t count = 0;
 	if (mmt_conf->thread_nb > 1){
 		for(i=0; i<mmt_conf->thread_nb; i++){
-			printf ("th_nb =%u, packet_send = %u \n", i, mmt_probe.smp_threads[i].packet_send);
+			if (mmt_conf->socket_enable == 1)printf ("th_nb =%u, packets_reports_send = %u \n", i, mmt_probe.smp_threads[i].packet_send);
 			count += mmt_probe.smp_threads[i].packet_send;
 			data_spsc_ring_free( &mmt_probe.smp_threads[i].fifo );
 			//if(mmt_probe.smp_threads[i].sockfd_unix > 0)close(mmt_probe.smp_threads[i].sockfd_unix);
@@ -788,7 +787,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 				mmt_probe.smp_threads[i].event_reports = NULL;
 			}*/
 		}
-		printf ("total_packets_send= %u \n",count);
+		if (mmt_conf->socket_enable == 1)printf ("total_packets_report_send_by_threads = %u \n",count);
 
 		free( mmt_probe.smp_threads);
 		mmt_probe.smp_threads = NULL;
@@ -828,7 +827,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		if (mmt_probe.smp_threads->security_attributes != NULL){
 			free (mmt_probe.smp_threads->security_attributes);
 		}
-		printf ("3.. packet_send = %u \n", mmt_probe.smp_threads->packet_send);
+		if (mmt_conf->socket_enable == 1)printf ("packets_report_send = %u \n", mmt_probe.smp_threads->packet_send);
 
 		free (mmt_probe.smp_threads);
 		mmt_probe.smp_threads = NULL;
@@ -1094,11 +1093,10 @@ int main(int argc, char **argv) {
 		pthread_spin_init(&mmt_probe.smp_threads->lock, 0);
 
 		// customized packet and session handling functions are then registered
-		if(mmt_probe.mmt_conf->enable_flow_stats) {
-			if (mmt_probe.mmt_conf->enable_session_report == 1)register_session_timer_handler(mmt_probe.smp_threads->mmt_handler, print_ip_session_report, (void *) mmt_probe.smp_threads);
-			if (mmt_probe.mmt_conf->enable_session_report == 1)register_session_timeout_handler(mmt_probe.smp_threads->mmt_handler, classification_expiry_session, (void *) mmt_probe.smp_threads);
-			if (mmt_probe.mmt_conf->enable_session_report == 1)flowstruct_init((void *)mmt_probe.smp_threads); // initialize our event handler
-			if(mmt_conf->event_based_reporting_enable == 1)event_reports_init((void *)mmt_probe.smp_threads); // initialize our event reports
+		if(mmt_probe.mmt_conf->enable_session_report == 1) {
+			register_session_timer_handler(mmt_probe.smp_threads->mmt_handler, print_ip_session_report, (void *) mmt_probe.smp_threads);
+			register_session_timeout_handler(mmt_probe.smp_threads->mmt_handler, classification_expiry_session, (void *) mmt_probe.smp_threads);
+            flowstruct_init((void *)mmt_probe.smp_threads); // initialize our event handler
 			if(mmt_conf->condition_based_reporting_enable == 1)conditional_reports_init((void *)mmt_probe.smp_threads);// initialize our conditional reports
 			if(mmt_conf->radius_enable == 1)radius_ext_init((void *)mmt_probe.smp_threads); // initialize radius extraction and attribute event handler
 			set_default_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->default_session_timeout);
@@ -1106,6 +1104,7 @@ int main(int argc, char **argv) {
 			set_short_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->short_session_timeout);
 			set_live_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->live_session_timeout);
 		}
+		if(mmt_conf->event_based_reporting_enable == 1)event_reports_init((void *)mmt_probe.smp_threads); // initialize our event reports
 		if (mmt_conf->enable_security_report == 1)security_reports_init((void *)mmt_probe.smp_threads);// should be defined before proto_stats_init
 		if (mmt_conf->enable_security_report == 0)proto_stats_init(mmt_probe.smp_threads);
 
@@ -1147,6 +1146,7 @@ int main(int argc, char **argv) {
 		sprintf(lg_msg, "MMT Extraction engine! successfully initialized in a multi threaded operation (%i threads)", mmt_conf->thread_nb);
 		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, lg_msg);
 	}
+	//we need to enable timer both for file and redis output since we need report number 200 (to check that probe is alive)
 	start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
 	//Offline or Online processing
 	if (mmt_conf->input_mode == OFFLINE_ANALYSIS) {

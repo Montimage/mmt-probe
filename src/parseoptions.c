@@ -309,7 +309,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 		mmt_conf->enable_proto_without_session_stats = (uint32_t) cfg_getint(cfg, "enable-proto-without-session-stat");
 		mmt_conf->enable_IP_fragmentation_report = (uint32_t) cfg_getint(cfg, "enable-IP-fragmentation-report");
 		mmt_conf->enable_session_report = (uint32_t) cfg_getint(cfg, "enable-session-report");
-		mmt_conf->enable_flow_stats = 1;  //enabled by default
+		//mmt_conf->enable_flow_stats = 1;  //enabled by default
 		mmt_conf->stats_reporting_period = (uint32_t) cfg_getint(cfg, "stats-period");
 		mmt_conf->sampled_report_period = (uint32_t) cfg_getint(cfg, "file-output-period");
 		mmt_conf->thread_nb = (uint32_t) cfg_getint(cfg, "thread-nb");
@@ -825,7 +825,7 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 	}
 
 	if(!flow_stats) {
-		mmt_conf->enable_flow_stats = 0;
+		mmt_conf->enable_session_report = 0;
 	}
 
 	return;
