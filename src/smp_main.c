@@ -378,35 +378,36 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 void cleanup(int signo) {
 	mmt_probe_context_t * mmt_conf = mmt_probe.mmt_conf;
 	int i;
+	if (handle != NULL){
+		pcap_breakloop(handle);
+		stop = 1;
+		if (got_stats) return;
 
-	pcap_breakloop(handle);
-	stop = 1;
-	if (got_stats) return;
+		if (pcap_stats(handle, &pcs) < 0) {
+			(void) fprintf(stderr, "pcap_stats: %s\n", pcap_geterr(handle));
+		} else got_stats = 1;
 
-	if (pcap_stats(handle, &pcs) < 0) {
-		(void) fprintf(stderr, "pcap_stats: %s\n", pcap_geterr(handle));
-	} else got_stats = 1;
-
-	if (ignored > 0) {
-		fprintf(stderr, "%d packets ignored (too small to decapsulate)\n", ignored);
-	}
-	if (got_stats) {
-		(void) fprintf(stderr, "\n%12d packets received by filter\n", pcs.ps_recv);
-		(void) fprintf(stderr, "%12d packets dropped by NIC (%3.2f%%)\n", pcs.ps_ifdrop, pcs.ps_ifdrop * 100.0 / pcs.ps_recv);
-		(void) fprintf(stderr, "%12d packets dropped by kernel (%3.2f%%)\n", pcs.ps_drop, pcs.ps_drop * 100.0 / pcs.ps_recv);
-		(void) fprintf(stderr, "%12"PRIu64" packets dropped by MMT (%3.2f%%) \n", nb_packets_dropped_by_mmt, nb_packets_dropped_by_mmt * 100.0 /  pcs.ps_recv );
+		if (ignored > 0) {
+			fprintf(stderr, "%d packets ignored (too small to decapsulate)\n", ignored);
+		}
+		if (got_stats) {
+			(void) fprintf(stderr, "\n%12d packets received by filter\n", pcs.ps_recv);
+			(void) fprintf(stderr, "%12d packets dropped by NIC (%3.2f%%)\n", pcs.ps_ifdrop, pcs.ps_ifdrop * 100.0 / pcs.ps_recv);
+			(void) fprintf(stderr, "%12d packets dropped by kernel (%3.2f%%)\n", pcs.ps_drop, pcs.ps_drop * 100.0 / pcs.ps_recv);
+			(void) fprintf(stderr, "%12"PRIu64" packets dropped by MMT (%3.2f%%) \n", nb_packets_dropped_by_mmt, nb_packets_dropped_by_mmt * 100.0 /  pcs.ps_recv );
+			fflush(stderr);
+		}
+		if( mmt_conf->thread_nb == 1)
+			(void) fprintf(stderr, "%12"PRIu64" packets processed by MMT (%3.2f%%) \n", nb_packets_processed_by_mmt, nb_packets_processed_by_mmt * 100.0 /  pcs.ps_recv );
+		else
+			for (i = 0; i < mmt_conf->thread_nb; i++)
+				(void) fprintf( stderr, "- thread %2d processed %12"PRIu64" packets, dropped %12"PRIu64"\n",
+						mmt_probe.smp_threads[i].thread_number, mmt_probe.smp_threads[i].nb_packets, mmt_probe.smp_threads[i].nb_dropped_packets );
 		fflush(stderr);
-	}
-	if( mmt_conf->thread_nb == 1)
-		(void) fprintf(stderr, "%12"PRIu64" packets processed by MMT (%3.2f%%) \n", nb_packets_processed_by_mmt, nb_packets_processed_by_mmt * 100.0 /  pcs.ps_recv );
-	else
-		for (i = 0; i < mmt_conf->thread_nb; i++)
-			(void) fprintf( stderr, "- thread %2d processed %12"PRIu64" packets, dropped %12"PRIu64"\n",
-					mmt_probe.smp_threads[i].thread_number, mmt_probe.smp_threads[i].nb_packets, mmt_probe.smp_threads[i].nb_dropped_packets );
-	fflush(stderr);
 #ifdef RHEL3
-	pcap_close(handle);
+		pcap_close(handle);
 #endif /* RHEL3 */
+	}
 }
 
 //online-single thread

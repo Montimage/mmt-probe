@@ -266,6 +266,7 @@ void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_
 		strncpy(((web_session_attr_t *) temp_session->app_data)->uri, (char *) uri->ptr, max);
 		((web_session_attr_t *) temp_session->app_data)->uri[max] = '\0';
 		((web_session_attr_t *) temp_session->app_data)->has_uri = 1;
+		//printf ("uri = %s\n", ((web_session_attr_t *) temp_session->app_data)->uri);
 
 	}
 }
@@ -312,8 +313,12 @@ void print_initial_web_report(const mmt_session_t * session,session_struct_t * t
 					(((web_session_attr_t *) temp_session->app_data)->seen_response) ? ((web_session_attr_t *) temp_session->app_data)->trans_nb : 0,
 							(((web_session_attr_t *) temp_session->app_data)->seen_response) ? (uint64_t) TIMEVAL_2_USEC(mmt_time_diff(((web_session_attr_t *) temp_session->app_data)->first_request_time, ((web_session_attr_t *) temp_session->app_data)->interaction_time)) : 0,
 									((web_session_attr_t *) temp_session->app_data)->hostname,
-									((web_session_attr_t *) temp_session->app_data)->mimetype, ((web_session_attr_t *) temp_session->app_data)->referer, cdn_flag,
-									((web_session_attr_t *) temp_session->app_data)->uri, ((web_session_attr_t *) temp_session->app_data)->method, ((web_session_attr_t *) temp_session->app_data)->response,
+									((web_session_attr_t *) temp_session->app_data)->mimetype,
+									(((web_session_attr_t *) temp_session->app_data)->referer[0] == '\0') ? "null":((web_session_attr_t *) temp_session->app_data)->referer,
+									cdn_flag,
+									(((web_session_attr_t *) temp_session->app_data)->uri[0] == '\0') ? "null":((web_session_attr_t *) temp_session->app_data)->uri,
+									(((web_session_attr_t *) temp_session->app_data)->method[0] == '\0') ? "null":((web_session_attr_t *) temp_session->app_data)->method,
+									(((web_session_attr_t *) temp_session->app_data)->response[0] == '\0') ? "null" :((web_session_attr_t *) temp_session->app_data)->response,
 									(((web_session_attr_t *) temp_session->app_data)->content_len[0] == '\0')? "0":((web_session_attr_t *) temp_session->app_data)->content_len,
 									((web_session_attr_t *) temp_session->app_data)->state_http_request_response
 	);
