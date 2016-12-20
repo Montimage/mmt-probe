@@ -43,6 +43,8 @@ src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c s
 
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
+#include "tcpip/mmt_tcpip.h"
+
 
 
 #include <sys/types.h>
@@ -89,6 +91,41 @@ void error(const char *msg)
 	perror(msg);
 	exit(1);
 }
+
+int cleanup_registered_handlers(void *arg){
+	int i = 1, j = 0, k = 0;
+	struct smp_thread *th = (struct smp_thread *) arg;
+
+	if (is_registered_attribute_handler(th->mmt_handler, PROTO_IP, IP_RTT, ip_rtt_handler) == 1)
+		i &= unregister_attribute_handler(th->mmt_handler, PROTO_IP, IP_RTT, ip_rtt_handler);
+
+	if (is_registered_attribute_handler(th->mmt_handler, PROTO_TCP, TCP_CONN_CLOSED, tcp_closed_handler) == 1)
+		i &= unregister_attribute_handler(th->mmt_handler, PROTO_TCP,TCP_CONN_CLOSED, tcp_closed_handler);
+
+	if (is_registered_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle) == 1)
+		i &= unregister_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle);
+
+	if (is_registered_attribute_handler(th->mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle) == 1)
+		i &=unregister_attribute_handler(th->mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle);
+	for(i = 0; i < mmt_probe.mmt_conf->condition_reports_nb; i++) {
+		mmt_condition_report_t * condition_report = &mmt_probe.mmt_conf->condition_reports[i];
+		for(j = 0; j < condition_report->attributes_nb; j++) {
+			mmt_condition_attribute_t * condition_attribute = &condition_report->attributes[j];
+			mmt_condition_attribute_t * handler_attribute = &condition_report->handlers[j];
+			uint32_t protocol_id = get_protocol_id_by_name (condition_attribute->proto);
+			uint32_t attribute_id = get_attribute_id_by_protocol_and_attribute_names(condition_attribute->proto,condition_attribute->attribute);
+			if (is_registered_attribute_handler(th->mmt_handler, protocol_id, attribute_id, get_handler_by_name (handler_attribute->handler)) == 1){
+				i &=unregister_attribute_handler(th->mmt_handler, protocol_id,attribute_id, get_handler_by_name (handler_attribute->handler));
+				//printf ("here %u attr= %u\n",th->thread_number,condition_report->attributes_nb);
+			}
+
+		}
+	}
+
+	return i;
+
+}
+
 
 static void *smp_thread_routine(void *arg) {
 	struct timeval tv;
@@ -226,6 +263,9 @@ static void *smp_thread_routine(void *arg) {
 		th->report_counter++;
 		if (mmt_probe.mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, th);
 		//process_session_timer_handler(th->mmt_handler);
+		if (cleanup_registered_handlers (th) == 0){
+			fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",th->thread_number);
+		}
 		mmt_close_handler(th->mmt_handler);
 		th->mmt_handler = NULL;
 	}
@@ -614,7 +654,10 @@ void terminate_probe_processing(int wait_thread_terminate) {
 	if (mmt_conf->thread_nb == 1) {
 		//One thread for processing packets
 		//Cleanup the MMT handler
-		flowstruct_cleanup(mmt_probe.smp_threads->mmt_handler); // cleanup our event handler
+		//flowstruct_cleanup(mmt_probe.smp_threads->mmt_handler); // cleanup our event handler
+		if (cleanup_registered_handlers (mmt_probe.smp_threads) == 0){
+			fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",mmt_probe.smp_threads->thread_number);
+		}
 		radius_ext_cleanup(mmt_probe.smp_threads->mmt_handler); // cleanup our event handler for RADIUS initializations
 		//process_session_timer_handler(mmt_probe.->mmt_handler);
 		if (mmt_probe.smp_threads->report_counter == 0)mmt_probe.smp_threads->report_counter++;
@@ -667,7 +710,10 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
 				//pthread_join(mmt_probe.smp_threads[i].handle, NULL);
 				if (mmt_probe.smp_threads[i].mmt_handler != NULL) {
-					flowstruct_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler
+					//flowstruct_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler
+					if (cleanup_registered_handlers (&mmt_probe.smp_threads[i]) == 0){
+						fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",mmt_probe.smp_threads[i].thread_number);
+					}
 					radius_ext_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler for RADIUS initializations
 					//process_session_timer_handler(mmt_probe.smp_threads[i].mmt_handler);
 					if (mmt_probe.smp_threads->report_counter == 0)mmt_probe.smp_threads->report_counter++;
@@ -693,6 +739,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_P_CLOSE_OUTPUT, lg_msg);
 
 	}
+
 	if (mmt_conf->register_new_condition_reports != NULL && mmt_conf->register_new_event_reports != NULL){
 		for (i=0; i < mmt_conf->new_condition_reports_nb; i++){
 			free (mmt_conf->register_new_condition_reports[i].attributes);
@@ -745,6 +792,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 	uint32_t count = 0;
 	if (mmt_conf->thread_nb > 1){
 		for(i=0; i<mmt_conf->thread_nb; i++){
+
 			if (mmt_conf->socket_enable == 1)printf ("th_nb =%u, packets_reports_send = %u \n", i, mmt_probe.smp_threads[i].packet_send);
 			count += mmt_probe.smp_threads[i].packet_send;
 			data_spsc_ring_free( &mmt_probe.smp_threads[i].fifo );
@@ -1066,7 +1114,6 @@ int main(int argc, char **argv) {
 	}
 
 	if (mmt_conf->thread_nb == 1) {
-
 		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_INIT, "Initializating MMT Extraction engine! Single threaded operation.");
 		mmt_probe.smp_threads = (struct smp_thread *) calloc(mmt_conf->thread_nb,sizeof (struct smp_thread));
 		mmt_probe.smp_threads->last_stat_report_time = time(0);
@@ -1097,7 +1144,7 @@ int main(int argc, char **argv) {
 		if(mmt_probe.mmt_conf->enable_session_report == 1) {
 			register_session_timer_handler(mmt_probe.smp_threads->mmt_handler, print_ip_session_report, (void *) mmt_probe.smp_threads);
 			register_session_timeout_handler(mmt_probe.smp_threads->mmt_handler, classification_expiry_session, (void *) mmt_probe.smp_threads);
-            flowstruct_init((void *)mmt_probe.smp_threads); // initialize our event handler
+			flowstruct_init((void *)mmt_probe.smp_threads); // initialize our event handler
 			if(mmt_conf->condition_based_reporting_enable == 1)conditional_reports_init((void *)mmt_probe.smp_threads);// initialize our conditional reports
 			if(mmt_conf->radius_enable == 1)radius_ext_init((void *)mmt_probe.smp_threads); // initialize radius extraction and attribute event handler
 			set_default_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->default_session_timeout);
@@ -1146,6 +1193,7 @@ int main(int argc, char **argv) {
 		}
 		sprintf(lg_msg, "MMT Extraction engine! successfully initialized in a multi threaded operation (%i threads)", mmt_conf->thread_nb);
 		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, lg_msg);
+
 	}
 	//we need to enable timer both for file and redis output since we need report number 200 (to check that probe is alive)
 	start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);

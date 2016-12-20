@@ -639,6 +639,8 @@ void write_to_socket_unix(struct smp_thread *th);
 void create_socket(mmt_probe_context_t * mmt_conf, void *args);
 int packet_handler(const ipacket_t * ipacket, void * args);
 void security_reports_init(void * args);
+void * get_handler_by_name(char * func_name);
+void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 
 //prototypes
 void print_ip_session_report (const mmt_session_t * session, void *user_args);

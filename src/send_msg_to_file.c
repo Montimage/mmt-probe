@@ -377,7 +377,7 @@ static void *wait_to_do_something( void *arg ){
 	//end the timer
 	close( timer_fd );
 
-	if( p_data ){
+	if( p_data != NULL ){
 		free( p_data );
 		p_data = NULL;
 	}

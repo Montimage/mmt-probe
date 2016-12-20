@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
-#include <sys/socket.h>
+//#include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <stdlib.h>
