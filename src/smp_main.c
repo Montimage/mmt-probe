@@ -898,6 +898,7 @@ void signal_handler(int type) {
 	fprintf(stderr, "\n reception of signal %d\n", type);
 	fflush( stderr );
 	cleanup( 0 );
+       print_stats();
 
 	if (i == 1) {
 		terminate_probe_processing(0);
@@ -1055,12 +1056,12 @@ int main(int argc, char **argv) {
 	mmt_conf->log_output = fopen(mmt_conf->log_file, "a");
 	printf ("main \n");
 
-	/*sigfillset(&signal_set);
+	sigfillset(&signal_set);
 	signal(SIGINT, signal_handler);
 	signal(SIGTERM, signal_handler);
 	signal(SIGSEGV, signal_handler);
 	signal(SIGABRT, signal_handler);
-	 */
+
 	if (mmt_conf->sampled_report == 0) {
 		int len = 0;
 		len = snprintf(single_file,MAX_FILE_NAME,"%s%s", mmt_conf->output_location, mmt_conf->data_out);
@@ -1207,11 +1208,12 @@ int main(int argc, char **argv) {
 		}else if (mmt_conf->input_mode == ONLINE_ANALYSIS) {
 			process_interface(mmt_conf->input_source, &mmt_probe); //Process single offline trace
 			//We don't close the files here because they will be used when the handler is closed to report still to timeout flows
-		}else if (capture_dpdk == 1){
+		}
+	}else if (capture_dpdk == 1){
 			dpdk_capture(argc, argv, &mmt_probe );
 		}
-	}
-	terminate_probe_processing(1);
+
+	//terminate_probe_processing(1);
 
 	//printf("Process Terminated successfully\n");
 	return EXIT_SUCCESS;

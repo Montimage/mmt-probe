@@ -142,10 +142,10 @@ void print_stats (void){
 	printf("\nTOT:  %'9ld (recv), %'9ld (dr %3.2f%%), %'7ld (err) %'9ld (tot)\n\n",
 			good_pkt, miss_pkt, (float)miss_pkt/(good_pkt+miss_pkt+err_pkt)*100, err_pkt, good_pkt+miss_pkt+err_pkt );
 
-	printf("\ntotal1: %lu \n",total_pkt[0]);
-	printf("\ntotal2: %lu \n",total_pkt[1]);
-	printf("\ntotal3: %lu \n",total_pkt[2]);
-	printf("\ntotal4: %lu \n",total_pkt[3]);
+	printf("\ntotal0: %lu \n",total_pkt[0]);
+	printf("\ntotal1: %lu \n",total_pkt[1]);
+	printf("\ntotal2: %lu \n",total_pkt[2]);
+	printf("\ntotal3: %lu \n",total_pkt[3]);
 
 }
 /* Signal handling function */
@@ -251,7 +251,7 @@ int get_packet(uint8_t port, int q, struct mmt_probe_struct * mmt_probe){
 	}
 
 	total_pkt[q] += nb_rx;
-	data_spsc_ring_get_tmp_element( &mmt_probe->smp_threads->fifo, &pdata );
+	data_spsc_ring_get_tmp_element( &mmt_probe->smp_threads[q].fifo, &pdata );
 	pkt = (struct packet_element *) pdata;
 
 	//free all packets received
@@ -263,12 +263,13 @@ int get_packet(uint8_t port, int q, struct mmt_probe_struct * mmt_probe){
 		pkt->header.ts     = time_new;
 		pkt->header.user_args = NULL;
 		pkt->data = (bufs[i]->buf_addr + bufs[i]->data_off);
+		if (pkt->data == NULL) printf("data is NULL\n");
 		//packet_process( mmt_handler, &pkt->header, (u_char *)pkt->data );
-		if(  unlikely( data_spsc_ring_push_tmp_element( &mmt_probe->smp_threads->fifo ) != QUEUE_SUCCESS ))
+		if(  unlikely( data_spsc_ring_push_tmp_element( &mmt_probe->smp_threads[q].fifo ) != QUEUE_SUCCESS ))
 		{
 			//queue is full
-			nb_packets_dropped_by_mmt ++;
-			mmt_probe->smp_threads->nb_dropped_packets ++;
+		//	nb_packets_dropped_by_mmt ++;
+			mmt_probe->smp_threads[q].nb_dropped_packets ++;
 		}
 
 		//rte_pktmbuf_free( bufs[i] );
@@ -285,7 +286,7 @@ static __attribute__((noreturn)) void
 	const uint8_t nb_ports = rte_eth_dev_count();
 	uint8_t port;
 	int q;
-	struct mmt_probe_struct mmt_probe = (struct mmt_probe_struct) args;
+	struct mmt_probe_struct * mmt_probe = (struct mmt_probe_struct *) args;
 	/*
 	 * Check that the port is on the same NUMA node as the polling thread
 	 * for best performance.
@@ -313,7 +314,7 @@ static __attribute__((noreturn)) void
 			/* Get burst of RX packets, from first port of pair. */
 			for( q = 0; q < rx_rings; q++ )
 			{
-				get_packet (port,q,&mmt_probe);
+				get_packet (port,q,mmt_probe);
 
 
 				/* Send burst of TX packets, to second port of pair. */
@@ -336,7 +337,7 @@ static __attribute__((noreturn)) void
 
 
 
-int dpdk_capture (int argc, char **argv, mmt_probe_struct_t * mmt_probe){
+int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	struct rte_mempool *mbuf_pool;
 	unsigned nb_ports;
 	uint8_t portid;
@@ -352,7 +353,7 @@ int dpdk_capture (int argc, char **argv, mmt_probe_struct_t * mmt_probe){
 	setlocale(LC_NUMERIC, "en_US.UTF-8");
 
 	/* Create handler for SIGINT for CTRL + C closing and SIGALRM to print stats*/
-	signal(SIGINT, sig_handler);
+	//signal(SIGINT, sig_handler);
 	signal(SIGALRM, alarm_routine);
 
 	alarm(1);
