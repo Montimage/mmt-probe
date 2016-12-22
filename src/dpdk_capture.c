@@ -228,11 +228,11 @@ port_init(uint8_t port, struct rte_mempool *mbuf_pool)
 	return 0;
 }
 
-int get_packet(uint8_t port, int q, struct rte_mbuf **bufs){
+int get_packet(uint8_t port, int q){
 	uint16_t nb_rx;
 	int i=0;
-	//struct rte_mbuf *bufs[BURST_SIZE];
-	struct pkthdr header;
+	struct rte_mbuf *bufs[BURST_SIZE];
+	//struct pkthdr header;
 	static struct packet_element *pkt;
 	struct timeval time_now;
 	struct timeval time_add;
@@ -254,13 +254,13 @@ int get_packet(uint8_t port, int q, struct rte_mbuf **bufs){
 	//free all packets received
 	for( i=0; likely( i < nb_rx ); i++ ){
 		time_add.tv_usec += 1;
-		header.len    = (unsigned int)bufs[i]->pkt_len;
-		header.caplen = (unsigned int) bufs[i]->data_len;
+		pkt->header.len    = (unsigned int)bufs[i]->pkt_len;
+		pkt->header.caplen = (unsigned int) bufs[i]->data_len;
 		timeradd(&time_now, &time_add, &time_new);
-		header.ts     = time_new;
-		header.user_args = NULL;
-		data = (bufs[i]->buf_addr + bufs[i]->data_off);
-		packet_process( mmt_handler, &header, (u_char *)data );
+		pkt->header.ts     = time_new;
+		pkt->header.user_args = NULL;
+		pkt->data = (bufs[i]->buf_addr + bufs[i]->data_off);
+		packet_process( mmt_handler, &pkt->header, (u_char *)pkt->data );
 		rte_pktmbuf_free( bufs[i] );
 	}
 	return 0;
@@ -275,7 +275,7 @@ static __attribute__((noreturn)) void
 	const uint8_t nb_ports = rte_eth_dev_count();
 	uint8_t port;
 	int q;
-	struct rte_mbuf *bufs[BURST_SIZE];
+
 	/*
 	 * Check that the port is on the same NUMA node as the polling thread
 	 * for best performance.
@@ -303,7 +303,7 @@ static __attribute__((noreturn)) void
 			/* Get burst of RX packets, from first port of pair. */
 			for( q = 0; q < rx_rings; q++ )
 			{
-				get_packet (port,q, bufs);
+				get_packet (port,q);
 
 
 				/* Send burst of TX packets, to second port of pair. */
