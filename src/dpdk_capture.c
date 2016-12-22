@@ -228,7 +228,7 @@ port_init(uint8_t port, struct rte_mempool *mbuf_pool)
 	return 0;
 }
 
-int get_packet(uint8_t port, int q, mmt_probe_struct_t * mmt_probe){
+int get_packet(uint8_t port, int q, struct mmt_probe_struct * mmt_probe){
 	uint16_t nb_rx;
 	int i=0;
 	struct rte_mbuf *bufs[BURST_SIZE];
@@ -280,12 +280,12 @@ int get_packet(uint8_t port, int q, mmt_probe_struct_t * mmt_probe){
  * an input port and writing to an output port.
  */
 static __attribute__((noreturn)) void
-		lcore_main(void)
+		lcore_main(void * args)
 {
 	const uint8_t nb_ports = rte_eth_dev_count();
 	uint8_t port;
 	int q;
-
+	struct mmt_probe_struct mmt_probe = (struct mmt_probe_struct) args;
 	/*
 	 * Check that the port is on the same NUMA node as the polling thread
 	 * for best performance.
@@ -313,7 +313,7 @@ static __attribute__((noreturn)) void
 			/* Get burst of RX packets, from first port of pair. */
 			for( q = 0; q < rx_rings; q++ )
 			{
-				get_packet (port,q);
+				get_packet (port,q,&mmt_probe);
 
 
 				/* Send burst of TX packets, to second port of pair. */
@@ -336,7 +336,7 @@ static __attribute__((noreturn)) void
 
 
 
-int dpdk_capture (int argc, char **argv){
+int dpdk_capture (int argc, char **argv, mmt_probe_struct_t * mmt_probe){
 	struct rte_mempool *mbuf_pool;
 	unsigned nb_ports;
 	uint8_t portid;
@@ -361,7 +361,8 @@ int dpdk_capture (int argc, char **argv){
 	argv += ret;
 
 	/* Check that there is an even number of ports to send/receive on. */
-	nb_ports = 1; // rte_eth_dev_count();
+	nb_ports = 1; // rte_eth_dev_count();	mmt_probe_context_t * mmt_conf = mmt_probe.mmt_conf;
+
 
 	/* Creates a new mempool in memory to hold the mbufs. */
 	mbuf_pool = rte_pktmbuf_pool_create("MBUF_POOL", NUM_MBUFS * nb_ports,
@@ -380,7 +381,7 @@ int dpdk_capture (int argc, char **argv){
 		printf("\nWARNING: Too many lcores enabled. Only 1 used.\n");
 
 	/* Call lcore_main on the master core only. */
-	lcore_main();
+	lcore_main(mmt_probe);
 
 	return 0;
 

@@ -700,7 +700,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			//Once cancelled, join should give "THREAD_CANCELLED" retval
 			sleep(30);
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
-				int s;th
+				int s;
 				s = pthread_cancel(mmt_probe.smp_threads[i].handle);
 				if (s != 0) {
 					exit(1);

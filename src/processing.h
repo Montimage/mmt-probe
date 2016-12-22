@@ -191,7 +191,7 @@ typedef struct ip_port_struct {
 typedef struct mmt_probe_context_struct {
     uint32_t thread_nb;
     uint32_t thread_nb_2_power;
-    uint32_t thread_queue_plen;
+    uint32_t thread_queue_plen;int dpdk_capture (int argc, char **argv, mmt_probe_struct_t * mmt_probe)
     uint32_t thread_queue_blen;
     uint32_t input_mode;
     uint32_t probe_id_number;
@@ -266,7 +266,7 @@ typedef struct mmt_probe_context_struct {
     uint32_t sampled_report;
     uint32_t event_reports_nb;
     uint32_t condition_reports_nb;
-    uint32_t new_condition_reports_nb;
+    uint32_t new_condition_reports_nb;int dpdk_capture (int argc, char **argv, mmt_probe_struct_t * mmt_probe)
     uint32_t new_event_reports_nb;
     mmt_event_report_t * event_reports;
     mmt_condition_report_t * condition_reports;
@@ -641,8 +641,9 @@ int packet_handler(const ipacket_t * ipacket, void * args);
 void security_reports_init(void * args);
 void * get_handler_by_name(char * func_name);
 void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-int get_packet (uint8_t port, int q);
-int dpdk_capture (int argc, char **argv);
+int get_packet (uint8_t port, int q, mmt_probe_struct_t * mmt_probe);
+//int dpdk_capture (int argc, char **argv);
+int dpdk_capture (int argc, char **argv, mmt_probe_struct_t * mmt_probe);
 
 //prototypes
 void print_ip_session_report (const mmt_session_t * session, void *user_args);
