@@ -82,7 +82,7 @@ struct packet_element {
 	u_char *data;
 };*/
 const uint16_t tx_rings = 4; /* Struct for configuring each rx queue. These are default values */
-const uint16_t rx_rings = 4;
+//const uint16_t rx_rings = 4;
 static uint8_t hash_key[40] = { 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, };
 static const struct rte_eth_rxconf rx_conf = {
 		.rx_thresh = {
@@ -177,7 +177,7 @@ void alarm_routine (__attribute__((unused)) int unused){
  * coming from the mbuf_pool passed as a parameter.
  */
 static inline int
-port_init(uint8_t port, struct rte_mempool *mbuf_pool)
+port_init(uint8_t port, struct rte_mempool *mbuf_pool, struct mmt_probe_struct * mmt_probe)
 {
 
 
@@ -188,12 +188,12 @@ port_init(uint8_t port, struct rte_mempool *mbuf_pool)
 	//              return -1;
 
 	/* Configure the Ethernet device. */
-	retval = rte_eth_dev_configure(port, rx_rings, tx_rings, &port_conf_default);
+	retval = rte_eth_dev_configure(port, mmt_probe->mmt_conf->thread_nb, tx_rings, &port_conf_default);
 	if (retval != 0)
 		return retval;
 
 	/* Allocate and set up 1 RX queue per Ethernet port. */
-	for (q = 0; q < rx_rings; q++) {
+	for (q = 0; q < mmt_probe->mmt_conf->thread_nb; q++) {
 		retval = rte_eth_rx_queue_setup(port, q, RX_RING_SIZE,
 				rte_eth_dev_socket_id(port), &rx_conf, mbuf_pool);
 		if (retval < 0)
@@ -251,11 +251,12 @@ int get_packet(uint8_t port, int q, struct mmt_probe_struct * mmt_probe){
 	}
 
 	total_pkt[q] += nb_rx;
-	data_spsc_ring_get_tmp_element( &mmt_probe->smp_threads[q].fifo, &pdata );
-	pkt = (struct packet_element *) pdata;
 
 	//free all packets received
 	for( i=0; likely( i < nb_rx ); i++ ){
+		data_spsc_ring_get_tmp_element( &mmt_probe->smp_threads[q].fifo, &pdata );
+		pkt = (struct packet_element *) pdata;
+
 		time_add.tv_usec += 1;
 		pkt->header.len    = (unsigned int)bufs[i]->pkt_len;
 		pkt->header.caplen = (unsigned int) bufs[i]->data_len;
@@ -312,7 +313,7 @@ static __attribute__((noreturn)) void
 		{
 
 			/* Get burst of RX packets, from first port of pair. */
-			for( q = 0; q < rx_rings; q++ )
+			for( q = 0; q < mmt_probe->mmt_conf->thread_nb; q++ )
 			{
 				get_packet (port,q,mmt_probe);
 
@@ -374,7 +375,7 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 
 	/* Initialize all ports. */
 	for (portid = 0; portid < nb_ports; portid++)
-		if (port_init(portid, mbuf_pool) != 0)
+		if (port_init(portid, mbuf_pool, mmt_probe) != 0)
 			rte_exit(EXIT_FAILURE, "Cannot init port %"PRIu8 "\n",
 					portid);
 

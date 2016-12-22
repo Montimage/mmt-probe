@@ -242,8 +242,8 @@ static void *smp_thread_routine(void *arg) {
 			pkt = (struct packet_element *) data_spsc_ring_get_data( fifo, size + tail);
 
 			/* is it a dummy packet ? => means thread must exit */
-			if( unlikely( pkt->data == NULL ))
-				break;
+			if( unlikely( pkt->data == NULL ))printf("packet_data is NULL\n");
+				//break;
 			else{
 				packet_process( mmt_handler, &pkt->header, pkt->data );
 				th->nb_packets ++;
@@ -709,6 +709,8 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
 				//pthread_join(mmt_probe.smp_threads[i].handle, NULL);
 				if (mmt_probe.smp_threads[i].mmt_handler != NULL) {
+					printf ("thread_id = %u, packet = %lu \n",mmt_probe.smp_threads[i].thread_number, mmt_probe.smp_threads[i].nb_packets );
+
 					//flowstruct_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler
 					if (cleanup_registered_handlers (&mmt_probe.smp_threads[i]) == 0){
 						fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",mmt_probe.smp_threads[i].thread_number);
