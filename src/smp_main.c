@@ -1053,14 +1053,14 @@ int main(int argc, char **argv) {
 	parseOptions(argc, argv, mmt_conf);
 
 	mmt_conf->log_output = fopen(mmt_conf->log_file, "a");
-printf ("main \n");
+	printf ("main \n");
 
 	/*sigfillset(&signal_set);
 	signal(SIGINT, signal_handler);
 	signal(SIGTERM, signal_handler);
 	signal(SIGSEGV, signal_handler);
 	signal(SIGABRT, signal_handler);
-*/
+	 */
 	if (mmt_conf->sampled_report == 0) {
 		int len = 0;
 		len = snprintf(single_file,MAX_FILE_NAME,"%s%s", mmt_conf->output_location, mmt_conf->data_out);
@@ -1201,9 +1201,9 @@ printf ("main \n");
 			dpdk_capture(argc, argv);
 		}
 	}
-                if (capture_dpdk == 1){
-			dpdk_capture(argc, argv);
-		}
+	if (capture_dpdk == 1){
+		dpdk_capture(argc, argv);
+	}
 
 	//we need to enable timer both for file and redis output since we need report number 200 (to check that probe is alive)
 	start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);

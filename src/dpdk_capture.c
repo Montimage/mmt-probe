@@ -228,20 +228,20 @@ port_init(uint8_t port, struct rte_mempool *mbuf_pool)
 	return 0;
 }
 
-int get_packet(uint8_t port, int q){
+int get_packet(uint8_t port, int q, struct rte_mbuf **bufs){
 	uint16_t nb_rx;
 	int i=0;
-	struct rte_mbuf *bufs[BURST_SIZE];
+	//struct rte_mbuf *bufs[BURST_SIZE];
 	struct pkthdr header;
 	static struct packet_element *pkt;
 	struct timeval time_now;
-        struct timeval time_add;
-        struct timeval time_new;
+	struct timeval time_add;
+	struct timeval time_new;
 
 	gettimeofday(&time_now, NULL);
 	void  * data;
-        time_add.tv_sec = 0;
-        time_add.tv_usec = 0;
+	time_add.tv_sec = 0;
+	time_add.tv_usec = 0;
 
 	nb_rx = rte_eth_rx_burst(port, q, bufs, BURST_SIZE);
 	//printf ("queue = %u , nb_rx1 = %u \n", q, nb_rx1);
@@ -253,14 +253,12 @@ int get_packet(uint8_t port, int q){
 
 	//free all packets received
 	for( i=0; likely( i < nb_rx ); i++ ){
-                time_add.tv_usec += 1;
+		time_add.tv_usec += 1;
 		header.len    = (unsigned int)bufs[i]->pkt_len;
 		header.caplen = (unsigned int) bufs[i]->data_len;
-	        timeradd(&time_now, &time_add, &time_new);
-        	header.ts     = time_new;
+		timeradd(&time_now, &time_add, &time_new);
+		header.ts     = time_new;
 		header.user_args = NULL;
-		//pkt->data          = (u_char *)( &pkt[ 1 ]); //put data in the same memory segment but after sizeof( pkt )
-		//memcpy(pkt->data, data, pkthdr.caplen);
 		data = (bufs[i]->buf_addr + bufs[i]->data_off);
 		packet_process( mmt_handler, &header, (u_char *)data );
 		rte_pktmbuf_free( bufs[i] );
@@ -277,7 +275,7 @@ static __attribute__((noreturn)) void
 	const uint8_t nb_ports = rte_eth_dev_count();
 	uint8_t port;
 	int q;
-
+	struct rte_mbuf *bufs[BURST_SIZE];
 	/*
 	 * Check that the port is on the same NUMA node as the polling thread
 	 * for best performance.
@@ -305,7 +303,7 @@ static __attribute__((noreturn)) void
 			/* Get burst of RX packets, from first port of pair. */
 			for( q = 0; q < rx_rings; q++ )
 			{
-				get_packet (port,q);
+				get_packet (port,q, bufs);
 
 
 				/* Send burst of TX packets, to second port of pair. */
@@ -332,8 +330,8 @@ int dpdk_capture (int argc, char **argv){
 	struct rte_mempool *mbuf_pool;
 	unsigned nb_ports;
 	uint8_t portid;
-        char mmt_errbuf[1024];
-        mmt_handler = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
+	char mmt_errbuf[1024];
+	mmt_handler = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
 	/* Initialize the Environment Abstraction Layer (EAL). */
 	argv[1] = argv[argc - 2];
 	argv[2] = argv[argc - 1];
