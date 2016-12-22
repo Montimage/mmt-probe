@@ -13,4 +13,4 @@
 
 
 
-#endif /* SRC_LIB_OPTIMIZATION_H_ */
+#endif/* SRC_LIB_OPTIMIZATION_H_ */

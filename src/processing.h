@@ -641,6 +641,8 @@ int packet_handler(const ipacket_t * ipacket, void * args);
 void security_reports_init(void * args);
 void * get_handler_by_name(char * func_name);
 void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+int get_packet (uint8_t port, int q);
+int dpdk_capture (int argc, char **argv);
 
 //prototypes
 void print_ip_session_report (const mmt_session_t * session, void *user_args);

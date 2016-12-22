@@ -123,7 +123,6 @@ int cleanup_registered_handlers(void *arg){
 	}
 
 	return i;
-
 }
 
 
@@ -220,19 +219,19 @@ static void *smp_thread_routine(void *arg) {
 
 		}
 
-			//get number of packets being available
-			size = data_spsc_ring_pop_bulk( fifo, &tail );
-			/* if no packet has arrived sleep 1 milli-second */
-			if ( size <= 0 ) {
-				tv.tv_sec = 0;
-				tv.tv_usec = 1000;
-				//fprintf(stdout, "No more packets for thread %i --- waiting\n", th->thread_number);
-				select(0, NULL, NULL, NULL, &tv);
-				//nanosleep( (const struct timespec[]){{0, 1000000L}}, NULL );
-			} else { /* else remove number of packets from list and process it */
+		//get number of packets being available
+		size = data_spsc_ring_pop_bulk( fifo, &tail );
+		/* if no packet has arrived sleep 1 milli-second */
+		if ( size <= 0 ) {
+			tv.tv_sec = 0;
+			tv.tv_usec = 1000;
+			//fprintf(stdout, "No more packets for thread %i --- waiting\n", th->thread_number);
+			select(0, NULL, NULL, NULL, &tv);
+			//nanosleep( (const struct timespec[]){{0, 1000000L}}, NULL );
+		} else { /* else remove number of packets from list and process it */
 
-				//the last packet will be verified after (not in for)
-				size --;
+			//the last packet will be verified after (not in for)
+			size --;
 			for( i=0; i<size; i++ ){
 				pkt = (struct packet_element *) data_spsc_ring_get_data( fifo, i + tail);
 				packet_process( mmt_handler, &pkt->header, pkt->data );
@@ -519,8 +518,8 @@ void got_packet_multi_thread(u_char *args, const struct pcap_pkthdr *pkthdr, con
 	pkt->header.ts     = pkthdr->ts;
 	pkt->data          = (u_char *)( &pkt[ 1 ]); //put data in the same memory segment but after sizeof( pkt )
 	memcpy(pkt->data, data, pkthdr->caplen);
-//	mmt_memcpy( pkt->data, data, pkthdr->caplen );
-//	pkt->data = data;
+	//	mmt_memcpy( pkt->data, data, pkthdr->caplen );
+	//	pkt->data = data;
 
 	if(  unlikely( data_spsc_ring_push_tmp_element( &th->fifo ) != QUEUE_SUCCESS ))
 	{
@@ -1037,6 +1036,9 @@ int main(int argc, char **argv) {
 	char mmt_errbuf[1024];
 	int i, j, l = 0;
 	char lg_msg[1024];
+	int capture_pcap =0;
+	int capture_dpdk =1;
+
 	sigset_t signal_set;
 	char single_file [MAX_FILE_NAME+1] = {0};
 	pthread_mutex_init(&mutex_lock, NULL);
@@ -1051,14 +1053,14 @@ int main(int argc, char **argv) {
 	parseOptions(argc, argv, mmt_conf);
 
 	mmt_conf->log_output = fopen(mmt_conf->log_file, "a");
+printf ("main \n");
 
-
-	sigfillset(&signal_set);
+	/*sigfillset(&signal_set);
 	signal(SIGINT, signal_handler);
 	signal(SIGTERM, signal_handler);
 	signal(SIGSEGV, signal_handler);
 	signal(SIGABRT, signal_handler);
-
+*/
 	if (mmt_conf->sampled_report == 0) {
 		int len = 0;
 		len = snprintf(single_file,MAX_FILE_NAME,"%s%s", mmt_conf->output_location, mmt_conf->data_out);
@@ -1163,49 +1165,58 @@ int main(int argc, char **argv) {
 		/*
 		 * Array of list of packets for all threads
 		 */
-		sprintf(lg_msg, "Initializating MMT Extraction engine! Multi threaded operation (%i threads)", mmt_conf->thread_nb);
-		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_INIT, lg_msg);
-		mmt_probe.smp_threads = (struct smp_thread *) calloc(mmt_conf->thread_nb, sizeof (struct smp_thread));
-		/* run threads */
-		for (i = 0; i < mmt_conf->thread_nb; i++) {
-			init_list_head((struct list_entry *) &mmt_probe.smp_threads[i].pkt_head);
-			pthread_spin_init(&mmt_probe.smp_threads[i].lock, 0);
-			mmt_probe.smp_threads[i].thread_number = i;
-			mmt_probe.smp_threads[i].last_stat_report_time = time(0);
-			mmt_probe.smp_threads[i].pcap_last_stat_report_time = 0;
-			mmt_probe.smp_threads[i].pcap_current_packet_time = 0;
-			//mmt_probe.smp_threads[i].last_msg_report_time = time(0);
-			mmt_probe.smp_threads[i].null_pkt.pkt.data = NULL;
+		if (capture_pcap == 1)	{
+			sprintf(lg_msg, "Initializating MMT Extraction engine! Multi threaded operation (%i threads)", mmt_conf->thread_nb);
+			mmt_log(mmt_conf, MMT_L_INFO, MMT_E_INIT, lg_msg);
+			mmt_probe.smp_threads = (struct smp_thread *) calloc(mmt_conf->thread_nb, sizeof (struct smp_thread));
+			/* run threads */
+			for (i = 0; i < mmt_conf->thread_nb; i++) {
+				init_list_head((struct list_entry *) &mmt_probe.smp_threads[i].pkt_head);
+				pthread_spin_init(&mmt_probe.smp_threads[i].lock, 0);
+				mmt_probe.smp_threads[i].thread_number = i;
+				mmt_probe.smp_threads[i].last_stat_report_time = time(0);
+				mmt_probe.smp_threads[i].pcap_last_stat_report_time = 0;
+				mmt_probe.smp_threads[i].pcap_current_packet_time = 0;
+				//mmt_probe.smp_threads[i].last_msg_report_time = time(0);
+				mmt_probe.smp_threads[i].null_pkt.pkt.data = NULL;
 
-			mmt_probe.smp_threads[i].nb_dropped_packets = 0;
-			mmt_probe.smp_threads[i].nb_packets         = 0;
+				mmt_probe.smp_threads[i].nb_dropped_packets = 0;
+				mmt_probe.smp_threads[i].nb_packets         = 0;
 
-			if( data_spsc_ring_init( &mmt_probe.smp_threads[i].fifo, mmt_conf->thread_queue_plen, mmt_conf->requested_snap_len ) != 0 ){
-				perror("Not enough memory. Please reduce thread-queue or thread-nb in .conf");
-				//free memory allocated
-				for(j=0; j<=i; j++)
-					data_spsc_ring_free( &mmt_probe.smp_threads[j].fifo );
-				exit( 0 );
+				if( data_spsc_ring_init( &mmt_probe.smp_threads[i].fifo, mmt_conf->thread_queue_plen, mmt_conf->requested_snap_len ) != 0 ){
+					perror("Not enough memory. Please reduce thread-queue or thread-nb in .conf");
+					//free memory allocated
+					for(j=0; j<=i; j++)
+						data_spsc_ring_free( &mmt_probe.smp_threads[j].fifo );
+					exit( 0 );
+				}
+
+				pthread_create(&mmt_probe.smp_threads[i].handle, NULL,
+						smp_thread_routine, &mmt_probe.smp_threads[i]);
 			}
-
-			pthread_create(&mmt_probe.smp_threads[i].handle, NULL,
-					smp_thread_routine, &mmt_probe.smp_threads[i]);
+			sprintf(lg_msg, "MMT Extraction engine! successfully initialized in a multi threaded operation (%i threads)", mmt_conf->thread_nb);
+			mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, lg_msg);
 		}
-		sprintf(lg_msg, "MMT Extraction engine! successfully initialized in a multi threaded operation (%i threads)", mmt_conf->thread_nb);
-		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, lg_msg);
-
+		if (capture_dpdk == 1){
+			dpdk_capture(argc, argv);
+		}
 	}
+                if (capture_dpdk == 1){
+			dpdk_capture(argc, argv);
+		}
+
 	//we need to enable timer both for file and redis output since we need report number 200 (to check that probe is alive)
 	start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
 	//Offline or Online processing
-	if (mmt_conf->input_mode == OFFLINE_ANALYSIS) {
-		process_trace_file(mmt_conf->input_source, &mmt_probe); //Process single offline trace
-		//We don't close the files here because they will be used when the handler is closed to report still to timeout flows
-	}else if (mmt_conf->input_mode == ONLINE_ANALYSIS) {
-		process_interface(mmt_conf->input_source, &mmt_probe); //Process single offline trace
-		//We don't close the files here because they will be used when the handler is closed to report still to timeout flows
+	if (capture_pcap == 1){
+		if (mmt_conf->input_mode == OFFLINE_ANALYSIS) {
+			process_trace_file(mmt_conf->input_source, &mmt_probe); //Process single offline trace
+			//We don't close the files here because they will be used when the handler is closed to report still to timeout flows
+		}else if (mmt_conf->input_mode == ONLINE_ANALYSIS) {
+			process_interface(mmt_conf->input_source, &mmt_probe); //Process single offline trace
+			//We don't close the files here because they will be used when the handler is closed to report still to timeout flows
+		}
 	}
-
 	terminate_probe_processing(1);
 
 	//printf("Process Terminated successfully\n");

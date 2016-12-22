@@ -16,7 +16,7 @@ void usage(const char * prg_name) {
 	fprintf(stderr, "%s [<option>]\n", prg_name);
 	fprintf(stderr, "Option:\n");
 	fprintf(stderr, "\t-v               : Lists versions.\n");
-	fprintf(stderr, "\t-c <config file> : Gives the path to the config file (default: /etc/mmtprobe/mmt.conf).\n");
+	fprintf(stderr, "\t-z <config file> : Gives the path to the config file (default: /etc/mmtprobe/mmt.conf).\n");
 	fprintf(stderr, "\t-t <trace file>  : Gives the trace file to analyse.\n");
 	fprintf(stderr, "\t-i <interface>   : Gives the interface name for live traffic analysis.\n");
 	fprintf(stderr, "\t-o <output file> : Gives the output file name. \n");
@@ -733,9 +733,10 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 	int probe_id_number = 0;
 	int flow_stats = 1;
 	int versions_only = 0;
-	while ((opt = getopt(argc, argv, "c:t:i:o:R:P:p:s:n:f:hv")) != EOF) {
+        int dpdk = 0;
+	while ((opt = getopt(argc, argv, "z:t:i:o:R:P:p:s:n:f:c:hv")) != EOF) {
 		switch (opt) {
-		case 'c':
+		case 'z':
 			config_file = optarg;
 			break;
 		case 't':
@@ -775,10 +776,13 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 			break;
 		case 'v':
 			versions_only = 1;
-			//fprintf(stderr,"Versions: \n Probe v1.0.0 \n DPI v%s \n Security v0.9b \n Compatible with Operator v1.5 \n",mmt_version());
-			fprintf(stderr,"Versions: \n Probe v%s (%s) \n DPI v%s \n Security v0.9b \n Compatible with Operator v1.5 \n",
-								VERSION, GIT_VERSION, //these version information are given by Makefile
-								mmt_version());
+		case 'c':
+			dpdk = 1;
+
+		//fprintf(stderr,"Versions: \n Probe v1.0.0 \n DPI v%s \n Security v0.9b \n Compatible with Operator v1.5 \n",mmt_version());
+		//	fprintf(stderr,"Versions: \n Probe v%s (%s) \n DPI v%s \n Security v0.9b \n Compatible with Operator v1.5 \n",
+		//						VERSION, GIT_VERSION, //these version information are given by Makefile
+		//						mmt_version());
 			break;
 		case 'h':
 		default: usage(argv[0]);
