@@ -700,7 +700,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			//Once cancelled, join should give "THREAD_CANCELLED" retval
 			sleep(30);
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
-				int s;
+				int s;th
 				s = pthread_cancel(mmt_probe.smp_threads[i].handle);
 				if (s != 0) {
 					exit(1);
@@ -1165,44 +1165,36 @@ int main(int argc, char **argv) {
 		/*
 		 * Array of list of packets for all threads
 		 */
-		if (capture_pcap == 1)	{
-			sprintf(lg_msg, "Initializating MMT Extraction engine! Multi threaded operation (%i threads)", mmt_conf->thread_nb);
-			mmt_log(mmt_conf, MMT_L_INFO, MMT_E_INIT, lg_msg);
-			mmt_probe.smp_threads = (struct smp_thread *) calloc(mmt_conf->thread_nb, sizeof (struct smp_thread));
-			/* run threads */
-			for (i = 0; i < mmt_conf->thread_nb; i++) {
-				init_list_head((struct list_entry *) &mmt_probe.smp_threads[i].pkt_head);
-				pthread_spin_init(&mmt_probe.smp_threads[i].lock, 0);
-				mmt_probe.smp_threads[i].thread_number = i;
-				mmt_probe.smp_threads[i].last_stat_report_time = time(0);
-				mmt_probe.smp_threads[i].pcap_last_stat_report_time = 0;
-				mmt_probe.smp_threads[i].pcap_current_packet_time = 0;
-				//mmt_probe.smp_threads[i].last_msg_report_time = time(0);
-				mmt_probe.smp_threads[i].null_pkt.pkt.data = NULL;
+		sprintf(lg_msg, "Initializating MMT Extraction engine! Multi threaded operation (%i threads)", mmt_conf->thread_nb);
+		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_INIT, lg_msg);
+		mmt_probe.smp_threads = (struct smp_thread *) calloc(mmt_conf->thread_nb, sizeof (struct smp_thread));
+		/* run threads */
+		for (i = 0; i < mmt_conf->thread_nb; i++) {
+			init_list_head((struct list_entry *) &mmt_probe.smp_threads[i].pkt_head);
+			pthread_spin_init(&mmt_probe.smp_threads[i].lock, 0);
+			mmt_probe.smp_threads[i].thread_number = i;
+			mmt_probe.smp_threads[i].last_stat_report_time = time(0);
+			mmt_probe.smp_threads[i].pcap_last_stat_report_time = 0;
+			mmt_probe.smp_threads[i].pcap_current_packet_time = 0;
+			//mmt_probe.smp_threads[i].last_msg_report_time = time(0);
+			mmt_probe.smp_threads[i].null_pkt.pkt.data = NULL;
 
-				mmt_probe.smp_threads[i].nb_dropped_packets = 0;
-				mmt_probe.smp_threads[i].nb_packets         = 0;
+			mmt_probe.smp_threads[i].nb_dropped_packets = 0;
+			mmt_probe.smp_threads[i].nb_packets         = 0;
 
-				if( data_spsc_ring_init( &mmt_probe.smp_threads[i].fifo, mmt_conf->thread_queue_plen, mmt_conf->requested_snap_len ) != 0 ){
-					perror("Not enough memory. Please reduce thread-queue or thread-nb in .conf");
-					//free memory allocated
-					for(j=0; j<=i; j++)
-						data_spsc_ring_free( &mmt_probe.smp_threads[j].fifo );
-					exit( 0 );
-				}
-
-				pthread_create(&mmt_probe.smp_threads[i].handle, NULL,
-						smp_thread_routine, &mmt_probe.smp_threads[i]);
+			if( data_spsc_ring_init( &mmt_probe.smp_threads[i].fifo, mmt_conf->thread_queue_plen, mmt_conf->requested_snap_len ) != 0 ){
+				perror("Not enough memory. Please reduce thread-queue or thread-nb in .conf");
+				//free memory allocated
+				for(j=0; j<=i; j++)
+					data_spsc_ring_free( &mmt_probe.smp_threads[j].fifo );
+				exit( 0 );
 			}
-			sprintf(lg_msg, "MMT Extraction engine! successfully initialized in a multi threaded operation (%i threads)", mmt_conf->thread_nb);
-			mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, lg_msg);
+
+			pthread_create(&mmt_probe.smp_threads[i].handle, NULL,
+					smp_thread_routine, &mmt_probe.smp_threads[i]);
 		}
-		if (capture_dpdk == 1){
-			dpdk_capture(argc, argv);
-		}
-	}
-	if (capture_dpdk == 1){
-		dpdk_capture(argc, argv);
+		sprintf(lg_msg, "MMT Extraction engine! successfully initialized in a multi threaded operation (%i threads)", mmt_conf->thread_nb);
+		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, lg_msg);
 	}
 
 	//we need to enable timer both for file and redis output since we need report number 200 (to check that probe is alive)
@@ -1215,6 +1207,8 @@ int main(int argc, char **argv) {
 		}else if (mmt_conf->input_mode == ONLINE_ANALYSIS) {
 			process_interface(mmt_conf->input_source, &mmt_probe); //Process single offline trace
 			//We don't close the files here because they will be used when the handler is closed to report still to timeout flows
+		}else if (capture_dpdk == 1){
+			dpdk_capture(argc, argv, &mmt_probe );
 		}
 	}
 	terminate_probe_processing(1);

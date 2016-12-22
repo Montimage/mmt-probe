@@ -228,7 +228,7 @@ port_init(uint8_t port, struct rte_mempool *mbuf_pool)
 	return 0;
 }
 
-int get_packet(uint8_t port, int q){
+int get_packet(uint8_t port, int q, mmt_probe_struct_t * mmt_probe){
 	uint16_t nb_rx;
 	int i=0;
 	struct rte_mbuf *bufs[BURST_SIZE];
@@ -237,7 +237,7 @@ int get_packet(uint8_t port, int q){
 	struct timeval time_now;
 	struct timeval time_add;
 	struct timeval time_new;
-
+	void *pdata;
 	gettimeofday(&time_now, NULL);
 	void  * data;
 	time_add.tv_sec = 0;
@@ -249,7 +249,10 @@ int get_packet(uint8_t port, int q){
 		//nanosleep( (const struct timespec[]){{0, 10L}}, NULL );
 		return 1;
 	}
+
 	total_pkt[q] += nb_rx;
+	data_spsc_ring_get_tmp_element( &mmt_probe->smp_threads->fifo, &pdata );
+	pkt = (struct packet_element *) pdata;
 
 	//free all packets received
 	for( i=0; likely( i < nb_rx ); i++ ){
@@ -260,8 +263,15 @@ int get_packet(uint8_t port, int q){
 		pkt->header.ts     = time_new;
 		pkt->header.user_args = NULL;
 		pkt->data = (bufs[i]->buf_addr + bufs[i]->data_off);
-		packet_process( mmt_handler, &pkt->header, (u_char *)pkt->data );
-		rte_pktmbuf_free( bufs[i] );
+		//packet_process( mmt_handler, &pkt->header, (u_char *)pkt->data );
+		if(  unlikely( data_spsc_ring_push_tmp_element( &mmt_probe->smp_threads->fifo ) != QUEUE_SUCCESS ))
+		{
+			//queue is full
+			nb_packets_dropped_by_mmt ++;
+			mmt_probe->smp_threads->nb_dropped_packets ++;
+		}
+
+		//rte_pktmbuf_free( bufs[i] );
 	}
 	return 0;
 }
@@ -331,7 +341,7 @@ int dpdk_capture (int argc, char **argv){
 	unsigned nb_ports;
 	uint8_t portid;
 	char mmt_errbuf[1024];
-	mmt_handler = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
+	//mmt_handler = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
 	/* Initialize the Environment Abstraction Layer (EAL). */
 	argv[1] = argv[argc - 2];
 	argv[2] = argv[argc - 1];
