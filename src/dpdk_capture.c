@@ -137,7 +137,7 @@ void print_stats (void){
 	struct rte_eth_stats stat;
 	int i;
 	static uint64_t good_pkt = 0, miss_pkt = 0, err_pkt = 0;
-	int thread_nb = 5;
+	int thread_nb = 3;
 
 	/* Print per port stats */
 	for (i = 0; i < 1; i++){
@@ -310,7 +310,7 @@ port_init(uint8_t port, struct rte_mempool *mbuf_pool, struct mmt_probe_struct *
 	int retval;
 	uint16_t q;
 	/* Configure the Ethernet device. */
-	retval = rte_eth_dev_configure(port, mmt_probe->mmt_conf->thread_nb, tx_rings, &port_conf_default);
+	retval = rte_eth_dev_configure(port, mmt_probe->mmt_conf->thread_nb, 0 , &port_conf_default);
 	if (retval != 0)
 		return retval;
 
@@ -476,17 +476,19 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
     }
     workers->mmt_probe = mmt_probe;
     int thread_nb = 0;
+    lcore_id = 0;
     /* Start worker_thread() on all the available slave cores but the last 1 */
-    while (thread_nb <= mmt_probe->mmt_conf->thread_nb){
-    	for (lcore_id = 0; lcore_id <= get_previous_lcore_id(last_lcore_id); lcore_id++){
+    while (thread_nb < mmt_probe->mmt_conf->thread_nb){
+    	if (lcore_id <= get_previous_lcore_id(last_lcore_id)){
     		if (rte_lcore_is_enabled(lcore_id) && lcore_id != master_lcore_id){
     			snprintf(workers[thread_nb].rx_to_workers, MAX_MESS,"%u", lcore_id );
     			workers[thread_nb].ring_in = rte_ring_create(workers[thread_nb].rx_to_workers, RING_SIZE, rte_socket_id(),RING_F_SP_ENQ);
     			workers[thread_nb].lcore_id = thread_nb;
     			rte_eal_remote_launch(worker_thread, (void *)&workers[thread_nb], lcore_id);
-    			printf("lcore_id = %u\n",thread_nb);
+    			printf("thread_id = %u, core_id = %u\n",thread_nb,lcore_id);
+                        thread_nb ++;
     		}
-    		thread_nb++;
+		lcore_id++;
     	}
     }
 
