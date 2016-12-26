@@ -49,21 +49,29 @@
 #include <rte_cycles.h>
 #include <rte_lcore.h>
 #include <rte_mbuf.h>
+#include <rte_common.h>
+#include <rte_errno.h>
+#include <rte_malloc.h>
+#include <rte_mempool.h>
+#include <rte_ring.h>
+
+
 #include "mmt_core.h"
 #include "tcpip/mmt_tcpip.h"
 
 #include "processing.h"
 
 #define RX_RING_SIZE 4096
-#define TX_RING_SIZE 64
-
 #define NUM_MBUFS 524287
 #define MBUF_CACHE_SIZE 512
 #define BURST_SIZE 4096
+#define MAX_PKTS_BURST 4096
+#define RING_SIZE 16384
 
-#define RX_RINGS_COUNT 1
 static uint64_t total_pkt [20];
 mmt_handler_t *mmt_handler;
+
+
 
 //static uint64_t total_pkt2 = 0;
 //static uint64_t total_pkt3 = 0;
@@ -81,6 +89,15 @@ struct packet_element {
 	struct pkthdr header;
 	u_char *data;
 };*/
+struct worker_args {
+        struct rte_ring *ring_in;
+        char rx_to_workers[20];
+        int lcore_id;
+        mmt_handler_t * mmt_handler;
+        long long int num_packet;
+        struct mmt_probe_struct * mmt_probe;
+};
+
 const uint16_t tx_rings = 4; /* Struct for configuring each rx queue. These are default values */
 //const uint16_t rx_rings = 4;
 static uint8_t hash_key[40] = { 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, };
@@ -120,6 +137,7 @@ void print_stats (void){
 	struct rte_eth_stats stat;
 	int i;
 	static uint64_t good_pkt = 0, miss_pkt = 0, err_pkt = 0;
+	int thread_nb = 10;
 
 	/* Print per port stats */
 	for (i = 0; i < 1; i++){
@@ -142,10 +160,9 @@ void print_stats (void){
 	printf("\nTOT:  %'9ld (recv), %'9ld (dr %3.2f%%), %'7ld (err) %'9ld (tot)\n\n",
 			good_pkt, miss_pkt, (float)miss_pkt/(good_pkt+miss_pkt+err_pkt)*100, err_pkt, good_pkt+miss_pkt+err_pkt );
 
-	printf("\ntotal0: %lu \n",total_pkt[0]);
-	printf("\ntotal1: %lu \n",total_pkt[1]);
-	printf("\ntotal2: %lu \n",total_pkt[2]);
-	printf("\ntotal3: %lu \n",total_pkt[3]);
+	for (i = 0; i < thread_nb; i++)
+	printf("\n Packet_processed total thread %u: %lu \n",i,total_pkt[i]);
+
 
 }
 /* Signal handling function */
@@ -170,6 +187,79 @@ void alarm_routine (__attribute__((unused)) int unused){
 	signal(SIGALRM, alarm_routine);
 }
 
+int packet_handler_dpdk(const ipacket_t * ipacket, void * args) {
+	struct worker_args *args_ptr;
+
+	args_ptr = (struct worker_args *) args;
+	total_pkt[args_ptr->lcore_id] = ipacket->packet_id;
+	return 0;
+}
+
+
+static int
+worker_thread(void *args_ptr)
+{
+	uint16_t i, ret = 0;
+	uint16_t burst_size_total = 0;
+	struct worker_args *args;
+	struct rte_mbuf * burst_buffer [MAX_PKTS_BURST];
+	struct rte_ring *ring_in;
+	struct pkthdr header;
+	struct timeval time_now;
+	struct timeval time_add;
+	struct timeval time_new;
+	char mmt_errbuf[1024];
+
+	gettimeofday(&time_now, NULL);
+	void  * data;
+	time_add.tv_sec = 0;
+	time_add.tv_usec = 0;
+
+
+	args = (struct worker_args *) args_ptr;
+	ring_in  = args->ring_in;
+	//  printf ("worker_thread = %lu\n",args->lcore_id);
+	// RTE_LOG(INFO, REORDERAPP, "%s() started on lcore %u\n", __func__,  rte_lcore_id());
+
+	args->mmt_handler = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
+	if (!args->mmt_handler) { /* pcap error ? */
+		fprintf(stderr, "MMT handler init failed for the following reason: %s\n", mmt_errbuf);
+		return EXIT_FAILURE;
+	}
+
+	//Register a packet handler, it will be called for every processed packet
+	register_packet_handler(args->mmt_handler, 10, packet_handler_dpdk /* built in packet handler that will print all of the attributes */, (void *)args);
+
+	while (1) {
+		i = 0;
+		uint16_t burst_size = 0;
+		/* dequeue the mbufs workers ring */
+		burst_size = rte_ring_dequeue_burst(ring_in,
+				(void *)burst_buffer, MAX_PKTS_BURST);
+		if (unlikely(burst_size == 0))
+			continue;
+		burst_size_total += burst_size;
+		//               printf ("worker_thread = %u, burst_size = %u, burst_total =%u\n",args->lcore_id,burst_size,burst_size_total);
+		/* just do some operation on mbuf */
+		for (i = 0; i < burst_size; i++){
+			time_add.tv_usec += 1;
+			header.len    = (unsigned int)burst_buffer[i]->pkt_len;
+			header.caplen = (unsigned int) burst_buffer[i]->data_len;
+			timeradd(&time_now, &time_add, &time_new);
+			header.ts     = time_new;
+			header.user_args = NULL;
+			data = (burst_buffer[i]->buf_addr + burst_buffer[i]->data_off);
+			packet_process( args->mmt_handler, &header, (u_char *)data );
+			rte_pktmbuf_free( burst_buffer[i] );
+		}
+
+		// for (i = 0; i < burst_size;i++)rte_pktmbuf_free( burst_buffer[i] );
+
+	}
+	return 0;
+}
+
+
 /* basicfwd.c: Basic DPDK skeleton forwarding example. */
 
 /*
@@ -183,10 +273,6 @@ port_init(uint8_t port, struct rte_mempool *mbuf_pool, struct mmt_probe_struct *
 
 	int retval;
 	uint16_t q;
-
-	//      if (port >= rte_eth_dev_count())
-	//              return -1;
-
 	/* Configure the Ethernet device. */
 	retval = rte_eth_dev_configure(port, mmt_probe->mmt_conf->thread_nb, tx_rings, &port_conf_default);
 	if (retval != 0)
@@ -196,14 +282,6 @@ port_init(uint8_t port, struct rte_mempool *mbuf_pool, struct mmt_probe_struct *
 	for (q = 0; q < mmt_probe->mmt_conf->thread_nb; q++) {
 		retval = rte_eth_rx_queue_setup(port, q, RX_RING_SIZE,
 				rte_eth_dev_socket_id(port), &rx_conf, mbuf_pool);
-		if (retval < 0)
-			return retval;
-	}
-
-	/* Allocate and set up 1 TX queue per Ethernet port. */
-	for (q = 0; q < tx_rings; q++) {
-		retval = rte_eth_tx_queue_setup(port, q, TX_RING_SIZE,
-				rte_eth_dev_socket_id(port), NULL);
 		if (retval < 0)
 			return retval;
 	}
@@ -228,21 +306,14 @@ port_init(uint8_t port, struct rte_mempool *mbuf_pool, struct mmt_probe_struct *
 	return 0;
 }
 
-int get_packet(uint8_t port, int q, struct mmt_probe_struct * mmt_probe){
+int get_packet (uint8_t port, int q, void * args){
 	uint16_t nb_rx;
 	int i=0;
 	struct rte_mbuf *bufs[BURST_SIZE];
-	//struct pkthdr header;
-	static struct packet_element *pkt;
-	struct timeval time_now;
-	struct timeval time_add;
-	struct timeval time_new;
-	void *pdata;
-	gettimeofday(&time_now, NULL);
-	void  * data;
-	time_add.tv_sec = 0;
-	time_add.tv_usec = 0;
 
+	struct worker_args * workers= (struct worker_args *) args;
+
+	int ret =0;
 	nb_rx = rte_eth_rx_burst(port, q, bufs, BURST_SIZE);
 	//printf ("queue = %u , nb_rx1 = %u \n", q, nb_rx1);
 	if (unlikely(nb_rx == 0)){
@@ -250,33 +321,17 @@ int get_packet(uint8_t port, int q, struct mmt_probe_struct * mmt_probe){
 		return 1;
 	}
 
-	total_pkt[q] += nb_rx;
-
-	//free all packets received
-	for( i=0; likely( i < nb_rx ); i++ ){
-		data_spsc_ring_get_tmp_element( &mmt_probe->smp_threads[q].fifo, &pdata );
-		pkt = (struct packet_element *) pdata;
-
-		time_add.tv_usec += 1;
-		pkt->header.len    = (unsigned int)bufs[i]->pkt_len;
-		pkt->header.caplen = (unsigned int) bufs[i]->data_len;
-		timeradd(&time_now, &time_add, &time_new);
-		pkt->header.ts     = time_new;
-		pkt->header.user_args = NULL;
-		pkt->data = (bufs[i]->buf_addr + bufs[i]->data_off);
-		if (pkt->data == NULL) printf("data is NULL\n");
-		//packet_process( mmt_handler, &pkt->header, (u_char *)pkt->data );
-		if(  unlikely( data_spsc_ring_push_tmp_element( &mmt_probe->smp_threads[q].fifo ) != QUEUE_SUCCESS ))
-		{
-			//queue is full
-		//	nb_packets_dropped_by_mmt ++;
-			mmt_probe->smp_threads[q].nb_dropped_packets ++;
-		}
-
-		//rte_pktmbuf_free( bufs[i] );
+	/* enqueue to rx_to_workers ring */
+	ret = rte_ring_enqueue_burst(workers[q].ring_in, (void *) bufs, nb_rx);
+	if (unlikely(ret < nb_rx)) {
+		//pktmbuf_free_bulk(&pkts[ret], nb_rx_pkts - ret);
 	}
+
 	return 0;
+
 }
+
+
 /*
  * The lcore main. This is the main thread that does the work, reading from
  * an input port and writing to an output port.
@@ -287,7 +342,7 @@ static __attribute__((noreturn)) void
 	const uint8_t nb_ports = rte_eth_dev_count();
 	uint8_t port;
 	int q;
-	struct mmt_probe_struct * mmt_probe = (struct mmt_probe_struct *) args;
+	//struct worker_args * worker= (struct worker_args *) args;
 	/*
 	 * Check that the port is on the same NUMA node as the polling thread
 	 * for best performance.
@@ -311,23 +366,10 @@ static __attribute__((noreturn)) void
 		 */
 		for (port = 0; port < nb_ports; port++)
 		{
-
 			/* Get burst of RX packets, from first port of pair. */
-			for( q = 0; q < mmt_probe->mmt_conf->thread_nb; q++ )
+			for( q = 0; q < rx_rings; q++ )
 			{
-				get_packet (port,q,mmt_probe);
-
-
-				/* Send burst of TX packets, to second port of pair. */
-				//                      const uint16_t nb_tx = rte_eth_tx_burst(port ^ 1, 0,
-				//                                      bufs, nb_rx);
-				//
-				//                      /* Free any unsent packets. */
-				//                      if (unlikely(nb_tx < nb_rx)) {
-				//                              uint16_t buf;
-				//                              for (buf = nb_tx; buf < nb_rx; buf++)
-				//                                      rte_pktmbuf_free(bufs[buf]);
-				//                      }
+				get_packet (port,q,args);
 
 			}
 
@@ -335,18 +377,16 @@ static __attribute__((noreturn)) void
 
 	}
 }
-
-
-
 int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	struct rte_mempool *mbuf_pool;
 	unsigned nb_ports;
 	uint8_t portid;
-	char mmt_errbuf[1024];
-	//mmt_handler = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
-	/* Initialize the Environment Abstraction Layer (EAL). */
+	int num_of_cores = 0;
+	unsigned int lcore_id, last_lcore_id, master_lcore_id;
+
 	argv[1] = argv[argc - 2];
 	argv[2] = argv[argc - 1];
+	/* Initialize the Environment Abstraction Layer (EAL). */
 	int ret = rte_eal_init(argc, argv);
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Error with EAL initialization\n");
@@ -361,9 +401,16 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 
 	argc -= ret;
 	argv += ret;
+    num_of_cores = mmt_probe->mmt_conf->thread_nb +1;
 
-	/* Check that there is an even number of ports to send/receive on. */
-	nb_ports = 1; // rte_eth_dev_count();	mmt_probe_context_t * mmt_conf = mmt_probe.mmt_conf;
+	/* Check if we have enought cores */
+	if (rte_lcore_count() < num_of_cores)
+		rte_exit(EXIT_FAILURE, "Error, This application does not have "
+				"enough cores to run this application, check threads assigned \n");
+
+
+	/* Number of network interfaces to be used  */
+	nb_ports = 1;
 
 
 	/* Creates a new mempool in memory to hold the mbufs. */
@@ -379,11 +426,34 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 			rte_exit(EXIT_FAILURE, "Cannot init port %"PRIu8 "\n",
 					portid);
 
-	if (rte_lcore_count() > 1)
-		printf("\nWARNING: Too many lcores enabled. Only 1 used.\n");
+	last_lcore_id   = get_last_lcore_id();
+    master_lcore_id = rte_get_master_lcore();
 
-	/* Call lcore_main on the master core only. */
-	lcore_main(mmt_probe);
+
+    struct worker_args * workers;
+
+    workers = (struct worker_args *) calloc(mmt_probe->mmt_conf->thread_nb, sizeof (struct worker_args));
+    if (workers == NULL){
+    	printf("ERROR: Workers struct memory allocation \n");
+    }
+    workers->mmt_probe = mmt_probe;
+    int thread_nb = 0;
+    /* Start worker_thread() on all the available slave cores but the last 1 */
+    while (thread_nb <= mmt_probe->mmt_conf->thread_nb){
+    	for (lcore_id = 0; lcore_id <= get_previous_lcore_id(last_lcore_id); lcore_id++){
+    		if (rte_lcore_is_enabled(lcore_id) && lcore_id != master_lcore_id){
+    			snprintf(workers[thread_nb].rx_to_workers, MAX_MESS,"%u", lcore_id );
+    			workers[thread_nb].ring_in = rte_ring_create(workers[thread_nb].rx_to_workers, RING_SIZE, rte_socket_id(),RING_F_SP_ENQ);
+    			workers[thread_nb].lcore_id = lcore_id;
+    			rte_eal_remote_launch(worker_thread, (void *)&workers[thread_nb], lcore_id);
+    			printf("lcore_id = %u\n",thread_nb);
+    		}
+    		thread_nb++;
+    	}
+    }
+
+    /* Call lcore_main on the master core only. */
+	lcore_main(workers);
 
 	return 0;
 
