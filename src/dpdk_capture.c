@@ -137,7 +137,7 @@ void print_stats (void){
 	struct rte_eth_stats stat;
 	int i;
 	static uint64_t good_pkt = 0, miss_pkt = 0, err_pkt = 0;
-	int thread_nb = 10;
+	int thread_nb = 5;
 
 	/* Print per port stats */
 	for (i = 0; i < 1; i++){
@@ -193,6 +193,42 @@ int packet_handler_dpdk(const ipacket_t * ipacket, void * args) {
 	args_ptr = (struct worker_args *) args;
 	total_pkt[args_ptr->lcore_id] = ipacket->packet_id;
 	return 0;
+}
+
+/**
+ * Get the previous enabled lcore ID
+ * @param id
+ *  The current lcore ID
+ * @return
+ *   The previous enabled lcore ID or the current lcore
+ *   ID if it is the first available core.
+ */
+static unsigned int
+get_previous_lcore_id(unsigned int id)
+{
+        int i;
+
+        for (i = id - 1; i >= 0; i--)
+                if (rte_lcore_is_enabled(i))
+                        return i;
+        return id;
+}
+
+/**
+ * Get the last enabled lcore ID
+ *
+ * @return
+ *   The last enabled lcore ID.
+ */
+static unsigned int
+get_last_lcore_id(void)
+{
+        int i;
+
+        for (i = RTE_MAX_LCORE - 1; i >= 0; i--)
+                if (rte_lcore_is_enabled(i))
+                        return i;
+        return 0;
 }
 
 
@@ -342,6 +378,8 @@ static __attribute__((noreturn)) void
 	const uint8_t nb_ports = rte_eth_dev_count();
 	uint8_t port;
 	int q;
+        struct worker_args * workers= (struct worker_args *) args;
+
 	//struct worker_args * worker= (struct worker_args *) args;
 	/*
 	 * Check that the port is on the same NUMA node as the polling thread
@@ -367,7 +405,7 @@ static __attribute__((noreturn)) void
 		for (port = 0; port < nb_ports; port++)
 		{
 			/* Get burst of RX packets, from first port of pair. */
-			for( q = 0; q < rx_rings; q++ )
+			for( q = 0; q < workers->mmt_probe->mmt_conf->thread_nb; q++ )
 			{
 				get_packet (port,q,args);
 
@@ -444,7 +482,7 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
     		if (rte_lcore_is_enabled(lcore_id) && lcore_id != master_lcore_id){
     			snprintf(workers[thread_nb].rx_to_workers, MAX_MESS,"%u", lcore_id );
     			workers[thread_nb].ring_in = rte_ring_create(workers[thread_nb].rx_to_workers, RING_SIZE, rte_socket_id(),RING_F_SP_ENQ);
-    			workers[thread_nb].lcore_id = lcore_id;
+    			workers[thread_nb].lcore_id = thread_nb;
     			rte_eal_remote_launch(worker_thread, (void *)&workers[thread_nb], lcore_id);
     			printf("lcore_id = %u\n",thread_nb);
     		}

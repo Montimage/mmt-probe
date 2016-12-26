@@ -641,7 +641,7 @@ int packet_handler(const ipacket_t * ipacket, void * args);
 void security_reports_init(void * args);
 void * get_handler_by_name(char * func_name);
 void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-int get_packet (uint8_t port, int q, struct mmt_probe_struct * mmt_probe);
+int get_packet (uint8_t port, int q, void * args);
 //int dpdk_capture (int argc, char **argv);
 int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe);
 void print_stats(void);

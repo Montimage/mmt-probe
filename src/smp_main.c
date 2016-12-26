@@ -1184,7 +1184,7 @@ int main(int argc, char **argv) {
 
 			mmt_probe.smp_threads[i].nb_dropped_packets = 0;
 			mmt_probe.smp_threads[i].nb_packets         = 0;
-
+/*
 			if( data_spsc_ring_init( &mmt_probe.smp_threads[i].fifo, mmt_conf->thread_queue_plen, mmt_conf->requested_snap_len ) != 0 ){
 				perror("Not enough memory. Please reduce thread-queue or thread-nb in .conf");
 				//free memory allocated
@@ -1194,7 +1194,7 @@ int main(int argc, char **argv) {
 			}
 
 			pthread_create(&mmt_probe.smp_threads[i].handle, NULL,
-					smp_thread_routine, &mmt_probe.smp_threads[i]);
+					smp_thread_routine, &mmt_probe.smp_threads[i]);*/
 		}
 		sprintf(lg_msg, "MMT Extraction engine! successfully initialized in a multi threaded operation (%i threads)", mmt_conf->thread_nb);
 		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, lg_msg);
