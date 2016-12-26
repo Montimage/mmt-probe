@@ -338,10 +338,19 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 					th->report[i].length += 4;
 					memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], &attr_extract->field_id, 4);
 					th->report[i].length += 4;
-					memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], &attr_extract->data_len, 2);
-					th->report[i].length += 2;
-					memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], attr_extract->data, attr_extract->data_len);
-					th->report[i].length +=  attr_extract->data_len;
+					if (attr_extract->data_type == MMT_HEADER_LINE){
+						http_line_struct_t * data_ptr = (http_line_struct_t *) attr_extract->data;
+						int max = (data_ptr->len > 1024) ? 1024 : data_ptr->len;
+						memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], &max, 2);
+						th->report[i].length += 2;
+						memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], data_ptr->ptr, max);
+						th->report[i].length += max;
+					}else{
+						memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], &attr_extract->data_len, 2);
+						th->report[i].length += 2;
+						memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], attr_extract->data, attr_extract->data_len);
+						th->report[i].length +=  attr_extract->data_len;
+					}
 					k++;
 
 				}

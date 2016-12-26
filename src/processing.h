@@ -125,6 +125,11 @@ typedef struct mmt_ipv4_ipv6_id_struct {
     };
 } mmt_ipv4_ipv6_id_t;
 
+typedef struct http_line_struct {
+	const uint8_t *ptr;
+	uint16_t len;
+} http_line_struct_t;
+
 typedef struct mmt_dev_properties_struct {
     uint16_t os_id;
     uint16_t dev_id;
