@@ -432,9 +432,9 @@ void flush_messages_to_file_thread( void *arg){
 
 	//dummy report
 	if (th->thread_number == 0){
-		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu",
+		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu, %Lf, %Lf",
 				200, probe_context->probe_id_number,
-				probe_context->input_source, ts.tv_sec, ts.tv_usec);
+				probe_context->input_source, ts.tv_sec, ts.tv_usec, th->cpu_usage, th->mem_usage);
 		message[ MAX_MESS] = '\0';
 		if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message, (void *)th);
 		if (probe_context->redis_enable == 1)send_message_to_redis ("session.flow.report", message);

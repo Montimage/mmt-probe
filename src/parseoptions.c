@@ -86,6 +86,12 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_END()
 	};
 
+	cfg_opt_t cpu_mem_report_opts[] = {
+					CFG_INT("enable", 0, CFGF_NONE),
+					CFG_INT("frequency", 0, CFGF_NONE),
+					CFG_END()
+	};
+
 	cfg_opt_t behaviour_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
 			CFG_STR("location", 0, CFGF_NONE),
@@ -149,6 +155,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_SEC("redis-output", redis_output_opts, CFGF_NONE),
 			CFG_SEC("data-output", data_output_opts, CFGF_NONE),
 			CFG_SEC("security", security_opts, CFGF_NONE),
+			CFG_SEC("cpu-mem-usage", cpu_mem_report_opts, CFGF_NONE),
 			CFG_SEC("socket", socket_opts, CFGF_NONE),
 			CFG_SEC("behaviour", behaviour_opts, CFGF_NONE),
 			CFG_SEC("reconstruct-ftp", reconstruct_ftp_opts, CFGF_NONE),
@@ -410,6 +417,13 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				mmt_conf->security_id = (uint16_t) cfg_getint(security, "id");
 				strncpy(mmt_conf->dir_out, (char *) cfg_getstr(security, "results-dir"), 256);
 				strncpy(mmt_conf->properties_file, (char *) cfg_getstr(security, "properties-file"), 256);
+			}
+		}
+		if (cfg_size(cfg, "cpu-mem-usage")) {
+							cfg_t *cpu_mem_usage = cfg_getnsec(cfg, "cpu-mem-usage", 0);
+							if (cpu_mem_usage->line != 0){
+								mmt_conf->cpu_mem_usage_enabled = (uint8_t) cfg_getint(cpu_mem_usage, "enable");
+								mmt_conf->cpu_mem_usage_rep_freq = (uint8_t) cfg_getint(cpu_mem_usage, "frequency");
 			}
 		}
 

@@ -283,6 +283,9 @@ typedef struct mmt_probe_context_struct {
     uint8_t socket_active;
     uint32_t *port_address;
 
+    uint8_t cpu_mem_usage_enabled;
+    uint8_t cpu_mem_usage_rep_freq; //frequency to send the report
+
     unsigned char *mac_address_host;	//
 
     uint32_t new_attribute_register_flag;
@@ -546,7 +549,8 @@ struct smp_thread {
     uint8_t file_read_flag;
 	uint32_t * sockfd_internet;
     uint32_t packet_send;
-
+    long double cpu_usage;
+    long double mem_usage;
 };
 
 typedef struct mmt_probe_struct {
