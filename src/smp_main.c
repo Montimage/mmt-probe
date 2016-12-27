@@ -469,7 +469,11 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 	header.len = pkthdr->len;
 	header.user_args = NULL;
 
+	mmt_probe.smp_threads->cpu_usage = cpu_usage_avg;
+	mmt_probe.smp_threads->mem_usage = mem_usage_avg;
+
 	if(time(NULL)- mmt_probe.smp_threads->last_stat_report_time >= mmt_probe.mmt_conf->stats_reporting_period){
+
 		mmt_probe.smp_threads->report_counter++;
 		mmt_probe.smp_threads->last_stat_report_time = time(NULL);
 		if (mmt_probe.mmt_conf->enable_session_report == 1)process_session_timer_handler(mmt_probe.smp_threads->mmt_handler);
