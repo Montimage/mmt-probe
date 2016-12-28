@@ -10,6 +10,7 @@
 #include "mmt_core.h"
 #include "processing.h"
 #include <pthread.h>
+#include "tcpip/mmt_tcpip.h"
 
 void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     int j;
@@ -135,7 +136,6 @@ void security_reports_init(void * args) {
 	if(register_security_report_handle((void *) th) == 0) {
 		fprintf(stderr, "Error while initializing security report !\n");
 	}
-
 	if (probe_context->socket_enable == 1){
 		create_socket(probe_context, args);
 		probe_context->socket_active = 1;

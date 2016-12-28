@@ -45,7 +45,7 @@ void * create_socket(void *arg){
 	int i=0,j=0,l=0;
 	int length=0;
 	int total_length=0;
-	unsigned char buffer[256];
+	unsigned char buffer[5056];
 	unsigned char length_buffer[5];
 	int proto_id =0;
 	int field_length =0;
@@ -129,7 +129,7 @@ void * create_socket(void *arg){
 
 	}
 	while(1){
-		bzero(buffer,256);
+		bzero(buffer,5056);
 		bzero(length_buffer,5);
 		n=read(newsockfd, length_buffer, 4);///
 
@@ -180,12 +180,12 @@ void *task1 (void *sock_des)
     char test[300];
 	int length=0;
 	int total_length=0;
-	unsigned char buffer[256];
+	unsigned char buffer[5056];
 	unsigned char length_buffer[5];
 	int proto_id =0;
 	int field_length =0;
 	int field_id =0;
-	unsigned char data_ex[256];
+	unsigned char data_ex[2056];
 	struct timeval time_attr ;
 	int length_of_packet =0;
 	int len,n;
@@ -195,7 +195,7 @@ void *task1 (void *sock_des)
 
     while(1)
     {
-             	bzero(buffer,256);
+             	bzero(buffer,5056);
         		bzero(length_buffer,5);
         		n=read(threadsockfd, length_buffer, 4);///
 
@@ -231,7 +231,7 @@ void *task1 (void *sock_des)
         				memcpy(&data_ex[0],&buffer[length],field_length);
         				length += field_length;
         				data_ex[field_length]='\0';
-        				printf("proto_id1 = %u, attribute_id =%u, length =%u, data= %s\n",proto_id,field_id,field_length, (unsigned char *)buffer);
+        				printf("proto_id1 = %u, attribute_id =%u, length =%u, data= %s\n",proto_id,field_id,field_length, (char *)data_ex);
         			}
 
         		}
