@@ -59,6 +59,8 @@ src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c s
 #define MAX_FILE_NAME 500
 //static int okcode  = EXIT_SUCCESS;
 static int errcode = EXIT_FAILURE;
+static long double cpu_usage_avg = 0;
+static long double mem_usage_avg = 0;
 
 pcap_t *handle = 0; /* packet capture handle */
 struct pcap_stat pcs; /* packet capture filter stats */
@@ -200,7 +202,10 @@ static void *smp_thread_routine(void *arg) {
 	mmt_handler_t *mmt_handler = th->mmt_handler;
 
 	while ( 1 ) {
-
+		if (mmt_probe.mmt_conf->cpu_mem_usage_enabled == 1){
+			th->cpu_usage = cpu_usage_avg;
+			th->mem_usage = mem_usage_avg;
+		}
 		if(time(NULL)- th->last_stat_report_time >= mmt_probe.mmt_conf->stats_reporting_period ||
 				th->pcap_current_packet_time - th->pcap_last_stat_report_time >= mmt_probe.mmt_conf->stats_reporting_period){
 			th->report_counter++;
@@ -253,7 +258,7 @@ static void *smp_thread_routine(void *arg) {
 			//update new position of ring's tail
 			data_spsc_ring_update_tail( fifo, tail, size + 1); //+1 as size-- above
 		}
-	}
+	} //end while(1)
 
 	printf("thread %d : %"PRIu64" \n", th->thread_number, th->nb_packets );
 
@@ -464,7 +469,11 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 	header.len = pkthdr->len;
 	header.user_args = NULL;
 
+	mmt_probe.smp_threads->cpu_usage = cpu_usage_avg;
+	mmt_probe.smp_threads->mem_usage = mem_usage_avg;
+
 	if(time(NULL)- mmt_probe.smp_threads->last_stat_report_time >= mmt_probe.mmt_conf->stats_reporting_period){
+
 		mmt_probe.smp_threads->report_counter++;
 		mmt_probe.smp_threads->last_stat_report_time = time(NULL);
 		if (mmt_probe.mmt_conf->enable_session_report == 1)process_session_timer_handler(mmt_probe.smp_threads->mmt_handler);
@@ -1033,12 +1042,51 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 	}
 }
 
+void *cpu_ram_usage_routine(void *f){
+	long double t1[7], t2[7];
+	FILE *fp;
+	char dump[50];
+	int freq = *((int*) f);
+
+
+	    while(1)
+	    {
+	        fp = fopen("/proc/stat","r");
+	        if(fscanf(fp,"%*s %Lf %Lf %Lf %Lf",&t1[0],&t1[1],&t1[2],&t1[3]) != 4) fprintf(stderr , "\nError in fscanf the cpu stat\n");
+	        fclose(fp);
+
+	        fp = fopen("/proc/meminfo","r");
+	        if(fscanf(fp,"%*s %Lf %*s %*s %Lf %*s %*s %Lf %*s", &t1[4], &t1[5], &t1[6]) != 3) fprintf(stderr , "\nError in fscanf the mem info\n");
+	        //printf("Memtotal: %Lf kB.\nMemFree: %Lf kB.\nMemAvailable: %Lf kB.\n", t1[4], t1[5], t1[6]);
+	        fclose(fp);
+
+	        sleep(freq);
+
+	        fp = fopen("/proc/stat","r");
+	        if(fscanf(fp,"%*s %Lf %Lf %Lf %Lf",&t2[0],&t2[1],&t2[2],&t2[3]) != 4) fprintf(stderr , "\nError in fscanf the cpu stat\n");
+	        fclose(fp);
+
+	        fp = fopen("/proc/meminfo","r");
+	        if(fscanf(fp,"%*s %Lf %*s %*s %Lf %*s %*s %Lf %*s", &t2[4], &t2[5], &t2[6]) != 3) fprintf(stderr , "\nError in fscanf the mem info\n");
+	        //printf("Memtotal: %Lf kB.\nMemFree: %Lf kB.\nMemAvailable: %Lf kB.\n", t1[4], t1[5], t1[6]);
+	        fclose(fp);
+
+	        cpu_usage_avg = 100* ((t2[0]+t2[1]+t2[2]) - (t1[0]+t1[1]+t1[2])) / ((t2[0]+t2[1]+t2[2]+t2[3]) - (t1[0]+t1[1]+t1[2]+t1[3]));
+	        mem_usage_avg = (t2[6]+t1[6])*100/(2*t1[4]);
+	        //printf("The current CPU utilization is : %Lf percent\n",cpu_usage_avg);
+	        //printf("Memory usage : %Lf percent (%Lf/%Lf)\n",((t2[6]+t1[6])*100/(2*t1[4])),(t2[6]+t1[6])/2, t1[4]);
+	    }
+
+	    return(0);
+}
+
 int main(int argc, char **argv) {
 	char mmt_errbuf[1024];
 	int i, j, l = 0;
 	char lg_msg[1024];
 	sigset_t signal_set;
 	char single_file [MAX_FILE_NAME+1] = {0};
+	pthread_t cpu_ram_usage_thr;
 	pthread_mutex_init(&mutex_lock, NULL);
 	pthread_spin_init(&spin_lock, 0);
 
@@ -1082,6 +1130,13 @@ int main(int argc, char **argv) {
 	}
 
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_P_INIT, "MMT Probe started!");
+
+	//Add the module for printing cpu_mem_usage here
+	if (mmt_conf->cpu_mem_usage_enabled == 1){
+		//printf("CPU, RAM usage report enabled\n");
+		pthread_create(&cpu_ram_usage_thr, NULL, cpu_ram_usage_routine, (void *) &mmt_conf->cpu_mem_usage_rep_freq);
+	}
+
 
 	if (!init_extraction()) { // general ixE initialization
 		fprintf(stderr, "MMT extract init error\n");
@@ -1137,6 +1192,8 @@ int main(int argc, char **argv) {
 		}
 		mmt_probe.smp_threads->iprobe.instance_id = mmt_probe.smp_threads->thread_number;
 		mmt_probe.smp_threads->thread_number = 0;
+		mmt_probe.smp_threads->cpu_usage = cpu_usage_avg;
+		mmt_probe.smp_threads->mem_usage = mem_usage_avg;
 
 		pthread_spin_init(&mmt_probe.smp_threads->lock, 0);
 
@@ -1179,6 +1236,8 @@ int main(int argc, char **argv) {
 
 			mmt_probe.smp_threads[i].nb_dropped_packets = 0;
 			mmt_probe.smp_threads[i].nb_packets         = 0;
+			mmt_probe.smp_threads[i].cpu_usage = cpu_usage_avg;
+			mmt_probe.smp_threads[i].mem_usage = mem_usage_avg;
 
 			if( data_spsc_ring_init( &mmt_probe.smp_threads[i].fifo, mmt_conf->thread_queue_plen, mmt_conf->requested_snap_len ) != 0 ){
 				perror("Not enough memory. Please reduce thread-queue or thread-nb in .conf");
