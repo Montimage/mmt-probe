@@ -412,6 +412,10 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				exit(0);
 			}
 		}
+		if (mmt_conf->retain_files < (mmt_conf->thread_nb +1)){
+			printf("Error: Number of retain files inside the output section in the configuration file, should be always greater than (thread_nb + 1) \n");
+			exit (0);
+		}
 		if (cfg_size(cfg, "security")) {
 			cfg_t *security = cfg_getnsec(cfg, "security", 0);
 			if (security->line != 0){
