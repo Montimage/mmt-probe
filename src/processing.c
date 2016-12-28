@@ -378,6 +378,26 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 							th->report[i].length +=  length;
 							//printf ("attribute_data ...=%s \n",(char *)attr_extract->data);
 						}
+						/*if (attr_extract->field_id == PROTO_DATA){
+							uint16_t length =0;
+							uint16_t offset =0;
+							for (j = 1; j < ipacket->proto_hierarchy->len; j++){
+								offset +=ipacket->proto_headers_offset->proto_path[j];
+								if (ipacket->proto_hierarchy->proto_path[j] == attr_extract->proto_id){
+									if (j < ipacket->proto_hierarchy->len){
+										//printf ("offset = %u\n",offset);
+										length = ipacket->p_hdr->caplen - offset;
+										//printf ("proto_id = %u, packet_len =%u, offset = %u\n",ipacket->proto_hierarchy->proto_path[j],ipacket->p_hdr->caplen,length);
+									}
+								}
+
+							}
+							memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], &length, 2);
+							th->report[i].length += 2;
+							memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], attr_extract->data,length);
+							th->report[i].length +=  length;
+							//printf ("attribute_data ...=%s \n",(char *)attr_extract->data);
+						}*/
 					} else {
 						memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], &attr_extract->data_len, 2);
 						th->report[i].length += 2;
