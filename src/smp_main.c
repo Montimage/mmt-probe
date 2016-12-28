@@ -205,6 +205,8 @@ static void *smp_thread_routine(void *arg) {
 		if (mmt_probe.mmt_conf->cpu_mem_usage_enabled == 1){
 			th->cpu_usage = cpu_usage_avg;
 			th->mem_usage = mem_usage_avg;
+			th->nb_dropped_packets_NIC = pcs.ps_ifdrop;
+			th->nb_dropped_packets_kernel = pcs.ps_drop;
 		}
 		if(time(NULL)- th->last_stat_report_time >= mmt_probe.mmt_conf->stats_reporting_period ||
 				th->pcap_current_packet_time - th->pcap_last_stat_report_time >= mmt_probe.mmt_conf->stats_reporting_period){
@@ -469,8 +471,12 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 	header.len = pkthdr->len;
 	header.user_args = NULL;
 
-	mmt_probe.smp_threads->cpu_usage = cpu_usage_avg;
-	mmt_probe.smp_threads->mem_usage = mem_usage_avg;
+	if(mmt_probe.mmt_conf->cpu_mem_usage_enabled == 1){
+		mmt_probe.smp_threads->cpu_usage = cpu_usage_avg;
+		mmt_probe.smp_threads->mem_usage = mem_usage_avg;
+		mmt_probe.smp_threads->nb_dropped_packets_NIC = pcs.ps_ifdrop;
+		mmt_probe.smp_threads->nb_dropped_packets_kernel = pcs.ps_drop;
+	}
 
 	if(time(NULL)- mmt_probe.smp_threads->last_stat_report_time >= mmt_probe.mmt_conf->stats_reporting_period){
 
@@ -1192,9 +1198,13 @@ int main(int argc, char **argv) {
 		}
 		mmt_probe.smp_threads->iprobe.instance_id = mmt_probe.smp_threads->thread_number;
 		mmt_probe.smp_threads->thread_number = 0;
-		mmt_probe.smp_threads->cpu_usage = cpu_usage_avg;
-		mmt_probe.smp_threads->mem_usage = mem_usage_avg;
 
+		if(mmt_probe.mmt_conf->cpu_mem_usage_enabled == 1){
+			mmt_probe.smp_threads->cpu_usage = 0;
+			mmt_probe.smp_threads->mem_usage = 0;
+			mmt_probe.smp_threads->nb_dropped_packets_NIC = 0;
+			mmt_probe.smp_threads->nb_dropped_packets_kernel = 0;
+			}
 		pthread_spin_init(&mmt_probe.smp_threads->lock, 0);
 
 		// customized packet and session handling functions are then registered
@@ -1236,8 +1246,13 @@ int main(int argc, char **argv) {
 
 			mmt_probe.smp_threads[i].nb_dropped_packets = 0;
 			mmt_probe.smp_threads[i].nb_packets         = 0;
-			mmt_probe.smp_threads[i].cpu_usage = cpu_usage_avg;
-			mmt_probe.smp_threads[i].mem_usage = mem_usage_avg;
+
+		if(mmt_probe.mmt_conf->cpu_mem_usage_enabled == 1){
+			mmt_probe.smp_threads[i].cpu_usage = 0;
+			mmt_probe.smp_threads[i].mem_usage = 0;
+			mmt_probe.smp_threads[i].nb_dropped_packets_NIC = 0;
+			mmt_probe.smp_threads[i].nb_dropped_packets_kernel = 0;
+			}
 
 			if( data_spsc_ring_init( &mmt_probe.smp_threads[i].fifo, mmt_conf->thread_queue_plen, mmt_conf->requested_snap_len ) != 0 ){
 				perror("Not enough memory. Please reduce thread-queue or thread-nb in .conf");

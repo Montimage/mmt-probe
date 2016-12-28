@@ -546,7 +546,7 @@ struct smp_thread {
     char **cache_message_list;
     int cache_count;
     data_spsc_ring_t fifo;
-    uint64_t nb_packets, nb_dropped_packets;
+    uint64_t nb_packets, nb_dropped_packets, nb_dropped_packets_NIC, nb_dropped_packets_kernel;
     uint8_t file_read_flag;
 	uint32_t * sockfd_internet;
     uint32_t packet_send;
