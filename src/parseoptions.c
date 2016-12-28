@@ -73,6 +73,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_INT("enable", 0, CFGF_NONE),
 			CFG_STR("data-file", 0, CFGF_NONE),
 			CFG_STR("location", 0, CFGF_NONE),
+			CFG_INT("retain-files", 0, CFGF_NONE),
 			CFG_INT("sampled_report", 0, CFGF_NONE),
 
 			CFG_END()
@@ -400,6 +401,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				mmt_conf->output_to_file_enable = (uint32_t) cfg_getint(output, "enable");
 				strncpy(mmt_conf->data_out, (char *) cfg_getstr(output, "data-file"), 256);
 				strncpy(mmt_conf->output_location, (char *) cfg_getstr(output, "location"), 256);
+				mmt_conf->retain_files = (int) cfg_getint(output, "retain-files");
 				mmt_conf->sampled_report = (uint32_t) cfg_getint(output, "sampled_report");
 				if (mmt_conf->sampled_report > 1){
 					printf("Error: Sample_report inside the output section in the configuration file has a value either 1 or 0, 1 for sampled output and 0 for single output\n");
@@ -420,10 +422,10 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			}
 		}
 		if (cfg_size(cfg, "cpu-mem-usage")) {
-							cfg_t *cpu_mem_usage = cfg_getnsec(cfg, "cpu-mem-usage", 0);
-							if (cpu_mem_usage->line != 0){
-								mmt_conf->cpu_mem_usage_enabled = (uint8_t) cfg_getint(cpu_mem_usage, "enable");
-								mmt_conf->cpu_mem_usage_rep_freq = (uint8_t) cfg_getint(cpu_mem_usage, "frequency");
+			cfg_t *cpu_mem_usage = cfg_getnsec(cfg, "cpu-mem-usage", 0);
+			if (cpu_mem_usage->line != 0){
+				mmt_conf->cpu_mem_usage_enabled = (uint8_t) cfg_getint(cpu_mem_usage, "enable");
+				mmt_conf->cpu_mem_usage_rep_freq = (uint8_t) cfg_getint(cpu_mem_usage, "frequency");
 			}
 		}
 

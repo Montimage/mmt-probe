@@ -299,6 +299,7 @@ typedef struct mmt_probe_context_struct {
 	uint32_t security_reports_nb;
 	uint32_t nb_of_report_per_msg;
 	uint8_t one_socket_server;
+	uint32_t retain_files;
 
 
 } mmt_probe_context_t;
