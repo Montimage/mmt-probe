@@ -227,19 +227,19 @@ static void *smp_thread_routine(void *arg) {
 
 		}
 
-			//get number of packets being available
-			size = data_spsc_ring_pop_bulk( fifo, &tail );
-			/* if no packet has arrived sleep 1 milli-second */
-			if ( size <= 0 ) {
-				tv.tv_sec = 0;
-				tv.tv_usec = 1000;
-				//fprintf(stdout, "No more packets for thread %i --- waiting\n", th->thread_number);
-				select(0, NULL, NULL, NULL, &tv);
-				//nanosleep( (const struct timespec[]){{0, 1000000L}}, NULL );
-			} else { /* else remove number of packets from list and process it */
+		//get number of packets being available
+		size = data_spsc_ring_pop_bulk( fifo, &tail );
+		/* if no packet has arrived sleep 1 milli-second */
+		if ( size <= 0 ) {
+			tv.tv_sec = 0;
+			tv.tv_usec = 1000;
+			//fprintf(stdout, "No more packets for thread %i --- waiting\n", th->thread_number);
+			select(0, NULL, NULL, NULL, &tv);
+			//nanosleep( (const struct timespec[]){{0, 1000000L}}, NULL );
+		} else { /* else remove number of packets from list and process it */
 
-				//the last packet will be verified after (not in for)
-				size --;
+			//the last packet will be verified after (not in for)
+			size --;
 			for( i=0; i<size; i++ ){
 				pkt = (struct packet_element *) data_spsc_ring_get_data( fifo, i + tail);
 				packet_process( mmt_handler, &pkt->header, pkt->data );
@@ -534,8 +534,8 @@ void got_packet_multi_thread(u_char *args, const struct pcap_pkthdr *pkthdr, con
 	pkt->header.ts     = pkthdr->ts;
 	pkt->data          = (u_char *)( &pkt[ 1 ]); //put data in the same memory segment but after sizeof( pkt )
 	memcpy(pkt->data, data, pkthdr->caplen);
-//	mmt_memcpy( pkt->data, data, pkthdr->caplen );
-//	pkt->data = data;
+	//	mmt_memcpy( pkt->data, data, pkthdr->caplen );
+	//	pkt->data = data;
 
 	if(  unlikely( data_spsc_ring_push_tmp_element( &th->fifo ) != QUEUE_SUCCESS ))
 	{
@@ -755,6 +755,12 @@ void terminate_probe_processing(int wait_thread_terminate) {
 
 	}
 
+	if (mmt_conf->server_adresses != NULL){
+		for (i=0; i < mmt_conf->server_ip_nb; i++){
+			free (mmt_conf->server_adresses->server_portnb);
+		}
+		free (mmt_conf->server_adresses);
+	}
 	if (mmt_conf->register_new_condition_reports != NULL && mmt_conf->register_new_event_reports != NULL){
 		for (i=0; i < mmt_conf->new_condition_reports_nb; i++){
 			free (mmt_conf->register_new_condition_reports[i].attributes);
@@ -1055,35 +1061,35 @@ void *cpu_ram_usage_routine(void *f){
 	int freq = *((int*) f);
 
 
-	    while(1)
-	    {
-	        fp = fopen("/proc/stat","r");
-	        if(fscanf(fp,"%*s %Lf %Lf %Lf %Lf",&t1[0],&t1[1],&t1[2],&t1[3]) != 4) fprintf(stderr , "\nError in fscanf the cpu stat\n");
-	        fclose(fp);
+	while(1)
+	{
+		fp = fopen("/proc/stat","r");
+		if(fscanf(fp,"%*s %Lf %Lf %Lf %Lf",&t1[0],&t1[1],&t1[2],&t1[3]) != 4) fprintf(stderr , "\nError in fscanf the cpu stat\n");
+		fclose(fp);
 
-	        fp = fopen("/proc/meminfo","r");
-	        if(fscanf(fp,"%*s %Lf %*s %*s %Lf %*s %*s %Lf %*s", &t1[4], &t1[5], &t1[6]) != 3) fprintf(stderr , "\nError in fscanf the mem info\n");
-	        //printf("Memtotal: %Lf kB.\nMemFree: %Lf kB.\nMemAvailable: %Lf kB.\n", t1[4], t1[5], t1[6]);
-	        fclose(fp);
+		fp = fopen("/proc/meminfo","r");
+		if(fscanf(fp,"%*s %Lf %*s %*s %Lf %*s %*s %Lf %*s", &t1[4], &t1[5], &t1[6]) != 3) fprintf(stderr , "\nError in fscanf the mem info\n");
+		//printf("Memtotal: %Lf kB.\nMemFree: %Lf kB.\nMemAvailable: %Lf kB.\n", t1[4], t1[5], t1[6]);
+		fclose(fp);
 
-	        sleep(freq);
+		sleep(freq);
 
-	        fp = fopen("/proc/stat","r");
-	        if(fscanf(fp,"%*s %Lf %Lf %Lf %Lf",&t2[0],&t2[1],&t2[2],&t2[3]) != 4) fprintf(stderr , "\nError in fscanf the cpu stat\n");
-	        fclose(fp);
+		fp = fopen("/proc/stat","r");
+		if(fscanf(fp,"%*s %Lf %Lf %Lf %Lf",&t2[0],&t2[1],&t2[2],&t2[3]) != 4) fprintf(stderr , "\nError in fscanf the cpu stat\n");
+		fclose(fp);
 
-	        fp = fopen("/proc/meminfo","r");
-	        if(fscanf(fp,"%*s %Lf %*s %*s %Lf %*s %*s %Lf %*s", &t2[4], &t2[5], &t2[6]) != 3) fprintf(stderr , "\nError in fscanf the mem info\n");
-	        //printf("Memtotal: %Lf kB.\nMemFree: %Lf kB.\nMemAvailable: %Lf kB.\n", t1[4], t1[5], t1[6]);
-	        fclose(fp);
+		fp = fopen("/proc/meminfo","r");
+		if(fscanf(fp,"%*s %Lf %*s %*s %Lf %*s %*s %Lf %*s", &t2[4], &t2[5], &t2[6]) != 3) fprintf(stderr , "\nError in fscanf the mem info\n");
+		//printf("Memtotal: %Lf kB.\nMemFree: %Lf kB.\nMemAvailable: %Lf kB.\n", t1[4], t1[5], t1[6]);
+		fclose(fp);
 
-	        cpu_usage_avg = 100* ((t2[0]+t2[1]+t2[2]) - (t1[0]+t1[1]+t1[2])) / ((t2[0]+t2[1]+t2[2]+t2[3]) - (t1[0]+t1[1]+t1[2]+t1[3]));
-	        mem_usage_avg = (t2[6]+t1[6])*100/(2*t1[4]);
-	        //printf("The current CPU utilization is : %Lf percent\n",cpu_usage_avg);
-	        //printf("Memory usage : %Lf percent (%Lf/%Lf)\n",((t2[6]+t1[6])*100/(2*t1[4])),(t2[6]+t1[6])/2, t1[4]);
-	    }
+		cpu_usage_avg = 100* ((t2[0]+t2[1]+t2[2]) - (t1[0]+t1[1]+t1[2])) / ((t2[0]+t2[1]+t2[2]+t2[3]) - (t1[0]+t1[1]+t1[2]+t1[3]));
+		mem_usage_avg = (t2[6]+t1[6])*100/(2*t1[4]);
+		//printf("The current CPU utilization is : %Lf percent\n",cpu_usage_avg);
+		//printf("Memory usage : %Lf percent (%Lf/%Lf)\n",((t2[6]+t1[6])*100/(2*t1[4])),(t2[6]+t1[6])/2, t1[4]);
+	}
 
-	    return(0);
+	return(0);
 }
 
 int main(int argc, char **argv) {
@@ -1204,7 +1210,7 @@ int main(int argc, char **argv) {
 			mmt_probe.smp_threads->mem_usage = 0;
 			mmt_probe.smp_threads->nb_dropped_packets_NIC = 0;
 			mmt_probe.smp_threads->nb_dropped_packets_kernel = 0;
-			}
+		}
 		pthread_spin_init(&mmt_probe.smp_threads->lock, 0);
 
 		// customized packet and session handling functions are then registered
@@ -1247,11 +1253,11 @@ int main(int argc, char **argv) {
 			mmt_probe.smp_threads[i].nb_dropped_packets = 0;
 			mmt_probe.smp_threads[i].nb_packets         = 0;
 
-		if(mmt_probe.mmt_conf->cpu_mem_usage_enabled == 1){
-			mmt_probe.smp_threads[i].cpu_usage = 0;
-			mmt_probe.smp_threads[i].mem_usage = 0;
-			mmt_probe.smp_threads[i].nb_dropped_packets_NIC = 0;
-			mmt_probe.smp_threads[i].nb_dropped_packets_kernel = 0;
+			if(mmt_probe.mmt_conf->cpu_mem_usage_enabled == 1){
+				mmt_probe.smp_threads[i].cpu_usage = 0;
+				mmt_probe.smp_threads[i].mem_usage = 0;
+				mmt_probe.smp_threads[i].nb_dropped_packets_NIC = 0;
+				mmt_probe.smp_threads[i].nb_dropped_packets_kernel = 0;
 			}
 
 			if( data_spsc_ring_init( &mmt_probe.smp_threads[i].fifo, mmt_conf->thread_queue_plen, mmt_conf->requested_snap_len ) != 0 ){

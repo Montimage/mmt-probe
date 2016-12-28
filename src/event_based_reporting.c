@@ -106,7 +106,7 @@ int register_security_report_handle(void * args) {
 				printf ("Error: Memory allocation of msg in register_security_report_handle \n");
 				exit(1);
 			}
-			for (l=0; l < probe_context->nb_of_report_per_msg; l++)th->report[i].data[l]= malloc(2000);
+			for (l=0; l < probe_context->nb_of_report_per_msg; l++)th->report[i].data[l]= malloc(10000);
 
 			for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
 				mmt_security_attribute_t * security_attribute = &probe_context->security_reports[i].attributes[j];
