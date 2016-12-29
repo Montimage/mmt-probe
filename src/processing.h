@@ -515,6 +515,12 @@ typedef struct mmt_security_attributes_struct {
  * List of packets for a thread
  */
 //#define MAX_CACHE_SIZE 300000
+typedef struct worker_args {
+	struct rte_ring *ring_in;
+	char rx_to_workers[20];
+	int lcore_id;
+	long long int num_packet;
+}worker_args_t;
 
 struct smp_thread {
     int thread_number;
@@ -541,7 +547,7 @@ struct smp_thread {
     uint8_t file_read_flag;
 	uint32_t * sockfd_internet;
     uint32_t packet_send;
-
+    worker_args_t * workers;
 };
 
 typedef struct mmt_probe_struct {
