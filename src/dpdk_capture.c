@@ -418,6 +418,7 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	while (thread_nb < mmt_probe->mmt_conf->thread_nb){
 		if (lcore_id <= get_previous_lcore_id(last_lcore_id)){
 			if (rte_lcore_is_enabled(lcore_id) && lcore_id != master_lcore_id){
+				pthread_spin_init(&mmt_probe->smp_threads[thread_nb].lock, 0);
 				mmt_probe->smp_threads[thread_nb].last_stat_report_time = time(0);
 				mmt_probe->smp_threads[thread_nb].pcap_last_stat_report_time = 0;
 				mmt_probe->smp_threads[thread_nb].pcap_current_packet_time = 0;
