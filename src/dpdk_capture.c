@@ -107,7 +107,7 @@ void print_stats (void){
 	struct rte_eth_stats stat;
 	int i;
 	static uint64_t good_pkt = 0, miss_pkt = 0, err_pkt = 0;
-	int thread_nb = 10;
+	int thread_nb = 4;
 
 	/* Print per port stats */
 	for (i = 0; i < 1; i++){
@@ -219,7 +219,7 @@ worker_thread(void *args_ptr)
 	time_add.tv_usec = 0;
 
 	struct smp_thread *th = (struct smp_thread *) args_ptr;
-
+        mmt_probe_context_t * probe_context = get_probe_context_config();
 	//struct worker_args * workers= (struct worker_args *) args_ptr;
 	th->mmt_handler = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
 	if (!th->mmt_handler) { /* pcap error ?*/
@@ -240,20 +240,20 @@ worker_thread(void *args_ptr)
 	th->iprobe.instance_id = th->thread_number;
 	// customized packet and session handling functions are then registered
 
-	if(mmt_probe.mmt_conf->enable_session_report == 1) {
+	if(probe_context->enable_session_report == 1) {
 		register_session_timer_handler(th->mmt_handler, print_ip_session_report, th);
 		register_session_timeout_handler(th->mmt_handler, classification_expiry_session, th);
 		flowstruct_init(th); // initialize our event handler
-		if (mmt_probe.mmt_conf->condition_based_reporting_enable == 1)conditional_reports_init(th);// initialize our condition reports
-		if (mmt_probe.mmt_conf->radius_enable == 1)radius_ext_init(th); // initialize radius extraction and attribute event handler
-		set_default_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->default_session_timeout);
-		set_long_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->long_session_timeout);
-		set_short_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->short_session_timeout);
-		set_live_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->live_session_timeout);
+		if (probe_context->condition_based_reporting_enable == 1)conditional_reports_init(th);// initialize our condition reports
+		if (probe_context->radius_enable == 1)radius_ext_init(th); // initialize radius extraction and attribute event handler
+		set_default_session_timed_out(th->mmt_handler, probe_context->default_session_timeout);
+		set_long_session_timed_out(th->mmt_handler, probe_context->long_session_timeout);
+		set_short_session_timed_out(th->mmt_handler, probe_context->short_session_timeout);
+		set_live_session_timed_out(th->mmt_handler, probe_context->live_session_timeout);
 	}
-	if (mmt_probe.mmt_conf->event_based_reporting_enable == 1)event_reports_init(th); // initialize our event reports
-	if (mmt_probe.mmt_conf->enable_security_report == 0)proto_stats_init(th);//initialise this before security_reports_init
-	if (mmt_probe.mmt_conf->enable_security_report == 1)security_reports_init(th);
+	if (probe_context->event_based_reporting_enable == 1)event_reports_init(th); // initialize our event reports
+	if (probe_context->enable_security_report == 0)proto_stats_init(th);//initialise this before security_reports_init
+	if (probe_context->enable_security_report == 1)security_reports_init(th);
 
 	/* Check that the port is on the same NUMA node as the polling thread
 	 * for best performance.*/
