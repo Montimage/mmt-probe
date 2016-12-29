@@ -54,8 +54,6 @@
 #include <rte_malloc.h>
 #include <rte_mempool.h>
 #include <rte_ring.h>
-
-
 #include "mmt_core.h"
 #include "tcpip/mmt_tcpip.h"
 
@@ -71,29 +69,10 @@
 static uint64_t total_pkt [20];
 mmt_handler_t *mmt_handler;
 
-
-
-//static uint64_t total_pkt2 = 0;
-//static uint64_t total_pkt3 = 0;
-//static uint64_t total_pkt4 = 0;
-/*typedef struct pkthdr {
-	struct timeval ts;   *< time stamp that indicates the packet arrival time
-	unsigned int caplen; *< length of portion of the packet that is present
-	unsigned int len;    *< length of the packet (off wire)
-	unsigned int original_caplen; *< Original capture len of the packet when it was captured by interface - not count with reassembly data
-	unsigned int original_len; *< Original capture len of the packet when it was captured by interface - not count with reassembly data
-	void * user_args;    *< Pointer to a user defined argument. Can be NULL, it will not be used by the library.
-} pkthdr_t;
-
-struct packet_element {
-	struct pkthdr header;
-	u_char *data;
-};*/
 struct worker_args {
 	struct rte_ring *ring_in;
 	char rx_to_workers[20];
 	int lcore_id;
-	mmt_handler_t * mmt_handler;
 	long long int num_packet;
 	struct mmt_probe_struct * mmt_probe;
 };
@@ -231,90 +210,58 @@ get_last_lcore_id(void)
 	return 0;
 }
 
-/*int get_packet (uint8_t port, int q, void * args){
-
-	uint16_t nb_rx;
-	int i=0;
-	//struct rte_mbuf * burst_buffer [MAX_PKTS_BURST];
-	struct pkthdr header;
-	struct timeval time_now;
-	struct timeval time_add;
-	struct timeval time_new;
-
-	gettimeofday(&time_now, NULL);
-	void  * data;
-	time_add.tv_sec = 0;
-	time_add.tv_usec = 0;
-	struct worker_args * workers= (struct worker_args *) args;
-
-
-	struct rte_mbuf *bufs[BURST_SIZE];
-	int ret =0;
-	nb_rx = rte_eth_rx_burst(port, q, bufs, BURST_SIZE);
-	//printf ("queue = %u , nb_rx1 = %u \n", q, nb_rx1);
-	if (unlikely(nb_rx == 0)){
-		//nanosleep( (const struct timespec[]){{0, 10L}}, NULL );
-		return 1;
-	}
-
-
-	i = 0;
-
-	//printf ("worker_thread = %u, burst_size = %u, burst_total =%u\n",args->lcore_id,burst_size,burst_size_total);
-	for (i = 0; i < nb_rx; i++){
-		time_add.tv_usec += 1;
-		header.len    = (unsigned int)bufs[i]->pkt_len;
-		header.caplen = (unsigned int) bufs[i]->data_len;
-		timeradd(&time_now, &time_add, &time_new);
-		header.ts     = time_new;
-		header.user_args = NULL;
-		data = (bufs[i]->buf_addr + bufs[i]->data_off);
-		packet_process( workers->mmt_handler, &header, (u_char *)data );
-		rte_pktmbuf_free( bufs[i] );
-	}
-
-	// for (i = 0; i < burst_size;i++)rte_pktmbuf_free( burst_buffer[i] );
-
-
-
-	if (unlikely(ret < nb_rx)) {
-		//pktmbuf_free_bulk(&pkts[ret], nb_rx_pkts - ret);
-	}
-
-
-}*/
 static int
 worker_thread(void *args_ptr)
 {
 	const uint8_t nb_ports = rte_eth_dev_count();
 	uint8_t port;
-	int q;
 	uint16_t i, ret = 0;
-	uint16_t burst_size_total = 0;
-	//struct worker_args *args;
 	char mmt_errbuf[1024];
-
 	uint16_t nb_rx;
-	//struct rte_mbuf * burst_buffer [MAX_PKTS_BURST];
 	struct pkthdr header;
 	struct timeval time_now;
 	struct timeval time_add;
 	struct timeval time_new;
 	struct rte_mbuf *bufs[BURST_SIZE];
-
 	void  * data;
 	time_add.tv_sec = 0;
 	time_add.tv_usec = 0;
 
 
 	struct worker_args * workers= (struct worker_args *) args_ptr;
-	workers->mmt_handler = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
-	if (!workers->mmt_handler) { /* pcap error ?*/
+	workers->mmt_probe->smp_threads->mmt_handler = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
+	if (!workers->mmt_probe->smp_threads->mmt_handler) { /* pcap error ?*/
 		fprintf(stderr, "MMT handler init failed for the following reason: %s\n", mmt_errbuf);
 		return EXIT_FAILURE;
 	}
 	//Register a packet handler, it will be called for every processed packet
-	register_packet_handler(workers->mmt_handler, 10, packet_handler_dpdk, (void *)args_ptr);
+	register_packet_handler(workers->mmt_probe->smp_threads->mmt_handler, 10, packet_handler_dpdk, (void *)args_ptr);
+
+
+	//th->iprobe.data_out = NULL;
+	//th->iprobe.radius_out = NULL;
+	for (i = 0; i < PROTO_MAX_IDENTIFIER; i++) {
+		reset_microflows_stats(&workers->mmt_probe->smp_threads->iprobe.mf_stats[i]);
+		workers->mmt_probe->smp_threads->iprobe.mf_stats[i].application = get_protocol_name_by_id(i);
+		workers->mmt_probe->smp_threads->iprobe.mf_stats[i].application_id = i;
+	}
+	workers->mmt_probe->smp_threads->iprobe.instance_id = workers->mmt_probe->smp_threads->thread_number;
+	// customized packet and session handling functions are then registered
+
+	if(workers->mmt_probe->mmt_conf->enable_session_report == 1) {
+		register_session_timer_handler(workers->mmt_probe->smp_threads->mmt_handler, print_ip_session_report, workers->mmt_probe->smp_threads);
+		register_session_timeout_handler(workers->mmt_probe->smp_threads->mmt_handler, classification_expiry_session, workers->mmt_probe->smp_threads);
+		flowstruct_init(workers->mmt_probe->smp_threads); // initialize our event handler
+		if (workers->mmt_probe->mmt_conf->condition_based_reporting_enable == 1)conditional_reports_init(workers->mmt_probe->smp_threads);// initialize our condition reports
+		if (workers->mmt_probe->mmt_conf->radius_enable == 1)radius_ext_init(workers->mmt_probe->smp_threads); // initialize radius extraction and attribute event handler
+		set_default_session_timed_out(workers->mmt_probe->smp_threads->mmt_handler, workers->mmt_probe->mmt_conf->default_session_timeout);
+		set_long_session_timed_out(workers->mmt_probe->smp_threads->mmt_handler, workers->mmt_probe->mmt_conf->long_session_timeout);
+		set_short_session_timed_out(workers->mmt_probe->smp_threads->mmt_handler, workers->mmt_probe->mmt_conf->short_session_timeout);
+		set_live_session_timed_out(workers->mmt_probe->smp_threads->mmt_handler, workers->mmt_probe->mmt_conf->live_session_timeout);
+	}
+	if (workers->mmt_probe->mmt_conf->event_based_reporting_enable == 1)event_reports_init(workers->mmt_probe->smp_threads); // initialize our event reports
+	if (workers->mmt_probe->mmt_conf->enable_security_report == 0)proto_stats_init(workers->mmt_probe->smp_threads);//initialise this before security_reports_init
+	if (workers->mmt_probe->mmt_conf->enable_security_report == 1)security_reports_init(workers->mmt_probe->smp_threads);
 
 	/* Check that the port is on the same NUMA node as the polling thread
 	 * for best performance.*/
@@ -334,28 +281,22 @@ worker_thread(void *args_ptr)
 	for (;;) {
 
 		/* Receive packets on a port*/
-
-		//gettimeofday(&time_now, NULL);
-		for (port = 0; port < nb_ports; port++)
-		{
+		gettimeofday(&time_now, NULL);
+	        port = 0;
 			/*Get burst of RX packets, from first port of pair.*/
-
 			//get_packet (port,workers->lcore_id,args_ptr);
-			nb_rx = rte_eth_rx_burst(port, workers->lcore_id, bufs, BURST_SIZE);
+			nb_rx = rte_eth_rx_burst(port, workers->mmt_probe->smp_threads->thread_number, bufs, BURST_SIZE);
 			for (i = 0; i < nb_rx; i++){
-				//time_add.tv_usec += 1;
+				time_add.tv_usec += 1;
 				header.len    = (unsigned int)bufs[i]->pkt_len;
 				header.caplen = (unsigned int) bufs[i]->data_len;
-				//timeradd(&time_now, &time_add, &time_new);
-				//header.ts     = time_new;
+				timeradd(&time_now, &time_add, &time_new);
+				header.ts     = time_new;
 				header.user_args = NULL;
 				data = (bufs[i]->buf_addr + bufs[i]->data_off);
-				packet_process( workers->mmt_handler, &header, (u_char *)data );
+				packet_process( workers->mmt_probe->smp_threads->mmt_handler, &header, (u_char *)data );
 				rte_pktmbuf_free( bufs[i] );
 			}
-
-		}
-
 	}
 
 	return 0;
@@ -486,9 +427,15 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	while (thread_nb < mmt_probe->mmt_conf->thread_nb){
 		if (lcore_id <= get_previous_lcore_id(last_lcore_id)){
 			if (rte_lcore_is_enabled(lcore_id) && lcore_id != master_lcore_id){
+				workers[thread_nb].mmt_probe->smp_threads->last_stat_report_time = time(0);
+				workers[thread_nb].mmt_probe->smp_threads->pcap_last_stat_report_time = 0;
+				workers[thread_nb].mmt_probe->smp_threads->pcap_current_packet_time = 0;
+				//workers[thread_nb].mmt_probe->smp_threads->null_pkt.pkt.data = NULL;
+				workers[thread_nb].mmt_probe->smp_threads->nb_dropped_packets = 0;
+				workers[thread_nb].mmt_probe->smp_threads->nb_packets         = 0;
 				snprintf(workers[thread_nb].rx_to_workers, MAX_MESS,"%u", lcore_id );
 				workers[thread_nb].ring_in = rte_ring_create(workers[thread_nb].rx_to_workers, RING_SIZE, rte_socket_id(),RING_F_SP_ENQ);
-				workers[thread_nb].lcore_id = thread_nb;
+				workers[thread_nb].mmt_probe->smp_threads->thread_number = thread_nb;
 				rte_eal_remote_launch(worker_thread, (void *)&workers[thread_nb], lcore_id);
 				printf("thread_id = %u, core_id = %u\n",thread_nb,lcore_id);
 				thread_nb ++;
@@ -498,7 +445,7 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	}
 
 	/* Call lcore_main on the master core only. */
-	lcore_main(workers);
+	lcore_main();
 
 	return 0;
 
