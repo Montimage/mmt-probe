@@ -355,7 +355,7 @@ port_init(uint8_t port, struct rte_mempool *mbuf_pool, struct mmt_probe_struct *
  * an input port and writing to an output port.
  */
 static __attribute__((noreturn)) void
-		lcore_main(void * args)
+		lcore_main()
 {
 	for (;;) {
 
@@ -420,13 +420,15 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	if (workers == NULL){
 		printf("ERROR: Workers struct memory allocation \n");
 	}
-	workers->mmt_probe = mmt_probe;
+
 	int thread_nb = 0;
 	lcore_id = 0;
 	/* Start worker_thread() on all the available slave cores but the last 1 */
 	while (thread_nb < mmt_probe->mmt_conf->thread_nb){
 		if (lcore_id <= get_previous_lcore_id(last_lcore_id)){
 			if (rte_lcore_is_enabled(lcore_id) && lcore_id != master_lcore_id){
+	                        workers[thread_nb].mmt_probe = mmt_probe;
+                                workers[thread_nb].mmt_probe->smp_threads = (struct smp_thread *) calloc( 1 , sizeof (struct smp_thread));
 				workers[thread_nb].mmt_probe->smp_threads->last_stat_report_time = time(0);
 				workers[thread_nb].mmt_probe->smp_threads->pcap_last_stat_report_time = 0;
 				workers[thread_nb].mmt_probe->smp_threads->pcap_current_packet_time = 0;
