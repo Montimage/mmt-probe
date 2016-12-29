@@ -158,10 +158,10 @@ void alarm_routine (__attribute__((unused)) int unused){
 }
 
 int packet_handler_dpdk(const ipacket_t * ipacket, void * args) {
-	struct worker_args *args_ptr;
-
-	args_ptr = (struct worker_args *) args;
-	total_pkt[args_ptr->lcore_id] = ipacket->packet_id;
+	//struct worker_args *args_ptr;
+        struct smp_thread *th = (struct smp_thread *) args;
+	//args_ptr = (struct worker_args *) args;
+	total_pkt[th->thread_number] = ipacket->packet_id;
 	return 0;
 }
 
