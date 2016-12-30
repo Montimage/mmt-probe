@@ -36,6 +36,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#ifdef DPDK
 
 #include <stdint.h>
 #include <inttypes.h>
@@ -54,6 +55,7 @@
 #include <rte_malloc.h>
 #include <rte_mempool.h>
 #include <rte_ring.h>
+
 #include "mmt_core.h"
 #include "tcpip/mmt_tcpip.h"
 
@@ -136,15 +138,18 @@ void print_stats (void){
 
 }
 /* Signal handling function */
+
+/*
 static void sig_handler(int signo)
 {
-	/* Print the per port stats  */
+	 Print the per port stats
 	printf("\n\nQUITTING...\n");
 
 	print_stats();
 
 	exit(0);
 }
+*/
 
 
 void alarm_routine (__attribute__((unused)) int unused){
@@ -371,6 +376,7 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 
 	/* Create handler for SIGINT for CTRL + C closing and SIGALRM to print stats*/
 	//signal(SIGINT, sig_handler);
+
 	signal(SIGALRM, alarm_routine);
 
 	alarm(1);
@@ -387,7 +393,6 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 
 	/* Number of network interfaces to be used  */
 	nb_ports = 1;
-
 
 	/* Creates a new mempool in memory to hold the mbufs. */
 	mbuf_pool = rte_pktmbuf_pool_create("MBUF_POOL", NUM_MBUFS * nb_ports,
@@ -443,3 +448,4 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	return 0;
 
 }
+#endif
