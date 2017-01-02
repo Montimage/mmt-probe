@@ -1128,7 +1128,8 @@ int main(int argc, char **argv) {
 		start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
 		dpdk_capture(argc, argv, &mmt_probe );
 	}
-#else
+#endif
+#ifdef PCAP
 	if (mmt_conf->thread_nb == 1) {
 		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_INIT, "Initializating MMT Extraction engine! Single threaded operation.");
 		mmt_probe.smp_threads = (struct smp_thread *) calloc(mmt_conf->thread_nb,sizeof (struct smp_thread));

@@ -34,7 +34,6 @@ ifndef VERBOSE
 endif
 
 include $(RTE_SDK)/mk/rte.extapp.mk
-
 endif
 
 ifdef PCAP
