@@ -1204,6 +1204,7 @@ int main(int argc, char **argv) {
 	}
 
 	//we need to enable timer both for file and redis output since we need report number 200 (to check that probe is alive)
+        //TODO: Sementation faults
         start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
 	//Offline or Online processing
 	if (capture_pcap == 1){

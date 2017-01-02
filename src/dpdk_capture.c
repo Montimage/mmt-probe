@@ -107,7 +107,7 @@ void print_stats (void){
 	struct rte_eth_stats stat;
 	int i;
 	static uint64_t good_pkt = 0, miss_pkt = 0, err_pkt = 0;
-	int thread_nb = 4;
+	int thread_nb = 16;
 
 	/* Print per port stats */
 	for (i = 0; i < 1; i++){
@@ -159,9 +159,10 @@ void alarm_routine (__attribute__((unused)) int unused){
 
 int packet_handler_dpdk(const ipacket_t * ipacket, void * args) {
 	//struct worker_args *args_ptr;
+        
         struct smp_thread *th = (struct smp_thread *) args;
 	//args_ptr = (struct worker_args *) args;
-	total_pkt[th->thread_number] = ipacket->packet_id;
+	total_pkt[th->thread_number]++;
 	return 0;
 }
 
@@ -317,6 +318,10 @@ port_init(uint8_t port, struct rte_mempool *mbuf_pool, struct mmt_probe_struct *
 	for (q = 0; q < mmt_probe->mmt_conf->thread_nb; q++) {
 		retval = rte_eth_rx_queue_setup(port, q, RX_RING_SIZE,
 				rte_eth_dev_socket_id(port), &rx_conf, mbuf_pool);
+
+	if (retval == EINVAL)printf ("printf q= %u EINVAL=%d \n",q, retval);
+        if (retval == ENOMEM) printf ("printf q= %u ENOMEM=%d \n",q,retval);
+
 		if (retval < 0)
 			return retval;
 	}
@@ -359,7 +364,10 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	uint8_t portid;
 	int num_of_cores = 0;
 	unsigned int lcore_id, last_lcore_id, master_lcore_id;
-
+	int i=0;
+	for (i=0; i<20; i++){
+		total_pkt[i] = 0;
+	}
 	argv[1] = argv[argc - 2];
 	argv[2] = argv[argc - 1];
 	/* Initialize the Environment Abstraction Layer (EAL). */
@@ -388,7 +396,7 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	/* Number of network interfaces to be used  */
 	nb_ports = 1;
 
-
+       // nb_ports = rte_eth_dev_count();
 	/* Creates a new mempool in memory to hold the mbufs. */
 	mbuf_pool = rte_pktmbuf_pool_create("MBUF_POOL", NUM_MBUFS * nb_ports,
 			MBUF_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE, rte_socket_id());
