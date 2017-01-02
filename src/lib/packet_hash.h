@@ -4,7 +4,7 @@
  *  Created on: 14 avr. 2016
  *      Author: nhnghia
  */
-
+#ifdef PCAP
 #ifndef SRC_QUEUE_PACKET_HASH_H_
 #define SRC_QUEUE_PACKET_HASH_H_
 
@@ -88,3 +88,4 @@ static inline uint32_t __attribute__((always_inline)) get_packet_hash_number( co
 }
 
 #endif /* SRC_QUEUE_PACKET_HASH_H_ */
+#endif

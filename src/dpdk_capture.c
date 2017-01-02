@@ -159,7 +159,7 @@ void alarm_routine (__attribute__((unused)) int unused){
 
 	/* Schedule an other print */
 	//alarm(1);
-	signal(SIGALRM, alarm_routine);
+      //signal(SIGALRM, alarm_routine);
 }
 
 int packet_handler_dpdk(const ipacket_t * ipacket, void * args) {
@@ -377,9 +377,9 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	/* Create handler for SIGINT for CTRL + C closing and SIGALRM to print stats*/
 	//signal(SIGINT, sig_handler);
 
-	signal(SIGALRM, alarm_routine);
+//	signal(SIGALRM, alarm_routine);
 
-	alarm(1);
+//	alarm(1);
 
 	argc -= ret;
 	argv += ret;

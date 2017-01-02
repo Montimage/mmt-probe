@@ -125,7 +125,7 @@ int cleanup_registered_handlers(void *arg){
 	return i;
 }
 
-
+#ifdef PCAP
 static void * smp_thread_routine(void *arg) {
 	struct timeval tv;
 	struct smp_thread *th = (struct smp_thread *) arg;
@@ -413,6 +413,7 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 	}
 }
 
+#endif
 //BW: TODO: add the pcap handler to the mmt_probe (or internal structure accessible from it) in order to be able to close it here
 void cleanup(int signo) {
 	mmt_probe_context_t * mmt_conf = mmt_probe.mmt_conf;
@@ -449,6 +450,7 @@ void cleanup(int signo) {
 	}
 }
 
+#ifdef PCAP
 //online-single thread
 void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *data) {
 	struct smp_thread *th;
@@ -639,6 +641,7 @@ void process_interface(char * ifname, struct mmt_probe_struct * mmt_probe) {
 
 }
 
+#endif
 void terminate_probe_processing(int wait_thread_terminate) {
 	char lg_msg[1024];
 	mmt_probe_context_t * mmt_conf = mmt_probe.mmt_conf;
@@ -900,10 +903,10 @@ void signal_handler(int type) {
 	fprintf(stderr, "\n reception of signal %d\n", type);
 	fflush( stderr );
 	cleanup( 0 );
-
 #ifdef DPDK
-	print_stats();
+                print_stats();
 #endif
+
 
 	if (i == 1) {
 		terminate_probe_processing(0);
@@ -921,7 +924,6 @@ void signal_handler(int type) {
                     }
 		 */
 	} else {
-
 		signal(SIGINT, signal_handler);
 		sprintf(lg_msg, "reception of signal %i while processing a signal exiting!", type);
 		/*

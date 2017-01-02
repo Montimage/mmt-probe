@@ -4,6 +4,7 @@
  *  Created on: 14 avr. 2016
  *      Author: nhnghia
  */
+#ifdef PCAP
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -12,7 +13,6 @@
 #include "optimization.h"
 
 #define __HASH_TABLE_SIZE 100000
-
 
 
 uint32_t _get_index( uint32_t nu ){
@@ -42,4 +42,4 @@ uint32_t _get_index( uint32_t nu ){
 }
 
 
-
+#endif
