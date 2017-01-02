@@ -109,7 +109,7 @@ void print_stats (void){
 	struct rte_eth_stats stat;
 	int i;
 	static uint64_t good_pkt = 0, miss_pkt = 0, err_pkt = 0;
-	int thread_nb = 4;
+	int thread_nb = 16;
 
 	/* Print per port stats */
 	for (i = 0; i < 1; i++){

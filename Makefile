@@ -24,7 +24,7 @@ src/lib/data_spsc_ring.c src/lib/lock_free_spsc_ring.c src/lib/packet_hash.c src
 #set of library
 LDLIBS    += -L /opt/mmt/dpi/lib -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -lpcap -lconfuse -lhiredis -lpthread -lm 
 
-CFLAGS += $(WERROR_CFLAGS) -g -I /opt/mmt/dpi/include -L /opt/mmt/dpi/lib -Wall -Wno-unused-variable 
+CFLAGS += $(WERROR_CFLAGS) -g -I /opt/mmt/dpi/include -L /opt/mmt/dpi/lib -Wall -Wno-unused-variable -DDPDK
 #CFLAGS   = -Wall -Wno-unused-variable -DNDEBUG -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"
 CLDFLAGS += -I /opt/mmt/dpi/include -DNDEBUG
  
@@ -34,7 +34,10 @@ ifndef VERBOSE
 endif
 
 include $(RTE_SDK)/mk/rte.extapp.mk
-else
+
+endif
+
+ifdef PCAP
 CC     = gcc-4.9
 RM     = rm -rf
 MKDIR  = mkdir -p
