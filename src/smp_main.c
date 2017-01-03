@@ -642,6 +642,7 @@ void process_interface(char * ifname, struct mmt_probe_struct * mmt_probe) {
 }
 
 #endif
+
 void terminate_probe_processing(int wait_thread_terminate) {
 	char lg_msg[1024];
 	mmt_probe_context_t * mmt_conf = mmt_probe.mmt_conf;
@@ -674,6 +675,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 	} else {
 		if (wait_thread_terminate) {
 			/* Add a dummy packet at each thread packet list tail */
+#ifdef PCAP
 
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
 
@@ -682,12 +684,24 @@ void terminate_probe_processing(int wait_thread_terminate) {
 						(struct list_entry *) &mmt_probe.smp_threads[i].pkt_head);
 				pthread_spin_unlock(&mmt_probe.smp_threads[i].lock);
 			}
+#endif
+
 		}
 
 		/* wait for all threads to complete */
 		if (wait_thread_terminate) {
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
+#ifdef PCAP
+
 				pthread_join(mmt_probe.smp_threads[i].handle, NULL);
+#endif
+
+#ifdef DPDK
+				RTE_LCORE_FOREACH_SLAVE(mmt_probe.smp_threads[i].workers->lcore_id ) {
+					if (rte_eal_wait_lcore(mmt_probe.smp_threads[i].workers->lcore_id) < 0)
+						exit(1);
+				}
+#endif
 				report_all_protocols_microflows_stats(&mmt_probe.smp_threads[i]);
 				//if (mmt_probe.smp_threads->report_counter == 0)mmt_probe.smp_threads->report_counter++;
 				//if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[i]);
@@ -701,14 +715,30 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			//We have seen the threads in deadlock situations.
 			//Wait 30 seconds then cancel the threads
 			//Once cancelled, join should give "THREAD_CANCELLED" retval
+#ifdef PCAP
 			sleep(30);
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
+
+
 				int s;
 				s = pthread_cancel(mmt_probe.smp_threads[i].handle);
 				if (s != 0) {
 					exit(1);
 				}
 			}
+#endif
+
+#ifdef DPDK
+			for (i = 0; i < mmt_conf->thread_nb; i++) {
+
+				RTE_LCORE_FOREACH_SLAVE(mmt_probe.smp_threads[i].workers->lcore_id ) {
+					if (rte_eal_wait_lcore(mmt_probe.smp_threads[i].workers->lcore_id) < 0)
+						exit(1);
+				}
+			}
+#endif
+
+
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
 				//pthread_join(mmt_probe.smp_threads[i].handle, NULL);
 				if (mmt_probe.smp_threads[i].mmt_handler != NULL) {
@@ -820,7 +850,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			}
 			//sleep (1);	// flight time required between a msg send from sockets to destination socket
 
-
 			if (mmt_probe.smp_threads[i].sockfd_internet != NULL){
 				for (j = 0; j < mmt_conf->server_ip_nb; j++){
 					if(mmt_probe.smp_threads[i].sockfd_internet[j] > 0)close(mmt_probe.smp_threads[i].sockfd_internet[j]);
@@ -902,9 +931,12 @@ void signal_handler(int type) {
 	char lg_msg[1024];
 	fprintf(stderr, "\n reception of signal %d\n", type);
 	fflush( stderr );
+#ifdef PCAP
 	cleanup( 0 );
+#endif
+
 #ifdef DPDK
-                print_stats();
+	print_stats();
 #endif
 
 
@@ -1129,6 +1161,7 @@ int main(int argc, char **argv) {
 		dpdk_capture(argc, argv, &mmt_probe );
 	}
 #endif
+
 #ifdef PCAP
 	if (mmt_conf->thread_nb == 1) {
 		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_INIT, "Initializating MMT Extraction engine! Single threaded operation.");

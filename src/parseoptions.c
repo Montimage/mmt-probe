@@ -733,7 +733,11 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 	int probe_id_number = 0;
 	int flow_stats = 1;
 	int versions_only = 0;
-	int dpdk = 0;
+	//int dpdk = 0;
+
+	d_argv = malloc(sizeof(char)*20);
+	d_argv[0]=argv[0];
+
 	while ((opt = getopt(argc, argv, "z:t:i:o:R:P:p:s:n:f:c:hv")) != EOF) {
 		switch (opt) {
 		case 'z':
@@ -775,7 +779,13 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 			flow_stats = atoi(optarg);
 			break;
 		case 'c':
-			dpdk = 1;
+			d_argc++;
+			d_argv[d_argc++] = malloc(sizeof (char)*1);
+			argv[1] = "c";
+			d_argc++;
+			d_argv[d_argc++] = malloc(sizeof (char)*20);
+			d_argv[d_argc] = optarg;
+			//dpdk = 1;
 			break;
 		case 'v':
 			versions_only = 1;
