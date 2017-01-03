@@ -654,6 +654,7 @@ int get_packet (uint8_t port, int q, void * args);
 //int dpdk_capture (int argc, char **argv);
 int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe);
 void print_stats(void);
+int cleanup_registered_handlers(void *arg);
 //prototypes
 void print_ip_session_report (const mmt_session_t * session, void *user_args);
 void print_initial_web_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
