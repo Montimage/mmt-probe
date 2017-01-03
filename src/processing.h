@@ -52,6 +52,9 @@ pthread_spinlock_t spin_lock;
 time_t update_reporting_time;
 static int is_stop_timer;
 
+static int d_argc = 0;
+char ** d_argv;
+
 static struct mmt_probe_struct mmt_probe;
 
 enum os_id {

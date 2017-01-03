@@ -45,7 +45,11 @@ src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c s
 #include <inttypes.h>
 #include "tcpip/mmt_tcpip.h"
 
-
+#ifdef DPDK
+#include <rte_per_lcore.h>
+#include <rte_eal.h>
+#include <rte_launch.h>
+#endif
 
 #include <sys/types.h>
 //#include <sys/socket.h>
@@ -125,8 +129,8 @@ int cleanup_registered_handlers(void *arg){
 	return i;
 }
 
-
-static void *smp_thread_routine(void *arg) {
+#ifdef PCAP
+static void * smp_thread_routine(void *arg) {
 	struct timeval tv;
 	struct smp_thread *th = (struct smp_thread *) arg;
 	char mmt_errbuf[1024];
@@ -243,7 +247,7 @@ static void *smp_thread_routine(void *arg) {
 
 			/* is it a dummy packet ? => means thread must exit */
 			if( unlikely( pkt->data == NULL ))printf("packet_data is NULL\n");
-				//break;
+			//break;
 			else{
 				packet_process( mmt_handler, &pkt->header, pkt->data );
 				th->nb_packets ++;
@@ -413,6 +417,7 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 	}
 }
 
+#endif
 //BW: TODO: add the pcap handler to the mmt_probe (or internal structure accessible from it) in order to be able to close it here
 void cleanup(int signo) {
 	mmt_probe_context_t * mmt_conf = mmt_probe.mmt_conf;
@@ -449,6 +454,7 @@ void cleanup(int signo) {
 	}
 }
 
+#ifdef PCAP
 //online-single thread
 void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *data) {
 	struct smp_thread *th;
@@ -639,6 +645,8 @@ void process_interface(char * ifname, struct mmt_probe_struct * mmt_probe) {
 
 }
 
+#endif
+
 void terminate_probe_processing(int wait_thread_terminate) {
 	char lg_msg[1024];
 	mmt_probe_context_t * mmt_conf = mmt_probe.mmt_conf;
@@ -671,6 +679,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 	} else {
 		if (wait_thread_terminate) {
 			/* Add a dummy packet at each thread packet list tail */
+#ifdef PCAP
 
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
 
@@ -679,12 +688,24 @@ void terminate_probe_processing(int wait_thread_terminate) {
 						(struct list_entry *) &mmt_probe.smp_threads[i].pkt_head);
 				pthread_spin_unlock(&mmt_probe.smp_threads[i].lock);
 			}
+#endif
+
 		}
 
 		/* wait for all threads to complete */
 		if (wait_thread_terminate) {
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
+#ifdef PCAP
+
 				pthread_join(mmt_probe.smp_threads[i].handle, NULL);
+#endif
+
+#ifdef DPDK
+				//RTE_LCORE_FOREACH_SLAVE(mmt_probe.smp_threads[i].workers->lcore_id ) {
+					if (rte_eal_wait_lcore(mmt_probe.smp_threads[i].workers->lcore_id) < 0)
+						exit(1);
+				//}
+#endif
 				report_all_protocols_microflows_stats(&mmt_probe.smp_threads[i]);
 				//if (mmt_probe.smp_threads->report_counter == 0)mmt_probe.smp_threads->report_counter++;
 				//if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[i]);
@@ -693,19 +714,39 @@ void terminate_probe_processing(int wait_thread_terminate) {
 				mmt_probe.smp_threads[i].cache_message_list =NULL;
 			}
 			exit_timers();
+                        
 		} else {
 			//We might have catched a SEGV or ABORT signal.
 			//We have seen the threads in deadlock situations.
 			//Wait 30 seconds then cancel the threads
 			//Once cancelled, join should give "THREAD_CANCELLED" retval
+#ifdef PCAP
 			sleep(30);
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
+
+
 				int s;
 				s = pthread_cancel(mmt_probe.smp_threads[i].handle);
 				if (s != 0) {
 					exit(1);
 				}
 			}
+#endif
+
+#ifdef DPDK
+  			sleep (10);
+			for (i = 0; i < mmt_conf->thread_nb; i++) {
+
+
+				//RTE_LCORE_FOREACH_SLAVE(mmt_probe.smp_threads[i].workers->lcore_id ) {
+					//if (rte_eal_wait_lcore(mmt_probe.smp_threads[i].workers->lcore_id) < 0)
+					//	exit(1);
+
+				//}
+			}
+#endif
+
+
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
 				//pthread_join(mmt_probe.smp_threads[i].handle, NULL);
 				if (mmt_probe.smp_threads[i].mmt_handler != NULL) {
@@ -726,7 +767,11 @@ void terminate_probe_processing(int wait_thread_terminate) {
 				}
 				report_all_protocols_microflows_stats(&mmt_probe.smp_threads[i].iprobe);
 				exit_timers();
+
 			}
+#ifdef DPDK
+			exit (1);//TODO: cancel the core and perform clean exit
+#endif
 		}
 	}
 	//sleep (2);	// flight time required between a msg send from sockets to destination socket
@@ -772,10 +817,14 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		free (mmt_conf->event_reports[i].attributes);
 		mmt_conf->event_reports[i].attributes = NULL;
 	}
-	free (mmt_conf->condition_reports);
-	mmt_conf->condition_reports = NULL;
-	free (mmt_conf->event_reports);
-	mmt_conf->event_reports = NULL;
+        if (mmt_conf->condition_reports != NULL){
+	    free (mmt_conf->condition_reports);
+	    mmt_conf->condition_reports = NULL;
+	}
+        if (mmt_conf->event_reports != NULL) {
+	    free (mmt_conf->event_reports);
+	    mmt_conf->event_reports = NULL;
+        }
 	for (i=0; i < mmt_conf->security_reports_nb; i++){
 		free (mmt_conf->security_reports[i].attributes);
 		mmt_conf->security_reports[i].attributes = NULL;
@@ -788,15 +837,22 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		free (mmt_conf->security_reports[i].event_id);
 		mmt_conf->security_reports[i].event_id = NULL;
 	}
-	free (mmt_conf->security_reports);
+        if (mmt_conf->security_reports != NULL) {
+	    free (mmt_conf->security_reports);
+        }
 	int retval = 0;
 	uint32_t count = 0;
+
 	if (mmt_conf->thread_nb > 1){
 		for(i=0; i<mmt_conf->thread_nb; i++){
 
-			if (mmt_conf->socket_enable == 1)printf ("th_nb =%u, packets_reports_send = %u \n", i, mmt_probe.smp_threads[i].packet_send);
-			count += mmt_probe.smp_threads[i].packet_send;
+			if (mmt_conf->socket_enable == 1){
+			    printf ("th_nb =%u, packets_reports_send = %u \n", i, mmt_probe.smp_threads[i].packet_send);
+			    count += mmt_probe.smp_threads[i].packet_send;
+			}
+#ifdef PCAP
 			data_spsc_ring_free( &mmt_probe.smp_threads[i].fifo );
+#endif
 			//if(mmt_probe.smp_threads[i].sockfd_unix > 0)close(mmt_probe.smp_threads[i].sockfd_unix);
 			if (mmt_probe.smp_threads[i].report != NULL){
 				for(j = 0; j < mmt_conf->security_reports_nb; j++) {
@@ -817,7 +873,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			}
 			//sleep (1);	// flight time required between a msg send from sockets to destination socket
 
-
 			if (mmt_probe.smp_threads[i].sockfd_internet != NULL){
 				for (j = 0; j < mmt_conf->server_ip_nb; j++){
 					if(mmt_probe.smp_threads[i].sockfd_internet[j] > 0)close(mmt_probe.smp_threads[i].sockfd_internet[j]);
@@ -832,16 +887,12 @@ void terminate_probe_processing(int wait_thread_terminate) {
 				free (mmt_probe.smp_threads[i].security_attributes);
 			}
 
-			/*			if (mmt_probe.smp_threads[i].event_reports != NULL){
-				free (mmt_probe.smp_threads[i].event_reports);
-				mmt_probe.smp_threads[i].event_reports = NULL;
-			}*/
 		}
 		if (mmt_conf->socket_enable == 1)printf ("total_packets_report_send_by_threads = %u \n",count);
 
 		free( mmt_probe.smp_threads);
 		mmt_probe.smp_threads = NULL;
-	}else {
+	}else if (mmt_conf->thread_nb > 20) {
 		/*		if (mmt_probe.smp_threads->event_reports != NULL){
 			free(mmt_probe.smp_threads->event_reports);
 			mmt_probe.smp_threads->event_reports = NULL;
@@ -899,8 +950,14 @@ void signal_handler(int type) {
 	char lg_msg[1024];
 	fprintf(stderr, "\n reception of signal %d\n", type);
 	fflush( stderr );
+#ifdef PCAP
 	cleanup( 0 );
-       print_stats();
+#endif
+
+#ifdef DPDK
+	print_stats();
+#endif
+
 
 	if (i == 1) {
 		terminate_probe_processing(0);
@@ -918,7 +975,6 @@ void signal_handler(int type) {
                     }
 		 */
 	} else {
-
 		signal(SIGINT, signal_handler);
 		sprintf(lg_msg, "reception of signal %i while processing a signal exiting!", type);
 		/*
@@ -1117,109 +1173,114 @@ int main(int argc, char **argv) {
 			}
 		}
 	}
-	if (capture_pcap == 1){
-		if (mmt_conf->thread_nb == 1) {
-			mmt_log(mmt_conf, MMT_L_INFO, MMT_E_INIT, "Initializating MMT Extraction engine! Single threaded operation.");
-			mmt_probe.smp_threads = (struct smp_thread *) calloc(mmt_conf->thread_nb,sizeof (struct smp_thread));
-			mmt_probe.smp_threads->last_stat_report_time = time(0);
-			mmt_probe.smp_threads->pcap_last_stat_report_time = 0;
-			mmt_probe.smp_threads->pcap_current_packet_time = 0;
-			//One thread for reading packets and processing them
-			//Initialize an MMT handler
-			mmt_probe.smp_threads->mmt_handler = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
-			if (!mmt_probe.smp_threads->mmt_handler) { /* pcap error ? */
-				fprintf(stderr, "MMT handler init failed for the following reason: %s\n", mmt_errbuf);
-				mmt_log(mmt_conf, MMT_L_ERROR, MMT_E_INIT_ERROR, "MMT Extraction handler initialization error! Exiting!");
-				return EXIT_FAILURE;
-			}
 
-			//mmt_probe.iprobe.instance_id = 0;
-			mmt_probe.smp_threads->thread_number = 0;
-			for (i = 0; i < PROTO_MAX_IDENTIFIER; i++) {
-				reset_microflows_stats(&mmt_probe.smp_threads->iprobe.mf_stats[i]);
-				mmt_probe.smp_threads->iprobe.mf_stats[i].application = get_protocol_name_by_id(i);
-				mmt_probe.smp_threads->iprobe.mf_stats[i].application_id = i;
-			}
-			mmt_probe.smp_threads->iprobe.instance_id = mmt_probe.smp_threads->thread_number;
-			mmt_probe.smp_threads->thread_number = 0;
-
-			pthread_spin_init(&mmt_probe.smp_threads->lock, 0);
-
-			// customized packet and session handling functions are then registered
-			if(mmt_probe.mmt_conf->enable_session_report == 1) {
-				register_session_timer_handler(mmt_probe.smp_threads->mmt_handler, print_ip_session_report, (void *) mmt_probe.smp_threads);
-				register_session_timeout_handler(mmt_probe.smp_threads->mmt_handler, classification_expiry_session, (void *) mmt_probe.smp_threads);
-				flowstruct_init((void *)mmt_probe.smp_threads); // initialize our event handler
-				if(mmt_conf->condition_based_reporting_enable == 1)conditional_reports_init((void *)mmt_probe.smp_threads);// initialize our conditional reports
-				if(mmt_conf->radius_enable == 1)radius_ext_init((void *)mmt_probe.smp_threads); // initialize radius extraction and attribute event handler
-				set_default_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->default_session_timeout);
-				set_long_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->long_session_timeout);
-				set_short_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->short_session_timeout);
-				set_live_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->live_session_timeout);
-			}
-			if(mmt_conf->event_based_reporting_enable == 1)event_reports_init((void *)mmt_probe.smp_threads); // initialize our event reports
-			if (mmt_conf->enable_security_report == 1)security_reports_init((void *)mmt_probe.smp_threads);// should be defined before proto_stats_init
-			if (mmt_conf->enable_security_report == 0)proto_stats_init(mmt_probe.smp_threads);
-
-
-			mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, "MMT Extraction engine! successfully initialized in a single threaded operation.");
-		} else {
-			//Multiple threads for processing the packets
-			/*
-			 * Array of list of packets for all threads
-			 */
-			sprintf(lg_msg, "Initializating MMT Extraction engine! Multi threaded operation (%i threads)", mmt_conf->thread_nb);
-			mmt_log(mmt_conf, MMT_L_INFO, MMT_E_INIT, lg_msg);
-			mmt_probe.smp_threads = (struct smp_thread *) calloc(mmt_conf->thread_nb, sizeof (struct smp_thread));
-			/* run threads */
-			for (i = 0; i < mmt_conf->thread_nb; i++) {
-				init_list_head((struct list_entry *) &mmt_probe.smp_threads[i].pkt_head);
-				pthread_spin_init(&mmt_probe.smp_threads[i].lock, 0);
-				mmt_probe.smp_threads[i].last_stat_report_time = time(0);
-				mmt_probe.smp_threads[i].pcap_last_stat_report_time = 0;
-				mmt_probe.smp_threads[i].pcap_current_packet_time = 0;
-				//mmt_probe.smp_threads[i].last_msg_report_time = time(0);
-				mmt_probe.smp_threads[i].null_pkt.pkt.data = NULL;
-
-				mmt_probe.smp_threads[i].nb_dropped_packets = 0;
-				mmt_probe.smp_threads[i].nb_packets         = 0;
-
-
-				mmt_probe.smp_threads[i].thread_number = i;
-				if( data_spsc_ring_init( &mmt_probe.smp_threads[i].fifo, mmt_conf->thread_queue_plen, mmt_conf->requested_snap_len ) != 0 ){
-					perror("Not enough memory. Please reduce thread-queue or thread-nb in .conf");
-					//free memory allocated
-					for(j=0; j<=i; j++)
-						data_spsc_ring_free( &mmt_probe.smp_threads[j].fifo );
-					exit( 0 );
-				}
-
-				pthread_create(&mmt_probe.smp_threads[i].handle, NULL,
-						smp_thread_routine, &mmt_probe.smp_threads[i]);
-
-			}
-			sprintf(lg_msg, "MMT Extraction engine! successfully initialized in a multi threaded operation (%i threads)", mmt_conf->thread_nb);
-			mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, lg_msg);
-		}
+#ifdef DPDK
+	if (capture_dpdk == 1){
+		start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
+		dpdk_capture(argc, argv, &mmt_probe );
 	}
+#endif
 
+#ifdef PCAP
+	if (mmt_conf->thread_nb == 1) {
+		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_INIT, "Initializating MMT Extraction engine! Single threaded operation.");
+		mmt_probe.smp_threads = (struct smp_thread *) calloc(mmt_conf->thread_nb,sizeof (struct smp_thread));
+		mmt_probe.smp_threads->last_stat_report_time = time(0);
+		mmt_probe.smp_threads->pcap_last_stat_report_time = 0;
+		mmt_probe.smp_threads->pcap_current_packet_time = 0;
+		//One thread for reading packets and processing them
+		//Initialize an MMT handler
+		mmt_probe.smp_threads->mmt_handler = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
+		if (!mmt_probe.smp_threads->mmt_handler) { /* pcap error ? */
+			fprintf(stderr, "MMT handler init failed for the following reason: %s\n", mmt_errbuf);
+			mmt_log(mmt_conf, MMT_L_ERROR, MMT_E_INIT_ERROR, "MMT Extraction handler initialization error! Exiting!");
+			return EXIT_FAILURE;
+		}
+
+		//mmt_probe.iprobe.instance_id = 0;
+		mmt_probe.smp_threads->thread_number = 0;
+		for (i = 0; i < PROTO_MAX_IDENTIFIER; i++) {
+			reset_microflows_stats(&mmt_probe.smp_threads->iprobe.mf_stats[i]);
+			mmt_probe.smp_threads->iprobe.mf_stats[i].application = get_protocol_name_by_id(i);
+			mmt_probe.smp_threads->iprobe.mf_stats[i].application_id = i;
+		}
+		mmt_probe.smp_threads->iprobe.instance_id = mmt_probe.smp_threads->thread_number;
+		mmt_probe.smp_threads->thread_number = 0;
+
+		pthread_spin_init(&mmt_probe.smp_threads->lock, 0);
+
+		// customized packet and session handling functions are then registered
+		if(mmt_probe.mmt_conf->enable_session_report == 1) {
+			register_session_timer_handler(mmt_probe.smp_threads->mmt_handler, print_ip_session_report, (void *) mmt_probe.smp_threads);
+			register_session_timeout_handler(mmt_probe.smp_threads->mmt_handler, classification_expiry_session, (void *) mmt_probe.smp_threads);
+			flowstruct_init((void *)mmt_probe.smp_threads); // initialize our event handler
+			if(mmt_conf->condition_based_reporting_enable == 1)conditional_reports_init((void *)mmt_probe.smp_threads);// initialize our conditional reports
+			if(mmt_conf->radius_enable == 1)radius_ext_init((void *)mmt_probe.smp_threads); // initialize radius extraction and attribute event handler
+			set_default_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->default_session_timeout);
+			set_long_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->long_session_timeout);
+			set_short_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->short_session_timeout);
+			set_live_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->live_session_timeout);
+		}
+		if(mmt_conf->event_based_reporting_enable == 1)event_reports_init((void *)mmt_probe.smp_threads); // initialize our event reports
+		if (mmt_conf->enable_security_report == 1)security_reports_init((void *)mmt_probe.smp_threads);// should be defined before proto_stats_init
+		if (mmt_conf->enable_security_report == 0)proto_stats_init(mmt_probe.smp_threads);
+
+
+		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, "MMT Extraction engine! successfully initialized in a single threaded operation.");
+	} else {
+		//Multiple threads for processing the packets
+		/*
+		 * Array of list of packets for all threads
+		 */
+		sprintf(lg_msg, "Initializating MMT Extraction engine! Multi threaded operation (%i threads)", mmt_conf->thread_nb);
+		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_INIT, lg_msg);
+		mmt_probe.smp_threads = (struct smp_thread *) calloc(mmt_conf->thread_nb, sizeof (struct smp_thread));
+		/* run threads */
+		for (i = 0; i < mmt_conf->thread_nb; i++) {
+			init_list_head((struct list_entry *) &mmt_probe.smp_threads[i].pkt_head);
+			pthread_spin_init(&mmt_probe.smp_threads[i].lock, 0);
+			mmt_probe.smp_threads[i].last_stat_report_time = time(0);
+			mmt_probe.smp_threads[i].pcap_last_stat_report_time = 0;
+			mmt_probe.smp_threads[i].pcap_current_packet_time = 0;
+			//mmt_probe.smp_threads[i].last_msg_report_time = time(0);
+			mmt_probe.smp_threads[i].null_pkt.pkt.data = NULL;
+
+			mmt_probe.smp_threads[i].nb_dropped_packets = 0;
+			mmt_probe.smp_threads[i].nb_packets         = 0;
+
+
+			mmt_probe.smp_threads[i].thread_number = i;
+			if( data_spsc_ring_init( &mmt_probe.smp_threads[i].fifo, mmt_conf->thread_queue_plen, mmt_conf->requested_snap_len ) != 0 ){
+				perror("Not enough memory. Please reduce thread-queue or thread-nb in .conf");
+				//free memory allocated
+				for(j=0; j<=i; j++)
+					data_spsc_ring_free( &mmt_probe.smp_threads[j].fifo );
+				exit( 0 );
+			}
+
+			pthread_create(&mmt_probe.smp_threads[i].handle, NULL,
+					smp_thread_routine, &mmt_probe.smp_threads[i]);
+
+		}
+		sprintf(lg_msg, "MMT Extraction engine! successfully initialized in a multi threaded operation (%i threads)", mmt_conf->thread_nb);
+		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, lg_msg);
+	}
 	//we need to enable timer both for file and redis output since we need report number 200 (to check that probe is alive)
         //TODO: Sementation faults
         start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
-	//Offline or Online processing
-	if (capture_pcap == 1){
-		if (mmt_conf->input_mode == OFFLINE_ANALYSIS) {
-			process_trace_file(mmt_conf->input_source, &mmt_probe); //Process single offline trace
-			//We don't close the files here because they will be used when the handler is closed to report still to timeout flows
-		}else if (mmt_conf->input_mode == ONLINE_ANALYSIS) {
-			process_interface(mmt_conf->input_source, &mmt_probe); //Process single offline trace
-			//We don't close the files here because they will be used when the handler is closed to report still to timeout flows
-		}
-	}else if (capture_dpdk == 1){
-			dpdk_capture(argc, argv, &mmt_probe );
-		}
 
-	//terminate_probe_processing(1);
+	//Offline or Online processing
+
+	if (mmt_conf->input_mode == OFFLINE_ANALYSIS) {
+		process_trace_file(mmt_conf->input_source, &mmt_probe); //Process single offline trace
+		//We don't close the files here because they will be used when the handler is closed to report still to timeout flows
+	}else if (mmt_conf->input_mode == ONLINE_ANALYSIS) {
+		process_interface(mmt_conf->input_source, &mmt_probe); //Process single offline trace
+		//We don't close the files here because they will be used when the handler is closed to report still to timeout flows
+	}
+#endif
+
+	terminate_probe_processing(1);
 
 	//printf("Process Terminated successfully\n");
 	return EXIT_SUCCESS;

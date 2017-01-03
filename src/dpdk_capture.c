@@ -36,7 +36,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
+#ifdef DPDK
 #include <stdint.h>
 #include <inttypes.h>
 #include <locale.h>
@@ -54,6 +54,7 @@
 #include <rte_malloc.h>
 #include <rte_mempool.h>
 #include <rte_ring.h>
+
 #include "mmt_core.h"
 #include "tcpip/mmt_tcpip.h"
 
@@ -130,31 +131,10 @@ void print_stats (void){
 	printf("\nTOT:  %'9ld (recv), %'9ld (dr %3.2f%%), %'7ld (err) %'9ld (tot)\n\n",
 			good_pkt, miss_pkt, (float)miss_pkt/(good_pkt+miss_pkt+err_pkt)*100, err_pkt, good_pkt+miss_pkt+err_pkt );
 
-	for (i = 0; i < thread_nb; i++)
-		printf("\n Packet_processed total thread %u: %lu \n",i,total_pkt[i]);
+/*	for (i = 0; i < thread_nb; i++)
+		printf(" Packet_processed total thread %u: %lu\n",i,total_pkt[i]);
+*/
 
-
-}
-/* Signal handling function */
-static void sig_handler(int signo)
-{
-	/* Print the per port stats  */
-	printf("\n\nQUITTING...\n");
-
-	print_stats();
-
-	exit(0);
-}
-
-
-void alarm_routine (__attribute__((unused)) int unused){
-
-	/* Print per port stats */
-	print_stats();
-
-	/* Schedule an other print */
-	//alarm(1);
-	signal(SIGALRM, alarm_routine);
 }
 
 int packet_handler_dpdk(const ipacket_t * ipacket, void * args) {
@@ -228,7 +208,7 @@ worker_thread(void *args_ptr)
 		return EXIT_FAILURE;
 	}
 	//Register a packet handler, it will be called for every processed packet
-	register_packet_handler(th->mmt_handler, 10, packet_handler_dpdk, (void *)args_ptr);
+	//register_packet_handler(th->mmt_handler, 10, packet_handler_dpdk, (void *)args_ptr);
 
 
 	//th->iprobe.data_out = NULL;
@@ -272,9 +252,19 @@ worker_thread(void *args_ptr)
 
 	/* Run until the application is quit or killed. */
 	for (;;) {
+		 gettimeofday(&time_now, NULL); //TODO: change time add to nanosec
+
+		if(time(0) - th->last_stat_report_time >= probe_context->stats_reporting_period ||
+				th->pcap_current_packet_time - th->pcap_last_stat_report_time >= probe_context->stats_reporting_period){
+			th->report_counter++;
+			th->last_stat_report_time = time(0);
+			th->pcap_last_stat_report_time = th->pcap_current_packet_time;
+			if (probe_context->enable_session_report == 1)process_session_timer_handler(th->mmt_handler);
+			if (probe_context->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, th);
+		}
 
 		/* Receive packets on a port*/
-		gettimeofday(&time_now, NULL);
+		//gettimeofday(&time_now, NULL); //TODO: change time add to nanosec
 	        port = 0;
 			/*Get burst of RX packets, from first port of pair.*/
 			//get_packet (port,workers->lcore_id,args_ptr);
@@ -288,8 +278,23 @@ worker_thread(void *args_ptr)
 				header.user_args = NULL;
 				data = (bufs[i]->buf_addr + bufs[i]->data_off);
 				packet_process( th->mmt_handler, &header, (u_char *)data );
+				th->nb_packets ++;
 				rte_pktmbuf_free( bufs[i] );
 			}
+	}
+	printf("thread %d : %"PRIu64" \n", th->thread_number, th->nb_packets );
+
+	if(th->mmt_handler != NULL){
+		radius_ext_cleanup(th->mmt_handler); // cleanup our event handler for RADIUS initializations
+		flowstruct_cleanup(th->mmt_handler); // cleanup our event handler
+		th->report_counter++;
+		if (mmt_probe.mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, th);
+		//process_session_timer_handler(th->mmt_handler);
+		if (cleanup_registered_handlers (th) == 0){
+			fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",th->thread_number);
+		}
+		mmt_close_handler(th->mmt_handler);
+		th->mmt_handler = NULL;
 	}
 
 	return 0;
@@ -377,12 +382,6 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 
 	setlocale(LC_NUMERIC, "en_US.UTF-8");
 
-	/* Create handler for SIGINT for CTRL + C closing and SIGALRM to print stats*/
-	//signal(SIGINT, sig_handler);
-	signal(SIGALRM, alarm_routine);
-
-	alarm(1);
-
 	argc -= ret;
 	argv += ret;
 	num_of_cores = mmt_probe->mmt_conf->thread_nb +1;
@@ -430,15 +429,13 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 				mmt_probe->smp_threads[thread_nb].last_stat_report_time = time(0);
 				mmt_probe->smp_threads[thread_nb].pcap_last_stat_report_time = 0;
 				mmt_probe->smp_threads[thread_nb].pcap_current_packet_time = 0;
-				//workers[thread_nb].mmt_probe->smp_threads->null_pkt.pkt.data = NULL;
 				mmt_probe->smp_threads[thread_nb].nb_dropped_packets = 0;
 				mmt_probe->smp_threads[thread_nb].nb_packets         = 0;
 				mmt_probe->smp_threads[thread_nb].workers = (worker_args_t *) calloc(1,sizeof (worker_args_t));
-				//snprintf(mmt_probe->smp_threads[thread_nb].workers->rx_to_workers, MAX_MESS,"%u", lcore_id );
-				//mmt_probe->smp_threads[thread_nb].workers->ring_in = rte_ring_create(mmt_probe->smp_threads[thread_nb].workers->rx_to_workers, RING_SIZE, rte_socket_id(),RING_F_SP_ENQ);
 				mmt_probe->smp_threads[thread_nb].thread_number = thread_nb;
 				rte_eal_remote_launch(worker_thread, (void *)&mmt_probe->smp_threads[thread_nb], lcore_id);
 				printf("thread_id = %u, core_id = %u\n",thread_nb,lcore_id);
+				mmt_probe->smp_threads[thread_nb].workers->lcore_id = lcore_id;
 				thread_nb ++;
 			}
 			lcore_id++;
@@ -448,6 +445,8 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	/* Call lcore_main on the master core only. */
 	lcore_main();
 
+
 	return 0;
 
 }
+#endif

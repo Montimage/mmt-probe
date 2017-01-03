@@ -327,10 +327,10 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 		if (mmt_conf->requested_snap_len  == 0) mmt_conf->requested_snap_len  = 65535;
 
 		mmt_conf->nb_of_report_per_msg = (uint32_t) cfg_getint(cfg, "num-of-report-per-msg");
-        if (mmt_conf->nb_of_report_per_msg < 1){
-        	printf("Error: Number of report per msg should be greater than zero in case of security reporting \n");
-        	exit(0);
-        }
+		if (mmt_conf->nb_of_report_per_msg < 1){
+			printf("Error: Number of report per msg should be greater than zero in case of security reporting \n");
+			exit(0);
+		}
 
 		if(mmt_conf->input_mode == 0){
 			printf("Error: Specify the input-mode in the configuration file, for example input-mode = \"offline\" or \"online\" \n");
@@ -460,7 +460,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			}
 		}
 
-	/*	int nb_port_address =0;
+		/*	int nb_port_address =0;
 		int nb_server_address = 0;
 		if (cfg_size(cfg, "socket")) {
 			cfg_t *socket = cfg_getnsec(cfg, "socket", 0);
@@ -490,55 +490,55 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 		}*/
 
 		int nb_port_address =0;
-				int nb_server_address = 0;
-				if (cfg_size(cfg, "socket")) {
-					cfg_t *socket = cfg_getnsec(cfg, "socket", 0);
-					int len=0;
-					if (socket->line != 0){
-						mmt_conf->socket_enable = (uint32_t) cfg_getint(socket, "enable");
-						if (mmt_conf->socket_enable ==1 ){
-							nb_port_address = cfg_size(socket, "port");
-							mmt_conf->one_socket_server = (uint8_t) cfg_getint(socket, "one-socket-server");
-							if(nb_port_address > 0) {
-								if (nb_port_address != mmt_conf->thread_nb && mmt_conf->one_socket_server < 1){
-									printf("Error: Number of port address should be equal to thread number\n");
-									exit(0);
-								}
-		/*						mmt_conf->port_address = malloc(sizeof(int)*nb_port_address);
+		int nb_server_address = 0;
+		if (cfg_size(cfg, "socket")) {
+			cfg_t *socket = cfg_getnsec(cfg, "socket", 0);
+			int len=0;
+			if (socket->line != 0){
+				mmt_conf->socket_enable = (uint32_t) cfg_getint(socket, "enable");
+				if (mmt_conf->socket_enable ==1 ){
+					nb_port_address = cfg_size(socket, "port");
+					mmt_conf->one_socket_server = (uint8_t) cfg_getint(socket, "one-socket-server");
+					if(nb_port_address > 0) {
+						if (nb_port_address != mmt_conf->thread_nb && mmt_conf->one_socket_server < 1){
+							printf("Error: Number of port address should be equal to thread number\n");
+							exit(0);
+						}
+						/*						mmt_conf->port_address = malloc(sizeof(int)*nb_port_address);
 								for(i = 0; i < nb_port_address; i++) {
 									mmt_conf->port_address[i] = atoi(cfg_getnstr(socket, "port", i));
 								}*/
-							}
-							nb_server_address = cfg_size(socket, "server-address");
-							mmt_conf->server_ip_nb = nb_server_address;
-							mmt_conf->server_port_nb = nb_port_address;
-							if (mmt_conf->one_socket_server == 1){
-									mmt_conf->server_adresses = calloc(sizeof(ip_port_t), nb_server_address);
-									for(j = 0; j < nb_server_address; j++) {
-										strncpy(mmt_conf->server_adresses[j].server_ip_address, (char *) cfg_getnstr(socket, "server-address", j),18);
-										mmt_conf->server_adresses[j].server_portnb = malloc(sizeof(uint32_t)*1);
-										mmt_conf->server_adresses[j].server_portnb[0] = atoi(cfg_getnstr(socket, "port", 0));
-									}
-							}else if (mmt_conf->one_socket_server == 0){
-								if(mmt_conf->thread_nb == mmt_conf->server_port_nb) {
-									mmt_conf->server_adresses = calloc(sizeof(ip_port_t), nb_server_address);
+					}
+					nb_server_address = cfg_size(socket, "server-address");
+					mmt_conf->server_ip_nb = nb_server_address;
+					mmt_conf->server_port_nb = nb_port_address;
+					if (mmt_conf->one_socket_server == 1){
+						mmt_conf->server_adresses = calloc(sizeof(ip_port_t), nb_server_address);
+						for(j = 0; j < nb_server_address; j++) {
+							strncpy(mmt_conf->server_adresses[j].server_ip_address, (char *) cfg_getnstr(socket, "server-address", j),18);
+							mmt_conf->server_adresses[j].server_portnb = malloc(sizeof(uint32_t)*1);
+							mmt_conf->server_adresses[j].server_portnb[0] = atoi(cfg_getnstr(socket, "port", 0));
+						}
+					}else if (mmt_conf->one_socket_server == 0){
+						if(mmt_conf->thread_nb == mmt_conf->server_port_nb) {
+							mmt_conf->server_adresses = calloc(sizeof(ip_port_t), nb_server_address);
 
-									for(j = 0; j < nb_server_address; j++) {
-										strncpy(mmt_conf->server_adresses[j].server_ip_address, (char *) cfg_getnstr(socket, "server-address", j),18);
-										mmt_conf->server_adresses[j].server_portnb = malloc(sizeof(uint32_t)*mmt_conf->server_port_nb);
-										for(i = 0; i < nb_port_address; i++) {
-											mmt_conf->server_adresses[j].server_portnb[i] = atoi(cfg_getnstr(socket, "port", i));
-										}
-									}
-								}else{
-									printf("Error: Number of port_nb should be equal to number of threads\n");
-
+							for(j = 0; j < nb_server_address; j++) {
+								strncpy(mmt_conf->server_adresses[j].server_ip_address, (char *) cfg_getnstr(socket, "server-address", j),18);
+								mmt_conf->server_adresses[j].server_portnb = malloc(sizeof(uint32_t)*mmt_conf->server_port_nb);
+								for(i = 0; i < nb_port_address; i++) {
+									mmt_conf->server_adresses[j].server_portnb[i] = atoi(cfg_getnstr(socket, "port", i));
 								}
 							}
+						}else{
+							printf("Error: Number of port_nb should be equal to number of threads\n");
 
 						}
 					}
+
 				}
+			}
+		}
 
 		if (cfg_size(cfg, "data-output")) {
 			cfg_t *doutput = cfg_getnsec(cfg, "data-output", 0);
@@ -567,7 +567,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					mmt_conf->enable_security_report = 1;
 					security_event_nb = cfg_size(security_report_opts, "event");
 					temp_sr->event_name_nb = security_event_nb;
-                    temp_sr->event_operation = 	(uint8_t) cfg_getint(security_report_opts, "event_operation");
+					temp_sr->event_operation = 	(uint8_t) cfg_getint(security_report_opts, "event_operation");
 
 					if(security_event_nb > 0) {
 						//temp_sr->event= calloc(sizeof(mmt_security_attribute_t),security_attributes_nb);
@@ -733,7 +733,11 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 	int probe_id_number = 0;
 	int flow_stats = 1;
 	int versions_only = 0;
-        int dpdk = 0;
+	//int dpdk = 0;
+
+	d_argv = malloc(sizeof(char)*20);
+	d_argv[0]=argv[0];
+
 	while ((opt = getopt(argc, argv, "z:t:i:o:R:P:p:s:n:f:c:hv")) != EOF) {
 		switch (opt) {
 		case 'z':
@@ -774,15 +778,24 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 		case 'f':
 			flow_stats = atoi(optarg);
 			break;
+		case 'c':
+			d_argc++;
+			d_argv[d_argc++] = malloc(sizeof (char)*1);
+			argv[1] = "c";
+			d_argc++;
+			d_argv[d_argc++] = malloc(sizeof (char)*20);
+			d_argv[d_argc] = optarg;
+			//dpdk = 1;
+			break;
 		case 'v':
 			versions_only = 1;
-		case 'c':
-			dpdk = 1;
+#ifdef PCAP
 
-		//fprintf(stderr,"Versions: \n Probe v1.0.0 \n DPI v%s \n Security v0.9b \n Compatible with Operator v1.5 \n",mmt_version());
-		//	fprintf(stderr,"Versions: \n Probe v%s (%s) \n DPI v%s \n Security v0.9b \n Compatible with Operator v1.5 \n",
-		//						VERSION, GIT_VERSION, //these version information are given by Makefile
-		//						mmt_version());
+			fprintf(stderr,"Versions: \n Probe v1.0.0 \n DPI v%s \n Security v0.9b \n Compatible with Operator v1.5 \n",mmt_version());
+			fprintf(stderr,"Versions: \n Probe v%s (%s) \n DPI v%s \n Security v0.9b \n Compatible with Operator v1.5 \n",
+					VERSION, GIT_VERSION, //these version information are given by Makefile
+					mmt_version());
+#endif
 			break;
 		case 'h':
 		default: usage(argv[0]);
