@@ -10,11 +10,6 @@
 #include "tcpip/mmt_tcpip.h"
 #include "processing.h"
 
-typedef struct http_line_struct {
-    const uint8_t *ptr;
-    uint16_t len;
-} http_line_struct_t;
-
 void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     if(ipacket->session == NULL) return;
     session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);

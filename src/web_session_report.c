@@ -11,10 +11,6 @@
 #include "tcpip/mmt_tcpip.h"
 #include "processing.h"
 
-typedef struct http_line_struct {
-	const uint8_t *ptr;
-	uint16_t len;
-} http_line_struct_t;
 
 void http_reset_report(session_struct_t *temp_session){
 

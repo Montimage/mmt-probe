@@ -33,6 +33,7 @@
 #include <syscall.h>
 #endif
 #include <netinet/ip.h>
+#include "tcpip/mmt_tcpip.h"
 
 #ifdef _WIN32
 #ifndef socklen_t
@@ -265,6 +266,8 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	attribute_t * attr_extract;
 	struct smp_thread *th = (struct smp_thread *) args;
+	int MAX_LEN =1024;
+	//char attr_data[MAX_LEN];
 	//unsigned char length_buffer[5];
 	int i = 0, j = 0, k = 0, l = 0, p = 0;
 	int retval =0;
@@ -307,6 +310,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 
 			if (probe_context->security_reports[i].event_id[0] != 0){ //handling null event
 				for (j = 1; j < ipacket->proto_hierarchy->len; j++){
+					//	printf ("proto_id = %u, offset = %u",ipacket->proto_hierarchy->proto_path[j],ipacket->proto_headers_offset->proto_path[j]);
 					for (l = 0; l < probe_context->security_reports[i].event_name_nb; l++ ){
 						if (ipacket->proto_hierarchy->proto_path[j] == probe_context->security_reports[i].event_id[l]){
 							p++;
@@ -318,7 +322,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 			}
 			int initial_buffer_size =2000;
 			th->report[i].length = 0;
-			memset(th->report[i].data[th->report[i].security_report_counter], '\0', 2000);
+			memset(&th->report[i].data[th->report[i].security_report_counter][0], '\0', 2000);
 			memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length + 5], &ipacket->p_hdr->ts,sizeof(struct timeval));
 			th->report[i].length += sizeof(struct timeval) + 5; //4 bytes are reserved to assign the total length of the report and 1 byte for the number of attributes
 			k=0;
@@ -333,15 +337,53 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 						printf("Buffer_overflow\n");
 						break;
 					}
-
+					int valid =0;
 					memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], &attr_extract->proto_id, 4);
 					th->report[i].length += 4;
 					memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], &attr_extract->field_id, 4);
 					th->report[i].length += 4;
-					memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], &attr_extract->data_len, 2);
-					th->report[i].length += 2;
-					memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], attr_extract->data, attr_extract->data_len);
-					th->report[i].length +=  attr_extract->data_len;
+
+					if (attr_extract->data_type == MMT_HEADER_LINE
+							|| attr_extract->data_type == MMT_DATA_PATH
+							|| attr_extract->data_type == MMT_BINARY_DATA
+							|| attr_extract->data_type == MMT_BINARY_VAR_DATA
+							|| attr_extract->data_type == MMT_STRING_DATA
+							|| attr_extract->data_type == MMT_STRING_LONG_DATA
+							|| attr_extract->data_type == MMT_STRING_DATA_POINTER){
+
+						th->report[i].length += 2;
+						valid = mmt_attr_sprintf((char *)&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], MAX_LEN, attr_extract);
+						memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length - 2], &valid, 2);
+						th->report[i].length +=  valid;
+
+					} else if (attr_extract->data_type == MMT_DATA_POINTER){
+						if (attr_extract->field_id == PROTO_PAYLOAD){
+							uint16_t length =0;
+							uint16_t offset =0;
+							for (j = 1; j < ipacket->proto_hierarchy->len; j++){
+								offset +=ipacket->proto_headers_offset->proto_path[j];
+								if (ipacket->proto_hierarchy->proto_path[j] == attr_extract->proto_id){
+									if ((j+1) < ipacket->proto_hierarchy->len){
+										offset +=ipacket->proto_headers_offset->proto_path[j+1];
+										//printf ("offset = %u\n",offset);
+										length = ipacket->p_hdr->caplen - offset;
+										//printf ("proto_id = %u, packet_len =%u, offset = %u\n",ipacket->proto_hierarchy->proto_path[j],ipacket->p_hdr->caplen,length);
+									}
+								}
+
+							}
+							memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], &length, 2);
+							th->report[i].length += 2;
+							memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], attr_extract->data,length);
+							th->report[i].length +=  length;
+							//printf ("attribute_data ...=%s \n",(char *)attr_extract->data);
+						}
+					} else {
+						memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], &attr_extract->data_len, 2);
+						th->report[i].length += 2;
+						memcpy(&th->report[i].data[th->report[i].security_report_counter][th->report[i].length], attr_extract->data, attr_extract->data_len);
+						th->report[i].length +=  attr_extract->data_len;
+					}
 					k++;
 
 				}
@@ -355,10 +397,10 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 			if (probe_context->redis_enable == 1)send_message_to_redis ("event.security_report", (char *)th->report[i].data[th->report[i].security_report_counter]);
 
 			if (probe_context->socket_enable == 1){
-                //send (th->sockfd_internet[i],th->report[i].data[th->report[i].security_report_counter],th->report[i].length,0);
+				//send (th->sockfd_internet[i],th->report[i].data[th->report[i].security_report_counter],th->report[i].length,0);
 				th->packet_send++;
 
-                th->report[i].msg[th->report[i].security_report_counter].iov_base = th->report[i].data[th->report[i].security_report_counter];
+				th->report[i].msg[th->report[i].security_report_counter].iov_base = th->report[i].data[th->report[i].security_report_counter];
 				th->report[i].msg[th->report[i].security_report_counter].iov_len = th->report[i].length;
 				th->report[i].security_report_counter ++;
 				if (th->report[i].security_report_counter == probe_context->nb_of_report_per_msg){

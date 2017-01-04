@@ -128,6 +128,11 @@ typedef struct mmt_ipv4_ipv6_id_struct {
     };
 } mmt_ipv4_ipv6_id_t;
 
+typedef struct http_line_struct {
+	const uint8_t *ptr;
+	uint16_t len;
+} http_line_struct_t;
+
 typedef struct mmt_dev_properties_struct {
     uint16_t os_id;
     uint16_t dev_id;
@@ -281,6 +286,9 @@ typedef struct mmt_probe_context_struct {
     uint8_t socket_active;
     uint32_t *port_address;
 
+    uint8_t cpu_mem_usage_enabled;
+    uint8_t cpu_mem_usage_rep_freq; //frequency to send the report
+
     unsigned char *mac_address_host;	//
 
     uint32_t new_attribute_register_flag;
@@ -294,6 +302,7 @@ typedef struct mmt_probe_context_struct {
 	uint32_t security_reports_nb;
 	uint32_t nb_of_report_per_msg;
 	uint8_t one_socket_server;
+	uint32_t retain_files;
 
 
 } mmt_probe_context_t;
@@ -551,6 +560,8 @@ struct smp_thread {
 	uint32_t * sockfd_internet;
     uint32_t packet_send;
     worker_args_t * workers;
+    long double cpu_usage;
+    long double mem_usage;
 };
 
 typedef struct mmt_probe_struct {

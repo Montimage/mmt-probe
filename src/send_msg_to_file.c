@@ -12,6 +12,7 @@
 #include <sys/timerfd.h>
 #include "confuse.h"
 #include <sys/stat.h>
+#include <dirent.h>
 
 int file_is_modified(const char *path) {
     struct stat file_stat;
@@ -276,6 +277,61 @@ void read_attributes(){
 	}
 	cfg_free(cfg);
 }
+static int load_filter( const struct dirent *entry ){
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+
+	//must end by probe_context->data_out, e.g.,  dataoutput.csv
+	char *ext = strstr( entry->d_name, probe_context->data_out );
+	if( ext == NULL ) return 0;
+	return (strlen( ext ) == strlen( probe_context->data_out ));
+}
+/**
+ * Remove old sampled files in #folder
+ * Sample file name in format: xxxxxxxxxx_abc.csv and its semaphore in format: xxxxxxxxxx_abc.csv.sem
+ *  in which xxxxxxxxxx is a number represeting timestamp when the file was created
+ */
+int remove_old_sampled_files(const char *folder, size_t retains){
+	struct dirent **entries, *entry;
+	char file_name[256];
+	int i, n, ret, to_remove;
+
+	n = scandir( folder, &entries, load_filter, alphasort );
+	if( n < 0 ) {
+		mmt_log(mmt_probe.mmt_conf, MMT_L_ERROR, MMT_P_TERMINATION, "Cannot scan output_dir!");
+		exit( 1 );
+	}
+
+	to_remove = n - retains;
+	//printf("total file %d, retains: %zu, to remove %d\n", n, retains, to_remove );
+	if( to_remove < 0 ) to_remove = 0;
+
+	for( i = 0 ; i < to_remove ; ++i ) {
+		entry = entries[i];
+		ret = snprintf( file_name, 255, "%s/%s", folder, entry->d_name );
+		file_name[ ret ] = '\0';
+
+		ret = unlink( file_name );
+		if( ret ){
+			mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_STATUS, "Cannot delete old sampled files!");
+		}
+
+		ret = snprintf( file_name, 255, "%s/%s.sem", folder, entry->d_name );
+		file_name[ ret ] = '\0';
+
+		ret = unlink( file_name );
+		if( ret ){
+			mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_STATUS, "Cannot delete old semaphore sampled files!");
+		}
+	}
+
+	for( i=0; i<n; i++ )
+		free( entries[ i ] );
+   free( entries );
+
+	return to_remove;
+}
+
+
 void exit_timers(){
 	//struct smp_thread *th = (struct smp_thread *) arg;
 	//flush_messages_to_file_thread( th );
@@ -305,6 +361,9 @@ static void *wait_to_do_something( void *arg ){
 	int i=0;
 	FILE * register_attributes;
 	int file_modified_flag = 0;
+	char lg_msg[1024];
+	int ret_val;
+
 	// Create the timer
 	timer_fd = timerfd_create (CLOCK_MONOTONIC, 0);
 	if (timer_fd == -1){
@@ -350,6 +409,19 @@ static void *wait_to_do_something( void *arg ){
 			fflush( stdout );
 		}
 		register_attributes = fopen(probe_context->dynamic_config_file, "r");
+
+		if( probe_context->retain_files > 0 ){
+
+			//-1 as this will create a new .csv as below
+			//=> if we need to retain only 2 files
+			// =>  at this moment we retain only 1 file
+			// and a new file will be created after this function
+			ret_val = remove_old_sampled_files( probe_context->output_location, probe_context->retain_files - 1 );
+
+			sprintf(lg_msg, "Removed %d sampled files", ret_val);
+			mmt_log(probe->mmt_conf, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
+		}
+
 
 		if (register_attributes != NULL ){
 			file_modified_flag = file_is_modified (probe_context->dynamic_config_file);
@@ -432,9 +504,9 @@ void flush_messages_to_file_thread( void *arg){
 
 	//dummy report
 	if (th->thread_number == 0){
-		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu",
+		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu, %Lf, %Lf",
 				200, probe_context->probe_id_number,
-				probe_context->input_source, ts.tv_sec, ts.tv_usec);
+				probe_context->input_source, ts.tv_sec, ts.tv_usec, th->cpu_usage, th->mem_usage);
 		message[ MAX_MESS] = '\0';
 		if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message, (void *)th);
 		if (probe_context->redis_enable == 1)send_message_to_redis ("session.flow.report", message);
