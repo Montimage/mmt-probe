@@ -55,7 +55,7 @@ VERSION     := 1.0
 #set of library
 LIBS     = -L /opt/mmt/dpi/lib -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
 
-CFLAGS   = -Wall -Wno-unused-variable -DNDEBUG -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"
+CFLAGS   = -Wall -Wno-unused-variable -DNDEBUG -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DPCAP
 CLDFLAGS = -I /opt/mmt/dpi/include -DNDEBUG
 
 #for debuging

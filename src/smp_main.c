@@ -247,7 +247,7 @@ static void * smp_thread_routine(void *arg) {
 
 			/* is it a dummy packet ? => means thread must exit */
 			if( unlikely( pkt->data == NULL ))printf("packet_data is NULL\n");
-			//break;
+			break;
 			else{
 				packet_process( mmt_handler, &pkt->header, pkt->data );
 				th->nb_packets ++;
@@ -670,7 +670,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		if (mmt_probe.smp_threads->report_counter == 0)mmt_probe.smp_threads->report_counter++;
 		if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.smp_threads);
 		mmt_close_handler(mmt_probe.smp_threads->mmt_handler);
-		report_all_protocols_microflows_stats((void *)mmt_probe.smp_threads);
+		if (mmt_conf->microf_enable == 1)report_all_protocols_microflows_stats((void *)mmt_probe.smp_threads);
 		if (mmt_conf->output_to_file_enable == 1)flush_messages_to_file_thread((void *)mmt_probe.smp_threads);
 		free (mmt_probe.smp_threads->cache_message_list);
 		mmt_probe.smp_threads->cache_message_list = NULL;
@@ -702,11 +702,11 @@ void terminate_probe_processing(int wait_thread_terminate) {
 
 #ifdef DPDK
 				//RTE_LCORE_FOREACH_SLAVE(mmt_probe.smp_threads[i].workers->lcore_id ) {
-					if (rte_eal_wait_lcore(mmt_probe.smp_threads[i].workers->lcore_id) < 0)
-						exit(1);
+					//if (rte_eal_wait_lcore(mmt_probe.smp_threads[i].workers->lcore_id) < 0)
+					//	exit(1);
 				//}
 #endif
-				report_all_protocols_microflows_stats(&mmt_probe.smp_threads[i]);
+				if (mmt_conf->microf_enable == 1)report_all_protocols_microflows_stats(&mmt_probe.smp_threads[i]);
 				//if (mmt_probe.smp_threads->report_counter == 0)mmt_probe.smp_threads->report_counter++;
 				//if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[i]);
 				if (mmt_conf->output_to_file_enable == 1)flush_messages_to_file_thread(&mmt_probe.smp_threads[i]);
@@ -735,6 +735,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 
 #ifdef DPDK
   			sleep (10);
+  			//TODO: cancel the cores/stop the cores
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
 
 
@@ -765,7 +766,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 					free(mmt_probe.smp_threads[i].cache_message_list);
 					mmt_probe.smp_threads[i].cache_message_list = NULL;
 				}
-				report_all_protocols_microflows_stats(&mmt_probe.smp_threads[i].iprobe);
+				if (mmt_conf->microf_enable == 1)report_all_protocols_microflows_stats(&mmt_probe.smp_threads[i].iprobe);
 				exit_timers();
 
 			}
@@ -1095,9 +1096,6 @@ int main(int argc, char **argv) {
 	char mmt_errbuf[1024];
 	int i, j, l = 0;
 	char lg_msg[1024];
-	int capture_pcap =0;
-	int capture_dpdk =1;
-
 	sigset_t signal_set;
 	char single_file [MAX_FILE_NAME+1] = {0};
 	pthread_mutex_init(&mutex_lock, NULL);
@@ -1112,7 +1110,6 @@ int main(int argc, char **argv) {
 	parseOptions(argc, argv, mmt_conf);
 
 	mmt_conf->log_output = fopen(mmt_conf->log_file, "a");
-	printf ("main \n");
 
 	sigfillset(&signal_set);
 	signal(SIGINT, signal_handler);
@@ -1173,13 +1170,6 @@ int main(int argc, char **argv) {
 			}
 		}
 	}
-
-#ifdef DPDK
-	if (capture_dpdk == 1){
-		start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
-		dpdk_capture(argc, argv, &mmt_probe );
-	}
-#endif
 
 #ifdef PCAP
 	if (mmt_conf->thread_nb == 1) {
@@ -1280,6 +1270,12 @@ int main(int argc, char **argv) {
 	}
 #endif
 
+#ifdef DPDK
+	if (capture_dpdk == 1){
+		start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
+		dpdk_capture(argc, argv, &mmt_probe );
+	}
+#endif
 	terminate_probe_processing(1);
 
 	//printf("Process Terminated successfully\n");

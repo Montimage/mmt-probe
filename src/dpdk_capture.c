@@ -300,7 +300,6 @@ worker_thread(void *args_ptr)
 	return 0;
 }
 
-
 /* basicfwd.c: Basic DPDK skeleton forwarding example. */
 
 /*
