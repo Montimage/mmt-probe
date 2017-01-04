@@ -26,6 +26,7 @@ void usage(const char * prg_name) {
 	fprintf(stderr, "\t-s <0|1>         : Enables or disables protocol statistics reporting. \n");
 	fprintf(stderr, "\t-f <0|1>         : Enables or disables flows reporting. \n");
 	fprintf(stderr, "\t-n <probe number>: Unique probe id number. \n");
+	fprintf(stderr, "\t-c <number of cores>: see dpdk manual to assign number of cores (2 * thread_nb + 2) \n");
 	fprintf(stderr, "\t-h               : Prints this help.\n");
 	exit(1);
 }
@@ -796,11 +797,11 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 			break;
 		case 'c':
 			d_argc++;
-			d_argv[d_argc++] = malloc(sizeof (char)*1);
-			argv[1] = "c";
+			d_argv[d_argc] = malloc(sizeof (char)*1);
+			strcpy(d_argv[d_argc], "c");
 			d_argc++;
-			d_argv[d_argc++] = malloc(sizeof (char)*20);
-			d_argv[d_argc] = optarg;
+			d_argv[d_argc] = malloc(sizeof (char)*20);
+			strcpy(d_argv[d_argc],optarg);
 			//dpdk = 1;
 			break;
 		case 'v':

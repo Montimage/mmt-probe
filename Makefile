@@ -1,4 +1,15 @@
 ifdef DPDK
+
+#Save files to
+INSTALL_DIR = /opt/mmt/probe
+#name of executable file to generate
+OUTPUT   = probe
+
+MKDIR  = mkdir -p
+ifndef VERBOSE
+        QUIET := @
+endif
+
 ifeq ($(RTE_SDK),)
 $(error "Please define RTE_SDK environment variable")
 endif
@@ -7,6 +18,12 @@ endif
 RTE_TARGET ?= x86_64-native-linuxapp-gcc
 
 include $(RTE_SDK)/mk/rte.vars.mk
+#Save files to
+INSTALL_DIR = /opt/mmt/probe
+MKDIR  = mkdir -p
+ifndef VERBOSE
+        QUIET := @
+endif
 
 #Name of executable file to generate
 APP = dpdk_probe
@@ -28,12 +45,27 @@ CFLAGS += $(WERROR_CFLAGS) -g -I /opt/mmt/dpi/include -L /opt/mmt/dpi/lib -Wall 
 #CFLAGS   = -Wall -Wno-unused-variable -DNDEBUG -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"
 CLDFLAGS += -I /opt/mmt/dpi/include -DNDEBUG
  
-
-ifndef VERBOSE
-	QUIET := @
-endif
-
 include $(RTE_SDK)/mk/rte.extapp.mk
+
+#
+# Install probe
+#
+create:
+	@echo "Creating directories to save files" $(INSTALL_DIR)
+#create dir
+	$(QUIET) $(MKDIR) $(INSTALL_DIR)/bin $(INSTALL_DIR)/conf \
+                $(INSTALL_DIR)/log/online \
+                $(INSTALL_DIR)/log/offline \
+                $(INSTALL_DIR)/result/report/offline \
+                $(INSTALL_DIR)/result/report/online \
+                $(INSTALL_DIR)/result/behaviour/online \
+                $(INSTALL_DIR)/result/behaviour/offline \
+                $(INSTALL_DIR)/result/security/online \
+                $(INSTALL_DIR)/result/security/offline
+
+dist-clean:
+	$(QUIET) $(RM) -rf $(INSTALL_DIR)
+
 endif
 
 ifdef PCAP
@@ -134,4 +166,3 @@ dist-clean:
 	$(QUIET) $(RM) -rf $(INSTALL_DIR)
 	$(QUIET) $(RM) -rf /etc/init.d/probe_*_d
 endif
-

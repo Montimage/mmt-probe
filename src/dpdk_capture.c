@@ -131,9 +131,9 @@ void print_stats (void){
 	printf("\nTOT:  %'9ld (recv), %'9ld (dr %3.2f%%), %'7ld (err) %'9ld (tot)\n\n",
 			good_pkt, miss_pkt, (float)miss_pkt/(good_pkt+miss_pkt+err_pkt)*100, err_pkt, good_pkt+miss_pkt+err_pkt );
 
-/*	for (i = 0; i < thread_nb; i++)
-		printf(" Packet_processed total thread %u: %lu\n",i,total_pkt[i]);
-*/
+	for (i = 0; i < thread_nb; i++)
+		printf(" Packet processed thread %u: %lu\n",i,total_pkt[i]);
+
 
 }
 
@@ -171,6 +171,7 @@ get_previous_lcore_id(unsigned int id)
  * @return
  *   The last enabled lcore ID.
  */
+/*
 static unsigned int
 get_last_lcore_id(void)
 {
@@ -181,11 +182,12 @@ get_last_lcore_id(void)
 			return i;
 	return 0;
 }
-
+*/
 static int
 worker_thread(void *args_ptr)
 {
-	const uint8_t nb_ports = rte_eth_dev_count();
+	//const uint8_t nb_ports = rte_eth_dev_count();
+	const uint8_t nb_ports = 1;
 	uint8_t port;
 	uint16_t i, ret = 0;
 	char mmt_errbuf[1024];
@@ -244,7 +246,7 @@ worker_thread(void *args_ptr)
 						(int)rte_socket_id())
 			printf("WARNING, port %u is on remote NUMA node to "
 					"polling thread.\n\tPerformance will "
-					"not be optimal.\n", port);
+					"not be optimal. core_id = %u \n", port, rte_lcore_id());
 
 	printf("\nCore %u receiving packets. [Ctrl+C to quit]\n",
 			rte_lcore_id());
@@ -279,6 +281,7 @@ worker_thread(void *args_ptr)
 				data = (bufs[i]->buf_addr + bufs[i]->data_off);
 				packet_process( th->mmt_handler, &header, (u_char *)data );
 				th->nb_packets ++;
+				total_pkt[th->thread_number]++;
 				rte_pktmbuf_free( bufs[i] );
 			}
 	}
@@ -372,10 +375,10 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	for (i=0; i<20; i++){
 		total_pkt[i] = 0;
 	}
-	argv[1] = argv[argc - 2];
-	argv[2] = argv[argc - 1];
+//	argv[1] = argv[argc - 2];
+//	argv[2] = argv[argc - 1];
 	/* Initialize the Environment Abstraction Layer (EAL). */
-	int ret = rte_eal_init(argc, argv);
+	int ret = rte_eal_init(d_argc, d_argv);
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Error with EAL initialization\n");
 
@@ -408,7 +411,7 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 			rte_exit(EXIT_FAILURE, "Cannot init port %"PRIu8 "\n",
 					portid);
 
-	last_lcore_id   = get_last_lcore_id();
+	last_lcore_id   = 50;
 	master_lcore_id = rte_get_master_lcore();
 
 
@@ -419,7 +422,7 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	}
 
 	int thread_nb = 0;
-	lcore_id = 0;
+	lcore_id = 1;
 	/* Start worker_thread() on all the available slave cores but the last 1 */
 	while (thread_nb < mmt_probe->mmt_conf->thread_nb){
 		if (lcore_id <= get_previous_lcore_id(last_lcore_id)){
@@ -433,11 +436,11 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 				mmt_probe->smp_threads[thread_nb].workers = (worker_args_t *) calloc(1,sizeof (worker_args_t));
 				mmt_probe->smp_threads[thread_nb].thread_number = thread_nb;
 				rte_eal_remote_launch(worker_thread, (void *)&mmt_probe->smp_threads[thread_nb], lcore_id);
-				printf("thread_id = %u, core_id = %u\n",thread_nb,lcore_id);
+			//	printf("thread_id = %u, core_id = %u, last_lcore_id =%u \n",thread_nb,lcore_id,last_lcore_id);
 				mmt_probe->smp_threads[thread_nb].workers->lcore_id = lcore_id;
 				thread_nb ++;
 			}
-			lcore_id++;
+			lcore_id += 2;
 		}
 	}
 

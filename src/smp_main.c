@@ -710,6 +710,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 #endif
 
 #ifdef DPDK
+				//example
 				//RTE_LCORE_FOREACH_SLAVE(mmt_probe.smp_threads[i].workers->lcore_id ) {
 					//if (rte_eal_wait_lcore(mmt_probe.smp_threads[i].workers->lcore_id) < 0)
 					//	exit(1);
@@ -742,21 +743,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			}
 #endif
 
-#ifdef DPDK
-  			sleep (10);
-  			//TODO: cancel the cores/stop the cores
-			for (i = 0; i < mmt_conf->thread_nb; i++) {
-
-
-				//RTE_LCORE_FOREACH_SLAVE(mmt_probe.smp_threads[i].workers->lcore_id ) {
-					//if (rte_eal_wait_lcore(mmt_probe.smp_threads[i].workers->lcore_id) < 0)
-					//	exit(1);
-
-				//}
-			}
-#endif
-
-
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
 				//pthread_join(mmt_probe.smp_threads[i].handle, NULL);
 				if (mmt_probe.smp_threads[i].mmt_handler != NULL) {
@@ -776,12 +762,11 @@ void terminate_probe_processing(int wait_thread_terminate) {
 					mmt_probe.smp_threads[i].cache_message_list = NULL;
 				}
 				if (mmt_conf->microf_enable == 1)report_all_protocols_microflows_stats(&mmt_probe.smp_threads[i].iprobe);
-				exit_timers();
+				//exit_timers();
 
 			}
-#ifdef DPDK
-			exit (1);//TODO: cancel the core and perform clean exit
-#endif
+                   exit_timers();
+
 		}
 	}
 	//sleep (2);	// flight time required between a msg send from sockets to destination socket
@@ -902,7 +887,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 
 		free( mmt_probe.smp_threads);
 		mmt_probe.smp_threads = NULL;
-	}else if (mmt_conf->thread_nb > 20) {
+	} else {
 		/*		if (mmt_probe.smp_threads->event_reports != NULL){
 			free(mmt_probe.smp_threads->event_reports);
 			mmt_probe.smp_threads->event_reports = NULL;
@@ -964,13 +949,15 @@ void signal_handler(int type) {
 	cleanup( 0 );
 #endif
 
+	if (i == 1) {
+# ifdef PCAP
+		terminate_probe_processing(0);
+#endif
 #ifdef DPDK
-	print_stats();
+	        print_stats();
+        	exit (0);//TODO:graceful exit i.e. stop cores without problem
 #endif
 
-
-	if (i == 1) {
-		terminate_probe_processing(0);
 		/*
                     if(strlen(mmt_probe.mmt_conf->input_f_name) > 1) {
                         if (remove(mmt_probe.mmt_conf->input_f_name) != 0) {
@@ -1330,10 +1317,8 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef DPDK
-	if (capture_dpdk == 1){
 		start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
 		dpdk_capture(argc, argv, &mmt_probe );
-	}
 #endif
 	terminate_probe_processing(1);
 

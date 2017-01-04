@@ -627,10 +627,10 @@ void new_event_reports_init(void * args);
 int parse_dot_proto_attribute(char * inputstring, mmt_event_attribute_t * protoattr);
 
 // Timeout for different types of appplications
-int set_default_session_timed_out(mmt_handler_t *mmt_handler, uint32_t timedout_value);
-int set_long_session_timed_out(mmt_handler_t *mmt_handler, uint32_t timedout_value);
-int set_short_session_timed_out(mmt_handler_t *mmt_handler, uint32_t timedout_value);
-int set_live_session_timed_out(mmt_handler_t *mmt_handler, uint32_t timedout_value);
+//int set_default_session_timed_out(mmt_handler_t *mmt_handler, uint32_t timedout_value);
+//int set_long_session_timed_out(mmt_handler_t *mmt_handler, uint32_t timedout_value);
+//int set_short_session_timed_out(mmt_handler_t *mmt_handler, uint32_t timedout_value);
+//int set_live_session_timed_out(mmt_handler_t *mmt_handler, uint32_t timedout_value);
 
 //handlers
 void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
