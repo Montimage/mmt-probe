@@ -1,15 +1,16 @@
-ifdef DPDK
-
 #Save files to
 INSTALL_DIR = /opt/mmt/probe
-#name of executable file to generate
-OUTPUT   = probe
-
 MKDIR  = mkdir -p
+
 ifndef VERBOSE
         QUIET := @
 endif
+CC     = gcc-4.9
+CP     = cp
+RM     = rm -rf
 
+
+ifdef DPDK
 ifeq ($(RTE_SDK),)
 $(error "Please define RTE_SDK environment variable")
 endif
@@ -18,12 +19,6 @@ endif
 RTE_TARGET ?= x86_64-native-linuxapp-gcc
 
 include $(RTE_SDK)/mk/rte.vars.mk
-#Save files to
-INSTALL_DIR = /opt/mmt/probe
-MKDIR  = mkdir -p
-ifndef VERBOSE
-        QUIET := @
-endif
 
 #Name of executable file to generate
 APP = dpdk_probe
@@ -47,37 +42,14 @@ CLDFLAGS += -I /opt/mmt/dpi/include -DNDEBUG
  
 include $(RTE_SDK)/mk/rte.extapp.mk
 
-#
-# Install probe
-#
-create:
-	@echo "Creating directories to save files" $(INSTALL_DIR)
-#create dir
-	$(QUIET) $(MKDIR) $(INSTALL_DIR)/bin $(INSTALL_DIR)/conf \
-                $(INSTALL_DIR)/log/online \
-                $(INSTALL_DIR)/log/offline \
-                $(INSTALL_DIR)/result/report/offline \
-                $(INSTALL_DIR)/result/report/online \
-                $(INSTALL_DIR)/result/behaviour/online \
-                $(INSTALL_DIR)/result/behaviour/offline \
-                $(INSTALL_DIR)/result/security/online \
-                $(INSTALL_DIR)/result/security/offline
-
-dist-clean:
-	$(QUIET) $(RM) -rf $(INSTALL_DIR)
+keygen:
+	$(QUIET) $(CC) -o keygen $(CLDFLAGS)  key_generator.c
 
 endif
 
 ifdef PCAP
-CC     = gcc-4.9
-RM     = rm -rf
-MKDIR  = mkdir -p
-CP     = cp
-
 #name of executable file to generate
-OUTPUT   = probe
-#directory where probe will be installed on
-INSTALL_DIR = /opt/mmt/probe
+APP   = probe
 
 #get git version abbrev
 GIT_VERSION := $(shell git log --format="%h" -n 1)
@@ -112,10 +84,6 @@ MAIN_SRCS := $(filter-out $(SRCDIR)/test_probe.c, $(MAIN_SRCS))
 
 MAIN_OBJS := $(patsubst %.c,%.o, $(MAIN_SRCS)) \
 
-ifndef VERBOSE
-	QUIET := @
-endif
-
 all: $(LIB_OBJS) $(MAIN_OBJS)
 	@echo "[COMPILE] probe"
 	$(QUIET) $(CC) -o $(OUTPUT) $(CLDFLAGS)  $^ $(LIBS)
@@ -128,10 +96,11 @@ clean:
 keygen:
 	$(QUIET) $(CC) -o keygen $(CLDFLAGS)  key_generator.c
 	
+endif
 #
 # Install probe
 #
-install: all
+create: 
 	@echo "Installing probe on" $(INSTALL_DIR)
 #create dir
 	$(QUIET) $(MKDIR) $(INSTALL_DIR)/bin $(INSTALL_DIR)/conf \
@@ -144,7 +113,7 @@ install: all
 		$(INSTALL_DIR)/result/security/online \
 		$(INSTALL_DIR)/result/security/offline
 #copy probe to bin
-	$(QUIET) $(CP) $(OUTPUT) $(INSTALL_DIR)/bin/probe
+	$(QUIET) $(CP) $(APP) $(INSTALL_DIR)/bin/probe
 #create link
 #	$(QUIET) $(CP) $(INSTALL_DIR)/bin/probe $(INSTALL_DIR)/bin/probe_online
 #	$(QUIET) $(CP) $(INSTALL_DIR)/bin/probe $(INSTALL_DIR)/bin/probe_offline
@@ -165,4 +134,3 @@ install: all
 dist-clean:
 	$(QUIET) $(RM) -rf $(INSTALL_DIR)
 	$(QUIET) $(RM) -rf /etc/init.d/probe_*_d
-endif
