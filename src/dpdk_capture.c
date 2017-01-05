@@ -69,8 +69,6 @@
 
 static uint64_t total_pkt [20];
 
-const uint16_t tx_rings = 4; /* Struct for configuring each rx queue. These are default values */
-//const uint16_t rx_rings = 4;
 static uint8_t hash_key[40] = { 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, };
 static const struct rte_eth_rxconf rx_conf = {
 		.rx_thresh = {
@@ -105,11 +103,10 @@ static const struct rte_eth_conf port_conf_default = {
 		},
 };
 
-void print_stats (void){
+void print_stats (int thread_nb){
 	struct rte_eth_stats stat;
 	int i;
 	static uint64_t good_pkt = 0, miss_pkt = 0, err_pkt = 0;
-	int thread_nb = 12;
 
 	/* Print per port stats */
 	for (i = 0; i < 1; i++){
@@ -137,7 +134,7 @@ void print_stats (void){
 
 
 }
-
+/*
 int packet_handler_dpdk(const ipacket_t * ipacket, void * args) {
 	//struct worker_args *args_ptr;
         
@@ -146,7 +143,7 @@ int packet_handler_dpdk(const ipacket_t * ipacket, void * args) {
 	total_pkt[th->thread_number]++;
 	return 0;
 }
-
+*/
 /**
  * Get the previous enabled lcore ID
  * @param id
@@ -187,7 +184,6 @@ get_last_lcore_id(void)
 static int
 worker_thread(void *args_ptr)
 {
-	//const uint8_t nb_ports = rte_eth_dev_count();
 	const uint8_t nb_ports = 1;
 	uint8_t port;
 	uint16_t i, ret = 0;
@@ -204,18 +200,12 @@ worker_thread(void *args_ptr)
 
 	struct smp_thread *th = (struct smp_thread *) args_ptr;
         mmt_probe_context_t * probe_context = get_probe_context_config();
-	//struct worker_args * workers= (struct worker_args *) args_ptr;
 	th->mmt_handler = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
 	if (!th->mmt_handler) { /* pcap error ?*/
 		fprintf(stderr, "MMT handler init failed for the following reason: %s\n", mmt_errbuf);
 		return EXIT_FAILURE;
 	}
-	//Register a packet handler, it will be called for every processed packet
-	//register_packet_handler(th->mmt_handler, 10, packet_handler_dpdk, (void *)args_ptr);
 
-
-	//th->iprobe.data_out = NULL;
-	//th->iprobe.radius_out = NULL;
 	for (i = 0; i < PROTO_MAX_IDENTIFIER; i++) {
 		reset_microflows_stats(&th->iprobe.mf_stats[i]);
 		th->iprobe.mf_stats[i].application = get_protocol_name_by_id(i);
@@ -252,7 +242,7 @@ worker_thread(void *args_ptr)
 	printf("\nCore %u receiving packets. [Ctrl+C to quit]\n",
 			rte_lcore_id());
 
-
+	port = 0;
 	/* Run until the application is quit or killed. */
 	for (;;) {
 		 gettimeofday(&time_now, NULL); //TODO: change time add to nanosec
@@ -265,10 +255,8 @@ worker_thread(void *args_ptr)
 			if (probe_context->enable_session_report == 1)process_session_timer_handler(th->mmt_handler);
 			if (probe_context->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, th);
 		}
-
-		/* Receive packets on a port*/
+	
 		//gettimeofday(&time_now, NULL); //TODO: change time add to nanosec
-	        port = 0;
 			/*Get burst of RX packets, from first port of pair.*/
 			//get_packet (port,workers->lcore_id,args_ptr);
 			nb_rx = rte_eth_rx_burst(port, th->thread_number, bufs, BURST_SIZE);
@@ -293,7 +281,6 @@ worker_thread(void *args_ptr)
 		flowstruct_cleanup(th->mmt_handler); // cleanup our event handler
 		th->report_counter++;
 		if (mmt_probe.mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, th);
-		//process_session_timer_handler(th->mmt_handler);
 		if (cleanup_registered_handlers (th) == 0){
 			fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",th->thread_number);
 		}
@@ -376,10 +363,16 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	for (i=0; i<20; i++){
 		total_pkt[i] = 0;
 	}
+	printf ("d_argc = %d , d_argv = %s, argv = %s \n", d_argc, d_argv[2], argv[4]);
+
 //	argv[1] = argv[argc - 2];
 //	argv[2] = argv[argc - 1];
+
 	/* Initialize the Environment Abstraction Layer (EAL). */
 	int ret = rte_eal_init(d_argc, d_argv);
+	
+	//printf ("argv = %s\n",d_argv[2]);
+	
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Error with EAL initialization\n");
 
@@ -387,9 +380,11 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 
 	d_argc -= ret;
 	d_argv += ret;
+
 	num_of_cores = mmt_probe->mmt_conf->thread_nb * 2 +1;
 
-	/* Check if we have enought cores */
+	printf("[info]: Available cores = %u, Required_cores = %u\n", rte_lcore_count(), num_of_cores);
+/* Check if we have enought cores */
 	if (rte_lcore_count() < num_of_cores)
 		rte_exit(EXIT_FAILURE, "Error, This application does not have "
 				"enough cores to run this application, check threads assigned \n");
@@ -414,8 +409,6 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 
 	last_lcore_id   = 50;
 	master_lcore_id = rte_get_master_lcore();
-
-
 
 	mmt_probe->smp_threads = (struct smp_thread *) calloc(mmt_probe->mmt_conf->thread_nb,sizeof (struct smp_thread));
 	if (mmt_probe->smp_threads == NULL){

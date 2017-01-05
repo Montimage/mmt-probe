@@ -942,6 +942,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 void signal_handler(int type) {
 	static int i = 0;
 	i++;
+	int j;
 	char lg_msg[1024];
 	fprintf(stderr, "\n reception of signal %d\n", type);
 	fflush( stderr );
@@ -954,7 +955,28 @@ void signal_handler(int type) {
 		terminate_probe_processing(0);
 #endif
 #ifdef DPDK
-	        print_stats();
+	        print_stats(mmt_probe.mmt_conf->thread_nb);
+                       /* for (j = 0; j < mmt_probe.mmt_conf->thread_nb; j++) {
+                                if (mmt_probe.smp_threads[j].mmt_handler != NULL) {
+                                        printf ("thread_id = %u, packet = %lu \n",mmt_probe.smp_threads[j].thread_number, mmt_probe.smp_threads[j].nb_packets );
+
+                                        //flowstruct_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler
+                                        if (cleanup_registered_handlers (&mmt_probe.smp_threads[j]) == 0){
+                                                fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",mmt_probe.smp_threads[j].thread_number);
+                                        }
+                                        //process_session_timer_handler(mmt_probe.smp_threads[i].mmt_handler);
+                                        if (mmt_probe.smp_threads->report_counter == 0)mmt_probe.smp_threads->report_counter++;
+                                        if (mmt_probe.mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[j]);
+                                        mmt_close_handler(mmt_probe.smp_threads[j].mmt_handler);
+                                        mmt_probe.smp_threads[j].mmt_handler = NULL;
+                                        free(mmt_probe.smp_threads[j].cache_message_list);
+                                        mmt_probe.smp_threads[j].cache_message_list = NULL;
+                                }
+                                if (mmt_probe.mmt_conf->microf_enable == 1)report_all_protocols_microflows_stats(&mmt_probe.smp_threads[j].iprobe);
+                                //exit_timers();
+
+                        }*/
+
         	exit (0);//TODO:graceful exit i.e. stop cores without problem
 #endif
 
@@ -1317,7 +1339,7 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef DPDK
-		start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
+	if(mmt_probe.mmt_conf->output_to_file_enable == 1 && mmt_probe.mmt_conf->redis_enable == 1)	start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
 		dpdk_capture(argc, argv, &mmt_probe );
 #endif
 	terminate_probe_processing(1);

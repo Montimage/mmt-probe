@@ -754,7 +754,7 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 
 	d_argv = malloc(sizeof(char)*20);
 	d_argv[0]=argv[0];
-
+        d_argc = 0;
 	while ((opt = getopt(argc, argv, "z:t:i:o:R:P:p:s:n:f:c:hv")) != EOF) {
 		switch (opt) {
 		case 'z':
@@ -800,8 +800,10 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 			d_argv[d_argc] = malloc(sizeof (char)*1);
 			strcpy(d_argv[d_argc], "c");
 			d_argc++;
+                        int l_optarg = strlen (optarg);
 			d_argv[d_argc] = malloc(sizeof (char)*20);
-			strcpy(d_argv[d_argc],optarg);
+			strncpy(d_argv[d_argc],optarg,l_optarg);
+                        d_argv[d_argc][l_optarg] = '\0';
 			//dpdk = 1;
 			break;
 		case 'v':

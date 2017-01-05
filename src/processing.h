@@ -52,7 +52,7 @@ pthread_spinlock_t spin_lock;
 time_t update_reporting_time;
 static int is_stop_timer;
 
-static int d_argc = 0;
+int d_argc;
 char ** d_argv;
 
 static struct mmt_probe_struct mmt_probe;
@@ -664,7 +664,7 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 int get_packet (uint8_t port, int q, void * args);
 //int dpdk_capture (int argc, char **argv);
 int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe);
-void print_stats(void);
+void print_stats(int thread_nd);
 int cleanup_registered_handlers(void *arg);
 //prototypes
 void print_ip_session_report (const mmt_session_t * session, void *user_args);
