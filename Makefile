@@ -1,14 +1,19 @@
 #Save files to
 INSTALL_DIR = /opt/mmt/probe
 MKDIR  = mkdir -p
-
-ifndef VERBOSE
-        QUIET := @
-endif
+TOP ?= $(shell pwd)
+OUTPUT_DIR =$(TOP)/build
 CC     = gcc-4.9
 CP     = cp
 RM     = rm -rf
 
+#Name of executable file to generate
+APP = probe
+
+
+ifndef VERBOSE
+        QUIET := @
+endif
 
 ifdef DPDK
 ifeq ($(RTE_SDK),)
@@ -21,7 +26,7 @@ RTE_TARGET ?= x86_64-native-linuxapp-gcc
 include $(RTE_SDK)/mk/rte.vars.mk
 
 #Name of executable file to generate
-APP = dpdk_probe
+#APP = probe
 
 #get git version abbrev
 GIT_VERSION := $(shell git log --format="%h" -n 1)
@@ -45,11 +50,14 @@ include $(RTE_SDK)/mk/rte.extapp.mk
 keygen:
 	$(QUIET) $(CC) -o keygen $(CLDFLAGS)  key_generator.c
 
+#copy probe to current folder
+#	$(CP) $(OUTPUT_DIR)/probe $(TOP)
+
 endif
 
 ifdef PCAP
 #name of executable file to generate
-APP   = probe
+#APP = probe
 
 #get git version abbrev
 GIT_VERSION := $(shell git log --format="%h" -n 1)
@@ -86,7 +94,7 @@ MAIN_OBJS := $(patsubst %.c,%.o, $(MAIN_SRCS)) \
 
 all: $(LIB_OBJS) $(MAIN_OBJS)
 	@echo "[COMPILE] probe"
-	$(QUIET) $(CC) -o $(OUTPUT) $(CLDFLAGS)  $^ $(LIBS)
+	$(QUIET) $(CC) -o $(APP) $(CLDFLAGS)  $^ $(LIBS)
 %.o: %.c
 	@echo "[COMPILE] $(notdir $@)"
 	$(QUIET) $(CC) $(CFLAGS) $(CLDFLAGS) -c -o $@ $<
@@ -112,8 +120,16 @@ create:
 		$(INSTALL_DIR)/result/behaviour/offline \
 		$(INSTALL_DIR)/result/security/online \
 		$(INSTALL_DIR)/result/security/offline
-#copy probe to bin
+
+#copy probe to existing dir from buit in DPDK
+ifdef DPDK
+	$(QUIET) $(CP) $(OUTPUT_DIR)/probe $(TOP)
+endif
+
+#copy to bin
 	$(QUIET) $(CP) $(APP) $(INSTALL_DIR)/bin/probe
+
+
 #create link
 #	$(QUIET) $(CP) $(INSTALL_DIR)/bin/probe $(INSTALL_DIR)/bin/probe_online
 #	$(QUIET) $(CP) $(INSTALL_DIR)/bin/probe $(INSTALL_DIR)/bin/probe_offline

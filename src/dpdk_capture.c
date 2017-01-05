@@ -91,6 +91,7 @@ static const struct rte_eth_conf port_conf_default = {
 				.header_split = 0,   /**< Header Split disabled */
 				.hw_ip_checksum = 0, /**< IP checksum offload disabled */
 				.hw_vlan_filter = 0, /**< VLAN filtering disabled */
+				.jumbo_frame = 0,
 				.hw_strip_crc= 0
 		},
 		.rx_adv_conf = {
@@ -108,7 +109,7 @@ void print_stats (void){
 	struct rte_eth_stats stat;
 	int i;
 	static uint64_t good_pkt = 0, miss_pkt = 0, err_pkt = 0;
-	int thread_nb = 16;
+	int thread_nb = 12;
 
 	/* Print per port stats */
 	for (i = 0; i < 1; i++){
@@ -384,9 +385,9 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 
 	setlocale(LC_NUMERIC, "en_US.UTF-8");
 
-	argc -= ret;
-	argv += ret;
-	num_of_cores = mmt_probe->mmt_conf->thread_nb +1;
+	d_argc -= ret;
+	d_argv += ret;
+	num_of_cores = mmt_probe->mmt_conf->thread_nb * 2 +1;
 
 	/* Check if we have enought cores */
 	if (rte_lcore_count() < num_of_cores)
