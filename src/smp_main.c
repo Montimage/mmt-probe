@@ -49,6 +49,7 @@ src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c s
 #include <rte_per_lcore.h>
 #include <rte_eal.h>
 #include <rte_launch.h>
+#include <rte_common.h>
 #endif
 
 #include <sys/types.h>
@@ -754,7 +755,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 					}
 					radius_ext_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler for RADIUS initializations
 					//process_session_timer_handler(mmt_probe.smp_threads[i].mmt_handler);
-					if (mmt_probe.smp_threads->report_counter == 0)mmt_probe.smp_threads->report_counter++;
+					if (mmt_probe.smp_threads[i].report_counter == 0)mmt_probe.smp_threads[i].report_counter++;
 					if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[i]);
 					mmt_close_handler(mmt_probe.smp_threads[i].mmt_handler);
 					mmt_probe.smp_threads[i].mmt_handler = NULL;
@@ -955,27 +956,41 @@ void signal_handler(int type) {
 		terminate_probe_processing(0);
 #endif
 #ifdef DPDK
+	uint64_t total_packets_processed = 0;
+	uint64_t packet_send = 0;
 	        print_stats(mmt_probe.mmt_conf->thread_nb);
-                       /* for (j = 0; j < mmt_probe.mmt_conf->thread_nb; j++) {
+                        for (j = 0; j < mmt_probe.mmt_conf->thread_nb; j++) {
                                 if (mmt_probe.smp_threads[j].mmt_handler != NULL) {
                                         printf ("thread_id = %u, packet = %lu \n",mmt_probe.smp_threads[j].thread_number, mmt_probe.smp_threads[j].nb_packets );
-
+					total_packets_processed += mmt_probe.smp_threads[j].nb_packets;
                                         //flowstruct_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler
                                         if (cleanup_registered_handlers (&mmt_probe.smp_threads[j]) == 0){
                                                 fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",mmt_probe.smp_threads[j].thread_number);
                                         }
-                                        //process_session_timer_handler(mmt_probe.smp_threads[i].mmt_handler);
-                                        if (mmt_probe.smp_threads->report_counter == 0)mmt_probe.smp_threads->report_counter++;
+                                        //TODO: since mmt_handler is not closed (lcore cannot be exited gracefully), session are not expired, thus we need to execute this handler
+                                        if (mmt_probe.mmt_conf->enable_session_report == 1) process_session_timer_handler(mmt_probe.smp_threads[j].mmt_handler);
+                                        if (mmt_probe.smp_threads[j].report_counter == 0)mmt_probe.smp_threads[j].report_counter++;
                                         if (mmt_probe.mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[j]);
-                                        mmt_close_handler(mmt_probe.smp_threads[j].mmt_handler);
-                                        mmt_probe.smp_threads[j].mmt_handler = NULL;
+                          //              mmt_close_handler(mmt_probe.smp_threads[j].mmt_handler);
+                          //              mmt_probe.smp_threads[j].mmt_handler = NULL;
+                        		if (mmt_probe.mmt_conf->socket_enable == 1){
+                            			packet_send += mmt_probe.smp_threads[j].packet_send;
+                        		}
+
                                         free(mmt_probe.smp_threads[j].cache_message_list);
                                         mmt_probe.smp_threads[j].cache_message_list = NULL;
                                 }
                                 if (mmt_probe.mmt_conf->microf_enable == 1)report_all_protocols_microflows_stats(&mmt_probe.smp_threads[j].iprobe);
-                                //exit_timers();
 
-                        }*/
+                        }
+		exit_timers();
+		printf ("\nMMT total packet processed = %lu\n", total_packets_processed);
+                if (mmt_probe.mmt_conf->socket_enable == 1 && total_packets_processed > 1){
+                    printf ("Total reports send = %lu \n", packet_send);
+                    //float loss_percent = 1 - (packet_send/total_packets_processed);
+
+                    //printf ("Packet_loss = %f\n",loss_percent);
+                }
 
         	exit (0);//TODO:graceful exit i.e. stop cores without problem
 #endif
@@ -1163,8 +1178,26 @@ int main(int argc, char **argv) {
 
 	mmt_probe_context_t * mmt_conf = get_probe_context_config();
 	mmt_probe.mmt_conf = mmt_conf;
+#ifdef DPDK
+	/* Initialize the Environment Abstraction Layer (EAL). */
+	int ret = rte_eal_init(argc, argv);
+	
+	//printf ("argv = %s\n",d_argv[2]);
+	
+	if (ret < 0)
+		rte_exit(EXIT_FAILURE, "Error with EAL initialization\n");
+
+//	setlocale(LC_NUMERIC, "en_US.UTF-8");
+
+	argc -= ret;
+	argv += ret;
+	parseOptions(argc, argv, mmt_conf);
+#endif
+
+#ifdef PCAP
 
 	parseOptions(argc, argv, mmt_conf);
+#endif
 
 	mmt_conf->log_output = fopen(mmt_conf->log_file, "a");
 

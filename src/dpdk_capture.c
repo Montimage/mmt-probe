@@ -67,7 +67,7 @@
 #define MAX_PKTS_BURST 4096
 #define RING_SIZE 16384
 
-static uint64_t total_pkt [20];
+//static uint64_t total_pkt [20];
 
 static uint8_t hash_key[40] = { 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, };
 static const struct rte_eth_rxconf rx_conf = {
@@ -77,7 +77,7 @@ static const struct rte_eth_rxconf rx_conf = {
 				.wthresh = 0,   /* Ring writeback threshold */
 		},
 		.rx_free_thresh = 0,    /* Immediately free RX descriptors */
-		.rx_drop_en = 1
+		.rx_drop_en = 0
 };
 
 static const struct rte_eth_conf port_conf_default = {
@@ -129,9 +129,9 @@ void print_stats (int thread_nb){
 	printf("\nTOT:  %'9ld (recv), %'9ld (dr %3.2f%%), %'7ld (err) %'9ld (tot)\n\n",
 			good_pkt, miss_pkt, (float)miss_pkt/(good_pkt+miss_pkt+err_pkt)*100, err_pkt, good_pkt+miss_pkt+err_pkt );
 
-	for (i = 0; i < thread_nb; i++)
+/*	for (i = 0; i < thread_nb; i++)
 		printf(" Packet processed thread %u: %lu\n",i,total_pkt[i]);
-
+*/
 
 }
 /*
@@ -270,7 +270,7 @@ worker_thread(void *args_ptr)
 				data = (bufs[i]->buf_addr + bufs[i]->data_off);
 				packet_process( th->mmt_handler, &header, (u_char *)data );
 				th->nb_packets ++;
-				total_pkt[th->thread_number]++;
+				//total_pkt[th->thread_number]++;
 				rte_pktmbuf_free( bufs[i] );
 			}
 	}
@@ -359,27 +359,12 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	uint8_t portid;
 	int num_of_cores = 0;
 	unsigned int lcore_id, last_lcore_id, master_lcore_id;
-	int i=0;
+	/*int i=0;
 	for (i=0; i<20; i++){
 		total_pkt[i] = 0;
-	}
-	printf ("d_argc = %d , d_argv = %s, argv = %s \n", d_argc, d_argv[2], argv[4]);
-
-//	argv[1] = argv[argc - 2];
-//	argv[2] = argv[argc - 1];
-
-	/* Initialize the Environment Abstraction Layer (EAL). */
-	int ret = rte_eal_init(d_argc, d_argv);
-	
-	//printf ("argv = %s\n",d_argv[2]);
-	
-	if (ret < 0)
-		rte_exit(EXIT_FAILURE, "Error with EAL initialization\n");
+	}*/
 
 	setlocale(LC_NUMERIC, "en_US.UTF-8");
-
-	d_argc -= ret;
-	d_argv += ret;
 
 	num_of_cores = mmt_probe->mmt_conf->thread_nb * 2 +1;
 
@@ -416,7 +401,7 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	}
 
 	int thread_nb = 0;
-	lcore_id = 1;
+	lcore_id = 3;
 	/* Start worker_thread() on all the available slave cores but the last 1 */
 	while (thread_nb < mmt_probe->mmt_conf->thread_nb){
 		if (lcore_id <= get_previous_lcore_id(last_lcore_id)){

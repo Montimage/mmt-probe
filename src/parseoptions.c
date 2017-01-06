@@ -16,7 +16,7 @@ void usage(const char * prg_name) {
 	fprintf(stderr, "%s [<option>]\n", prg_name);
 	fprintf(stderr, "Option:\n");
 	fprintf(stderr, "\t-v               : Lists versions.\n");
-	fprintf(stderr, "\t-z <config file> : Gives the path to the config file (default: /etc/mmtprobe/mmt.conf).\n");
+	fprintf(stderr, "\t-c <config file> : Gives the path to the config file (default: /etc/mmtprobe/mmt.conf).\n");
 	fprintf(stderr, "\t-t <trace file>  : Gives the trace file to analyse.\n");
 	fprintf(stderr, "\t-i <interface>   : Gives the interface name for live traffic analysis.\n");
 	fprintf(stderr, "\t-o <output file> : Gives the output file name. \n");
@@ -26,7 +26,7 @@ void usage(const char * prg_name) {
 	fprintf(stderr, "\t-s <0|1>         : Enables or disables protocol statistics reporting. \n");
 	fprintf(stderr, "\t-f <0|1>         : Enables or disables flows reporting. \n");
 	fprintf(stderr, "\t-n <probe number>: Unique probe id number. \n");
-	fprintf(stderr, "\t-c <number of cores>: see dpdk manual to assign number of cores (2 * thread_nb + 2) \n");
+	//fprintf(stderr, "\t-c <number of cores>: see dpdk manual to assign number of cores (2 * thread_nb + 2) \n");
 	fprintf(stderr, "\t-h               : Prints this help.\n");
 	exit(1);
 }
@@ -750,14 +750,10 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 	int probe_id_number = 0;
 	int flow_stats = 1;
 	int versions_only = 0;
-	//int dpdk = 0;
 
-	d_argv = malloc(sizeof(char)*20);
-	d_argv[0]=argv[0];
-        d_argc = 0;
-	while ((opt = getopt(argc, argv, "z:t:i:o:R:P:p:s:n:f:c:hv")) != EOF) {
+	while ((opt = getopt(argc, argv, "c:t:i:o:R:P:p:s:n:f:hv")) != EOF) {
 		switch (opt) {
-		case 'z':
+		case 'c':
 			config_file = optarg;
 			break;
 		case 't':
@@ -794,17 +790,6 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 			break;
 		case 'f':
 			flow_stats = atoi(optarg);
-			break;
-		case 'c':
-			d_argc++;
-			d_argv[d_argc] = malloc(sizeof (char)*1);
-			strcpy(d_argv[d_argc], "c");
-			d_argc++;
-                        int l_optarg = strlen (optarg);
-			d_argv[d_argc] = malloc(sizeof (char)*20);
-			strncpy(d_argv[d_argc],optarg,l_optarg);
-                        d_argv[d_argc][l_optarg] = '\0';
-			//dpdk = 1;
 			break;
 		case 'v':
 			versions_only = 1;
