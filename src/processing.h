@@ -303,6 +303,8 @@ typedef struct mmt_probe_context_struct {
 	uint32_t nb_of_report_per_msg;
 	uint8_t one_socket_server;
 	uint32_t retain_files;
+	uint32_t socket_domain;
+	char unix_socket_descriptor[256 +1];
 
 
 } mmt_probe_context_t;
@@ -558,6 +560,7 @@ struct smp_thread {
     uint64_t nb_packets, nb_dropped_packets;
     uint8_t file_read_flag;
 	uint32_t * sockfd_internet;
+	uint32_t  sockfd_unix;
     uint32_t packet_send;
     worker_args_t * workers;
     long double cpu_usage;

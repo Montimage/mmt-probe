@@ -407,7 +407,9 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 					memset(&th->report[i].grouped_msg, 0, sizeof(th->report[i].grouped_msg));
 					th->report[i].grouped_msg.msg_hdr.msg_iov = th->report[i].msg;
 					th->report[i].grouped_msg.msg_hdr.msg_iovlen = probe_context->nb_of_report_per_msg;
-					retval = sendmmsg(th->sockfd_internet[i], &th->report[i].grouped_msg, 1, 0);
+					if (probe_context->socket_domain == 1 || probe_context->socket_domain == 2)retval = sendmmsg(th->sockfd_internet[i], &th->report[i].grouped_msg, 1, 0);
+					if (probe_context->socket_domain == 0 || probe_context->socket_domain == 2)retval = sendmmsg(th->sockfd_unix, &th->report[i].grouped_msg, 1, 0);
+
 					if (retval == -1)
 						perror("sendmmsg()");
 					th->report[i].security_report_counter = 0;

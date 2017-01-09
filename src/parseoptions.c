@@ -137,8 +137,10 @@ cfg_t * parse_conf(const char *filename) {
 	};
 	cfg_opt_t socket_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_INT("domain", 0, CFGF_NONE),
 			CFG_STR_LIST("port", "{}", CFGF_NONE),
 			CFG_STR_LIST("server-address", "{}", CFGF_NONE),
+			CFG_STR("socket-descriptor", "", CFGF_NONE),
 			CFG_INT("one-socket-server", 1, CFGF_NONE),
 			CFG_END()
 	};
@@ -513,6 +515,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			int len=0;
 			if (socket->line != 0){
 				mmt_conf->socket_enable = (uint32_t) cfg_getint(socket, "enable");
+				mmt_conf->socket_domain = (uint8_t) cfg_getint(socket, "domain");
 				if (mmt_conf->socket_enable ==1 ){
 					nb_port_address = cfg_size(socket, "port");
 					mmt_conf->one_socket_server = (uint8_t) cfg_getint(socket, "one-socket-server");
@@ -552,7 +555,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 						}
 					}
-
+					strncpy(mmt_conf->unix_socket_descriptor, (char *) cfg_getstr(socket, "socket-descriptor"), 256);
 				}
 			}
 		}

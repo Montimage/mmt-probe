@@ -82,7 +82,6 @@ static const struct rte_eth_rxconf rx_conf = {
 
 static const struct rte_eth_conf port_conf_default = {
 		.rxmode = {
-				//.max_rx_pkt_len = ETHER_MAX_LEN,
 				.mq_mode        = ETH_MQ_RX_RSS,
 				.max_rx_pkt_len = ETHER_MAX_LEN,
 				.split_hdr_size = 0,
@@ -134,16 +133,7 @@ void print_stats (int thread_nb){
 */
 
 }
-/*
-int packet_handler_dpdk(const ipacket_t * ipacket, void * args) {
-	//struct worker_args *args_ptr;
-        
-        struct smp_thread *th = (struct smp_thread *) args;
-	//args_ptr = (struct worker_args *) args;
-	total_pkt[th->thread_number]++;
-	return 0;
-}
-*/
+
 /**
  * Get the previous enabled lcore ID
  * @param id
