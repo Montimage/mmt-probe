@@ -943,7 +943,8 @@ void terminate_probe_processing(int wait_thread_terminate) {
 void signal_handler(int type) {
 	static int i = 0;
 	i++;
-	int j;
+	int j,k,l;
+ 	int retval = 0;
 	char lg_msg[1024];
 	fprintf(stderr, "\n reception of signal %d\n", type);
 	fflush( stderr );
@@ -958,7 +959,7 @@ void signal_handler(int type) {
 #ifdef DPDK
 	uint64_t total_packets_processed = 0;
 	uint64_t packet_send = 0;
-	        print_stats(mmt_probe.mmt_conf->thread_nb);
+	        print_stats((void *) &mmt_probe);
                         for (j = 0; j < mmt_probe.mmt_conf->thread_nb; j++) {
                                 if (mmt_probe.smp_threads[j].mmt_handler != NULL) {
                                         printf ("thread_id = %u, packet = %lu \n",mmt_probe.smp_threads[j].thread_number, mmt_probe.smp_threads[j].nb_packets );
@@ -973,6 +974,30 @@ void signal_handler(int type) {
                                         if (mmt_probe.mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[j]);
                           //              mmt_close_handler(mmt_probe.smp_threads[j].mmt_handler);
                           //              mmt_probe.smp_threads[j].mmt_handler = NULL;
+
+			  if (mmt_probe.smp_threads[j].report != NULL){
+                                for(k = 0; k < mmt_probe.mmt_conf->security_reports_nb; k++) {
+                                        if (mmt_probe.smp_threads[j].report[k].data != NULL){
+//                                                retval = sendmmsg(mmt_probe.smp_threads[j].sockfd_internet[k], &mmt_probe.smp_threads[j].report[k].grouped_msg, 1, 0);
+                                             	if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[j].sockfd_internet[i], &mmt_probe.smp_threads[j].report[k].grouped_msg, 1, 0);
+						if (mmt_probe.mmt_conf->socket_domain == 0 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[j].sockfd_unix, &mmt_probe.smp_threads[j].report[k].grouped_msg, 1, 0);
+
+						if (retval == -1)
+                                                        perror("sendmmsg()");
+                                                if (mmt_probe.smp_threads[j].report[k].msg != NULL){
+                                                        free (mmt_probe.smp_threads[j].report[k].msg);
+                                                }
+                                                for (l = 0; l < mmt_probe.mmt_conf->nb_of_report_per_msg; l++)free (mmt_probe.smp_threads[j].report[k].data[l]);
+                                        }
+                                        free (mmt_probe.smp_threads[j].report[k].data);
+                                }
+
+                                free (mmt_probe.smp_threads[j].report);
+
+                        }
+
+
+
                         		if (mmt_probe.mmt_conf->socket_enable == 1){
                             			packet_send += mmt_probe.smp_threads[j].packet_send;
                         		}

@@ -60,12 +60,12 @@
 
 #include "processing.h"
 
-#define RX_RING_SIZE 4096
-#define NUM_MBUFS 524287
+#define RX_RING_SIZE 1024
+#define NUM_MBUFS 24583
 #define MBUF_CACHE_SIZE 512
-#define BURST_SIZE 4096
-#define MAX_PKTS_BURST 4096
-#define RING_SIZE 16384
+#define BURST_SIZE 128
+//#define MAX_PKTS_BURST 4096
+//#define RING_SIZE 16384
 
 //static uint64_t total_pkt [20];
 
@@ -82,6 +82,7 @@ static const struct rte_eth_rxconf rx_conf = {
 
 static const struct rte_eth_conf port_conf_default = {
 		.rxmode = {
+				//.max_rx_pkt_len = ETHER_MAX_LEN,
 				.mq_mode        = ETH_MQ_RX_RSS,
 				.max_rx_pkt_len = ETHER_MAX_LEN,
 				.split_hdr_size = 0,
@@ -102,20 +103,21 @@ static const struct rte_eth_conf port_conf_default = {
 		},
 };
 
-void print_stats (int thread_nb){
+void print_stats (void * args){
 	struct rte_eth_stats stat;
 	int i;
 	static uint64_t good_pkt = 0, miss_pkt = 0, err_pkt = 0;
-
+        struct mmt_probe_struct * probe = (struct mmt_probe_struct *) args;
 	/* Print per port stats */
-	for (i = 0; i < 1; i++){
+	//for (i = 1; i < 2; i++){
+         i = atoi (probe->mmt_conf->input_source);
 		rte_eth_stats_get(i, &stat);
 		good_pkt += stat.ipackets;
 		miss_pkt += stat.imissed;
 		err_pkt  += stat.ierrors;
 
 		printf("\nP %2d %'9ld pps %'4.1f Mbps (received), %'7ld/pps (dropped %3.2f%%), %'9ld pps (total)",
-				i, stat.ipackets,
+						i, stat.ipackets,
 				stat.ibytes * 8.0 /1000/1000,
 				stat.imissed,
 				(float)stat.imissed/(stat.ipackets+stat.imissed)*100,
@@ -123,7 +125,7 @@ void print_stats (int thread_nb){
 
 		//reset counters of stat to zero
 		rte_eth_stats_reset( i );
-	}
+	//}
 	printf("\n-------------------------------------------------");
 	printf("\nTOT:  %'9ld (recv), %'9ld (dr %3.2f%%), %'7ld (err) %'9ld (tot)\n\n",
 			good_pkt, miss_pkt, (float)miss_pkt/(good_pkt+miss_pkt+err_pkt)*100, err_pkt, good_pkt+miss_pkt+err_pkt );
@@ -133,7 +135,16 @@ void print_stats (int thread_nb){
 */
 
 }
-
+/*
+int packet_handler_dpdk(const ipacket_t * ipacket, void * args) {
+	//struct worker_args *args_ptr;
+        
+        struct smp_thread *th = (struct smp_thread *) args;
+	//args_ptr = (struct worker_args *) args;
+	total_pkt[th->thread_number]++;
+	return 0;
+}
+*/
 /**
  * Get the previous enabled lcore ID
  * @param id
@@ -232,7 +243,7 @@ worker_thread(void *args_ptr)
 	printf("\nCore %u receiving packets. [Ctrl+C to quit]\n",
 			rte_lcore_id());
 
-	port = 0;
+	port = atoi (probe_context->input_source);
 	/* Run until the application is quit or killed. */
 	for (;;) {
 		 gettimeofday(&time_now, NULL); //TODO: change time add to nanosec
@@ -252,13 +263,13 @@ worker_thread(void *args_ptr)
 			nb_rx = rte_eth_rx_burst(port, th->thread_number, bufs, BURST_SIZE);
 			for (i = 0; i < nb_rx; i++){
 				time_add.tv_usec += 1;
-				header.len    = (unsigned int)bufs[i]->pkt_len;
+				header.len    = (unsigned int) bufs[i]->data_len;
 				header.caplen = (unsigned int) bufs[i]->data_len;
 				timeradd(&time_now, &time_add, &time_new);
 				header.ts     = time_new;
 				header.user_args = NULL;
 				data = (bufs[i]->buf_addr + bufs[i]->data_off);
-				packet_process( th->mmt_handler, &header, (u_char *)data );
+				packet_process( th->mmt_handler, &header, (u_char *) data );
 				th->nb_packets ++;
 				//total_pkt[th->thread_number]++;
 				rte_pktmbuf_free( bufs[i] );
@@ -303,9 +314,6 @@ port_init(uint8_t port, struct rte_mempool *mbuf_pool, struct mmt_probe_struct *
 	for (q = 0; q < mmt_probe->mmt_conf->thread_nb; q++) {
 		retval = rte_eth_rx_queue_setup(port, q, RX_RING_SIZE,
 				rte_eth_dev_socket_id(port), &rx_conf, mbuf_pool);
-
-	if (retval == EINVAL)printf ("printf q= %u EINVAL=%d \n",q, retval);
-        if (retval == ENOMEM) printf ("printf q= %u ENOMEM=%d \n",q,retval);
 
 		if (retval < 0)
 			return retval;
@@ -377,7 +385,8 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 		rte_exit(EXIT_FAILURE, "Cannot create mbuf pool\n");
 
 	/* Initialize all ports. */
-	for (portid = 0; portid < nb_ports; portid++)
+//	for (portid = 1; portid < 2; portid++)
+       portid = atoi(mmt_probe->mmt_conf->input_source);
 		if (port_init(portid, mbuf_pool, mmt_probe) != 0)
 			rte_exit(EXIT_FAILURE, "Cannot init port %"PRIu8 "\n",
 					portid);
