@@ -64,10 +64,6 @@
 #define NUM_MBUFS 24583
 #define MBUF_CACHE_SIZE 512
 #define BURST_SIZE 128
-//#define MAX_PKTS_BURST 4096
-//#define RING_SIZE 16384
-
-//static uint64_t total_pkt [20];
 
 static uint8_t hash_key[40] = { 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, };
 static const struct rte_eth_rxconf rx_conf = {
@@ -135,16 +131,6 @@ void print_stats (void * args){
 */
 
 }
-/*
-int packet_handler_dpdk(const ipacket_t * ipacket, void * args) {
-	//struct worker_args *args_ptr;
-        
-        struct smp_thread *th = (struct smp_thread *) args;
-	//args_ptr = (struct worker_args *) args;
-	total_pkt[th->thread_number]++;
-	return 0;
-}
-*/
 /**
  * Get the previous enabled lcore ID
  * @param id
@@ -258,8 +244,7 @@ worker_thread(void *args_ptr)
 		}
 	
 		//gettimeofday(&time_now, NULL); //TODO: change time add to nanosec
-			/*Get burst of RX packets, from first port of pair.*/
-			//get_packet (port,workers->lcore_id,args_ptr);
+			/*Get burst of RX packets, from first port.*/
 			nb_rx = rte_eth_rx_burst(port, th->thread_number, bufs, BURST_SIZE);
 			for (i = 0; i < nb_rx; i++){
 				time_add.tv_usec += 1;
@@ -409,7 +394,7 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 				mmt_probe->smp_threads[thread_nb].last_stat_report_time = time(0);
 				mmt_probe->smp_threads[thread_nb].pcap_last_stat_report_time = 0;
 				mmt_probe->smp_threads[thread_nb].pcap_current_packet_time = 0;
-				mmt_probe->smp_threads[thread_nb].nb_dropped_packets = 0;
+				//mmt_probe->smp_threads[thread_nb].nb_dropped_packets = 0;
 				mmt_probe->smp_threads[thread_nb].nb_packets         = 0;
 				mmt_probe->smp_threads[thread_nb].workers = (worker_args_t *) calloc(1,sizeof (worker_args_t));
 				mmt_probe->smp_threads[thread_nb].thread_number = thread_nb;
