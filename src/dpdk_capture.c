@@ -61,7 +61,7 @@
 #include "processing.h"
 
 #define RX_RING_SIZE 1024
-#define NUM_MBUFS 24583
+#define NUM_MBUFS 32767
 #define MBUF_CACHE_SIZE 512
 #define BURST_SIZE 128
 
@@ -207,11 +207,12 @@ worker_thread(void *args_ptr)
 		flowstruct_init(th); // initialize our event handler
 		if (probe_context->condition_based_reporting_enable == 1)conditional_reports_init(th);// initialize our condition reports
 		if (probe_context->radius_enable == 1)radius_ext_init(th); // initialize radius extraction and attribute event handler
-		set_default_session_timed_out(th->mmt_handler, probe_context->default_session_timeout);
-		set_long_session_timed_out(th->mmt_handler, probe_context->long_session_timeout);
-		set_short_session_timed_out(th->mmt_handler, probe_context->short_session_timeout);
-		set_live_session_timed_out(th->mmt_handler, probe_context->live_session_timeout);
 	}
+	set_default_session_timed_out(th->mmt_handler, probe_context->default_session_timeout);
+	set_long_session_timed_out(th->mmt_handler, probe_context->long_session_timeout);
+	set_short_session_timed_out(th->mmt_handler, probe_context->short_session_timeout);
+	set_live_session_timed_out(th->mmt_handler, probe_context->live_session_timeout);
+
 	if (probe_context->event_based_reporting_enable == 1)event_reports_init(th); // initialize our event reports
 	if (probe_context->enable_security_report == 0)proto_stats_init(th);//initialise this before security_reports_init
 	if (probe_context->enable_security_report == 1)security_reports_init(th);
@@ -231,8 +232,10 @@ worker_thread(void *args_ptr)
 
 	port = atoi (probe_context->input_source);
 	/* Run until the application is quit or killed. */
-	for (;;) {
-		 gettimeofday(&time_now, NULL); //TODO: change time add to nanosec
+	while (!do_abort) {
+
+//		printf ("do_abort = %u\n",do_abort);
+		gettimeofday(&time_now, NULL); //TODO: change time add to nanosec
 
 		if(time(0) - th->last_stat_report_time >= probe_context->stats_reporting_period ||
 				th->pcap_current_packet_time - th->pcap_last_stat_report_time >= probe_context->stats_reporting_period){
@@ -266,7 +269,7 @@ worker_thread(void *args_ptr)
 		radius_ext_cleanup(th->mmt_handler); // cleanup our event handler for RADIUS initializations
 		flowstruct_cleanup(th->mmt_handler); // cleanup our event handler
 		th->report_counter++;
-		if (mmt_probe.mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, th);
+		if (probe_context->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, th);
 		if (cleanup_registered_handlers (th) == 0){
 			fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",th->thread_number);
 		}

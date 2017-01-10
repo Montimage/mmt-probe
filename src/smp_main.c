@@ -187,11 +187,12 @@ static void * smp_thread_routine(void *arg) {
 		flowstruct_init(th); // initialize our event handler
 		if (mmt_probe.mmt_conf->condition_based_reporting_enable == 1)conditional_reports_init(th);// initialize our condition reports
 		if (mmt_probe.mmt_conf->radius_enable == 1)radius_ext_init(th); // initialize radius extraction and attribute event handler
-		set_default_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->default_session_timeout);
-		set_long_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->long_session_timeout);
-		set_short_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->short_session_timeout);
-		set_live_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->live_session_timeout);
 	}
+       	set_default_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->default_session_timeout);
+	set_long_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->long_session_timeout);
+	set_short_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->short_session_timeout);
+	set_live_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->live_session_timeout);
+
 	if (mmt_probe.mmt_conf->event_based_reporting_enable == 1)event_reports_init(th); // initialize our event reports
 	if (mmt_probe.mmt_conf->enable_security_report == 0)proto_stats_init(th);//initialise this before security_reports_init
 	if (mmt_probe.mmt_conf->enable_security_report == 1)security_reports_init(th);
@@ -721,7 +722,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 				//if (mmt_probe.smp_threads->report_counter == 0)mmt_probe.smp_threads->report_counter++;
 				//if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[i]);
 				if (mmt_conf->output_to_file_enable == 1)flush_messages_to_file_thread(&mmt_probe.smp_threads[i]);
-				free(mmt_probe.smp_threads[i].cache_message_list);
+				if(mmt_probe.smp_threads[i].cache_message_list != NULL) free(mmt_probe.smp_threads[i].cache_message_list);
 				mmt_probe.smp_threads[i].cache_message_list =NULL;
 			}
 			exit_timers();
@@ -770,7 +771,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
 
 		}
 	}
-	//sleep (2);	// flight time required between a msg send from sockets to destination socket
 
 
 	//Now close the reporting files.
@@ -853,7 +853,12 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			if (mmt_probe.smp_threads[i].report != NULL){
 				for(j = 0; j < mmt_conf->security_reports_nb; j++) {
 					if (mmt_probe.smp_threads[i].report[j].data != NULL){
-						retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_internet[j], &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
+						//retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_internet[j], &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
+                                             	//TODO:Test sendmmsg
+						if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_internet[j], &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
+						if (mmt_probe.mmt_conf->socket_domain == 0 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_unix, &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
+
+
 						if (retval == -1)
 							perror("sendmmsg()");
 						if (mmt_probe.smp_threads[i].report[j].msg != NULL){
@@ -896,7 +901,11 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		if (mmt_probe.smp_threads->report != NULL){
 			for(j = 0; j < mmt_conf->security_reports_nb; j++) {
 				if (mmt_probe.smp_threads->report[j].data != NULL){
-					retval = sendmmsg(mmt_probe.smp_threads->sockfd_internet[j], &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
+					//retval = sendmmsg(mmt_probe.smp_threads->sockfd_internet[j], &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
+                                         //TODO: test sendmmsg
+			                 if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_internet[j], &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
+					if (mmt_probe.mmt_conf->socket_domain == 0 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_unix, &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
+
 					// flight time required between a msg send from sockets to destination socket
 					if (retval == -1)
 						perror("sendmmsg()");
@@ -957,10 +966,13 @@ void signal_handler(int type) {
 		terminate_probe_processing(0);
 #endif
 #ifdef DPDK
-	uint64_t total_packets_processed = 0;
-	uint64_t packet_send = 0;
-	        print_stats((void *) &mmt_probe);
-                        for (j = 0; j < mmt_probe.mmt_conf->thread_nb; j++) {
+        do_abort = 1;
+	//uint64_t total_packets_processed = 0;
+	//uint64_t packet_send = 0;
+        sleep(5);
+        print_stats((void *) &mmt_probe);
+        terminate_probe_processing(0);
+                       /* for (j = 0; j < mmt_probe.mmt_conf->thread_nb; j++) {
                                 if (mmt_probe.smp_threads[j].mmt_handler != NULL) {
                                         printf ("thread_id = %u, packet = %lu \n",mmt_probe.smp_threads[j].thread_number, mmt_probe.smp_threads[j].nb_packets );
 					total_packets_processed += mmt_probe.smp_threads[j].nb_packets;
@@ -1017,7 +1029,7 @@ void signal_handler(int type) {
                     //printf ("Packet_loss = %f\n",loss_percent);
                 }
 
-        	exit (0);//TODO:graceful exit i.e. stop cores without problem
+        	exit (0);//TODO:graceful exit i.e. stop cores without problem*/
 #endif
 
 		/*
@@ -1238,6 +1250,7 @@ int main(int argc, char **argv) {
 	mmt_probe.mmt_conf = mmt_conf;
 #ifdef DPDK
 	/* Initialize the Environment Abstraction Layer (EAL). */
+	do_abort = 0;
 	int ret = rte_eal_init(argc, argv);
 	
 	//printf ("argv = %s\n",d_argv[2]);
@@ -1363,11 +1376,12 @@ int main(int argc, char **argv) {
 			flowstruct_init((void *)mmt_probe.smp_threads); // initialize our event handler
 			if(mmt_conf->condition_based_reporting_enable == 1)conditional_reports_init((void *)mmt_probe.smp_threads);// initialize our conditional reports
 			if(mmt_conf->radius_enable == 1)radius_ext_init((void *)mmt_probe.smp_threads); // initialize radius extraction and attribute event handler
-			set_default_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->default_session_timeout);
-			set_long_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->long_session_timeout);
-			set_short_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->short_session_timeout);
-			set_live_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->live_session_timeout);
-		}
+			}
+		set_default_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->default_session_timeout);
+		set_long_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->long_session_timeout);
+		set_short_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->short_session_timeout);
+		set_live_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->live_session_timeout);
+
 		if(mmt_conf->event_based_reporting_enable == 1)event_reports_init((void *)mmt_probe.smp_threads); // initialize our event reports
 		if (mmt_conf->enable_security_report == 1)security_reports_init((void *)mmt_probe.smp_threads);// should be defined before proto_stats_init
 		if (mmt_conf->enable_security_report == 0)proto_stats_init(mmt_probe.smp_threads);

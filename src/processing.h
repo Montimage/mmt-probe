@@ -51,7 +51,7 @@ pthread_mutex_t mutex_lock;
 pthread_spinlock_t spin_lock;
 time_t update_reporting_time;
 static int is_stop_timer;
-
+int do_abort;
 int d_argc;
 char ** d_argv;
 
