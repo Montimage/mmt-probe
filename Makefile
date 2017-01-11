@@ -36,7 +36,7 @@ SRCS-y := src/smp_main.c  src/processing.c src/web_session_report.c src/thredis.
 src/send_msg_to_file.c src/send_msg_to_redis.c src/ip_statics.c src/rtp_session_report.c src/ftp_session_report.c \
 src/event_based_reporting.c src/protocols_report.c src/ssl_session_report.c src/default_app_session_report.c \
 src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c src/parseoptions.c src/license.c src/dpdk_capture.c \
-src/lib/data_spsc_ring.c src/lib/lock_free_spsc_ring.c src/lib/packet_hash.c src/lib/system_info.c
+src/lib/data_spsc_ring.c src/lib/lock_free_spsc_ring.c src/lib/packet_hash.c src/lib/system_info.c src/attributes_extraction.c
 
 #set of library
 LDLIBS    += -L /opt/mmt/dpi/lib -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -lpcap -lconfuse -lhiredis -lpthread -lm 
