@@ -557,7 +557,7 @@ struct smp_thread {
     char **cache_message_list;
     int cache_count;
     data_spsc_ring_t fifo;
-    uint64_t nb_packets, nb_dropped_packets;
+    uint64_t nb_packets, nb_dropped_packets, nb_dropped_packets_NIC, nb_dropped_packets_kernel;
     uint8_t file_read_flag;
 	uint32_t * sockfd_internet;
 	uint32_t  sockfd_unix;
@@ -664,11 +664,20 @@ int packet_handler(const ipacket_t * ipacket, void * args);
 void security_reports_init(void * args);
 void * get_handler_by_name(char * func_name);
 void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-int get_packet (uint8_t port, int q, void * args);
+//int get_packet (uint8_t port, int q, void * args);
 //int dpdk_capture (int argc, char **argv);
 int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe);
 void print_stats(void * args);
 int cleanup_registered_handlers(void *arg);
+void payload_extraction(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num);
+void data_extraction(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num);
+void ftp_last_command(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num);
+void ftp_last_response_code(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num);
+void ip_opts(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num);
+
+
+
+
 //prototypes
 void print_ip_session_report (const mmt_session_t * session, void *user_args);
 void print_initial_web_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
