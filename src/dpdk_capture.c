@@ -36,7 +36,8 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifdef DPDK
+
+
 #include <stdint.h>
 #include <inttypes.h>
 #include <locale.h>
@@ -54,16 +55,19 @@
 #include <rte_malloc.h>
 #include <rte_mempool.h>
 #include <rte_ring.h>
+#include <errno.h>
 
 #include "mmt_core.h"
 #include "tcpip/mmt_tcpip.h"
 
 #include "processing.h"
 
+#ifdef DPDK
+
 #define RX_RING_SIZE 1024
 #define NUM_MBUFS 32767
 #define MBUF_CACHE_SIZE 512
-#define BURST_SIZE 128
+#define BURST_SIZE 1024
 
 static uint8_t hash_key[40] = { 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, };
 static const struct rte_eth_rxconf rx_conf = {
@@ -103,71 +107,28 @@ void print_stats (void * args){
 	struct rte_eth_stats stat;
 	int i;
 	static uint64_t good_pkt = 0, miss_pkt = 0, err_pkt = 0;
-        struct mmt_probe_struct * probe = (struct mmt_probe_struct *) args;
+	struct mmt_probe_struct * probe = (struct mmt_probe_struct *) args;
 	/* Print per port stats */
 	//for (i = 1; i < 2; i++){
-         i = atoi (probe->mmt_conf->input_source);
-		rte_eth_stats_get(i, &stat);
-		good_pkt += stat.ipackets;
-		miss_pkt += stat.imissed;
-		err_pkt  += stat.ierrors;
+	i = atoi (probe->mmt_conf->input_source);
+	rte_eth_stats_get(i, &stat);
+	good_pkt += stat.ipackets;
+	miss_pkt += stat.imissed;
+	err_pkt  += stat.ierrors;
 
-		printf("\nP %2d %'9ld pps %'4.1f Mbps (received), %'7ld/pps (dropped %3.2f%%), %'9ld pps (total)",
-						i, stat.ipackets,
-				stat.ibytes * 8.0 /1000/1000,
-				stat.imissed,
-				(float)stat.imissed/(stat.ipackets+stat.imissed)*100,
-				stat.ipackets+stat.imissed );
-
-		//reset counters of stat to zero
-		rte_eth_stats_reset( i );
+	//reset counters of stat to zero
+	//		rte_eth_stats_reset( i );
 	//}
-	printf("\n-------------------------------------------------");
+
 	printf("\nTOT:  %'9ld (recv), %'9ld (dr %3.2f%%), %'7ld (err) %'9ld (tot)\n\n",
 			good_pkt, miss_pkt, (float)miss_pkt/(good_pkt+miss_pkt+err_pkt)*100, err_pkt, good_pkt+miss_pkt+err_pkt );
 
-/*	for (i = 0; i < thread_nb; i++)
+	/*	for (i = 0; i < thread_nb; i++)
 		printf(" Packet processed thread %u: %lu\n",i,total_pkt[i]);
-*/
+	 */
 
 }
-/**
- * Get the previous enabled lcore ID
- * @param id
- *  The current lcore ID
- * @return
- *   The previous enabled lcore ID or the current lcore
- *   ID if it is the first available core.
- */
-static unsigned int
-get_previous_lcore_id(unsigned int id)
-{
-	int i;
 
-	for (i = id - 1; i >= 0; i--)
-		if (rte_lcore_is_enabled(i))
-			return i;
-	return id;
-}
-
-/**
- * Get the last enabled lcore ID
- *
- * @return
- *   The last enabled lcore ID.
- */
-/*
-static unsigned int
-get_last_lcore_id(void)
-{
-	int i;
-
-	for (i = RTE_MAX_LCORE - 1; i >= 0; i--)
-		if (rte_lcore_is_enabled(i))
-			return i;
-	return 0;
-}
-*/
 static int
 worker_thread(void *args_ptr)
 {
@@ -177,16 +138,16 @@ worker_thread(void *args_ptr)
 	char mmt_errbuf[1024];
 	uint16_t nb_rx;
 	struct pkthdr header;
-	struct timeval time_now;
-	struct timeval time_add;
-	struct timeval time_new;
+	struct timeval  time_now;
+//	struct timespec time_now;
 	struct rte_mbuf *bufs[BURST_SIZE];
+
 	void  * data;
-	time_add.tv_sec = 0;
-	time_add.tv_usec = 0;
+
+	header.user_args = NULL;
 
 	struct smp_thread *th = (struct smp_thread *) args_ptr;
-        mmt_probe_context_t * probe_context = get_probe_context_config();
+	mmt_probe_context_t * probe_context = get_probe_context_config();
 	th->mmt_handler = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
 	if (!th->mmt_handler) { /* pcap error ?*/
 		fprintf(stderr, "MMT handler init failed for the following reason: %s\n", mmt_errbuf);
@@ -213,57 +174,72 @@ worker_thread(void *args_ptr)
 	set_short_session_timed_out(th->mmt_handler, probe_context->short_session_timeout);
 	set_live_session_timed_out(th->mmt_handler, probe_context->live_session_timeout);
 
-	if (probe_context->event_based_reporting_enable == 1)event_reports_init(th); // initialize our event reports
-	if (probe_context->enable_security_report == 0)proto_stats_init(th);//initialise this before security_reports_init
-	if (probe_context->enable_security_report == 1)security_reports_init(th);
+	if (probe_context->event_based_reporting_enable == 1)
+		event_reports_init(th); // initialize our event reports
+	if (probe_context->enable_security_report == 0)
+		proto_stats_init( th );//initialise this before security_reports_init
+	if (probe_context->enable_security_report == 1)
+		security_reports_init(th);
 
 	/* Check that the port is on the same NUMA node as the polling thread
 	 * for best performance.*/
-	for (port = 0; port < nb_ports; port++)
-		if (rte_eth_dev_socket_id(port) > 0 &&
-				rte_eth_dev_socket_id(port) !=
-						(int)rte_socket_id())
-			printf("WARNING, port %u is on remote NUMA node to "
-					"polling thread.\n\tPerformance will "
-					"not be optimal. core_id = %u \n", port, rte_lcore_id());
+//	for (port = 0; port < nb_ports; port++)
+//		if (rte_eth_dev_socket_id( port ) > 0 && rte_eth_dev_socket_id(port) != (int)rte_socket_id())
+//			printf("WARNING, port %u is on remote NUMA node to "
+//					"polling thread.\n\tPerformance will "
+//					"not be optimal. core_id = %u \n", port, rte_lcore_id());
 
-	printf("\nCore %u receiving packets. [Ctrl+C to quit]\n",
-			rte_lcore_id());
+//	printf("\nCore %u receiving packets. [Ctrl+C to quit]\n",
+//			rte_lcore_id());
 
 	port = atoi (probe_context->input_source);
 	/* Run until the application is quit or killed. */
-	while (!do_abort) {
+	while ( likely( !do_abort )) {
 
-//		printf ("do_abort = %u\n",do_abort);
+		//printf ("do_abort = %u\n",do_abort);
 		gettimeofday(&time_now, NULL); //TODO: change time add to nanosec
+//		clock_gettime( CLOCK_REALTIME_COARSE, &time_now );
 
-		if(time(0) - th->last_stat_report_time >= probe_context->stats_reporting_period ||
-				th->pcap_current_packet_time - th->pcap_last_stat_report_time >= probe_context->stats_reporting_period){
+		//only happen periodically, e.g., each 5 seconds
+		if( unlikely( time_now.tv_sec >= th->last_stat_report_time  ||
+				th->pcap_current_packet_time >= th->pcap_last_stat_report_time )){
 			th->report_counter++;
-			th->last_stat_report_time = time(0);
-			th->pcap_last_stat_report_time = th->pcap_current_packet_time;
-			if (probe_context->enable_session_report == 1)process_session_timer_handler(th->mmt_handler);
-			if (probe_context->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, th);
+			th->last_stat_report_time      = time_now.tv_sec              + probe_context->stats_reporting_period;
+			th->pcap_last_stat_report_time = th->pcap_current_packet_time + probe_context->stats_reporting_period;
+
+			if (probe_context->enable_session_report == 1)
+				process_session_timer_handler( th->mmt_handler );
+
+			if (probe_context->enable_proto_without_session_stats == 1)
+				iterate_through_protocols(protocols_stats_iterator, th);
 		}
-	
+
 		//gettimeofday(&time_now, NULL); //TODO: change time add to nanosec
-			/*Get burst of RX packets, from first port.*/
-			nb_rx = rte_eth_rx_burst(port, th->thread_number, bufs, BURST_SIZE);
-			for (i = 0; i < nb_rx; i++){
-				time_add.tv_usec += 1;
-				header.len    = (unsigned int) bufs[i]->data_len;
-				header.caplen = (unsigned int) bufs[i]->data_len;
-				timeradd(&time_now, &time_add, &time_new);
-				header.ts     = time_new;
-				header.user_args = NULL;
-				data = (bufs[i]->buf_addr + bufs[i]->data_off);
-				packet_process( th->mmt_handler, &header, (u_char *) data );
-				th->nb_packets ++;
-				//total_pkt[th->thread_number]++;
-				rte_pktmbuf_free( bufs[i] );
-			}
+		/*Get burst of RX packets, from first port.*/
+		nb_rx = rte_eth_rx_burst(port, th->thread_number, bufs, BURST_SIZE);
+
+//		if( unlikely( nb_rx == 0 ))
+//			nanosleep( (const struct timespec[]){{0, 1000L}}, NULL );
+
+		header.ts = time_now;
+//		header.ts.tv_usec = time_now.tv_nsec;
+
+		for (i = 0; likely(i < nb_rx); i++){
+			header.len         = (unsigned int) bufs[i]->pkt_len;
+			header.caplen      = (unsigned int) bufs[i]->data_len;
+			header.ts.tv_usec += 1;
+
+			data = (bufs[i]->buf_addr + bufs[i]->data_off);
+
+			packet_process( th->mmt_handler, &header, (u_char *) data );
+
+			rte_pktmbuf_free( bufs[i] );
+		}
+
+		th->nb_packets += nb_rx;
 	}
-	printf("thread %d : %"PRIu64" \n", th->thread_number, th->nb_packets );
+
+	printf("thread %2d, nb_packets = %'9"PRIu64" \n", th->thread_number, th->nb_packets );
 
 	if(th->mmt_handler != NULL){
 		radius_ext_cleanup(th->mmt_handler); // cleanup our event handler for RADIUS initializations
@@ -289,8 +265,6 @@ worker_thread(void *args_ptr)
 static inline int
 port_init(uint8_t port, struct rte_mempool *mbuf_pool, struct mmt_probe_struct * mmt_probe)
 {
-
-
 	int retval;
 	uint16_t q;
 	/* Configure the Ethernet device. */
@@ -301,28 +275,23 @@ port_init(uint8_t port, struct rte_mempool *mbuf_pool, struct mmt_probe_struct *
 	/* Allocate and set up 1 RX queue per Ethernet port. */
 	for (q = 0; q < mmt_probe->mmt_conf->thread_nb; q++) {
 		retval = rte_eth_rx_queue_setup(port, q, RX_RING_SIZE,
-				rte_eth_dev_socket_id(port), &rx_conf, mbuf_pool);
+				rte_eth_dev_socket_id( port ), &rx_conf, mbuf_pool);
 
-		if (retval < 0)
+		if (retval < 0){
+			rte_exit(EXIT_FAILURE, "Cannot init queue %d of port %d\n", q, port );
 			return retval;
+		}
 	}
 
 	/* Start the Ethernet port. */
 	retval = rte_eth_dev_start(port);
-	if (retval < 0)
+	if (retval < 0){
+		rte_exit(EXIT_FAILURE, "Cannot start port %d\n", port );
 		return retval;
-	/* Display the port MAC address. */
-	struct ether_addr addr;
-	rte_eth_macaddr_get(port, &addr);
-	printf("Port %u MAC: %02" PRIx8 " %02" PRIx8 " %02" PRIx8
-			" %02" PRIx8 " %02" PRIx8 " %02" PRIx8 "\n",
-			(unsigned)port,
-			addr.addr_bytes[0], addr.addr_bytes[1],
-			addr.addr_bytes[2], addr.addr_bytes[3],
-			addr.addr_bytes[4], addr.addr_bytes[5]);
+	}
 
 	/* Enable RX in promiscuous mode for the Ethernet device. */
-	rte_eth_promiscuous_enable(port);
+	rte_eth_promiscuous_enable( port );
 
 	return 0;
 }
@@ -336,7 +305,7 @@ static __attribute__((noreturn)) void
 		lcore_main()
 {
 	for (;;) {
-
+		sleep( 1 );
 	}
 }
 int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
@@ -344,6 +313,7 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	unsigned nb_ports;
 	uint8_t portid;
 	int num_of_cores = 0;
+	unsigned total_of_cores = rte_lcore_count();
 	unsigned int lcore_id, last_lcore_id, master_lcore_id;
 	/*int i=0;
 	for (i=0; i<20; i++){
@@ -352,19 +322,17 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 
 	setlocale(LC_NUMERIC, "en_US.UTF-8");
 
-	num_of_cores = mmt_probe->mmt_conf->thread_nb * 2 +1;
+	num_of_cores = mmt_probe->mmt_conf->thread_nb +1;
 
-	printf("[info]: Available cores = %u, Required_cores = %u\n", rte_lcore_count(), num_of_cores);
-/* Check if we have enought cores */
-	if (rte_lcore_count() < num_of_cores)
-		rte_exit(EXIT_FAILURE, "Error, This application does not have "
+	/* Check if we have enought cores */
+	if ( total_of_cores < num_of_cores)
+		rte_exit(EXIT_FAILURE, "This application does not have "
 				"enough cores to run this application, check threads assigned \n");
-
 
 	/* Number of network interfaces to be used  */
 	nb_ports = 1;
 
-       // nb_ports = rte_eth_dev_count();
+	// nb_ports = rte_eth_dev_count();
 	/* Creates a new mempool in memory to hold the mbufs. */
 	mbuf_pool = rte_pktmbuf_pool_create("MBUF_POOL", NUM_MBUFS * nb_ports,
 			MBUF_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE, rte_socket_id());
@@ -373,41 +341,40 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 		rte_exit(EXIT_FAILURE, "Cannot create mbuf pool\n");
 
 	/* Initialize all ports. */
-//	for (portid = 1; portid < 2; portid++)
-       portid = atoi(mmt_probe->mmt_conf->input_source);
-		if (port_init(portid, mbuf_pool, mmt_probe) != 0)
-			rte_exit(EXIT_FAILURE, "Cannot init port %"PRIu8 "\n",
-					portid);
+	//	for (portid = 1; portid < 2; portid++)
+	portid = atoi(mmt_probe->mmt_conf->input_source);
+	if (port_init(portid, mbuf_pool, mmt_probe) != 0)
+		rte_exit(EXIT_FAILURE, "Cannot init port %"PRIu8 "\n",
+				portid);
 
-	last_lcore_id   = 50;
-	master_lcore_id = rte_get_master_lcore();
+
 
 	mmt_probe->smp_threads = (struct smp_thread *) calloc(mmt_probe->mmt_conf->thread_nb,sizeof (struct smp_thread));
 	if (mmt_probe->smp_threads == NULL){
 		printf("ERROR: mmt_probe.smp_threads memory allocation \n");
 	}
 
-	int thread_nb = 0;
-	lcore_id = 3;
+	int thread_nb   = 0;
+	lcore_id        = 0;
+	master_lcore_id = rte_get_master_lcore();
+
 	/* Start worker_thread() on all the available slave cores but the last 1 */
-	while (thread_nb < mmt_probe->mmt_conf->thread_nb){
-		if (lcore_id <= get_previous_lcore_id(last_lcore_id)){
-			if (rte_lcore_is_enabled(lcore_id) && lcore_id != master_lcore_id){
-				pthread_spin_init(&mmt_probe->smp_threads[thread_nb].lock, 0);
-				mmt_probe->smp_threads[thread_nb].last_stat_report_time = time(0);
-				mmt_probe->smp_threads[thread_nb].pcap_last_stat_report_time = 0;
-				mmt_probe->smp_threads[thread_nb].pcap_current_packet_time = 0;
-				//mmt_probe->smp_threads[thread_nb].nb_dropped_packets = 0;
-				mmt_probe->smp_threads[thread_nb].nb_packets         = 0;
-				mmt_probe->smp_threads[thread_nb].workers = (worker_args_t *) calloc(1,sizeof (worker_args_t));
-				mmt_probe->smp_threads[thread_nb].thread_number = thread_nb;
-				rte_eal_remote_launch(worker_thread, (void *)&mmt_probe->smp_threads[thread_nb], lcore_id);
+	while ( thread_nb < mmt_probe->mmt_conf->thread_nb ){
+		if ( rte_lcore_is_enabled( lcore_id ) && lcore_id != master_lcore_id){
+			pthread_spin_init(&mmt_probe->smp_threads[thread_nb].lock, 0);
+			mmt_probe->smp_threads[thread_nb].last_stat_report_time = time(0);
+			mmt_probe->smp_threads[thread_nb].pcap_last_stat_report_time = 0;
+			mmt_probe->smp_threads[thread_nb].pcap_current_packet_time = 0;
+			//mmt_probe->smp_threads[thread_nb].nb_dropped_packets = 0;
+			mmt_probe->smp_threads[thread_nb].nb_packets         = 0;
+			mmt_probe->smp_threads[thread_nb].workers = (worker_args_t *) calloc(1,sizeof (worker_args_t));
+			mmt_probe->smp_threads[thread_nb].thread_number = thread_nb;
+			rte_eal_remote_launch(worker_thread, (void *)&mmt_probe->smp_threads[thread_nb], lcore_id);
 			//	printf("thread_id = %u, core_id = %u, last_lcore_id =%u \n",thread_nb,lcore_id,last_lcore_id);
-				mmt_probe->smp_threads[thread_nb].workers->lcore_id = lcore_id;
-				thread_nb ++;
-			}
-			lcore_id += 2;
+			mmt_probe->smp_threads[thread_nb].workers->lcore_id = lcore_id;
+			thread_nb ++;
 		}
+		lcore_id ++ ;
 	}
 
 	/* Call lcore_main on the master core only. */

@@ -8,9 +8,11 @@
 #ifndef SRC_LIB_OPTIMIZATION_H_
 #define SRC_LIB_OPTIMIZATION_H_
 
-#ifdef PCAP
-#define likely(x)       __builtin_expect((x), 1)
-#define unlikely(x)     (x)
+#ifndef likely
+#define likely(x)       __builtin_expect(!!(x), 1)
+#endif
+#ifndef unlikely
+#define unlikely(x)     __builtin_expect(!!(x), 0)
 #endif
 
 

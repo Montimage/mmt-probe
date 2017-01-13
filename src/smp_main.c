@@ -855,7 +855,9 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		for(i=0; i<mmt_conf->thread_nb; i++){
 
 			if (mmt_conf->socket_enable == 1){
-			    printf ("th_nb =%u, packets_reports_send = %u \n", i, mmt_probe.smp_threads[i].packet_send);
+			    printf ("th_nb =%2u, packets_reports_send = %'9u (%5.2f%%) \n", i,
+			   		 mmt_probe.smp_threads[i].packet_send,
+						 mmt_probe.smp_threads[i].packet_send * 100.0 / mmt_probe.smp_threads[i].nb_packets );
 			    count += mmt_probe.smp_threads[i].packet_send;
 			}
 #ifdef PCAP
@@ -978,12 +980,14 @@ void signal_handler(int type) {
 		terminate_probe_processing(0);
 #endif
 #ifdef DPDK
+		  print_stats((void *) &mmt_probe);
         do_abort = 1;
 	//uint64_t total_packets_processed = 0;
 	//uint64_t packet_send = 0;
         sleep(5);
         print_stats((void *) &mmt_probe);
         terminate_probe_processing(0);
+
                        /* for (j = 0; j < mmt_probe.mmt_conf->thread_nb; j++) {
                                 if (mmt_probe.smp_threads[j].mmt_handler != NULL) {
                                         printf ("thread_id = %u, packet = %lu \n",mmt_probe.smp_threads[j].thread_number, mmt_probe.smp_threads[j].nb_packets );
@@ -1260,6 +1264,7 @@ int main(int argc, char **argv) {
 
 	mmt_probe_context_t * mmt_conf = get_probe_context_config();
 	mmt_probe.mmt_conf = mmt_conf;
+
 #ifdef DPDK
 	/* Initialize the Environment Abstraction Layer (EAL). */
 	do_abort = 0;
@@ -1466,7 +1471,8 @@ int main(int argc, char **argv) {
 
 #ifdef DPDK
 	if(mmt_probe.mmt_conf->output_to_file_enable == 1 && mmt_probe.mmt_conf->redis_enable == 1)	start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
-		dpdk_capture(argc, argv, &mmt_probe );
+	dpdk_capture(argc, argv, &mmt_probe );
+
 #endif
 	terminate_probe_processing(1);
 
