@@ -547,7 +547,7 @@ void flush_messages_to_file_thread( void *arg){
 								drop_percent_NIC = th->nb_dropped_packets_NIC * 100 / th->nb_packets;
 								drop_percent_kernel = th->nb_dropped_packets_kernel * 100 / th->nb_packets;
 								}
-							fprintf ( file, "%s, %3.2Lf%%, %3.2Lf%%, %3.2f%%, %3.2f%%, %3.2f%%\n", th->cache_message_list[ i ], th->cpu_usage, th->mem_usage, drop_percent, drop_percent_NIC, drop_percent_kernel);
+							fprintf ( file, "%s,%3.2Lf,%3.2Lf,%3.2f,%3.2f,%3.2f\n", th->cache_message_list[ i ], th->cpu_usage, th->mem_usage, drop_percent, drop_percent_NIC, drop_percent_kernel);
 						}
 				else{
 					fprintf ( file, "%s\n", th->cache_message_list[ i ]);
