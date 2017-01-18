@@ -47,7 +47,7 @@ static inline uint32_t __attribute__((always_inline)) get_packet_hash_number( co
 		return 0;
 	}
 
-	return ( packet[ip_src_off] | packet[ip_src_off + 4] );
+//	return ( packet[ip_src_off] | packet[ip_src_off + 4] );
 //
 	a1 = *((uint32_t *) &packet[ ip_src_off     ]);
 	a2 = *((uint32_t *) &packet[ ip_src_off + 4 ]);

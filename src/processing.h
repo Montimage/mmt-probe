@@ -6,6 +6,11 @@ extern "C" {
 //#define _GNU_SOURCE
 #include "lib/data_spsc_ring.h"
 
+//TODO: HN delete the line below
+#ifndef DPDK
+#define DPDK
+#endif
+
 #ifndef __USE_GNU
 #define __USE_GNU
 #endif

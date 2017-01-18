@@ -37,7 +37,12 @@
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "mmt_core.h"
+#include "tcpip/mmt_tcpip.h"
 
+#include "processing.h"
+
+#ifdef DPDK
 #include <stdint.h>
 #include <inttypes.h>
 #include <locale.h>
@@ -57,27 +62,28 @@
 #include <rte_ring.h>
 #include <errno.h>
 
-#include "mmt_core.h"
-#include "tcpip/mmt_tcpip.h"
 
-#include "processing.h"
-
-#ifdef DPDK
-
-#define RX_RING_SIZE 1024
-#define NUM_MBUFS 32767
+#define RX_RING_SIZE    1024
+#define NUM_MBUFS       32767
 #define MBUF_CACHE_SIZE 512
-#define BURST_SIZE 1024
+#define BURST_SIZE      1024
 
-static uint8_t hash_key[40] = { 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, };
+static uint8_t hash_key[40] = {
+		0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
+		0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
+		0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
+		0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
+		0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A
+};
+
 static const struct rte_eth_rxconf rx_conf = {
 		.rx_thresh = {
-				.pthresh = 0,   /* Ring prefetch threshold */
-				.hthresh = 0,   /* Ring host threshold */
-				.wthresh = 0,   /* Ring writeback threshold */
+				.pthresh = 8,   /* Ring prefetch threshold */
+				.hthresh = 8,   /* Ring host threshold */
+				.wthresh = 4    /* Ring writeback threshold */
 		},
-		.rx_free_thresh = 0,    /* Immediately free RX descriptors */
-		.rx_drop_en = 0
+		.rx_free_thresh = 32,    /* Immediately free RX descriptors */
+		.rx_drop_en     = 0
 };
 
 static const struct rte_eth_conf port_conf_default = {
@@ -86,16 +92,17 @@ static const struct rte_eth_conf port_conf_default = {
 				.mq_mode        = ETH_MQ_RX_RSS,
 				.max_rx_pkt_len = ETHER_MAX_LEN,
 				.split_hdr_size = 0,
-				.header_split = 0,   /**< Header Split disabled */
+				.header_split   = 0,   /**< Header Split disabled */
 				.hw_ip_checksum = 0, /**< IP checksum offload disabled */
 				.hw_vlan_filter = 0, /**< VLAN filtering disabled */
-				.jumbo_frame = 0,
-				.hw_strip_crc= 0
+				.jumbo_frame    = 0,
+				.hw_strip_crc   = 0,
 		},
 		.rx_adv_conf = {
 				.rss_conf = {
-						.rss_key = hash_key,
-						.rss_hf = ETH_RSS_PROTO_MASK,
+						.rss_key     = hash_key,
+						.rss_key_len = 40,
+						.rss_hf      = ETH_RSS_PROTO_MASK
 				},
 		},
 		.txmode = {
@@ -130,12 +137,10 @@ void print_stats (void * args){
 }
 
 static int
-worker_thread(void *args_ptr)
-{
+worker_thread(void *args_ptr){
 	const uint8_t nb_ports = 1;
 	uint8_t port;
 	uint16_t i, ret = 0;
-	char mmt_errbuf[1024];
 	uint16_t nb_rx;
 	struct pkthdr header;
 	struct timeval  time_now;
@@ -148,11 +153,8 @@ worker_thread(void *args_ptr)
 
 	struct smp_thread *th = (struct smp_thread *) args_ptr;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
-	th->mmt_handler = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
-	if (!th->mmt_handler) { /* pcap error ?*/
-		fprintf(stderr, "MMT handler init failed for the following reason: %s\n", mmt_errbuf);
-		return EXIT_FAILURE;
-	}
+
+//	printf("new handler: %p\n", th->mmt_handler );
 
 	for (i = 0; i < PROTO_MAX_IDENTIFIER; i++) {
 		reset_microflows_stats(&th->iprobe.mf_stats[i]);
@@ -219,7 +221,7 @@ worker_thread(void *args_ptr)
 		nb_rx = rte_eth_rx_burst(port, th->thread_number, bufs, BURST_SIZE);
 
 //		if( unlikely( nb_rx == 0 ))
-//			nanosleep( (const struct timespec[]){{0, 1000L}}, NULL );
+//			nanosleep( (const struct timespec[]){{0, 50000L}}, NULL );
 
 		header.ts = time_now;
 //		header.ts.tv_usec = time_now.tv_nsec;
@@ -245,7 +247,8 @@ worker_thread(void *args_ptr)
 		radius_ext_cleanup(th->mmt_handler); // cleanup our event handler for RADIUS initializations
 		flowstruct_cleanup(th->mmt_handler); // cleanup our event handler
 		th->report_counter++;
-		if (probe_context->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, th);
+		if (probe_context->enable_proto_without_session_stats == 1)
+			iterate_through_protocols( protocols_stats_iterator, th );
 		if (cleanup_registered_handlers (th) == 0){
 			fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",th->thread_number);
 		}
@@ -269,8 +272,10 @@ port_init(uint8_t port, struct rte_mempool *mbuf_pool, struct mmt_probe_struct *
 	uint16_t q;
 	/* Configure the Ethernet device. */
 	retval = rte_eth_dev_configure(port, mmt_probe->mmt_conf->thread_nb, 0 , &port_conf_default);
-	if (retval != 0)
+	if (retval != 0){
+		rte_exit(EXIT_FAILURE, "Cannot configure port %d (%s)\n", port, rte_strerror(retval) );
 		return retval;
+	}
 
 	/* Allocate and set up 1 RX queue per Ethernet port. */
 	for (q = 0; q < mmt_probe->mmt_conf->thread_nb; q++) {
@@ -278,8 +283,7 @@ port_init(uint8_t port, struct rte_mempool *mbuf_pool, struct mmt_probe_struct *
 				rte_eth_dev_socket_id( port ), &rx_conf, mbuf_pool);
 
 		if (retval < 0){
-			rte_exit(EXIT_FAILURE, "Cannot init queue %d of port %d\n", q, port );
-			return retval;
+			rte_exit(EXIT_FAILURE, "Cannot init queue %d of port %d (%s)\n", q, port, rte_strerror(retval) );
 		}
 	}
 
@@ -315,14 +319,11 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	int num_of_cores = 0;
 	unsigned total_of_cores = rte_lcore_count();
 	unsigned int lcore_id, last_lcore_id, master_lcore_id;
-	/*int i=0;
-	for (i=0; i<20; i++){
-		total_pkt[i] = 0;
-	}*/
+	char mmt_errbuf[1024];
 
 	setlocale(LC_NUMERIC, "en_US.UTF-8");
 
-	num_of_cores = mmt_probe->mmt_conf->thread_nb +1;
+	num_of_cores = mmt_probe->mmt_conf->thread_nb + 1;
 
 	/* Check if we have enought cores */
 	if ( total_of_cores < num_of_cores)
@@ -348,7 +349,6 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 				portid);
 
 
-
 	mmt_probe->smp_threads = (struct smp_thread *) calloc(mmt_probe->mmt_conf->thread_nb,sizeof (struct smp_thread));
 	if (mmt_probe->smp_threads == NULL){
 		printf("ERROR: mmt_probe.smp_threads memory allocation \n");
@@ -361,17 +361,26 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	/* Start worker_thread() on all the available slave cores but the last 1 */
 	while ( thread_nb < mmt_probe->mmt_conf->thread_nb ){
 		if ( rte_lcore_is_enabled( lcore_id ) && lcore_id != master_lcore_id){
-			pthread_spin_init(&mmt_probe->smp_threads[thread_nb].lock, 0);
-			mmt_probe->smp_threads[thread_nb].last_stat_report_time = time(0);
+
+			pthread_spin_init( &mmt_probe->smp_threads[thread_nb].lock, 0);
+			mmt_probe->smp_threads[thread_nb].last_stat_report_time      = time(0);
 			mmt_probe->smp_threads[thread_nb].pcap_last_stat_report_time = 0;
-			mmt_probe->smp_threads[thread_nb].pcap_current_packet_time = 0;
+			mmt_probe->smp_threads[thread_nb].pcap_current_packet_time   = 0;
 			//mmt_probe->smp_threads[thread_nb].nb_dropped_packets = 0;
-			mmt_probe->smp_threads[thread_nb].nb_packets         = 0;
-			mmt_probe->smp_threads[thread_nb].workers = (worker_args_t *) calloc(1,sizeof (worker_args_t));
+			mmt_probe->smp_threads[thread_nb].nb_packets    = 0;
+			mmt_probe->smp_threads[thread_nb].workers       = (worker_args_t *) calloc(1,sizeof (worker_args_t));
 			mmt_probe->smp_threads[thread_nb].thread_number = thread_nb;
+			mmt_probe->smp_threads[thread_nb].mmt_handler   = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
+			if (! mmt_probe->smp_threads[thread_nb].mmt_handler ) { /* pcap error ?*/
+				fprintf(stderr, "MMT handler init failed for the following reason: %s\n", mmt_errbuf);
+				return EXIT_FAILURE;
+			}
+			mmt_probe->smp_threads[thread_nb].workers->lcore_id = lcore_id;
+
+
 			rte_eal_remote_launch(worker_thread, (void *)&mmt_probe->smp_threads[thread_nb], lcore_id);
 			//	printf("thread_id = %u, core_id = %u, last_lcore_id =%u \n",thread_nb,lcore_id,last_lcore_id);
-			mmt_probe->smp_threads[thread_nb].workers->lcore_id = lcore_id;
+
 			thread_nb ++;
 		}
 		lcore_id ++ ;
@@ -379,7 +388,6 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 
 	/* Call lcore_main on the master core only. */
 	lcore_main();
-
 
 	return 0;
 

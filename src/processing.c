@@ -412,7 +412,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 						perror("sendmmsg()");
 
 					report_ptr->security_report_counter = 0;
-					memset(report_ptr->msg, 0, sizeof(struct iovec) *probe_context->nb_of_report_per_msg);
+					//memset(report_ptr->msg, 0, sizeof(struct iovec) *probe_context->nb_of_report_per_msg);
 				}
 			}
 		}
