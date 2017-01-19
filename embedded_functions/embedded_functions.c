@@ -1,6 +1,8 @@
-//Linux
+//Linux (one of the follows)
 //gcc -g -fPIC -I/usr/local/include/mmt -shared -nostartfiles embedded_functions/embedded_functions.c -o embedded_functions/libembedded_functions.so 
-// gcc -g -fPIC -I../../../mmt-sdk/sdk/include -shared -nostartfiles embedded_functions.c -o libembedded_functions.so
+//gcc -g -fPIC -I../../../mmt-sdk/sdk/include -shared -nostartfiles embedded_functions.c -o libembedded_functions.so
+//gcc -g -fPIC -I/opt/mmt/dpi/include -shared -nostartfiles embedded_functions/embedded_functions.c -o embedded_functions/libembedded_functions.so
+//Then:
 //sudo su
 // export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./embedded_functions 
 // export LD_LIBRARY_PATH=<your directory>/embedded_functions
@@ -240,7 +242,6 @@ int *check_UA( void *v){
 }
 
 int *check_sql_injection(void *p, void *pl){
-//#check_sql_injection ==1 means 
   int *handle;
   handle = malloc(sizeof(int));
   *handle = 0;
@@ -264,8 +265,8 @@ int *check_sql_injection(void *p, void *pl){
   s2 = strstr(str, "UNION"); //find the first occurrence of string "UNION" in string
   s3 = strstr(str, "SELECT"); //find the first occurrence of string "SELECT" in string
   s4 = strstr(str, "CHAR"); //find the first occurrence of string "CHAR" in string  
-  s5 = strstr(str, "DELETE"); //find the first occurrence of string "CHAR" in string
-  s6 = strstr(str, "INSERT"); //find the first occurrence of string "CHAR" in string
+  s5 = strstr(str, "DELETE");
+  s6 = strstr(str, "INSERT");
      
   if ((s1 !=NULL)  || (s2 !=NULL)   || (s3 !=NULL) || (s4 !=NULL) || (s5 !=NULL) || (s6 !=NULL))  {
     //printf ("SQL injection detected\n");
@@ -275,4 +276,31 @@ int *check_sql_injection(void *p, void *pl){
   free(str);
   return handle;
  
+}
+
+int *check_http_response(void *p){
+  int *handle;
+  handle = malloc(sizeof(int));
+  *handle = 0;
+  if(p == NULL){
+    *handle = 1;
+    return handle;
+  }
+  return handle;
+}
+
+int *check_ip_add(void *src, void *dst, void *src1, void *dst1){
+  int *handle;
+  handle = malloc(sizeof(int));
+  *handle = 0;
+  if((src == NULL) || (dst == NULL) || (src1 == NULL) || (dst1 == NULL)){
+    *handle = 1;
+    return handle;
+  }
+  if (((src = src1) && (dst = dst1)) || ((src = dst1) && (dst = src1))){
+	  *handle = 1;
+	  //printf("In the same session\n");
+	  return handle;
+  }
+  return handle;
 }

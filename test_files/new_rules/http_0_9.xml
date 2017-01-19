@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<?xml-stylesheet type="text/xsl" href="properties.xsl"?>
+<!-- MMT_Security Copyright (C) 2014  Montimage Description: Detection of attacks in BGPost honeypot-->
+<beginning>
+<!-- Property 1: HTTP version 0.9 detection-->
+
+<property value="THEN" delay_units="ms" delay_min="0+" delay_max="500" property_id="1" type_property="EVASION" 
+    description="HTTP response with no header (type 1)"
+    >
+   <operator value="THEN" delay_units="ms" delay_min="0+" delay_max="250">
+   <event value="COMPUTE" event_id="1" 
+           description="Context: Here it is a HTTP GET packet"
+           boolean_expression="((http.method == http.method)&amp;&amp;((ip.src != ip.dst)&amp;&amp;((http.packet_count != 0)&amp;&amp;(tcp.packet_count != 0))))"/>
+   <event value="COMPUTE" event_id="2" 
+		   description="Context: TCP ACK after HTTP GET"
+           boolean_expression="((#check_ip_add(ip.src, ip.dst, ip.src.1, ip.dst.1) == 1)&amp;&amp;((http.packet_count == http.packet_count.1)&amp;&amp;(tcp.packet_count != 0)))"/>
+   </operator>
+   <event value="COMPUTE" event_id="3" 
+           description="Trigger: HTTP response contains no header"
+		   boolean_expression="((ip.src == ip.dst.1)&amp;&amp;((ip.dst == ip.src.1)&amp;&amp;((http.packet_count == (http.packet_count.1 +1))&amp;&amp;((tcp.packet_count == (tcp.packet_count.2+1))&amp;&amp;(#check_http_response(http.response)==1)))))"/>
+</property>
+
+<property value="THEN" delay_units="ms" delay_min="0+" delay_max="500" property_id="2" type_property="EVASION" 
+    description="HTTP response with no header right after the GET (type 2)"
+    >
+   <event value="COMPUTE" event_id="4" 
+           description="Context: Here it is a HTTP GET packet"
+           boolean_expression="((http.method == http.method)&amp;&amp;((ip.src != ip.dst)&amp;&amp;((http.packet_count != 0)&amp;&amp;(tcp.packet_count != 0))))"/>
+   <event value="COMPUTE" event_id="5" 
+           description="Trigger: HTTP response contains no header"
+		   boolean_expression="((ip.src == ip.dst.4)&amp;&amp;((ip.dst == ip.src.4)&amp;&amp;((http.packet_count == (http.packet_count.4 +1))&amp;&amp;((tcp.packet_count == (tcp.packet_count.4+1))&amp;&amp;(#check_http_response(http.response)==1)))))"/>
+</property>
+</beginning>
