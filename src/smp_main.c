@@ -985,7 +985,7 @@ void signal_handler(int type) {
 	//uint64_t total_packets_processed = 0;
 	//uint64_t packet_send = 0;
         sleep(5);
-        print_stats((void *) &mmt_probe);
+        //print_stats((void *) &mmt_probe);
         terminate_probe_processing(0);
 
                        /* for (j = 0; j < mmt_probe.mmt_conf->thread_nb; j++) {
