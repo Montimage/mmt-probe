@@ -252,8 +252,10 @@ worker_thread(void *args_ptr){
 		if (cleanup_registered_handlers (th) == 0){
 			fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",th->thread_number);
 		}
+                pthread_spin_lock(&spin_lock);
 		mmt_close_handler(th->mmt_handler);
 		th->mmt_handler = NULL;
+		pthread_spin_unlock(&spin_lock);
 	}
 
 	return 0;
