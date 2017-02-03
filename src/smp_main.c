@@ -1,6 +1,6 @@
 /*
  * File:   main.c
-
+dk version : %s\n",mmt_version());
 gcc -gdwarf-2 -o probe src/smp_main.c  src/processing.c src/web_session_report.c src/thredis.c \
 src/send_msg_to_file.c src/send_msg_to_redis.c src/ip_statics.c src/rtp_session_report.c src/ftp_session_report.c \
 src/event_based_reporting.c src/protocols_report.c src/ssl_session_report.c src/default_app_session_report.c \
@@ -717,13 +717,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
 				pthread_join(mmt_probe.smp_threads[i].handle, NULL);
 #endif
 
-#ifdef DPDK
-				//example
-				//RTE_LCORE_FOREACH_SLAVE(mmt_probe.smp_threads[i].workers->lcore_id ) {
-					//if (rte_eal_wait_lcore(mmt_probe.smp_threads[i].workers->lcore_id) < 0)
-					//	exit(1);
-				//}
-#endif
 				if (mmt_conf->microf_enable == 1)report_all_protocols_microflows_stats(&mmt_probe.smp_threads[i]);
 				//if (mmt_probe.smp_threads->report_counter == 0)mmt_probe.smp_threads->report_counter++;
 				//if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[i]);
@@ -863,12 +856,9 @@ void terminate_probe_processing(int wait_thread_terminate) {
 #ifdef PCAP
 			data_spsc_ring_free( &mmt_probe.smp_threads[i].fifo );
 #endif
-			//if(mmt_probe.smp_threads[i].sockfd_unix > 0)close(mmt_probe.smp_threads[i].sockfd_unix);
 			if (mmt_probe.smp_threads[i].report != NULL){
 				for(j = 0; j < mmt_conf->security_reports_nb; j++) {
 					if (mmt_probe.smp_threads[i].report[j].data != NULL){
-						//retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_internet[j], &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
-                                             	//TODO:Test sendmmsg
 						if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_internet[j], &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
 						if (mmt_probe.mmt_conf->socket_domain == 0 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_unix, &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
 
@@ -886,7 +876,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
 				free (mmt_probe.smp_threads[i].report);
 
 			}
-			//sleep (1);	// flight time required between a msg send from sockets to destination socket
 
 			if (mmt_probe.smp_threads[i].sockfd_internet != NULL){
 				for (j = 0; j < mmt_conf->server_ip_nb; j++){
@@ -894,8 +883,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
 				}
 				free (mmt_probe.smp_threads[i].sockfd_internet);
 			}
-
-
 
 
 			if (mmt_probe.smp_threads[i].security_attributes != NULL){
@@ -908,19 +895,12 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		free( mmt_probe.smp_threads);
 		mmt_probe.smp_threads = NULL;
 	} else {
-		/*		if (mmt_probe.smp_threads->event_reports != NULL){
-			free(mmt_probe.smp_threads->event_reports);
-			mmt_probe.smp_threads->event_reports = NULL;
-		}*/
 		if (mmt_probe.smp_threads->report != NULL){
 			for(j = 0; j < mmt_conf->security_reports_nb; j++) {
 				if (mmt_probe.smp_threads->report[j].data != NULL){
-					//retval = sendmmsg(mmt_probe.smp_threads->sockfd_internet[j], &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
-                                         //TODO: test sendmmsg
 			                 if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_internet[j], &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
 					if (mmt_probe.mmt_conf->socket_domain == 0 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_unix, &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
 
-					// flight time required between a msg send from sockets to destination socket
 					if (retval == -1)
 						perror("sendmmsg()");
 
@@ -934,7 +914,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			}
 			free (mmt_probe.smp_threads->report);
 		}
-		//sleep (1);	// flight time required between a msg send from sockets to destination socket
 
 		if (mmt_probe.smp_threads->sockfd_internet != NULL){
 			for (j = 0; j < mmt_conf->server_ip_nb; j++){
@@ -953,13 +932,11 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		mmt_probe.smp_threads = NULL;
 	}
 
-	//printf("HERE_close_extraction1\n");
 	close_extraction();
-	//printf("HERE_close_extraction2\n");
 
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_E_END, "Closing MMT Extraction engine!");
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_P_END, "Closing MMT Probe!");
-	if (mmt_conf->log_output) fclose(mmt_conf->log_output);
+	if(wait_thread_terminate)if (mmt_conf->log_output) fclose(mmt_conf->log_output);
 }
 
 /* This signal handler ensures clean exits */
@@ -977,90 +954,15 @@ void signal_handler(int type) {
 
 	if (i == 1) {
 # ifdef PCAP
-		terminate_probe_processing(0);
+            terminate_probe_processing(0);
 #endif
 #ifdef DPDK
-		  print_stats((void *) &mmt_probe);
-        do_abort = 1;
-	//uint64_t total_packets_processed = 0;
-	//uint64_t packet_send = 0;
-        sleep(5);
-        //print_stats((void *) &mmt_probe);
-        terminate_probe_processing(0);
-
-                       /* for (j = 0; j < mmt_probe.mmt_conf->thread_nb; j++) {
-                                if (mmt_probe.smp_threads[j].mmt_handler != NULL) {
-                                        printf ("thread_id = %u, packet = %lu \n",mmt_probe.smp_threads[j].thread_number, mmt_probe.smp_threads[j].nb_packets );
-					total_packets_processed += mmt_probe.smp_threads[j].nb_packets;
-                                        //flowstruct_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler
-                                        if (cleanup_registered_handlers (&mmt_probe.smp_threads[j]) == 0){
-                                                fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",mmt_probe.smp_threads[j].thread_number);
-                                        }
-                                        //TODO: since mmt_handler is not closed (lcore cannot be exited gracefully), session are not expired, thus we need to execute this handler
-                                        if (mmt_probe.mmt_conf->enable_session_report == 1) process_session_timer_handler(mmt_probe.smp_threads[j].mmt_handler);
-                                        if (mmt_probe.smp_threads[j].report_counter == 0)mmt_probe.smp_threads[j].report_counter++;
-                                        if (mmt_probe.mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[j]);
-                          //              mmt_close_handler(mmt_probe.smp_threads[j].mmt_handler);
-                          //              mmt_probe.smp_threads[j].mmt_handler = NULL;
-
-			  if (mmt_probe.smp_threads[j].report != NULL){
-                                for(k = 0; k < mmt_probe.mmt_conf->security_reports_nb; k++) {
-                                        if (mmt_probe.smp_threads[j].report[k].data != NULL){
-//                                                retval = sendmmsg(mmt_probe.smp_threads[j].sockfd_internet[k], &mmt_probe.smp_threads[j].report[k].grouped_msg, 1, 0);
-                                             	if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[j].sockfd_internet[i], &mmt_probe.smp_threads[j].report[k].grouped_msg, 1, 0);
-						if (mmt_probe.mmt_conf->socket_domain == 0 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[j].sockfd_unix, &mmt_probe.smp_threads[j].report[k].grouped_msg, 1, 0);
-
-						if (retval == -1)
-                                                        perror("sendmmsg()");
-                                                if (mmt_probe.smp_threads[j].report[k].msg != NULL){
-                                                        free (mmt_probe.smp_threads[j].report[k].msg);
-                                                }
-                                                for (l = 0; l < mmt_probe.mmt_conf->nb_of_report_per_msg; l++)free (mmt_probe.smp_threads[j].report[k].data[l]);
-                                        }
-                                        free (mmt_probe.smp_threads[j].report[k].data);
-                                }
-
-                                free (mmt_probe.smp_threads[j].report);
-
-                        }
-
-
-
-                        		if (mmt_probe.mmt_conf->socket_enable == 1){
-                            			packet_send += mmt_probe.smp_threads[j].packet_send;
-                        		}
-
-                                        free(mmt_probe.smp_threads[j].cache_message_list);
-                                        mmt_probe.smp_threads[j].cache_message_list = NULL;
-                                }
-                                if (mmt_probe.mmt_conf->microf_enable == 1)report_all_protocols_microflows_stats(&mmt_probe.smp_threads[j].iprobe);
-
-                        }
-		exit_timers();
-		printf ("\nMMT total packet processed = %lu\n", total_packets_processed);
-                if (mmt_probe.mmt_conf->socket_enable == 1 && total_packets_processed > 1){
-                    printf ("Total reports send = %lu \n", packet_send);
-                    //float loss_percent = 1 - (packet_send/total_packets_processed);
-
-                    //printf ("Packet_loss = %f\n",loss_percent);
-                }
-
-        	exit (0);//TODO:graceful exit i.e. stop cores without problem*/
+            print_stats((void *) &mmt_probe);
+            do_abort = 1;
+            sleep(5);
+            terminate_probe_processing(0);
+            //exit(0);
 #endif
-
-		/*
-                    if(strlen(mmt_probe.mmt_conf->input_f_name) > 1) {
-                        if (remove(mmt_probe.mmt_conf->input_f_name) != 0) {
-                            //fprintf(stdout, "Trace Error deleting file\n");
-                            sprintf(lg_msg, "Error while deleting trace file: %s! File will remain on the system. Manual delete required!", mmt_probe.mmt_conf->input_f_name);
-                            mmt_log(mmt_probe.mmt_conf, MMT_L_ERROR, MMT_P_TRACE_DELETE, lg_msg);
-                        } else {
-                            sprintf(lg_msg, "Trace file %s deleted following the reception of error signal", mmt_probe.mmt_conf->input_f_name);
-                            mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_P_TRACE_DELETE, lg_msg);
-                            //fprintf(stdout, "Trace File %s successfully deleted\n", trace_file_name);
-                        }
-                    }
-		 */
 	} else {
 		signal(SIGINT, signal_handler);
 		sprintf(lg_msg, "reception of signal %i while processing a signal exiting!", type);
@@ -1331,7 +1233,7 @@ int main(int argc, char **argv) {
 		mmt_log(mmt_conf, MMT_L_ERROR, MMT_E_INIT_ERROR, "MMT Extraction engine initialization error! Exiting!");
 		return EXIT_FAILURE;
 	}
-
+printf("mmt-sdk version : %s\n",mmt_version());
 	//For MMT_Security
 	if (mmt_conf->security_enable == 1)
 		todo_at_start(mmt_conf->dir_out);
@@ -1476,7 +1378,7 @@ int main(int argc, char **argv) {
 #endif
 	terminate_probe_processing(1);
 
-	//printf("Process Terminated successfully\n");
+//	printf("Process Terminated successfully\n");
 	return EXIT_SUCCESS;
 }
 

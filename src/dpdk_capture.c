@@ -63,8 +63,8 @@
 #include <errno.h>
 
 
-#define RX_RING_SIZE    1024
-#define NUM_MBUFS       32767
+#define RX_RING_SIZE    4096
+#define NUM_MBUFS       65537
 #define MBUF_CACHE_SIZE 512
 #define BURST_SIZE      1024
 
