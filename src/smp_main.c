@@ -128,7 +128,6 @@ int cleanup_registered_handlers(void *arg){
 
 		}
 	}
-
 	return i;
 }
 
@@ -678,21 +677,22 @@ void terminate_probe_processing(int wait_thread_terminate) {
 	if (mmt_conf->thread_nb == 1) {
 		//One thread for processing packets
 		//Cleanup the MMT handler
-		//flowstruct_cleanup(mmt_probe.smp_threads->mmt_handler); // cleanup our event handler
+#ifdef PCAP		
 		if (cleanup_registered_handlers (mmt_probe.smp_threads) == 0){
 			fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",mmt_probe.smp_threads->thread_number);
 		}
+
 		radius_ext_cleanup(mmt_probe.smp_threads->mmt_handler); // cleanup our event handler for RADIUS initializations
 		//process_session_timer_handler(mmt_probe.->mmt_handler);
 		if (mmt_probe.smp_threads->report_counter == 0)mmt_probe.smp_threads->report_counter++;
 		if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.smp_threads);
 		mmt_close_handler(mmt_probe.smp_threads->mmt_handler);
+#endif
 		if (mmt_conf->microf_enable == 1)report_all_protocols_microflows_stats((void *)mmt_probe.smp_threads);
 		if (mmt_conf->output_to_file_enable == 1)flush_messages_to_file_thread((void *)mmt_probe.smp_threads);
 		free (mmt_probe.smp_threads->cache_message_list);
 		mmt_probe.smp_threads->cache_message_list = NULL;
 		exit_timers();
-
 	} else {
 		if (wait_thread_terminate) {
 			/* Add a dummy packet at each thread packet list tail */
@@ -961,7 +961,6 @@ void signal_handler(int type) {
             do_abort = 1;
             sleep(5);
             terminate_probe_processing(0);
-            //exit(0);
 #endif
 	} else {
 		signal(SIGINT, signal_handler);
