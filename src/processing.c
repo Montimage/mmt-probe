@@ -326,7 +326,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 			security_report_buffer_t *report_ptr = &( th->report[i] );
 
 			report_ptr->length = 0;
-//			memset(report_ptr->data[report_ptr->security_report_counter], '\0', 10000);
+			memset(report_ptr->data[report_ptr->security_report_counter], '\0', 10000);
 			memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length + 5], &ipacket->p_hdr->ts,sizeof(struct timeval));
 			report_ptr->length += sizeof(struct timeval) + 5; //4 bytes are reserved to assign the total length of the report and 1 byte for the number of attributes
 			k=0;
@@ -412,7 +412,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 						perror("sendmmsg()");
 
 					report_ptr->security_report_counter = 0;
-					//memset(report_ptr->msg, 0, sizeof(struct iovec) *probe_context->nb_of_report_per_msg);
+				memset(report_ptr->msg, 0, sizeof(struct iovec) *probe_context->nb_of_report_per_msg);
 				}
 			}
 		}

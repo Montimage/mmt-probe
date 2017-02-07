@@ -127,7 +127,9 @@ void print_stats (void * args){
 	//		rte_eth_stats_reset( i );
 	//}
 
-	printf("\nTOT:  %'9ld (recv), %'9ld (dr %3.2f%%), %'7ld (err) %'9ld (tot)\n\n",
+        probe->mmt_conf->report_length += snprintf(&probe->mmt_conf->report_msg[probe->mmt_conf->report_length],1024 - probe->mmt_conf->report_length,"%"PRIu64",%"PRIu64",%f,%"PRIu64",%"PRIu64",",good_pkt, miss_pkt,(float)miss_pkt/(good_pkt+miss_pkt+err_pkt)*100, err_pkt, good_pkt+miss_pkt+err_pkt );
+
+        printf("\nTOT:  %'9ld (recv), %'9ld (dr %3.2f%%), %'7ld (err) %'9ld (tot)\n\n",
 			good_pkt, miss_pkt, (float)miss_pkt/(good_pkt+miss_pkt+err_pkt)*100, err_pkt, good_pkt+miss_pkt+err_pkt );
 
 	/*	for (i = 0; i < thread_nb; i++)
@@ -242,7 +244,9 @@ worker_thread(void *args_ptr){
 	}
 
 	printf("thread %2d, nb_packets = %'9"PRIu64" \n", th->thread_number, th->nb_packets );
-
+        pthread_spin_lock(&spin_lock);
+        probe_context->report_length += snprintf(&probe_context->report_msg[probe_context->report_length],1024 - probe_context->report_length,"%d,%"PRIu64",",th->thread_number, th->nb_packets);
+        pthread_spin_unlock(&spin_lock);
 	if(th->mmt_handler != NULL){
 		radius_ext_cleanup(th->mmt_handler); // cleanup our event handler for RADIUS initializations
 		flowstruct_cleanup(th->mmt_handler); // cleanup our event handler

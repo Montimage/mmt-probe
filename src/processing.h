@@ -223,6 +223,8 @@ typedef struct mmt_probe_context_struct {
     char behaviour_output_location[256 + 1];
     char ftp_reconstruct_output_location[256 + 1];
     char dynamic_config_file[256 + 1];
+    char report_msg [1024 + 1];
+    uint32_t report_length;
     uint32_t ftp_enable;
     uint32_t web_enable;
     uint32_t rtp_enable;
@@ -566,7 +568,7 @@ struct smp_thread {
     uint8_t file_read_flag;
 	uint32_t * sockfd_internet;
 	uint32_t  sockfd_unix;
-    uint32_t packet_send;
+    uint64_t packet_send;
     worker_args_t * workers;
     long double cpu_usage;
     long double mem_usage;
