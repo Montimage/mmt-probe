@@ -850,11 +850,14 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		for(i=0; i<mmt_conf->thread_nb; i++){
 
 			if (mmt_conf->socket_enable == 1){
-			    printf ("th_nb =%2u, packets_reports_send = %"PRIu64" (%5.2f%%) \n", i,
-			   		 mmt_probe.smp_threads[i].packet_send,
-						 mmt_probe.smp_threads[i].packet_send * 100.0 / mmt_probe.smp_threads[i].nb_packets );
-                        
-                            mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length],1024 - mmt_conf->report_length,"%d,%"PRIu64",%f,", i, mmt_probe.smp_threads[i].packet_send, mmt_probe.smp_threads[i].packet_send * 100.0 / mmt_probe.smp_threads[i].nb_packets );
+			    //printf ("th_nb =%2u, packets_reports_send = %"PRIu64" (%5.2f%%) \n", i,
+			   		 //mmt_probe.smp_threads[i].packet_send,
+					//	 mmt_probe.smp_threads[i].packet_send * 100.0 / mmt_probe.smp_threads[i].nb_packets );
+                            printf ("[mmt-probe-2]{%u,%"PRIu64",%f}\n", i,
+                                         mmt_probe.smp_threads[i].packet_send,
+                                                 mmt_probe.smp_threads[i].packet_send * 100.0 / mmt_probe.smp_threads[i].nb_packets);                       
+ 
+                          //  mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length],1024 - mmt_conf->report_length,"%d,%"PRIu64",%f,", i, mmt_probe.smp_threads[i].packet_send, mmt_probe.smp_threads[i].packet_send * 100.0 / mmt_probe.smp_threads[i].nb_packets );
 			    count += mmt_probe.smp_threads[i].packet_send;
 
 			}
@@ -896,8 +899,9 @@ void terminate_probe_processing(int wait_thread_terminate) {
 
 		}
 		if (mmt_conf->socket_enable == 1){
-                    printf ("total_packets_report_send_by_threads = %"PRIu64" \n",count);
-                    mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length],1024 - mmt_conf->report_length,"%"PRIu64"",count);
+                    //printf ("total_packets_report_send_by_threads = %"PRIu64" \n",count);
+                    //mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length - 1],1024 - mmt_conf->report_length,",%"PRIu64"}",count);
+                   printf ("[mmt-probe-3]{%"PRIu64"} \n",count);
                 }
 		free( mmt_probe.smp_threads);
 		mmt_probe.smp_threads = NULL;
@@ -934,14 +938,17 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			free (mmt_probe.smp_threads->security_attributes);
 		}
 		if (mmt_conf->socket_enable == 1){
-                    printf ("packets_report_send = %"PRIu64" \n", mmt_probe.smp_threads->packet_send);
-                    mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length],1024 - mmt_conf->report_length,"%"PRIu64",%f",mmt_probe.smp_threads->packet_send, mmt_probe.smp_threads->packet_send * 100.0 / mmt_probe.smp_threads->nb_packets);
+                    //printf ("packets_report_send = %"PRIu64" \n", mmt_probe.smp_threads->packet_send);
+                   // mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length],1024 - mmt_conf->report_length,"%"PRIu64",%f",mmt_probe.smp_threads->packet_send, mmt_probe.smp_threads->packet_send * 100.0 / mmt_probe.smp_threads->nb_packets);
+                   //mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length - 1],1024 - mmt_conf->report_length,",%"PRIu64"}",mmt_probe.smp_threads->packet_send);
+                   printf ("[mmt-probe-2]{%u,%"PRIu64",%f} \n",mmt_probe.smp_threads->thread_number, mmt_probe.smp_threads->packet_send,mmt_probe.smp_threads->packet_send * 100.0 / mmt_probe.smp_threads->nb_packets);
+                   printf ("[mmt-probe-3]{%"PRIu64"} \n",mmt_probe.smp_threads->packet_send);
                 }
 
 		free (mmt_probe.smp_threads);
 		mmt_probe.smp_threads = NULL;
 	}
-        printf("probe_id_%d = %s\n",mmt_conf->probe_id_number,mmt_conf->report_msg);
+        //printf("[Probe]%s\n",mmt_conf->report_msg);
         printf("close_extraction_start\n");
 	close_extraction();
         printf("close_extraction_finish\n");
