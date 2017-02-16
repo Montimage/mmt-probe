@@ -350,6 +350,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 							//printf ("ms_flag = %u\n", ms_flag_data);
 							if (ms_flag_data > 0) condition1++;
 						}
+						//if (attr_extract->proto_id == 178 && attr_extract->field_id == 10) condition2++;
 						if (attr_extract->proto_id == 30) condition2++;
 						if (attr_extract->proto_id == 137)condition3++;
 						//printf ("ipacket_packet_id = %lu \n, ",ipacket->packet_id);
@@ -404,9 +405,11 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 				}
 			}
 			if (condition1 == 0 && probe_context->security_reports[i].rule_type == 1) {
+				//printf ("ipacket_packet_id = %lu \n, ",ipacket->packet_id);
 				continue;
 			}
-			else if ((condition1 == 0 || condition2 == 0 || condition3 == 0) && probe_context->security_reports[i].rule_type == 2){
+			else if ((condition1 == 0 && condition2 == 0 && condition3 == 0) && probe_context->security_reports[i].rule_type == 2){
+				//printf ("ipacket_packet_id = %lu \n",ipacket->packet_id);
 				continue;
 			}
 
