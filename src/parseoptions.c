@@ -147,7 +147,7 @@ cfg_t * parse_conf(const char *filename) {
 	cfg_opt_t security_report_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
 			CFG_STR_LIST("event", "{}", CFGF_NONE),
-			CFG_INT("event_operation", 0, CFGF_NONE),
+			CFG_INT("rule-type", 0, CFGF_NONE),
 			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
 			CFG_END()
 	};
@@ -594,7 +594,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					mmt_conf->enable_security_report = 1;
 					security_event_nb = cfg_size(security_report_opts, "event");
 					temp_sr->event_name_nb = security_event_nb;
-					temp_sr->event_operation = 	(uint8_t) cfg_getint(security_report_opts, "event_operation");
+					temp_sr->rule_type = 	(uint8_t) cfg_getint(security_report_opts, "rule-type");
 
 					if(security_event_nb > 0) {
 						//temp_sr->event= calloc(sizeof(mmt_security_attribute_t),security_attributes_nb);

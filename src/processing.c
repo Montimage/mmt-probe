@@ -269,9 +269,9 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 	int MAX_LEN = 1024;
 	//char attr_data[MAX_LEN];
 	//unsigned char length_buffer[5];
-	int i = 0, j = 0, k = 0, l = 0, except_ip =0;
+	int i = 0, j = 0, k = 0, l = 0, condition1 = 0, condition2 = 0, condition3 = 0;
 	int retval =0;
-
+	//static int count = 0;
 	if(probe_context->enable_session_report == 1){
 		session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
 
@@ -329,7 +329,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 			memset(report_ptr->data[report_ptr->security_report_counter], '\0', 10000);
 			memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length + 5], &ipacket->p_hdr->ts,sizeof(struct timeval));
 			report_ptr->length += sizeof(struct timeval) + 5; //4 bytes are reserved to assign the total length of the report and 1 byte for the number of attributes
-			k=0, except_ip = 0;
+			k = 0, condition1 = 0, condition2 = 0, condition3 = 0;
 
 			for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
 				mmt_security_attribute_t * security_attribute = &probe_context->security_reports[i].attributes[j];
@@ -344,14 +344,26 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 					}
 					//condition for reporting
 					if (probe_context->security_reports[i].event_id[0] == 0){
-						if (attr_extract->proto_id != 178) {
-							except_ip++;
-							//printf ("ipacket_packet_id = %lu, ",ipacket->packet_id);
-							//printf("id = %u\n", attr_extract->proto_id);
+						if (attr_extract->proto_id == 178 && attr_extract->field_id == 7) {
+							uint8_t ms_flag_data = 0;
+							memcpy(&ms_flag_data, attr_extract->data, attr_extract->data_len);
+							//printf ("ms_flag = %u\n", ms_flag_data);
+							if (ms_flag_data > 0) condition1++;
 						}
+						if (attr_extract->proto_id == 30) condition2++;
+						if (attr_extract->proto_id == 137)condition3++;
+						//printf ("ipacket_packet_id = %lu \n, ",ipacket->packet_id);
 
 					} else if (attr_extract->proto_id == probe_context->security_reports[i].event_id[0]) {
-						except_ip++;
+						if (attr_extract->proto_id == 153 && attr_extract->field_id == 1){
+							//printf ("ipacket_packet_id = %lu, ",ipacket->packet_id);
+							//printf("id = %u\n", attr_extract->proto_id);
+							condition1++;
+						};
+						if (attr_extract->proto_id == 153 && attr_extract->field_id == 4) condition2++;
+						if (attr_extract->proto_id == 153 && attr_extract->field_id == 7) condition3++;
+
+						//except_proto++;
 						//printf ("ipacket_packet_id = %lu, ",ipacket->packet_id);
 						//printf("id = %u\n", attr_extract->proto_id);
 					}
@@ -391,12 +403,16 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 
 				}
 			}
-			//all attribute data are NULL
-			if (except_ip == 0) {
+			if (condition1 == 0 && probe_context->security_reports[i].rule_type == 1) {
 				continue;
-			};
-			if (unlikely( k == 0 )) continue;
+			}
+			else if ((condition1 == 0 || condition2 == 0 || condition3 == 0) && probe_context->security_reports[i].rule_type == 2){
+				continue;
+			}
 
+			//all attribute data are NULL
+
+			if (unlikely( k == 0 )) continue;
 
 			//First 4 bytes contains the total length of the report
 			memcpy(&report_ptr->data[report_ptr->security_report_counter][0], &report_ptr->length, 4);
@@ -422,11 +438,11 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 
 					if (probe_context->socket_domain == 1 || probe_context->socket_domain == 2)
 						retval = sendmmsg(th->sockfd_internet[i], &report_ptr->grouped_msg, 1, 0);
-						if (probe_context->socket_domain == 0 || probe_context->socket_domain == 2)
-							retval = sendmmsg(th->sockfd_unix, &report_ptr->grouped_msg, 1, 0);
+					if (probe_context->socket_domain == 0 || probe_context->socket_domain == 2)
+						retval = sendmmsg(th->sockfd_unix, &report_ptr->grouped_msg, 1, 0);
 
-							if ( unlikely( retval == -1))
-								perror("sendmmsg()");
+					if ( unlikely( retval == -1))
+						perror("sendmmsg()");
 
 					report_ptr->security_report_counter = 0;
 					memset(report_ptr->msg, 0, sizeof(struct iovec) *probe_context->nb_of_report_per_msg);

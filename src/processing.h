@@ -188,7 +188,7 @@ typedef struct mmt_security_report_struct {
 	//mmt_security_attribute_t * event;
 	char ** event_name;
 	uint32_t *event_id;
-	uint8_t event_operation;
+	uint8_t rule_type;
 	mmt_security_attribute_t * attributes;
 } mmt_security_report_t;
 
