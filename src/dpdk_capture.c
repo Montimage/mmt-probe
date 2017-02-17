@@ -130,8 +130,8 @@ void print_stats (void * args){
         //probe->mmt_conf->report_length += snprintf(&probe->mmt_conf->report_msg[probe->mmt_conf->report_length],1024 - probe->mmt_conf->report_length,"%u,%"PRIu64",%"PRIu64",%f,%"PRIu64",%"PRIu64"",probe->mmt_conf->probe_id_number,good_pkt, miss_pkt,(float)miss_pkt/(good_pkt+miss_pkt+err_pkt)*100, err_pkt, good_pkt+miss_pkt+err_pkt );
 
        printf ("[mmt-probe-0]{%u,%"PRIu64",%"PRIu64",%f,%"PRIu64",%"PRIu64"}\n",probe->mmt_conf->probe_id_number,good_pkt, miss_pkt,(float)miss_pkt/(good_pkt+miss_pkt+err_pkt)*100, err_pkt, good_pkt+miss_pkt+err_pkt);
-//        printf("\nTOT:  %'9ld (recv), %'9ld (dr %3.2f%%), %'7ld (err) %'9ld (tot)\n\n",
-//			good_pkt, miss_pkt, (float)miss_pkt/(good_pkt+miss_pkt+err_pkt)*100, err_pkt, good_pkt+miss_pkt+err_pkt );
+        printf("\nTOT:  %'9ld (recv), %'9ld (dr %3.2f%%), %'7ld (err) %'9ld (tot)\n\n",
+			good_pkt, miss_pkt, (float)miss_pkt/(good_pkt+miss_pkt+err_pkt)*100, err_pkt, good_pkt+miss_pkt+err_pkt );
 
 }
 
