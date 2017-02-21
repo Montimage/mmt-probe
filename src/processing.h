@@ -192,6 +192,13 @@ typedef struct mmt_security_report_struct {
 	mmt_security_attribute_t * attributes;
 } mmt_security_report_t;
 
+
+typedef struct mmt_security_report_multisession_struct {
+	uint32_t enable;
+	uint32_t attributes_nb;
+	mmt_security_attribute_t * attributes;
+} mmt_security_report_multisession_t;
+
 typedef struct ip_port_struct {
 	char server_ip_address[18 + 1];
 	uint32_t *server_portnb;
@@ -308,6 +315,15 @@ typedef struct mmt_probe_context_struct {
 	uint32_t retain_files;
 	uint32_t socket_domain;
 	char unix_socket_descriptor[256 +1];
+
+	mmt_security_report_multisession_t * security_reports_multisession;
+	uint32_t security_reports_multisession_nb;
+    uint32_t enable_security_report_multisession;
+	uint32_t total_security_multisession_attribute_nb;
+    uint16_t security_multisession_id;
+
+
+
 
 
 } mmt_probe_context_t;
@@ -604,6 +620,7 @@ void send_message_to_redis (char *channel, char * message);
 int proto_hierarchy_ids_to_str(const proto_hierarchy_t * proto_hierarchy, char * dest);
 int is_local_net(int addr);
 int is_localv6_net(char * addr);
+void security_reports_multisession_init(void * args);
 
 int register_event_report_handle(void * args);
 uint32_t get_2_power(uint32_t nb);

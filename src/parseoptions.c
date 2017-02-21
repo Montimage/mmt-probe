@@ -151,6 +151,12 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
 			CFG_END()
 	};
+	cfg_opt_t security_report_multisession_opts[] = {
+			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_INT("id", 0, CFGF_NONE),
+			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
+			CFG_END()
+	};
 
 	cfg_opt_t opts[] = {
 			CFG_SEC("micro-flows", micro_flows_opts, CFGF_NONE),
@@ -185,6 +191,8 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_SEC("condition_report", condition_report_opts, CFGF_TITLE | CFGF_MULTI),
 			CFG_SEC("security-report", security_report_opts, CFGF_TITLE | CFGF_MULTI),
 			CFG_INT("num-of-report-per-msg", 1, CFGF_NONE),
+			CFG_SEC("security-report-multisession", security_report_multisession_opts, CFGF_TITLE | CFGF_MULTI),
+
 
 
 			CFG_END()
@@ -257,7 +265,7 @@ int parse_dot_proto_attribute(char * inputstring, mmt_event_attribute_t * protoa
 }
 
 /** transforms "proto.attribute" into mmt_security_attribute_t
- *  Raturns 0 on success, a positive value otherwise
+ *  Returns 0 on success, a positive value otherwise
  **/
 int parse_security_dot_proto_attribute(char * inputstring, mmt_security_attribute_t * protoattr) {
 	char **ap, *argv[2];
@@ -283,6 +291,7 @@ int parse_security_dot_proto_attribute(char * inputstring, mmt_security_attribut
 		return 0;
 	}
 }
+
 int parse_condition_attribute(char * inputstring, mmt_condition_attribute_t * conditionattr) {
 
 	if(inputstring!= NULL){
@@ -313,6 +322,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 	cfg_t *event_opts;
 	cfg_t *condition_opts;
 	cfg_t *security_report_opts;
+	cfg_t *security_report_multisession_opts;
 
 
 	if (cfg) {
@@ -624,6 +634,44 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				}
 			}
 		}
+		/******* report multisession **************/
+
+		int security_reports_multisession_nb = cfg_size(cfg, "security-report-multisession");
+		int security_attributes_multisession_nb = 0;
+		mmt_conf->security_reports_multisession = NULL;
+		mmt_security_report_multisession_t * temp_msr;
+		mmt_conf->security_reports_multisession_nb = security_reports_multisession_nb;
+		i = 0, j = 0, k = 0;
+
+		if (security_reports_multisession_nb > 0) {
+			mmt_conf->security_reports_multisession = calloc(sizeof(mmt_security_report_multisession_t), security_reports_multisession_nb);
+			for(j = 0; j < security_reports_multisession_nb; j++) {
+				security_report_multisession_opts = cfg_getnsec(cfg, "security-report-multisession", j);
+				temp_msr = &mmt_conf->security_reports_multisession[j];
+				temp_msr->enable = (uint32_t) cfg_getint(security_report_multisession_opts, "enable");
+
+				if (temp_msr->enable == 1){
+
+					mmt_conf->enable_security_report_multisession = 1;
+					mmt_conf->security_multisession_id = (uint16_t) cfg_getint(security_report_multisession_opts, "id");
+
+					security_attributes_multisession_nb = cfg_size(security_report_multisession_opts, "attributes");
+					temp_msr->attributes_nb = security_attributes_multisession_nb;
+					if(security_attributes_multisession_nb > 0) {
+						temp_msr->attributes = calloc(sizeof(mmt_security_attribute_t), security_attributes_multisession_nb);
+						for(i = 0; i < security_attributes_multisession_nb; i++) {
+							mmt_conf->total_security_multisession_attribute_nb += 1;
+							if (parse_security_dot_proto_attribute(cfg_getnstr(security_report_multisession_opts, "attributes", i), &temp_msr->attributes[i])) {
+								fprintf(stderr, "Error: invalid security_report_multisession attribute value '%s'\n", (char *) cfg_getnstr(security_report_multisession_opts, "attributes", i));
+								exit(0);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		/******* report multisession **************/
 
 
 		int event_reports_nb = cfg_size(cfg, "event_report");

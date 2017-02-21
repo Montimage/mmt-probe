@@ -177,10 +177,13 @@ worker_thread(void *args_ptr){
 
 	if (probe_context->event_based_reporting_enable == 1)
 		event_reports_init(th); // initialize our event reports
-	if (probe_context->enable_security_report == 0)
+	if (probe_context->enable_security_report == 0 && probe_context->enable_security_report_multisession == 0)
 		proto_stats_init( th );//initialise this before security_reports_init
 	if (probe_context->enable_security_report == 1)
 		security_reports_init(th);
+	if (probe_context->enable_security_report_multisession == 1)
+		security_reports_multisession_init(th);// should be defined before proto_stats_init
+
 
 	/* Check that the port is on the same NUMA node as the polling thread
 	 * for best performance.*/

@@ -193,8 +193,10 @@ static void * smp_thread_routine(void *arg) {
 	set_live_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->live_session_timeout);
 
 	if (mmt_probe.mmt_conf->event_based_reporting_enable == 1)event_reports_init(th); // initialize our event reports
-	if (mmt_probe.mmt_conf->enable_security_report == 0)proto_stats_init(th);//initialise this before security_reports_init
+	if (mmt_probe.mmt_conf->enable_security_report == 0 && mmt_probe.mmt_conf->enable_security_report_multisession == 0)proto_stats_init(th);//initialise this before security_reports_init
 	if (mmt_probe.mmt_conf->enable_security_report == 1)security_reports_init(th);
+	if (mmt_probe.mmt_conf->enable_security_report_multisession == 1)security_reports_multisession_init(th);// should be defined before proto_stats_init
+
 
 
 	th->nb_packets = 0;
@@ -867,6 +869,12 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			if (mmt_probe.smp_threads[i].report != NULL){
 				for(j = 0; j < mmt_conf->security_reports_nb; j++) {
 					if (mmt_probe.smp_threads[i].report[j].data != NULL){
+						if (mmt_probe.smp_threads[i].report[j].security_report_counter > 0){
+
+							mmt_probe.smp_threads[i].report[j].grouped_msg.msg_hdr.msg_iov    = mmt_probe.smp_threads[i].report[j].msg;
+							mmt_probe.smp_threads[i].report[j].grouped_msg.msg_hdr.msg_iovlen = mmt_probe.smp_threads[i].report[j].security_report_counter;
+						}
+
 						if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_internet[j], &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
 						if (mmt_probe.mmt_conf->socket_domain == 0 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_unix, &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
 
@@ -909,8 +917,15 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		if (mmt_probe.smp_threads->report != NULL){
 			for(j = 0; j < mmt_conf->security_reports_nb; j++) {
 				if (mmt_probe.smp_threads->report[j].data != NULL){
-			                 if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_internet[j], &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
+					if (mmt_probe.smp_threads->report[j].security_report_counter > 0){
+
+						mmt_probe.smp_threads->report[j].grouped_msg.msg_hdr.msg_iov    = mmt_probe.smp_threads->report[j].msg;
+						mmt_probe.smp_threads->report[j].grouped_msg.msg_hdr.msg_iovlen = mmt_probe.smp_threads->report[j].security_report_counter;
+					}
+
+					if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_internet[j], &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
 					if (mmt_probe.mmt_conf->socket_domain == 0 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_unix, &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
+	                //printf ("retval = %u, len = %u\n",retval,mmt_probe.smp_threads->report[j].grouped_msg.msg_hdr.msg_iovlen);
 
 					if (retval == -1)
 						perror("sendmmsg()");
@@ -1232,9 +1247,9 @@ int main(int argc, char **argv) {
 	}
 	is_stop_timer = 0;
 
-	if (license_expiry_check(0) == 1){
+	//if (license_expiry_check(0) == 1){
 		//exit(0);
-	}
+	//}
 
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_P_INIT, "MMT Probe started!");
 
@@ -1250,7 +1265,7 @@ int main(int argc, char **argv) {
 		mmt_log(mmt_conf, MMT_L_ERROR, MMT_E_INIT_ERROR, "MMT Extraction engine initialization error! Exiting!");
 		return EXIT_FAILURE;
 	}
-printf("mmt-sdk version : %s\n",mmt_version());
+	printf("mmt-sdk version : %s\n",mmt_version());
 	//For MMT_Security
 	if (mmt_conf->security_enable == 1)
 		todo_at_start(mmt_conf->dir_out);
@@ -1324,7 +1339,10 @@ printf("mmt-sdk version : %s\n",mmt_version());
 
 		if(mmt_conf->event_based_reporting_enable == 1)event_reports_init((void *)mmt_probe.smp_threads); // initialize our event reports
 		if (mmt_conf->enable_security_report == 1)security_reports_init((void *)mmt_probe.smp_threads);// should be defined before proto_stats_init
-		if (mmt_conf->enable_security_report == 0)proto_stats_init(mmt_probe.smp_threads);
+		if (mmt_conf->enable_security_report_multisession == 1)security_reports_multisession_init((void *)mmt_probe.smp_threads);// should be defined before proto_stats_init
+		if (mmt_conf->enable_security_report == 0 && mmt_conf->enable_security_report_multisession == 0 )proto_stats_init(mmt_probe.smp_threads);
+		//initialisation of multisession report
+
 
 
 		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, "MMT Extraction engine! successfully initialized in a single threaded operation.");
