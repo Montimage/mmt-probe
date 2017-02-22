@@ -153,7 +153,6 @@ cfg_t * parse_conf(const char *filename) {
 	};
 	cfg_opt_t security_report_multisession_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
-			CFG_INT("id", 0, CFGF_NONE),
 			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
 			CFG_END()
 	};
@@ -653,8 +652,6 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				if (temp_msr->enable == 1){
 
 					mmt_conf->enable_security_report_multisession = 1;
-					mmt_conf->security_multisession_id = (uint16_t) cfg_getint(security_report_multisession_opts, "id");
-
 					security_attributes_multisession_nb = cfg_size(security_report_multisession_opts, "attributes");
 					temp_msr->attributes_nb = security_attributes_multisession_nb;
 					if(security_attributes_multisession_nb > 0) {

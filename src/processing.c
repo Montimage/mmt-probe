@@ -363,8 +363,8 @@ void get_security_report(const ipacket_t * ipacket,void * args){
 		//safe string
 		report_ptr->data[report_ptr->security_report_counter][report_ptr->length] = '\0';
 
-		//if (probe_context->redis_enable == 1 && probe_context->socket_enable == 0)
-		//	send_message_to_redis ("event.security_report", (char *)report_ptr->data[report_ptr->security_report_counter]);
+		if (probe_context->redis_enable == 1 && probe_context->socket_enable == 0)
+			send_message_to_redis ("event.security_report", (char *)report_ptr->data[report_ptr->security_report_counter]);
 
 		if (probe_context->socket_enable == 1){
 			//send (th->sockfd_internet[i],report_ptr->data[report_ptr->security_report_counter],report_ptr->length,0);
@@ -394,8 +394,9 @@ void get_security_report(const ipacket_t * ipacket,void * args){
 
 void get_security_multisession_report(const ipacket_t * ipacket,void * args){
 
-	int i=0, j=0, offset =0, valid =0;
-	char message[MAX_MESS + 1];
+	int i=0, j=0, offset =0,k=0, valid =0, length =0;
+	int MAX_LEN = 1024;
+	unsigned char message[10000];
 	attribute_t * attr_extract;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 
@@ -403,57 +404,82 @@ void get_security_multisession_report(const ipacket_t * ipacket,void * args){
 
 
 	for(i = 0; i < probe_context->security_reports_multisession_nb; i++) {
-		j=0, offset = 0, valid = 0;
-		memset(message,'\0',MAX_MESS);
 
 		if (probe_context->security_reports_multisession[i].enable == 0)
 			continue;
-		valid= snprintf(message, MAX_MESS,
-				"%u,%u,\"%s\",%lu.%lu",
-				probe_context->security_multisession_id, probe_context->probe_id_number, probe_context->input_source, ipacket->p_hdr->ts.tv_sec,ipacket->p_hdr->ts.tv_usec);
-		if(valid > 0) {
-			offset += valid;
-		}else {
-			printf ("ERROR: In function get_security_multisession_report, valid1 < 0 \n ");
-		}
+		int initial_buffer_size =10000;
+		length =0;
+		//memset(message,'\0',10000);
+		memcpy(&message[length + 5], &ipacket->p_hdr->ts,sizeof(struct timeval));
+		length += sizeof(struct timeval) + 5; //4 bytes are reserved to assign the total length of the report and 1 byte for the number of attributes
+
 
 		for(j = 0; j < probe_context->security_reports_multisession[i].attributes_nb; j++) {
 			mmt_security_attribute_t * security_attribute_multisession   = &probe_context->security_reports_multisession[i].attributes[j];
-			attr_extract = get_extracted_attribute(ipacket,security_attribute_multisession->proto_id, security_attribute_multisession->attribute_id);
-			message[offset] = ',';
-			if(attr_extract != NULL) {
-				valid = mmt_attr_sprintf(&message[offset + 1], MAX_MESS - offset+1, attr_extract);
-				if(valid > 0) {
-					offset += valid + 1;
-				}else {
-					printf ("ERROR: In function get_security_multisession_report, valid2 < 0 \n ");
-				}
-			}else {
 
-				offset += 1;
+
+			attr_extract = get_extracted_attribute(ipacket,security_attribute_multisession->proto_id, security_attribute_multisession->attribute_id);
+
+			int rem_buffer = initial_buffer_size - (length+10);
+
+			if(attr_extract != NULL) {
+				if( unlikely( attr_extract->data_len > rem_buffer )){
+					printf("Buffer_overflow\n");
+					break;
+				}
+
+				memcpy(&message[length], &attr_extract->proto_id, 4);
+				length += 4;
+				memcpy(&message[length], &attr_extract->field_id, 4);
+				length += 4;
+
+				if (attr_extract->data_type == MMT_HEADER_LINE
+						|| attr_extract->data_type == MMT_DATA_PATH
+						|| attr_extract->data_type == MMT_BINARY_DATA
+						|| attr_extract->data_type == MMT_BINARY_VAR_DATA
+						|| attr_extract->data_type == MMT_STRING_DATA
+						|| attr_extract->data_type == MMT_STRING_LONG_DATA
+						|| attr_extract->data_type == MMT_STRING_DATA_POINTER){
+
+					length += 2;
+					int valid = mmt_attr_sprintf((char *)&message[length], MAX_LEN, attr_extract);
+					memcpy(&message[length - 2], &valid, 2);
+					length +=  valid;
+
+				} else if (attr_extract->data_type == MMT_DATA_POINTER){
+					if (attr_extract->field_id == PROTO_PAYLOAD)payload_extraction(ipacket,th,attr_extract, i);
+					if (attr_extract->field_id == PROTO_DATA)data_extraction(ipacket,th,attr_extract, i);
+					if (attr_extract->proto_id == PROTO_FTP && attr_extract->field_id == FTP_LAST_COMMAND)ftp_last_command(ipacket,th,attr_extract, i);
+					if (attr_extract->proto_id == PROTO_FTP && attr_extract->field_id == FTP_LAST_RESPONSE_CODE)ftp_last_response_code(ipacket,th,attr_extract, i);
+					//if (attr_extract->proto_id == PROTO_IP && attr_extract->field_id == IP_OPTS)ip_opts(ipacket,th,attr_extract, i);
+
+				} else {
+					memcpy(&message[length], &attr_extract->data_len, 2);
+					length += 2;
+					memcpy(&message[length], attr_extract->data, attr_extract->data_len);
+					length +=  attr_extract->data_len;
+				}
+				k++;
 			}
 		}
-		message[ offset ] = '\0';
-		//printf ("message = %s \n",message);
-		if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message, th);
-		if (probe_context->redis_enable == 1) send_message_to_redis ("security_multisession.report", message);
+		if (unlikely( k == 0 )) continue;
+		//First 4 bytes contains the total length of the report
+		memcpy(&message[0], &length, 4);
+		//number of attributes
+		message[4] = k;
+		//safe string
+		message[length] = '\0';
+		//send (th->sockfd_unix,message,length,0);
+		if (probe_context->output_to_file_enable == 1) send_message_to_file_thread ((char *)message, th);
+		if (probe_context->redis_enable == 1) send_message_to_redis ("security_multisession.report", (char *) message);
 
 	}
-
 }
 
 int packet_handler(const ipacket_t * ipacket, void * args) {
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
-	//attribute_t * attr_extract;
 	struct smp_thread *th = (struct smp_thread *) args;
-	//int MAX_LEN = 1024;
-
-	//int i = 0, j = 0, k = 0, l = 0, condition1 = 0, condition2 = 0, condition3 = 0;
-	//int retval =0;
-
-	//int offset, valid;
-	//char message[MAX_MESS + 1];
 	if(probe_context->enable_session_report == 1){
 		session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
 
