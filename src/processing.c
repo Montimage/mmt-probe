@@ -394,20 +394,23 @@ void get_security_report(const ipacket_t * ipacket,void * args){
 
 void get_security_multisession_report(const ipacket_t * ipacket,void * args){
 	int i=0, j=0, offset =0, valid =0, k=0;
-	char message[MAX_MESS + 1];
+	int LEN = 10000;
+	char message[LEN + 1];
+	//char attribute_value [MAX_MESS +1];
 	attribute_t * attr_extract;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
+	int attr_len =0;
 
 	struct smp_thread *th = (struct smp_thread *) args;
 
 
 	for(i = 0; i < probe_context->security_reports_multisession_nb; i++) {
 		j=0, offset = 0, valid = 0;
-		memset(message,'\0',MAX_MESS);
+		//memset(message,'\0',LEN);
 
 		if (probe_context->security_reports_multisession[i].enable == 0)
 			continue;
-		valid= snprintf(message, MAX_MESS,
+		valid= snprintf(message, LEN,
 				"%u,%lu.%lu",
 				probe_context->probe_id_number, ipacket->p_hdr->ts.tv_sec,ipacket->p_hdr->ts.tv_usec);
 		if(valid > 0) {
@@ -421,7 +424,10 @@ void get_security_multisession_report(const ipacket_t * ipacket,void * args){
 			attr_extract = get_extracted_attribute(ipacket,security_attribute_multisession->proto_id, security_attribute_multisession->attribute_id);
 			message[offset] = ',';
 			if(attr_extract != NULL) {
-				valid = mmt_attr_sprintf(&message[offset + 1], MAX_MESS - offset+1, attr_extract);
+				valid = mmt_attr_sprintf(&message[offset + 1], LEN - offset + 1, attr_extract);
+				//attr_len = mmt_attr_sprintf(&attribute_value[0], MAX_MESS - offset+1, attr_extract);
+				//attribute_value[attr_len] = '\0';
+				//valid = snprintf(&message[offset + 1], LEN-offset+1,"%u,%u,%u,%s",attr_extract->proto_id, attr_extract->field_id,attr_len,attribute_value);
 				if(valid > 0) {
 					offset += valid + 1;
 					k++;
@@ -435,7 +441,6 @@ void get_security_multisession_report(const ipacket_t * ipacket,void * args){
 		}
 		message[ offset ] = '\0';
 		if (k == 0)return;
-		//printf ("message = %s \n",message);
 		if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message, th);
 		if (probe_context->redis_enable == 1) send_message_to_redis ("security_multisession.report", message);
 
