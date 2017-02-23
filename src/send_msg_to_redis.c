@@ -48,12 +48,12 @@ void init_redis (char * hostname, int port) {
 void send_message_to_redis (char *channel, char * message) {
     //printf("---> report to redis: %s\n%s\n",channel,message);
     // Publish to redis if it is enabled
-	//printf ("\n%s_\n%s",channel,message);
+	//printf ("\n%s\n%s",channel,message);
     if (redis != NULL) {
         // Publish an event
         redisReply *reply;
         //reply = (redisReply *) redisCommand    (  redis, "PUBLISH %s %s", channel, message );
-        reply   = (redisReply *) thredis_command (thredis, "PUBLISH %s [%s]", channel, message );
+        reply   = (redisReply *) thredis_command (thredis, "PUBLISH %s [%s]", channel, message);
 
         if(reply == NULL){
             printf("Redis command error: can't allocate reply context\n");
