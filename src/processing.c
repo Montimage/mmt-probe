@@ -413,7 +413,7 @@ void get_security_multisession_report(const ipacket_t * ipacket,void * args){
 			continue;
 		valid= snprintf(message, LEN,
 				"%u,%lu.%lu",
-				probe_context->probe_id_number, current_time.tv_sec,current_time.tv_sec);
+				probe_context->probe_id_number, current_time.tv_sec,current_time.tv_usec);
 		if(valid > 0) {
 			offset += valid;
 		}else {
