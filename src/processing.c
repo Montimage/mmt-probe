@@ -402,7 +402,8 @@ void get_security_multisession_report(const ipacket_t * ipacket,void * args){
 	int attr_len =0;
 
 	struct smp_thread *th = (struct smp_thread *) args;
-
+	struct timeval current_time;
+	gettimeofday (&current_time, NULL);
 
 	for(i = 0; i < probe_context->security_reports_multisession_nb; i++) {
 		j=0, offset = 0, valid = 0;
@@ -412,7 +413,7 @@ void get_security_multisession_report(const ipacket_t * ipacket,void * args){
 			continue;
 		valid= snprintf(message, LEN,
 				"%u,%lu.%lu",
-				probe_context->probe_id_number, ipacket->p_hdr->ts.tv_sec,ipacket->p_hdr->ts.tv_usec);
+				probe_context->probe_id_number, current_time.tv_sec,current_time.tv_sec);
 		if(valid > 0) {
 			offset += valid;
 		}else {
@@ -442,7 +443,7 @@ void get_security_multisession_report(const ipacket_t * ipacket,void * args){
 		message[ offset ] = '\0';
 		if (k == 0)return;
 		if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message, th);
-		if (probe_context->redis_enable == 1) send_message_to_redis ("security_multisession.report", message);
+		if (probe_context->redis_enable == 1) send_message_to_redis ("multisession.report", message);
 
 	}
 
