@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<?xml-stylesheet type="text/xsl" href="properties.xsl"?>
+<!-- MMT_Security Copyright (C) 2014  Montimage-->
+<beginning>
+	<!-- Simple multi-session, multi-probe property  ip.src != ip.dst-->
+
+<property value="THEN" delay_units="s" delay_min="0" delay_max="0" property_id="1" type_property="ATTACK" 
+    description="Upload a file comming from NFS server (detection based on two probes)">
+    <event value="COMPUTE" event_id="1" 
+           description="Context: HTTP packet"
+           boolean_expression="(http.packet_count != 0)"/>
+    <event value="COMPUTE" event_id="2" 
+           description="Trigger: HTTP payload contains the file comming from NFS server"
+           boolean_expression="(#check_nfs_redis(tcp.p_payload, tcp.payload_len) == 1)"/>
+</property>
+</beginning>
