@@ -64,9 +64,9 @@
 
 
 #define RX_RING_SIZE    4096
-#define NUM_MBUFS       65537
+#define NUM_MBUFS       196609
 #define MBUF_CACHE_SIZE 512
-#define BURST_SIZE      1024
+#define BURST_SIZE      128
 
 static uint8_t hash_key[40] = {
 		0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
@@ -80,9 +80,9 @@ static const struct rte_eth_rxconf rx_conf = {
 		.rx_thresh = {
 				.pthresh = 8,   /* Ring prefetch threshold */
 				.hthresh = 8,   /* Ring host threshold */
-				.wthresh = 4    /* Ring writeback threshold */
+				.wthresh = 0    /* Ring writeback threshold */
 		},
-		.rx_free_thresh = 32,    /* Immediately free RX descriptors */
+		// .rx_free_thresh = 32,    /* Immediately free RX descriptors */
 		.rx_drop_en     = 0
 };
 
@@ -105,9 +105,9 @@ static const struct rte_eth_conf port_conf_default = {
 						.rss_hf      = ETH_RSS_PROTO_MASK
 				},
 		},
-		.txmode = {
-				.mq_mode = ETH_MQ_TX_NONE,
-		},
+		// .txmode = {
+		// 		.mq_mode = ETH_MQ_TX_NONE,
+		// },
 };
 
 void print_stats (void * args){
@@ -130,8 +130,8 @@ void print_stats (void * args){
         //probe->mmt_conf->report_length += snprintf(&probe->mmt_conf->report_msg[probe->mmt_conf->report_length],1024 - probe->mmt_conf->report_length,"%u,%"PRIu64",%"PRIu64",%f,%"PRIu64",%"PRIu64"",probe->mmt_conf->probe_id_number,good_pkt, miss_pkt,(float)miss_pkt/(good_pkt+miss_pkt+err_pkt)*100, err_pkt, good_pkt+miss_pkt+err_pkt );
 
        printf ("[mmt-probe-0]{%u,%"PRIu64",%"PRIu64",%f,%"PRIu64",%"PRIu64"}\n",probe->mmt_conf->probe_id_number,good_pkt, miss_pkt,(float)miss_pkt/(good_pkt+miss_pkt+err_pkt)*100, err_pkt, good_pkt+miss_pkt+err_pkt);
-//        printf("\nTOT:  %'9ld (recv), %'9ld (dr %3.2f%%), %'7ld (err) %'9ld (tot)\n\n",
-//			good_pkt, miss_pkt, (float)miss_pkt/(good_pkt+miss_pkt+err_pkt)*100, err_pkt, good_pkt+miss_pkt+err_pkt );
+        printf("\nTOT:  %'9ld (recv), %'9ld (dr %3.2f%%), %'7ld (err) %'9ld (tot)\n\n",
+			good_pkt, miss_pkt, (float)miss_pkt/(good_pkt+miss_pkt+err_pkt)*100, err_pkt, good_pkt+miss_pkt+err_pkt );
 
 }
 
@@ -393,6 +393,8 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 		}
 		lcore_id ++ ;
 	}
+
+	printf("[info] %d threads have been started!\n", thread_nb);
 
 	/* Call lcore_main on the master core only. */
 	lcore_main();
