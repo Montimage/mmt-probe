@@ -16,6 +16,8 @@ ifndef VERBOSE
 endif
 
 ifdef DPDK
+RTE_SDK=/home/server10ga/dpdk/
+RTE_TARGET=build
 ifeq ($(RTE_SDK),)
 $(error "Please define RTE_SDK environment variable")
 endif
