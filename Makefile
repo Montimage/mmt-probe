@@ -16,7 +16,7 @@ ifndef VERBOSE
 endif
 
 ifdef DPDK
-RTE_SDK=/home/server10ga/dpdk/
+RTE_SDK=/home/server10gb/dpdk/
 RTE_TARGET=build
 ifeq ($(RTE_SDK),)
 $(error "Please define RTE_SDK environment variable")
@@ -41,8 +41,8 @@ src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c s
 src/lib/data_spsc_ring.c src/lib/lock_free_spsc_ring.c src/lib/packet_hash.c src/lib/system_info.c src/attributes_extraction.c
 
 #set of library
-LDLIBS    += -L /opt/mmt/dpi/lib -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -lpcap -lconfuse -lhiredis -lpthread
-CFLAGS += $(WERROR_CFLAGS) -O3 -I /opt/mmt/dpi/include -L /opt/mmt/dpi/lib -Wall -Wno-unused-variable -DDPDK
+LDLIBS += -L /opt/mmt/dpi/lib -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -lpcap -lconfuse -lhiredis -lpthread
+CFLAGS += $(WERROR_CFLAGS) -O3 -I /opt/mmt/dpi/include -L /opt/mmt/dpi/lib -Wall -Wno-unused-variable -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DDPDK
 #CFLAGS   = -Wall -Wno-unused-variable -DNDEBUG -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"
 CLDFLAGS += -I /opt/mmt/dpi/include -DNDEBUG
  
