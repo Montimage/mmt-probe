@@ -1270,6 +1270,10 @@ int main(int argc, char **argv) {
 				if (mmt_conf->security_reports[i].event_name_nb > 0){
 					for (l = 0; l < mmt_conf->security_reports[i].event_name_nb; l++){
 						mmt_conf->security_reports[i].event_id[l] = get_protocol_id_by_name (mmt_conf->security_reports[i].event_name[l]);
+						if (mmt_conf->security_reports[i].event_id[l] == 0){
+							printf ("Error security report event name \n");
+							exit (1);
+						}
 						//printf("name=%s\n",mmt_conf->security_reports[i].event_name[l]);
 
 					}
