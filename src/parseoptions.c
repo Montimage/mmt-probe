@@ -848,13 +848,13 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 			break;
 		case 'v':
 			versions_only = 1;
-#ifdef PCAP
 
-			fprintf(stderr,"Versions: \n Probe v1.0.0 \n DPI v%s \n Security v0.9b \n Compatible with Operator v1.5 \n",mmt_version());
+
+			//fprintf(stderr,"Versions: \n Probe v1.0.0 \n DPI v%s \n Security v0.9b \n Compatible with Operator v1.5 \n",mmt_version());
 			fprintf(stderr,"Versions: \n Probe v%s (%s) \n DPI v%s \n Security v0.9b \n Compatible with Operator v1.5 \n",
 					VERSION, GIT_VERSION, //these version information are given by Makefile
 					mmt_version());
-#endif
+
 			break;
 		case 'h':
 		default: usage(argv[0]);

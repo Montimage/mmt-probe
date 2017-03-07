@@ -557,27 +557,34 @@ void * get_handler_by_name(char * func_name){
 
 int register_conditional_report_handle(void * args, mmt_condition_report_t * condition_report) {
 	int i = 1,j;
+	uint32_t protocol_id;
+	uint32_t attribute_id;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	struct smp_thread *th = (struct smp_thread *) args;
 
 	for(j = 0; j < condition_report->attributes_nb; j++) {
+		protocol_id = 0;
+		attribute_id = 0;
 		mmt_condition_attribute_t * condition_attribute = &condition_report->attributes[j];
 		mmt_condition_attribute_t * handler_attribute = &condition_report->handlers[j];
 
-		uint32_t protocol_id = get_protocol_id_by_name (condition_attribute->proto);
-		uint32_t attribute_id = get_attribute_id_by_protocol_and_attribute_names(condition_attribute->proto,condition_attribute->attribute);
+		i = protocol_id = get_protocol_id_by_name (condition_attribute->proto);
+		if (i == 0) return i;
+
+		i = attribute_id = get_attribute_id_by_protocol_and_attribute_names(condition_attribute->proto,condition_attribute->attribute);
+		if (i == 0) return i;
 
 		if (strcmp(handler_attribute->handler,"NULL") == 0){
 			if (is_registered_attribute(th->mmt_handler, protocol_id, attribute_id) == 0){
-				i &= register_extraction_attribute_by_name(th->mmt_handler, condition_attribute->proto, condition_attribute->attribute);
+				i = register_extraction_attribute_by_name(th->mmt_handler, condition_attribute->proto, condition_attribute->attribute);
+				if (i == 0) return i;
 			}
 		}else{
 			if (is_registered_attribute_handler(th->mmt_handler, protocol_id, attribute_id, get_handler_by_name (handler_attribute->handler)) == 0){
-				i &= register_attribute_handler_by_name(th->mmt_handler, condition_attribute->proto, condition_attribute->attribute, get_handler_by_name (handler_attribute->handler), NULL, args);
+				i = register_attribute_handler_by_name(th->mmt_handler, condition_attribute->proto, condition_attribute->attribute, get_handler_by_name (handler_attribute->handler), NULL, args);
+				if (i == 0) return i;
 			}
 		}
-		//printf ("proto = %s, attribute = %s, output = %d\n",condition_attribute->proto,condition_attribute->attribute, output);
-
 	}
 	return i;
 }
@@ -591,6 +598,7 @@ void conditional_reports_init(void * args) {
 		if(register_conditional_report_handle(args, condition_report) == 0) {
 			fprintf(stderr, "Error while initializing condition report number %i!\n", condition_report->id);
 			printf( "Error while initializing condition report number %i!\n", condition_report->id);
+			exit(1);
 		}
 	}
 
@@ -806,10 +814,10 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 	if (temp_session->app_data != NULL) {
 		//Free the application specific data
 		if (temp_session->app_format_id == probe_context->ftp_id){
-			free (((ftp_session_attr_t*) temp_session->app_data)->filename);
-			free(((ftp_session_attr_t*) temp_session->app_data)->response_value);
-			free(((ftp_session_attr_t*) temp_session->app_data)->session_username);
-			free(((ftp_session_attr_t*) temp_session->app_data)->session_password);
+			if (((ftp_session_attr_t*) temp_session->app_data)->filename != NULL)free (((ftp_session_attr_t*) temp_session->app_data)->filename);
+			if (((ftp_session_attr_t*) temp_session->app_data)->response_value != NULL)free(((ftp_session_attr_t*) temp_session->app_data)->response_value);
+			if (((ftp_session_attr_t*) temp_session->app_data)->session_username != NULL)free(((ftp_session_attr_t*) temp_session->app_data)->session_username);
+			if (((ftp_session_attr_t*) temp_session->app_data)->session_password != NULL)free(((ftp_session_attr_t*) temp_session->app_data)->session_password);
 			((ftp_session_attr_t*) temp_session->app_data)->filename = NULL;
 			((ftp_session_attr_t*) temp_session->app_data)->response_value = NULL;
 			((ftp_session_attr_t*) temp_session->app_data)->session_username = NULL;

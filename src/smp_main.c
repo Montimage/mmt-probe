@@ -1265,8 +1265,13 @@ int main(int argc, char **argv) {
 		mmt_log(mmt_conf, MMT_L_ERROR, MMT_E_INIT_ERROR, "MMT Extraction engine initialization error! Exiting!");
 		return EXIT_FAILURE;
 	}
-        printf("[info] %s built %s %s\n",argv[0], __DATE__, __TIME__);
-        printf("[info] mmt-sdk version : %s\n",mmt_version());
+
+        printf("[info] Versions: Probe v%s (%s), DPI v%s, Security v0.9b \n",
+                                        VERSION, GIT_VERSION, //these version information are given by Makefile
+                                        mmt_version());
+
+        printf("[info] built %s %s\n", __DATE__, __TIME__);
+
 	//For MMT_Security
 	if (mmt_conf->security_enable == 1)
 		todo_at_start(mmt_conf->dir_out);
@@ -1281,6 +1286,10 @@ int main(int argc, char **argv) {
 				if (mmt_conf->security_reports[i].event_name_nb > 0){
 					for (l = 0; l < mmt_conf->security_reports[i].event_name_nb; l++){
 						mmt_conf->security_reports[i].event_id[l] = get_protocol_id_by_name (mmt_conf->security_reports[i].event_name[l]);
+						if (mmt_conf->security_reports[i].event_id[l] == 0){
+							printf ("Error security report event name \n");
+							exit (1);
+						}
 						//printf("name=%s\n",mmt_conf->security_reports[i].event_name[l]);
 
 					}
