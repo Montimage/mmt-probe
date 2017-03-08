@@ -115,7 +115,7 @@ void new_event_reports_init(void * args) {
        				register_packet_handler(th->mmt_handler, 6, packet_handler, (void *) p);
        				/*.....socket */
 
-       				if (probe_context->socket_enable == 1 && probe_context->socket_active == 0){
+       				if (probe_context->socket_enable == 1 && th->socket_active == 0){
        					create_socket(probe_context, args);
        				}
        			} else 	{

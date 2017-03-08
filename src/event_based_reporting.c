@@ -138,9 +138,9 @@ void security_reports_multisession_init(void * args) {
 		fprintf(stderr, "Error while initializing security report !\n");
 	}
 
-	if (probe_context->socket_enable == 1 && probe_context->socket_active == 0){
+	if (probe_context->socket_enable == 1 && th->socket_active == 0){
 		create_socket(probe_context, args);
-		probe_context->socket_active = 1;
+		th->socket_active = 1;
 	}
 
 	if (is_registered_packet_handler(th->mmt_handler,6) == 1)unregister_packet_handler(th->mmt_handler, 6);
@@ -200,9 +200,9 @@ void security_reports_init(void * args) {
 		fprintf(stderr, "Error while initializing security report !\n");
 		exit(1);
 	}
-	if (probe_context->socket_enable == 1 && probe_context->socket_active == 0){
+	if (probe_context->socket_enable == 1 && th->socket_active == 0){
 		create_socket(probe_context, args);
-		probe_context->socket_active = 1;
+		th->socket_active = 1;
 	}
 	if (is_registered_packet_handler(th->mmt_handler,6) == 1)unregister_packet_handler(th->mmt_handler, 6);
 	register_packet_handler(th->mmt_handler, 6, packet_handler, (void *) th);

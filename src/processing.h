@@ -293,7 +293,6 @@ typedef struct mmt_probe_context_struct {
 
     uint32_t portnb;
     uint32_t socket_enable;
-    uint8_t socket_active;
     uint32_t *port_address;
 
     uint8_t cpu_mem_usage_enabled;
@@ -579,6 +578,8 @@ struct smp_thread {
     worker_args_t * workers;
     long double cpu_usage;
     long double mem_usage;
+    uint8_t socket_active;
+
 };
 
 typedef struct mmt_probe_struct {
