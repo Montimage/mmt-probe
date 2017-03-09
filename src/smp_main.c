@@ -1256,12 +1256,7 @@ int main(int argc, char **argv) {
 
 
         printf("[info] built %s %s\n", __DATE__, __TIME__);
-	//For MMT_Security
-	if (mmt_conf->security_enable == 1)
-		todo_at_start(mmt_conf->dir_out);
-	//End for MMT_Security
-	mmt_conf->file_modified_time = time (0);
-	//Initialization
+
 
 	for(i = 0; i < mmt_conf->security_reports_nb; i++) {
 		if (mmt_conf->security_reports[i].enable == 1){
@@ -1274,8 +1269,6 @@ int main(int argc, char **argv) {
 							printf ("Error security report event name \n");
 							exit (1);
 						}
-						//printf("name=%s\n",mmt_conf->security_reports[i].event_name[l]);
-
 					}
 				}
 			}else{
@@ -1285,6 +1278,13 @@ int main(int argc, char **argv) {
 	}
 
 #ifdef PCAP
+	//For MMT_Security
+	if (mmt_conf->security_enable == 1)
+		todo_at_start(mmt_conf->dir_out);
+	//End for MMT_Security
+	mmt_conf->file_modified_time = time (0);
+	//Initialization
+
 	if (mmt_conf->thread_nb == 1) {
 		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_INIT, "Initializating MMT Extraction engine! Single threaded operation.");
 		mmt_probe.smp_threads = (struct smp_thread *) calloc(mmt_conf->thread_nb,sizeof (struct smp_thread));
