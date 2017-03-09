@@ -99,6 +99,53 @@ int register_event_report_handle(void * args) {
 	}
 	return i;
 }
+
+int register_security_report_multisession_handle(void * args) {
+	int i=0, j =0, k = 1, l=0;
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+	struct smp_thread *th = (struct smp_thread *) args;
+
+	for(i = 0; i < probe_context->security_reports_multisession_nb; i++) {
+		if (probe_context->security_reports_multisession[i].enable == 1){
+
+			for(j = 0; j < probe_context->security_reports_multisession[i].attributes_nb; j++) {
+				mmt_security_attribute_t * security_attribute_multisession = &probe_context->security_reports_multisession[i].attributes[j];
+
+				k = security_attribute_multisession->proto_id = get_protocol_id_by_name (security_attribute_multisession->proto);
+				if (k == 0) return k;
+
+				k = security_attribute_multisession->attribute_id = get_attribute_id_by_protocol_and_attribute_names(security_attribute_multisession->proto, security_attribute_multisession->attribute);
+				if (k == 0) return k;
+
+				if (is_registered_attribute(th->mmt_handler, security_attribute_multisession->proto_id, security_attribute_multisession->attribute_id) == 0){
+					k = register_extraction_attribute(th->mmt_handler, security_attribute_multisession->proto_id, security_attribute_multisession->attribute_id);
+					if (k == 0) return k;
+					//printf("proto_id = %u, attribute_id = %u \n",security_attribute_multisession->proto_id, security_attribute_multisession->attribute_id);
+				}
+			}
+		}
+	}
+	return k;
+}
+void security_reports_multisession_init(void * args) {
+
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+
+	struct smp_thread *th = (struct smp_thread *) args;
+
+
+	if(register_security_report_multisession_handle((void *) th) == 0) {
+		fprintf(stderr, "Error while initializing security report !\n");
+	}
+/*
+	if (probe_context->socket_enable == 1 && th->socket_active == 0){
+		create_socket(probe_context, args);
+		th->socket_active = 1;
+	}
+*/
+	if (is_registered_packet_handler(th->mmt_handler,6) == 1)unregister_packet_handler(th->mmt_handler, 6);
+	register_packet_handler(th->mmt_handler, 6, packet_handler, (void *) th);
+}
 int register_security_report_handle(void * args) {
 	int i = 0, j = 0, k = 1, l = 0, test=0;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -153,9 +200,9 @@ void security_reports_init(void * args) {
 		fprintf(stderr, "Error while initializing security report !\n");
 		exit(1);
 	}
-	if (probe_context->socket_enable == 1){
+	if (probe_context->socket_enable == 1 && th->socket_active == 0){
 		create_socket(probe_context, args);
-		probe_context->socket_active = 1;
+		th->socket_active = 1;
 	}
 	if (is_registered_packet_handler(th->mmt_handler,6) == 1)unregister_packet_handler(th->mmt_handler, 6);
 	register_packet_handler(th->mmt_handler, 6, packet_handler, (void *) th);

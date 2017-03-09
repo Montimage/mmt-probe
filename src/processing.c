@@ -261,17 +261,198 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	set_user_session_context(session, temp_session);
 }
 
-int packet_handler(const ipacket_t * ipacket, void * args) {
+void get_security_report(const ipacket_t * ipacket,void * args){
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	attribute_t * attr_extract;
 	struct smp_thread *th = (struct smp_thread *) args;
 	int MAX_LEN = 1024;
-	//char attr_data[MAX_LEN];
-	//unsigned char length_buffer[5];
-	int i = 0, j = 0, k = 0, l = 0, condition1 = 0, condition2 = 0, condition3 = 0;
+	int i = 0, j = 0, k = 0, condition1 = 0, condition2 = 0, condition3 = 0;
 	int retval =0;
-	//static int count = 0;
+
+
+	for(i = 0; i < probe_context->security_reports_nb; i++) {
+		//p = 0;
+		if (probe_context->security_reports[i].enable == 0)
+			continue;
+		int initial_buffer_size =10000;
+		security_report_buffer_t *report_ptr = &( th->report[i] );
+
+		report_ptr->length = 0;
+		memset(report_ptr->data[report_ptr->security_report_counter], '\0', 10000);
+		memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length + 5], &ipacket->p_hdr->ts,sizeof(struct timeval));
+		report_ptr->length += sizeof(struct timeval) + 5; //4 bytes are reserved to assign the total length of the report and 1 byte for the number of attributes
+		k = 0, condition1 = 0, condition2 = 0, condition3 = 0;
+
+		for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
+			mmt_security_attribute_t * security_attribute = &probe_context->security_reports[i].attributes[j];
+			attr_extract   = get_extracted_attribute( ipacket,security_attribute->proto_id, security_attribute->attribute_id );
+
+			int rem_buffer = initial_buffer_size - (report_ptr->length+10);
+
+			if(attr_extract != NULL) {
+				if( unlikely( attr_extract->data_len > rem_buffer )){
+					printf("Buffer_overflow\n");
+					break;
+				}
+				//condition for reporting
+				if (probe_context->security_reports[i].event_id[0] == 0){
+					if (attr_extract->proto_id == 178 && attr_extract->field_id == 7) {
+						uint8_t ms_flag_data = 0;
+						memcpy(&ms_flag_data, attr_extract->data, attr_extract->data_len);
+						if (ms_flag_data > 0) condition1++;
+					}
+					if (attr_extract->proto_id == 30) condition2++;
+					if (attr_extract->proto_id == 137)condition3++;
+				} else if (attr_extract->proto_id == probe_context->security_reports[i].event_id[0]) {
+					if (attr_extract->proto_id == 153 && attr_extract->field_id == 1)condition1++;
+					if (attr_extract->proto_id == 153 && attr_extract->field_id == 4) condition2++;
+					if (attr_extract->proto_id == 153 && attr_extract->field_id == 7) condition3++;
+				}
+
+				memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length], &attr_extract->proto_id, 4);
+				report_ptr->length += 4;
+				memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length], &attr_extract->field_id, 4);
+				report_ptr->length += 4;
+
+				if (attr_extract->data_type == MMT_HEADER_LINE
+						|| attr_extract->data_type == MMT_DATA_PATH
+						|| attr_extract->data_type == MMT_BINARY_DATA
+						|| attr_extract->data_type == MMT_BINARY_VAR_DATA
+						|| attr_extract->data_type == MMT_STRING_DATA
+						|| attr_extract->data_type == MMT_STRING_LONG_DATA
+						|| attr_extract->data_type == MMT_STRING_DATA_POINTER){
+
+					report_ptr->length += 2;
+					int valid = mmt_attr_sprintf((char *)&report_ptr->data[report_ptr->security_report_counter][report_ptr->length], MAX_LEN, attr_extract);
+					memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length - 2], &valid, 2);
+					report_ptr->length +=  valid;
+
+				} else if (attr_extract->data_type == MMT_DATA_POINTER){
+					if (attr_extract->field_id == PROTO_PAYLOAD)payload_extraction(ipacket,th,attr_extract, i);
+					if (attr_extract->field_id == PROTO_DATA)data_extraction(ipacket,th,attr_extract, i);
+					if (attr_extract->proto_id == PROTO_FTP && attr_extract->field_id == FTP_LAST_COMMAND)ftp_last_command(ipacket,th,attr_extract, i);
+					if (attr_extract->proto_id == PROTO_FTP && attr_extract->field_id == FTP_LAST_RESPONSE_CODE)ftp_last_response_code(ipacket,th,attr_extract, i);
+					//if (attr_extract->proto_id == PROTO_IP && attr_extract->field_id == IP_OPTS)ip_opts(ipacket,th,attr_extract, i);
+
+				} else {
+					memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length], &attr_extract->data_len, 2);
+					report_ptr->length += 2;
+					memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length], attr_extract->data, attr_extract->data_len);
+					report_ptr->length +=  attr_extract->data_len;
+				}
+				k++;
+
+			}
+		}
+		if (condition1 == 0 && probe_context->security_reports[i].rule_type == 1) {
+			continue;
+		}
+		else if ((condition1 == 0 && condition2 == 0 && condition3 == 0) && probe_context->security_reports[i].rule_type == 2){
+			continue;
+		}
+
+		//all attribute data are NULL
+
+		if (unlikely( k == 0 )) continue;
+
+		//First 4 bytes contains the total length of the report
+		memcpy(&report_ptr->data[report_ptr->security_report_counter][0], &report_ptr->length, 4);
+		//number of attributes
+		report_ptr->data[report_ptr->security_report_counter][4] = k;
+		//safe string
+		report_ptr->data[report_ptr->security_report_counter][report_ptr->length] = '\0';
+
+		if (probe_context->redis_enable == 1 && probe_context->socket_enable == 0)
+			send_message_to_redis ("event.security_report", (char *)report_ptr->data[report_ptr->security_report_counter]);
+
+		if (probe_context->socket_enable == 1){
+			//send (th->sockfd_internet[i],report_ptr->data[report_ptr->security_report_counter],report_ptr->length,0);
+			th->packet_send ++;
+
+			report_ptr->msg[report_ptr->security_report_counter].iov_base = report_ptr->data[report_ptr->security_report_counter];
+			report_ptr->msg[report_ptr->security_report_counter].iov_len  = report_ptr->length;
+			report_ptr->security_report_counter ++;
+
+			if (report_ptr->security_report_counter == probe_context->nb_of_report_per_msg){
+				report_ptr->grouped_msg.msg_hdr.msg_iov    = report_ptr->msg;
+				report_ptr->grouped_msg.msg_hdr.msg_iovlen = probe_context->nb_of_report_per_msg;
+				if (probe_context->socket_domain == 1 || probe_context->socket_domain == 2)
+					retval = sendmmsg(th->sockfd_internet[i], &report_ptr->grouped_msg, 1, 0);
+				if (probe_context->socket_domain == 0 || probe_context->socket_domain == 2)
+					retval = sendmmsg(th->sockfd_unix, &report_ptr->grouped_msg, 1, 0);
+
+				if ( unlikely( retval == -1))
+					perror("sendmmsg()");
+
+				report_ptr->security_report_counter = 0;
+				memset(report_ptr->msg, 0, sizeof(struct iovec) *probe_context->nb_of_report_per_msg);
+			}
+		}
+	}
+}
+
+void get_security_multisession_report(const ipacket_t * ipacket,void * args){
+	int i=0, j=0, offset =0, valid =0, k=0;
+	int LEN = 10000;
+	char message[LEN + 1];
+	//char attribute_value [MAX_MESS +1];
+	attribute_t * attr_extract;
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+	int attr_len =0;
+
+	struct smp_thread *th = (struct smp_thread *) args;
+	struct timeval current_time;
+	gettimeofday (&current_time, NULL);
+
+	for(i = 0; i < probe_context->security_reports_multisession_nb; i++) {
+		j=0, offset = 0, valid = 0;
+		//memset(message,'\0',LEN);
+
+		if (probe_context->security_reports_multisession[i].enable == 0)
+			continue;
+		valid= snprintf(message, LEN,
+				"%u,%lu.%lu",
+				probe_context->probe_id_number, current_time.tv_sec,current_time.tv_usec);
+		if(valid > 0) {
+			offset += valid;
+		}else {
+			printf ("ERROR: In function get_security_multisession_report, valid1 < 0 \n ");
+		}
+
+		for(j = 0; j < probe_context->security_reports_multisession[i].attributes_nb; j++) {
+			mmt_security_attribute_t * security_attribute_multisession   = &probe_context->security_reports_multisession[i].attributes[j];
+			attr_extract = get_extracted_attribute(ipacket,security_attribute_multisession->proto_id, security_attribute_multisession->attribute_id);
+			message[offset] = ',';
+			if(attr_extract != NULL) {
+				valid = mmt_attr_sprintf(&message[offset + 1], LEN - offset + 1, attr_extract);
+				//attr_len = mmt_attr_sprintf(&attribute_value[0], MAX_MESS - offset+1, attr_extract);
+				//attribute_value[attr_len] = '\0';
+				//valid = snprintf(&message[offset + 1], LEN-offset+1,"%u,%u,%u,%s",attr_extract->proto_id, attr_extract->field_id,attr_len,attribute_value);
+				if(valid > 0) {
+					offset += valid + 1;
+					k++;
+				}else {
+					printf ("ERROR: In function get_security_multisession_report, valid2 < 0 \n ");
+				}
+			}else {
+
+				offset += 1;
+			}
+		}
+		message[ offset ] = '\0';
+		if (k == 0)return;
+		if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message, th);
+		if (probe_context->redis_enable == 1) send_message_to_redis ("multisession.report", message);
+
+	}
+
+}
+
+int packet_handler(const ipacket_t * ipacket, void * args) {
+
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+	struct smp_thread *th = (struct smp_thread *) args;
 	if(probe_context->enable_session_report == 1){
 		session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
 
@@ -302,157 +483,12 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 	}
 
 	if (probe_context->enable_security_report == 1){
-
-		for(i = 0; i < probe_context->security_reports_nb; i++) {
-			//p = 0;
-			if (probe_context->security_reports[i].enable == 0)
-				continue;
-			/*
-			if (probe_context->security_reports[i].event_id[0] != 0){ //handling null event
-				for (j = 1; j < ipacket->proto_hierarchy->len; j++){
-					//	printf ("proto_id = %u, offset = %u",ipacket->proto_hierarchy->proto_path[j],ipacket->proto_headers_offset->proto_path[j]);
-					for (l = 0; l < probe_context->security_reports[i].event_name_nb; l++ ){
-						if (ipacket->proto_hierarchy->proto_path[j] == probe_context->security_reports[i].event_id[l]){
-							p++;
-						}
-					}
-					if (p > 0) break;
-				}
-				if (p + probe_context->security_reports[i].event_operation == 1)
-					continue;
-			}
-			 */
-			int initial_buffer_size =10000;
-			security_report_buffer_t *report_ptr = &( th->report[i] );
-
-			report_ptr->length = 0;
-			memset(report_ptr->data[report_ptr->security_report_counter], '\0', 10000);
-			memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length + 5], &ipacket->p_hdr->ts,sizeof(struct timeval));
-			report_ptr->length += sizeof(struct timeval) + 5; //4 bytes are reserved to assign the total length of the report and 1 byte for the number of attributes
-			k = 0, condition1 = 0, condition2 = 0, condition3 = 0;
-
-			for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
-				mmt_security_attribute_t * security_attribute = &probe_context->security_reports[i].attributes[j];
-				attr_extract   = get_extracted_attribute( ipacket,security_attribute->proto_id, security_attribute->attribute_id );
-
-				int rem_buffer = initial_buffer_size - (report_ptr->length+10);
-
-				if(attr_extract != NULL) {
-					if( unlikely( attr_extract->data_len > rem_buffer )){
-						printf("Buffer_overflow\n");
-						break;
-					}
-					//condition for reporting
-					if (probe_context->security_reports[i].event_id[0] == 0){
-						if (attr_extract->proto_id == 178 && attr_extract->field_id == 7) {
-							uint8_t ms_flag_data = 0;
-							memcpy(&ms_flag_data, attr_extract->data, attr_extract->data_len);
-							//printf ("ms_flag = %u\n", ms_flag_data);
-							if (ms_flag_data > 0) condition1++;
-						}
-						//if (attr_extract->proto_id == 178 && attr_extract->field_id == 10) condition2++;
-						if (attr_extract->proto_id == 30) condition2++;
-						if (attr_extract->proto_id == 137)condition3++;
-						//printf ("ipacket_packet_id = %lu \n, ",ipacket->packet_id);
-
-					} else if (attr_extract->proto_id == probe_context->security_reports[i].event_id[0]) {
-						if (attr_extract->proto_id == 153 && attr_extract->field_id == 1){
-							//printf ("ipacket_packet_id = %lu, ",ipacket->packet_id);
-							//printf("id = %u\n", attr_extract->proto_id);
-							condition1++;
-						};
-						if (attr_extract->proto_id == 153 && attr_extract->field_id == 4) condition2++;
-						if (attr_extract->proto_id == 153 && attr_extract->field_id == 7) condition3++;
-
-						//except_proto++;
-						//printf ("ipacket_packet_id = %lu, ",ipacket->packet_id);
-						//printf("id = %u\n", attr_extract->proto_id);
-					}
-
-					memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length], &attr_extract->proto_id, 4);
-					report_ptr->length += 4;
-					memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length], &attr_extract->field_id, 4);
-					report_ptr->length += 4;
-
-					if (attr_extract->data_type == MMT_HEADER_LINE
-							|| attr_extract->data_type == MMT_DATA_PATH
-							|| attr_extract->data_type == MMT_BINARY_DATA
-							|| attr_extract->data_type == MMT_BINARY_VAR_DATA
-							|| attr_extract->data_type == MMT_STRING_DATA
-							|| attr_extract->data_type == MMT_STRING_LONG_DATA
-							|| attr_extract->data_type == MMT_STRING_DATA_POINTER){
-
-						report_ptr->length += 2;
-						int valid = mmt_attr_sprintf((char *)&report_ptr->data[report_ptr->security_report_counter][report_ptr->length], MAX_LEN, attr_extract);
-						memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length - 2], &valid, 2);
-						report_ptr->length +=  valid;
-
-					} else if (attr_extract->data_type == MMT_DATA_POINTER){
-						if (attr_extract->field_id == PROTO_PAYLOAD)payload_extraction(ipacket,th,attr_extract, i);
-						if (attr_extract->field_id == PROTO_DATA)data_extraction(ipacket,th,attr_extract, i);
-						if (attr_extract->proto_id == PROTO_FTP && attr_extract->field_id == FTP_LAST_COMMAND)ftp_last_command(ipacket,th,attr_extract, i);
-						if (attr_extract->proto_id == PROTO_FTP && attr_extract->field_id == FTP_LAST_RESPONSE_CODE)ftp_last_response_code(ipacket,th,attr_extract, i);
-						//if (attr_extract->proto_id == PROTO_IP && attr_extract->field_id == IP_OPTS)ip_opts(ipacket,th,attr_extract, i);
-
-					} else {
-						memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length], &attr_extract->data_len, 2);
-						report_ptr->length += 2;
-						memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length], attr_extract->data, attr_extract->data_len);
-						report_ptr->length +=  attr_extract->data_len;
-					}
-					k++;
-
-				}
-			}
-			if (condition1 == 0 && probe_context->security_reports[i].rule_type == 1) {
-				//printf ("ipacket_packet_id = %lu \n, ",ipacket->packet_id);
-				continue;
-			}
-			else if ((condition1 == 0 && condition2 == 0 && condition3 == 0) && probe_context->security_reports[i].rule_type == 2){
-				//printf ("ipacket_packet_id = %lu \n",ipacket->packet_id);
-				continue;
-			}
-
-			//all attribute data are NULL
-
-			if (unlikely( k == 0 )) continue;
-
-			//First 4 bytes contains the total length of the report
-			memcpy(&report_ptr->data[report_ptr->security_report_counter][0], &report_ptr->length, 4);
-			//number of attributes
-			report_ptr->data[report_ptr->security_report_counter][4] = k;
-			//safe string
-			report_ptr->data[report_ptr->security_report_counter][report_ptr->length] = '\0';
-
-			if (probe_context->redis_enable == 1)
-				send_message_to_redis ("event.security_report", (char *)report_ptr->data[report_ptr->security_report_counter]);
-
-			if (probe_context->socket_enable == 1){
-				//send (th->sockfd_internet[i],report_ptr->data[report_ptr->security_report_counter],report_ptr->length,0);
-				th->packet_send ++;
-
-				report_ptr->msg[report_ptr->security_report_counter].iov_base = report_ptr->data[report_ptr->security_report_counter];
-				report_ptr->msg[report_ptr->security_report_counter].iov_len  = report_ptr->length;
-				report_ptr->security_report_counter ++;
-
-				if (report_ptr->security_report_counter == probe_context->nb_of_report_per_msg){
-					report_ptr->grouped_msg.msg_hdr.msg_iov    = report_ptr->msg;
-					report_ptr->grouped_msg.msg_hdr.msg_iovlen = probe_context->nb_of_report_per_msg;
-
-					if (probe_context->socket_domain == 1 || probe_context->socket_domain == 2)
-						retval = sendmmsg(th->sockfd_internet[i], &report_ptr->grouped_msg, 1, 0);
-					if (probe_context->socket_domain == 0 || probe_context->socket_domain == 2)
-						retval = sendmmsg(th->sockfd_unix, &report_ptr->grouped_msg, 1, 0);
-
-					if ( unlikely( retval == -1))
-						perror("sendmmsg()");
-
-					report_ptr->security_report_counter = 0;
-					memset(report_ptr->msg, 0, sizeof(struct iovec) *probe_context->nb_of_report_per_msg);
-				}
-			}
-		}
+		get_security_report(ipacket,args);
 	}
+	if (probe_context->enable_security_report_multisession == 1){
+		get_security_multisession_report(ipacket,args);
+	}
+
 	return 0;
 }
 

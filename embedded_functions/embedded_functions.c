@@ -1,6 +1,8 @@
-//Linux
+//Linux (one of the follows)
 //gcc -g -fPIC -I/usr/local/include/mmt -shared -nostartfiles embedded_functions/embedded_functions.c -o embedded_functions/libembedded_functions.so 
-// gcc -g -fPIC -I../../../mmt-sdk/sdk/include -shared -nostartfiles embedded_functions.c -o libembedded_functions.so
+//gcc -g -fPIC -I../../../mmt-sdk/sdk/include -shared -nostartfiles embedded_functions.c -o libembedded_functions.so
+//gcc -g -fPIC -I/opt/mmt/dpi/include -shared -nostartfiles embedded_functions/embedded_functions.c -o embedded_functions/libembedded_functions.so
+//Then:
 //sudo su
 // export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./embedded_functions 
 // export LD_LIBRARY_PATH=<your directory>/embedded_functions
@@ -15,6 +17,8 @@
 #include "types_defs.h"
 #include "data_defs.h"
 #include <inttypes.h>
+#include "hiredis/hiredis.h"
+#include <sys/time.h>
 
 //#include "ocilib.h"
 //#define MAX_LEN 1000
@@ -240,7 +244,6 @@ int *check_UA( void *v){
 }
 
 int *check_sql_injection(void *p, void *pl){
-//#check_sql_injection ==1 means 
   int *handle;
   handle = malloc(sizeof(int));
   *handle = 0;
@@ -254,7 +257,7 @@ int *check_sql_injection(void *p, void *pl){
   char *str = malloc(len+1);
   memcpy(str, p, len);
   str[len] = '\0';
-  //printf("String to be checked: %s", str);
+  //printf("String to be checked: %s\n", str);
   
     //Signature based dection begin here. 
   //(using  pattern matching techniques against signatures and 
@@ -264,8 +267,8 @@ int *check_sql_injection(void *p, void *pl){
   s2 = strstr(str, "UNION"); //find the first occurrence of string "UNION" in string
   s3 = strstr(str, "SELECT"); //find the first occurrence of string "SELECT" in string
   s4 = strstr(str, "CHAR"); //find the first occurrence of string "CHAR" in string  
-  s5 = strstr(str, "DELETE"); //find the first occurrence of string "CHAR" in string
-  s6 = strstr(str, "INSERT"); //find the first occurrence of string "CHAR" in string
+  s5 = strstr(str, "DELETE");
+  s6 = strstr(str, "INSERT");
      
   if ((s1 !=NULL)  || (s2 !=NULL)   || (s3 !=NULL) || (s4 !=NULL) || (s5 !=NULL) || (s6 !=NULL))  {
     //printf ("SQL injection detected\n");
@@ -275,4 +278,148 @@ int *check_sql_injection(void *p, void *pl){
   free(str);
   return handle;
  
+}
+
+int *check_http_response(void *p){
+  int *handle;
+  handle = malloc(sizeof(int));
+  *handle = 0;
+  if(p == NULL){
+    *handle = 1;
+    return handle;
+  }
+  return handle;
+}
+
+int *check_ip_add(void *src, void *dst, void *src1, void *dst1){
+  int *handle;
+  handle = malloc(sizeof(int));
+  *handle = 0;
+  if((src == NULL) || (dst == NULL) || (src1 == NULL) || (dst1 == NULL)){
+    *handle = 1;
+    return handle;
+  }
+  if (((src = src1) && (dst = dst1)) || ((src = dst1) && (dst = src1))){
+	  *handle = 1;
+	  //printf("In the same session\n");
+	  return handle;
+  }
+  return handle;
+}
+
+int *check_nfs_upload(void *file_name, void *file_opcode, void *p_payload, void *payload_len){
+  int *handle;
+  handle = malloc(sizeof(int));
+  *handle = 0;
+  if((file_name == NULL) || (file_opcode == NULL) || (p_payload == NULL) || (payload_len == NULL)){
+    return handle;
+  }
+  
+  //take the file name
+  uint16_t leng = *((uint16_t*)file_opcode);
+  char * fn_str = malloc(leng+1);
+  strncpy(fn_str, file_name, leng);
+  fn_str[leng] = '\0';
+  //printf("File name: %s. Leng: %d\n", fn_str, leng);
+  
+  //take the payload
+  uint16_t len = *((uint16_t *)payload_len);
+  //printf("Payload length: %"PRIu16"\n", len);
+  char *tcp_payload = malloc(len+1);
+  memcpy(tcp_payload, p_payload, len);
+  tcp_payload[len] = '\0';
+  //printf("TCP payload: %s\n", tcp_payload);
+  
+  if (strstr(tcp_payload, fn_str) != NULL){
+	  //printf ("Detected\n");
+	  *handle = 1;
+		}
+  free(fn_str);
+  free(tcp_payload);
+  return handle;
+}
+
+int *check_nfs_redis(void *p_payload, void *payload_len){
+  int *handle;
+  handle = malloc(sizeof(int));
+  *handle = 0;
+  if((p_payload == NULL) || (payload_len == NULL)){
+    return handle;
+  }
+  
+  redisContext *c, *command;
+  redisReply *reply;
+  
+  const char *hostname = "127.0.0.1";
+  //const char *hostname = "192.168.0.37";
+  int port = 6379;
+  
+  //take the payload
+  uint16_t len = *((uint16_t *)payload_len);
+  //printf("Payload length: %"PRIu16"\n", len);
+  char *tcp_payload = malloc(len+1);
+  memcpy(tcp_payload, p_payload, len);
+  tcp_payload[len] = '\0';
+  //printf("TCP payload: %s\n", tcp_payload);
+  
+  struct timeval timeout = { 1, 500000 }; // 1.5 seconds
+  c = redisConnectWithTimeout(hostname, port, timeout);
+  if (c == NULL || c->err) {
+        if (c) {
+            printf("Connection error: %s\n", c->errstr);
+            redisFree(c);
+        } else {
+            printf("Connection error: Impossible to allocate redis context\n");
+        }
+        exit(1);
+    }
+  
+    /* Let's check what we have inside the list */
+    reply = redisCommand(c,"LRANGE multisession.report 0 -1");
+    if (reply->type == REDIS_REPLY_ARRAY) {
+		int j=0;
+        for (j = 0; j < reply->elements; j++) {
+			//printf("report: %s\n", reply->element[j]->str);
+            char f_name[30], probe_report[256];
+            char *token;
+            strcpy(probe_report, reply->element[j]->str);
+            token = strtok(reply->element[j]->str, ",");
+            int i = 0;
+			while (token != NULL) {
+				if (i==1) {
+					//check the validity of the report
+					struct timeval now;
+					gettimeofday(&now, NULL);
+					char *_token;
+					char timestamp[30];
+					strcpy(timestamp, token);
+					token = strtok(NULL, ",");
+					_token = strtok(timestamp, ".");
+					i++;
+					if (_token != NULL){
+						//printf("Timestamp: %s\n", _token);
+						if (now.tv_sec - atoi(_token) > 300) {
+							redisCommand(c,"LREM multisession.report 1 %s", probe_report);
+							//printf("Delete the outdated report %s\n", probe_report);
+							continue;
+							}
+						}
+					}
+				if (i==2){
+					strcpy(f_name, token);
+					//printf("%s\n", f_name);
+					}
+				token = strtok(NULL, ",");
+				i++;
+				}
+			if (strstr(tcp_payload, f_name) != NULL){
+			//printf ("Detected\n");
+			*handle = 1;
+			return handle;
+			}            
+        }
+    }
+  redisFree(c);
+  free(tcp_payload);
+  return handle;
 }
