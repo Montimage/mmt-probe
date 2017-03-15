@@ -73,12 +73,6 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt) {
 #endif
 
 
-#ifdef _GNU_SOURCE
-#else
-//       int sendmmsg(int sockfd, struct mmsghdr *msgvec, unsigned int vlen,
-//                    unsigned int flags);
-#endif
-
 struct timeval mmt_time_diff(struct timeval tstart, struct timeval tend) {
 	tstart.tv_sec = tend.tv_sec - tstart.tv_sec;
 	tstart.tv_usec = tend.tv_usec - tstart.tv_usec;
@@ -279,7 +273,7 @@ void get_security_report(const ipacket_t * ipacket,void * args){
 		security_report_buffer_t *report_ptr = &( th->report[i] );
 
 		report_ptr->length = 0;
-		memset(report_ptr->data[report_ptr->security_report_counter], '\0', 10000);
+		//memset(report_ptr->data[report_ptr->security_report_counter], '\0', 10000);
 		memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length + 5], &ipacket->p_hdr->ts,sizeof(struct timeval));
 		report_ptr->length += sizeof(struct timeval) + 5; //4 bytes are reserved to assign the total length of the report and 1 byte for the number of attributes
 		k = 0, condition1 = 0, condition2 = 0, condition3 = 0;
@@ -302,8 +296,15 @@ void get_security_report(const ipacket_t * ipacket,void * args){
 						memcpy(&ms_flag_data, attr_extract->data, attr_extract->data_len);
 						if (ms_flag_data > 0) condition1++;
 					}
-					if (attr_extract->proto_id == 30) condition2++;
-					if (attr_extract->proto_id == 137)condition3++;
+					//if (attr_extract->proto_id == 30) condition2++;
+					//if (attr_extract->proto_id == 137)condition3++;
+
+					if (attr_extract->proto_id == 354 && attr_extract->field_id == 6) {
+						uint8_t tcp_flag_data = 0;
+						memcpy(&tcp_flag_data, attr_extract->data, attr_extract->data_len);
+						if (tcp_flag_data == 2) condition2++;
+					}
+
 				} else if (attr_extract->proto_id == probe_context->security_reports[i].event_id[0]) {
 					if (attr_extract->proto_id == 153 && attr_extract->field_id == 1)condition1++;
 					if (attr_extract->proto_id == 153 && attr_extract->field_id == 4) condition2++;
@@ -363,11 +364,10 @@ void get_security_report(const ipacket_t * ipacket,void * args){
 		//safe string
 		report_ptr->data[report_ptr->security_report_counter][report_ptr->length] = '\0';
 
-		if (probe_context->redis_enable == 1 && probe_context->socket_enable == 0)
-			send_message_to_redis ("event.security_report", (char *)report_ptr->data[report_ptr->security_report_counter]);
+		//if (probe_context->redis_enable == 1 && probe_context->socket_enable == 0)
+			//send_message_to_redis ("event.security_report", (char *)report_ptr->data[report_ptr->security_report_counter]);
 
 		if (probe_context->socket_enable == 1){
-			//send (th->sockfd_internet[i],report_ptr->data[report_ptr->security_report_counter],report_ptr->length,0);
 			th->packet_send ++;
 
 			report_ptr->msg[report_ptr->security_report_counter].iov_base = report_ptr->data[report_ptr->security_report_counter];
@@ -426,9 +426,6 @@ void get_security_multisession_report(const ipacket_t * ipacket,void * args){
 			message[offset] = ',';
 			if(attr_extract != NULL) {
 				valid = mmt_attr_sprintf(&message[offset + 1], LEN - offset + 1, attr_extract);
-				//attr_len = mmt_attr_sprintf(&attribute_value[0], MAX_MESS - offset+1, attr_extract);
-				//attribute_value[attr_len] = '\0';
-				//valid = snprintf(&message[offset + 1], LEN-offset+1,"%u,%u,%u,%s",attr_extract->proto_id, attr_extract->field_id,attr_len,attribute_value);
 				if(valid > 0) {
 					offset += valid + 1;
 					k++;
@@ -627,8 +624,6 @@ void flowstruct_init(void * args) {
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_DST);
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_SERVER_PORT);
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_CLIENT_PORT);
-	//i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_ACTIVE_SESSIONS_COUNT);
-	//i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, PROTO_ACTIVE_SESSIONS_COUNT);
 	if (probe_context->enable_IP_fragmentation_report == 1){
 		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_IP_FRAG_PACKET_COUNT);
 		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_IP_FRAG_DATA_VOLUME);
@@ -787,7 +782,6 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 		}
 	}else{
 		if(temp_session->app_format_id == probe_context->web_id ){
-			//printf ("HEERRER2, session_id = %lu\n", temp_session->session_id);
 			if (temp_session->app_data == NULL) {
 				if (temp_session->session_attr != NULL) {
 					//Free the application specific data

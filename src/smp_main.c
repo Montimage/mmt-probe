@@ -542,8 +542,6 @@ void got_packet_multi_thread(u_char *args, const struct pcap_pkthdr *pkthdr, con
 	pkt->header.ts     = pkthdr->ts;
 	pkt->data          = (u_char *)( &pkt[ 1 ]); //put data in the same memory segment but after sizeof( pkt )
 	memcpy(pkt->data, data, pkthdr->caplen);
-	//	mmt_memcpy( pkt->data, data, pkthdr->caplen );
-	//	pkt->data = data;
 
 	if(  unlikely( data_spsc_ring_push_tmp_element( &th->fifo ) != QUEUE_SUCCESS ))
 	{
