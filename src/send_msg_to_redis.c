@@ -23,9 +23,7 @@ static thredis_t* thredis = NULL;
 
 void init_redis (char * hostname, int port) {
 	struct timeval timeout = { 1, 500000 }; // 1.5 seconds
-	mmt_probe_context_t * probe_context = get_probe_context_config();
 	redisReply *reply;
-	int j=0;
 	// Connect to redis if not yet done
 	if (redis == NULL){
 		redis = redisConnectWithTimeout(hostname, port, timeout);
@@ -53,7 +51,6 @@ void send_message_to_redis (char *channel, char * message) {
 	// Publish to redis if it is enabled
 	//printf ("\n%s\n%s",channel,message);
 	mmt_probe_context_t * probe_context = get_probe_context_config();
-	int j =0;
 	if (redis != NULL) {
 		// Publish an event
 		redisReply *reply;
