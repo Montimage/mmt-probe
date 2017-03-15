@@ -296,13 +296,13 @@ void get_security_report(const ipacket_t * ipacket,void * args){
 						memcpy(&ms_flag_data, attr_extract->data, attr_extract->data_len);
 						if (ms_flag_data > 0) condition1++;
 					}
-					//if (attr_extract->proto_id == 30) condition2++;
+					if (attr_extract->proto_id == 30) condition2++;
 					//if (attr_extract->proto_id == 137)condition3++;
 
 					if (attr_extract->proto_id == 354 && attr_extract->field_id == 6) {
 						uint8_t tcp_flag_data = 0;
 						memcpy(&tcp_flag_data, attr_extract->data, attr_extract->data_len);
-						if (tcp_flag_data == 2) condition2++;
+						if (tcp_flag_data == 2) condition3++;
 					}
 
 				} else if (attr_extract->proto_id == probe_context->security_reports[i].event_id[0]) {
