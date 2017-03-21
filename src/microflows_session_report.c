@@ -27,6 +27,9 @@ uint32_t is_microflow(const mmt_session_t * expired_session) {
     return 0;
 }
 
+/*This function checks if microflow stats is reportable (statisfy the condition (threshold)).
+ * Returns 1 if reportable, 0 otherwise
+ * */
 uint32_t is_microflow_stats_reportable(microsessions_stats_t * stats) {
     mmt_probe_context_t * probe_context = get_probe_context_config();
 
@@ -38,6 +41,7 @@ uint32_t is_microflow_stats_reportable(microsessions_stats_t * stats) {
     return 0;
 }
 
+/* This function resets microflows stats */
 void reset_microflows_stats(microsessions_stats_t * stats) {
     stats->dl_pcount = 0;
     stats->dl_bcount = 0;
@@ -46,6 +50,7 @@ void reset_microflows_stats(microsessions_stats_t * stats) {
     stats->flows_nb = 0;
 }
 
+/* This function reports all protocols microflows statistics*/
 void report_all_protocols_microflows_stats(void *args) {
     int i;
     struct smp_thread *th = (struct smp_thread *) args;
@@ -57,6 +62,7 @@ void report_all_protocols_microflows_stats(void *args) {
     }
 }
 
+/* This function is for reporting microflows stats*/
 void report_microflows_stats(microsessions_stats_t * stats, void *args) {
     mmt_probe_context_t * probe_context = get_probe_context_config();
     struct smp_thread *th = (struct smp_thread *) args;
@@ -74,6 +80,7 @@ void report_microflows_stats(microsessions_stats_t * stats, void *args) {
     reset_microflows_stats(stats);
 }
 
+/* This function is for updating microflows stats of each protocol */
 void update_microflows_stats(microsessions_stats_t * stats, const mmt_session_t * expired_session) {
     int keep_direction = 1;
     session_struct_t * temp_session = get_user_session_context(expired_session);

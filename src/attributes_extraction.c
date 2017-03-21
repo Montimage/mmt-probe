@@ -33,6 +33,7 @@ typedef struct ftp_response_struct{
 	char *value;
 }ftp_response_t;
 
+/* This function extracts the protocol payload from a packet for reporting  */
 void payload_extraction(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num){
 	int  j = 0;
 	uint16_t length =0;
@@ -54,8 +55,9 @@ void payload_extraction(const ipacket_t * ipacket,struct smp_thread *th,attribut
 	memcpy(&th->report[report_num].data[th->report[report_num].security_report_counter][th->report[report_num].length], attr_extract->data,length);
 	th->report[report_num].length +=  length;
 	//printf ("attribute_data ...=%s \n", (char *)attr_extract->data);
-
 }
+
+/* This function extracts the protocol data from a packet for reporting  */
 void data_extraction(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num){
 	int  j = 0;
 
@@ -79,6 +81,7 @@ void data_extraction(const ipacket_t * ipacket,struct smp_thread *th,attribute_t
 
 }
 
+/* This function extracts the ftp_last_command from a packet for reporting  */
 void ftp_last_command(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num){
 
 	uint16_t length =0;
@@ -90,6 +93,8 @@ void ftp_last_command(const ipacket_t * ipacket,struct smp_thread *th,attribute_
 	th->report[report_num].length +=  length;
 	//printf ("len= %u, attribute_data ...=%s \n",length,last_command->str_cmd);
 }
+
+/* This function extracts the ftp_last_response_code from a packet for reporting  */
 void ftp_last_response_code(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num){
 
 	uint16_t length =0;
@@ -101,6 +106,8 @@ void ftp_last_response_code(const ipacket_t * ipacket,struct smp_thread *th,attr
 	th->report[report_num].length +=  length;
 	//printf ("len= %u, attribute_data ...=%s \n",length,last_command->str_code);
 }
+
+/* This function extracts the ip_opts from a packet for reporting  */
 void ip_opts(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num){
 	int  j = 0;
 	uint16_t length =0;

@@ -204,6 +204,13 @@ typedef struct ip_port_struct {
 	uint32_t *server_portnb;
 } ip_port_t;
 
+typedef struct mmt_cpu_perf_struct {
+    uint8_t cpu_mem_usage_rep_freq; //frequency to send the report
+    long double cpu_usage_avg;
+    long double mem_usage_avg;
+} mmt_cpu_perf_t;
+
+
 typedef struct mmt_probe_context_struct {
     uint32_t thread_nb;
     uint32_t thread_nb_2_power;
@@ -295,8 +302,9 @@ typedef struct mmt_probe_context_struct {
     uint32_t socket_enable;
     uint32_t *port_address;
 
+    mmt_cpu_perf_t * cpu_reports;
     uint8_t cpu_mem_usage_enabled;
-    uint8_t cpu_mem_usage_rep_freq; //frequency to send the report
+
 
     unsigned char *mac_address_host;	//
 

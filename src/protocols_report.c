@@ -12,6 +12,7 @@
 #include "processing.h"
 #include <pthread.h>
 
+/* This function is for reporting the protocol statistics that do not have session */
 void protocols_stats_iterator(uint32_t proto_id, void * args) {
 	if (proto_id == 1 || proto_id == 99 ) return;
 	char message[MAX_MESS + 1];

@@ -16,6 +16,7 @@
 #include "processing.h"
 #include <unistd.h>
 
+/* This function is for reporting session reports */
 void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	if (is_microflow(session)) {
 		return;
@@ -205,6 +206,8 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	temp_session->session_attr->sum_rtt[1] = 0;
 	temp_session->rtt_at_handshake = TIMEVAL_2_USEC(get_session_rtt(session));
 }
+
+/* This function calculates Round Trip Time (RTT) for each session */
 void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();

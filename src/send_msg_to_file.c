@@ -15,72 +15,72 @@
 #include <dirent.h>
 
 int file_is_modified(const char *path) {
-    struct stat file_stat;
+	struct stat file_stat;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 
-    int ret = 0;
-    int err = stat(path, &file_stat);
-    if (err != 0) {
-        perror(" [file_is_modified] stat");
-        exit(errno);
-    }
-    if (file_stat.st_mtime > probe_context->file_modified_time || file_stat.st_ctime > probe_context->file_modified_time){
-    	probe_context->file_modified_time = file_stat.st_mtime;
-    	ret = 1;
-    }
-    return ret;
+	int ret = 0;
+	int err = stat(path, &file_stat);
+	if (err != 0) {
+		perror(" [file_is_modified] stat");
+		exit(errno);
+	}
+	if (file_stat.st_mtime > probe_context->file_modified_time || file_stat.st_ctime > probe_context->file_modified_time){
+		probe_context->file_modified_time = file_stat.st_mtime;
+		ret = 1;
+	}
+	return ret;
 }
 
 
 cfg_t * parse_conf_new_attribute(const char *filename) {
 
-    cfg_opt_t new_condition_report_opts[] = {
-            CFG_INT("enable", 0, CFGF_NONE),
-            CFG_INT("id", 0, CFGF_NONE),
-            CFG_STR("condition", "", CFGF_NONE),
-            CFG_STR_LIST("attributes", "{}", CFGF_NONE),
-            CFG_STR_LIST("handlers", "{}", CFGF_NONE),
-            CFG_END()
-    };
+	cfg_opt_t new_condition_report_opts[] = {
+			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_INT("id", 0, CFGF_NONE),
+			CFG_STR("condition", "", CFGF_NONE),
+			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
+			CFG_STR_LIST("handlers", "{}", CFGF_NONE),
+			CFG_END()
+	};
 
-    cfg_opt_t new_event_report_opts[] = {
-            CFG_INT("enable", 0, CFGF_NONE),
-            CFG_INT("id", 0, CFGF_NONE),
-            CFG_STR("event", "", CFGF_NONE),
-            CFG_STR_LIST("attributes", "{}", CFGF_NONE),
-            CFG_END()
-    };
+	cfg_opt_t new_event_report_opts[] = {
+			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_INT("id", 0, CFGF_NONE),
+			CFG_STR("event", "", CFGF_NONE),
+			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
+			CFG_END()
+	};
 
-    cfg_opt_t socket_opts[] = {
-            CFG_INT("enable", 0, CFGF_NONE),
-            CFG_INT("domain", 0, CFGF_NONE),
-            CFG_STR_LIST("port", "{}", CFGF_NONE),
-            CFG_STR("server-address", 0, CFGF_NONE),
-            CFG_STR("socket-descriptor", "", CFGF_NONE),
+	cfg_opt_t socket_opts[] = {
+			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_INT("domain", 0, CFGF_NONE),
+			CFG_STR_LIST("port", "{}", CFGF_NONE),
+			CFG_STR("server-address", 0, CFGF_NONE),
+			CFG_STR("socket-descriptor", "", CFGF_NONE),
 			CFG_INT("one_socket_server", 0, CFGF_NONE),
 
-            CFG_END()
-    };
-    cfg_opt_t opts[] = {
-             CFG_SEC("condition_report", new_condition_report_opts, CFGF_TITLE | CFGF_MULTI),
-			 CFG_SEC("event_report", new_event_report_opts, CFGF_TITLE | CFGF_MULTI),
-	         CFG_SEC("socket", socket_opts, CFGF_NONE),
-             CFG_END()
-    };
+			CFG_END()
+	};
+	cfg_opt_t opts[] = {
+			CFG_SEC("condition_report", new_condition_report_opts, CFGF_TITLE | CFGF_MULTI),
+			CFG_SEC("event_report", new_event_report_opts, CFGF_TITLE | CFGF_MULTI),
+			CFG_SEC("socket", socket_opts, CFGF_NONE),
+			CFG_END()
+	};
 
-    cfg_t *cfg = cfg_init(opts, CFGF_NONE);
+	cfg_t *cfg = cfg_init(opts, CFGF_NONE);
 
-    switch (cfg_parse(cfg, filename)) {
-    case CFG_FILE_ERROR:
-        fprintf(stderr, "warning: configuration file '%s' could not be read: %s\n", filename, strerror(errno));
-        return 0;
-    case CFG_SUCCESS:
-        break;
-    case CFG_PARSE_ERROR:
-        return 0;
-    }
+	switch (cfg_parse(cfg, filename)) {
+	case CFG_FILE_ERROR:
+		fprintf(stderr, "warning: configuration file '%s' could not be read: %s\n", filename, strerror(errno));
+		return 0;
+	case CFG_SUCCESS:
+		break;
+	case CFG_PARSE_ERROR:
+		return 0;
+	}
 
-    return cfg;
+	return cfg;
 }
 
 void new_conditional_reports_init(void * args) {
@@ -99,36 +99,36 @@ void new_conditional_reports_init(void * args) {
 }
 
 void new_event_reports_init(void * args) {
-    int i;
-    mmt_probe_context_t * probe_context = get_probe_context_config();
+	int i;
+	mmt_probe_context_t * probe_context = get_probe_context_config();
 	struct smp_thread *th = (struct smp_thread *) args;
-    struct user_data *p;
+	struct user_data *p;
 
-    for(i = 0; i < probe_context->new_event_reports_nb; i++) {
-       		th->new_event_reports = &probe_context->register_new_event_reports[i];
-       		if(th->new_event_reports->enable == 1){
-       			if (th->new_event_reports->id == 2000){
-       				p = malloc( sizeof( struct user_data ));
-       				p->smp_thread    = th;
-       				p->event_reports = th->new_event_reports;
-       				if (is_registered_packet_handler(th->mmt_handler,6) == 1)unregister_packet_handler(th->mmt_handler, 6);
-       				register_packet_handler(th->mmt_handler, 6, packet_handler, (void *) p);
-       				/*.....socket */
+	for(i = 0; i < probe_context->new_event_reports_nb; i++) {
+		th->new_event_reports = &probe_context->register_new_event_reports[i];
+		if(th->new_event_reports->enable == 1){
+			if (th->new_event_reports->id == 2000){
+				p = malloc( sizeof( struct user_data ));
+				p->smp_thread    = th;
+				p->event_reports = th->new_event_reports;
+				if (is_registered_packet_handler(th->mmt_handler,6) == 1)unregister_packet_handler(th->mmt_handler, 6);
+				register_packet_handler(th->mmt_handler, 6, packet_handler, (void *) p);
+				/*.....socket */
 
-       				if (probe_context->socket_enable == 1 && th->socket_active == 0){
-       					create_socket(probe_context, args);
-       				}
-       			} else 	{
-       				p = malloc( sizeof( struct user_data ));
-       				p->smp_thread    = th;
-       				p->event_reports = th->new_event_reports;
-       				if (is_registered_packet_handler(th->mmt_handler,6) == 0)register_packet_handler(th->mmt_handler, 6, packet_handler, (void *) p);
-       			}
-       			if(register_event_report_handle((void *) p) == 0) {
-       				fprintf(stderr, "Error while initializing event report number %i!\n", th->new_event_reports->id);
-       			}
-       		}
-       	}
+				if (probe_context->socket_enable == 1 && th->socket_active == 0){
+					create_socket(probe_context, args);
+				}
+			} else 	{
+				p = malloc( sizeof( struct user_data ));
+				p->smp_thread    = th;
+				p->event_reports = th->new_event_reports;
+				if (is_registered_packet_handler(th->mmt_handler,6) == 0)register_packet_handler(th->mmt_handler, 6, packet_handler, (void *) p);
+			}
+			if(register_event_report_handle((void *) p) == 0) {
+				fprintf(stderr, "Error while initializing event report number %i!\n", th->new_event_reports->id);
+			}
+		}
+	}
 
 }
 void read_attributes(){
@@ -163,45 +163,45 @@ void read_attributes(){
 	}
 	int j = 0, i = 0;
 	cfg_t *event_opts;
-    int event_reports_nb = cfg_size(cfg, "event_report");
-    int event_attributes_nb = 0;
-    probe_context ->register_new_event_reports = NULL;
-    mmt_event_report_t * temp_er;
-    probe_context->new_event_reports_nb = event_reports_nb;
+	int event_reports_nb = cfg_size(cfg, "event_report");
+	int event_attributes_nb = 0;
+	probe_context ->register_new_event_reports = NULL;
+	mmt_event_report_t * temp_er;
+	probe_context->new_event_reports_nb = event_reports_nb;
 
 
-    if (event_reports_nb > 0) {
-    	probe_context ->register_new_event_reports = calloc(sizeof(mmt_event_report_t), event_reports_nb);
-    	for(j = 0; j < event_reports_nb; j++) {
-    		event_opts = cfg_getnsec(cfg, "event_report", j);
-    		//probe_context->event_based_reporting_enable = (uint32_t) cfg_getint(event_opts, "enable");
-    		temp_er = &probe_context ->register_new_event_reports[j];
-    		temp_er->enable = (uint32_t) cfg_getint(event_opts, "enable");
+	if (event_reports_nb > 0) {
+		probe_context ->register_new_event_reports = calloc(sizeof(mmt_event_report_t), event_reports_nb);
+		for(j = 0; j < event_reports_nb; j++) {
+			event_opts = cfg_getnsec(cfg, "event_report", j);
+			//probe_context->event_based_reporting_enable = (uint32_t) cfg_getint(event_opts, "enable");
+			temp_er = &probe_context ->register_new_event_reports[j];
+			temp_er->enable = (uint32_t) cfg_getint(event_opts, "enable");
 
-    		if (temp_er->enable == 1){
-    			temp_er->id = (uint32_t)cfg_getint(event_opts, "id");
-    			if (temp_er->id == 2000)probe_context->enable_security_report = 1;
-    			if (parse_dot_proto_attribute((char *) cfg_getstr(event_opts, "event"), &temp_er->event)) {
-    				fprintf(stderr, "Error: invalid event_report event value '%s'\n", (char *) cfg_getstr(event_opts, "event"));
-    				exit(0);
-    			}
-    			probe_context->event_based_reporting_enable = (uint32_t) cfg_getint(event_opts, "enable");
+			if (temp_er->enable == 1){
+				temp_er->id = (uint32_t)cfg_getint(event_opts, "id");
+				if (temp_er->id == 2000)probe_context->enable_security_report = 1;
+				if (parse_dot_proto_attribute((char *) cfg_getstr(event_opts, "event"), &temp_er->event)) {
+					fprintf(stderr, "Error: invalid event_report event value '%s'\n", (char *) cfg_getstr(event_opts, "event"));
+					exit(0);
+				}
+				probe_context->event_based_reporting_enable = (uint32_t) cfg_getint(event_opts, "enable");
 
-    			event_attributes_nb = cfg_size(event_opts, "attributes");
-    			temp_er->attributes_nb = event_attributes_nb;
-    			if(event_attributes_nb > 0) {
-    				temp_er->attributes = calloc(sizeof(mmt_event_attribute_t), event_attributes_nb);
+				event_attributes_nb = cfg_size(event_opts, "attributes");
+				temp_er->attributes_nb = event_attributes_nb;
+				if(event_attributes_nb > 0) {
+					temp_er->attributes = calloc(sizeof(mmt_event_attribute_t), event_attributes_nb);
 
-    				for(i = 0; i < event_attributes_nb; i++) {
-    					if (parse_dot_proto_attribute(cfg_getnstr(event_opts, "attributes", i), &temp_er->attributes[i])) {
-    						fprintf(stderr, "Error: invalid event_report attribute value '%s'\n", (char *) cfg_getnstr(event_opts, "attributes", i));
-    						exit(0);
-    					}
-    				}
-    			}
-    		}
-    	}
-    }
+					for(i = 0; i < event_attributes_nb; i++) {
+						if (parse_dot_proto_attribute(cfg_getnstr(event_opts, "attributes", i), &temp_er->attributes[i])) {
+							fprintf(stderr, "Error: invalid event_report attribute value '%s'\n", (char *) cfg_getnstr(event_opts, "attributes", i));
+							exit(0);
+						}
+					}
+				}
+			}
+		}
+	}
 	cfg_t * condition_opts;
 	j =0;
 	i = 0;
@@ -294,10 +294,11 @@ int remove_old_sampled_files(const char *folder, size_t retains){
 	struct dirent **entries, *entry;
 	char file_name[256];
 	int i, n, ret, to_remove;
+	mmt_probe_context_t * probe_context = get_probe_context_config();
 
 	n = scandir( folder, &entries, load_filter, alphasort );
 	if( n < 0 ) {
-		mmt_log(mmt_probe.mmt_conf, MMT_L_ERROR, MMT_P_TERMINATION, "Cannot scan output_dir!");
+		mmt_log(probe_context, MMT_L_ERROR, MMT_P_TERMINATION, "Cannot scan output_dir!");
 		exit( 1 );
 	}
 
@@ -312,7 +313,7 @@ int remove_old_sampled_files(const char *folder, size_t retains){
 
 		ret = unlink( file_name );
 		if( ret ){
-			mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_STATUS, "Cannot delete old sampled files!");
+			mmt_log(probe_context, MMT_L_WARNING, MMT_P_STATUS, "Cannot delete old sampled files!");
 		}
 
 		ret = snprintf( file_name, 255, "%s/%s.sem", folder, entry->d_name );
@@ -320,18 +321,18 @@ int remove_old_sampled_files(const char *folder, size_t retains){
 
 		ret = unlink( file_name );
 		if( ret ){
-			mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_STATUS, "Cannot delete old semaphore sampled files!");
+			mmt_log(probe_context, MMT_L_WARNING, MMT_P_STATUS, "Cannot delete old semaphore sampled files!");
 		}
 	}
 
 	for( i=0; i<n; i++ )
 		free( entries[ i ] );
-   free( entries );
+	free( entries );
 
 	return to_remove;
 }
 
-
+/* This function exits a timer thread */
 void exit_timers(){
 	//struct smp_thread *th = (struct smp_thread *) arg;
 	//flush_messages_to_file_thread( th );
@@ -349,6 +350,7 @@ typedef struct pthread_user_data{
 	void     *user_data;
 }pthread_user_data_t;
 
+/* This function runs a timer and in each timer expiry executes specific tasks*/
 static void *wait_to_do_something( void *arg ){
 	int ret;
 	struct itimerspec itval;
@@ -363,7 +365,6 @@ static void *wait_to_do_something( void *arg ){
 	int file_modified_flag = 0;
 	char lg_msg[1024];
 	int ret_val;
-
 	// Create the timer
 	timer_fd = timerfd_create (CLOCK_MONOTONIC, 0);
 	if (timer_fd == -1){
@@ -458,6 +459,7 @@ static void *wait_to_do_something( void *arg ){
 	return NULL;
 };
 
+/* This function creates a separate thread for a timer */
 int start_timer( uint32_t period, void *callback, void *user_data){
 	int ret;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -480,6 +482,9 @@ int start_timer( uint32_t period, void *callback, void *user_data){
 
 //start report messages
 
+/* This function writes messages from each thread queue to a separate file.
+ * A semaphore is created to indicate writing is finished.
+ * */
 #define MAX_FILE_NAME 500
 void flush_messages_to_file_thread( void *arg){
 
@@ -495,6 +500,7 @@ void flush_messages_to_file_thread( void *arg){
 	int i = 0;
 	char command_str [500+1] = {0};
 	char message[MAX_MESS + 1];
+
 	struct timeval ts;
 	//Print this report every 5 second
 	time_t present_time;
@@ -505,19 +511,31 @@ void flush_messages_to_file_thread( void *arg){
 
 	//dummy report
 	if (th->thread_number == 0){
-		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu",
-					200, probe_context->probe_id_number,
-					probe_context->input_source, ts.tv_sec, ts.tv_usec);
-		message[ MAX_MESS] = '\0';
+		valid = snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu",
+				200, probe_context->probe_id_number,
+				probe_context->input_source, ts.tv_sec, ts.tv_usec);
+
+		if(probe_context->cpu_mem_usage_enabled == 1){
+			if (th->nb_packets != 0) {
+				drop_percent = th->nb_dropped_packets *100/ th->nb_packets;
+				drop_percent_NIC = th->nb_dropped_packets_NIC * 100 / th->nb_packets;
+				drop_percent_kernel = th->nb_dropped_packets_kernel * 100 / th->nb_packets;
+			}
+			valid += snprintf(&message[valid], MAX_MESS, ",%3.2Lf%%, %3.2Lf%%, %3.2f%%, %3.2f%%, %3.2f%%\n",
+					probe_context->cpu_reports->cpu_usage_avg, probe_context->cpu_reports->mem_usage_avg, drop_percent, drop_percent_NIC, drop_percent_kernel);
+		}
+		message[ valid] = '\0';
+
 		if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message, (void *)th);
-		if (probe_context->redis_enable == 1)send_message_to_redis ("session.flow.report", message);
+		if (probe_context->redis_enable == 1)send_message_to_redis ("session.cpu.report", message);
 	}
+
 	if( th->cache_count == 0 ){
 		//printf ("nothing to write = %d",th->thread_number);
 		//pthread_spin_unlock(&th->lock);
 		return;
 	}
-
+	valid = 0;
 	//open a file
 	valid = snprintf(file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s", probe_context->output_location, present_time, th->thread_number, probe_context->data_out);
 	file_name_str[valid] = '\0';
@@ -533,7 +551,6 @@ void flush_messages_to_file_thread( void *arg){
 	}
 
 	//write messages to the file
-
 	int ret = pthread_spin_lock(&th->lock);
 
 	if (ret == 0) {
@@ -541,17 +558,7 @@ void flush_messages_to_file_thread( void *arg){
 			if( th->cache_message_list[ i ] == NULL ){
 				perror("this message should not be NULL");
 			}else{
-				if(probe_context->cpu_mem_usage_enabled == 1){
-							if (th->nb_packets != 0) {
-								drop_percent = th->nb_dropped_packets *100/ th->nb_packets;
-								drop_percent_NIC = th->nb_dropped_packets_NIC * 100 / th->nb_packets;
-								drop_percent_kernel = th->nb_dropped_packets_kernel * 100 / th->nb_packets;
-								}
-							fprintf ( file, "%s, %3.2Lf%%, %3.2Lf%%, %3.2f%%, %3.2f%%, %3.2f%%\n", th->cache_message_list[ i ], th->cpu_usage, th->mem_usage, drop_percent, drop_percent_NIC, drop_percent_kernel);
-						}
-				else{
-					fprintf ( file, "%s\n", th->cache_message_list[ i ]);
-				}
+				fprintf ( file, "%s\n", th->cache_message_list[ i ]);
 				//printf("message ,th->nd =%d,= %s\n",th->thread_number,th->cache_message_list[ i ]);
 				if (th->cache_message_list[ i ]) free( th->cache_message_list[ i ] );
 				th->cache_message_list[ i ] = NULL;
@@ -626,6 +633,8 @@ void flush_messages_to_file_thread( void *arg){
 	}
 }
 
+/* This function writes message to a thread queue, if sampled_report is enable,
+ * otherwise writes to a file. */
 void send_message_to_file_thread (char * message, void *args) {
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	if(probe_context->sampled_report == 1){
@@ -667,7 +676,7 @@ void send_message_to_file_thread (char * message, void *args) {
 	}
 
 }
-
+/* This function writes license information to a file */
 void send_message_to_file (char * message) {
 	FILE * file;
 	char file_name_str [MAX_FILE_NAME+1] = {0};

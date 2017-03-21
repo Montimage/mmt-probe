@@ -444,7 +444,15 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			cfg_t *cpu_mem_usage = cfg_getnsec(cfg, "cpu-mem-usage", 0);
 			if (cpu_mem_usage->line != 0){
 				mmt_conf->cpu_mem_usage_enabled = (uint8_t) cfg_getint(cpu_mem_usage, "enable");
-				mmt_conf->cpu_mem_usage_rep_freq = (uint8_t) cfg_getint(cpu_mem_usage, "frequency");
+				if (mmt_conf->cpu_mem_usage_enabled == 1){
+					mmt_conf->cpu_reports = malloc (sizeof (mmt_cpu_perf_t));
+					if (mmt_conf->cpu_reports != NULL){
+						mmt_conf->cpu_reports->cpu_mem_usage_rep_freq = (uint8_t) cfg_getint(cpu_mem_usage, "frequency");
+						mmt_conf->cpu_reports->cpu_usage_avg = 0;
+						mmt_conf->cpu_reports->mem_usage_avg = 0;
+
+					}
+				}
 			}
 		}
 

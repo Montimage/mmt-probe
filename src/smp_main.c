@@ -98,7 +98,8 @@ void error(const char *msg)
 	perror(msg);
 	exit(1);
 }
-
+/* This function unregisters the registered handlers of condition report and flowstruct_init.
+ * */
 int cleanup_registered_handlers(void *arg){
 	int i = 1, j = 0, k = 0;
 	struct smp_thread *th = (struct smp_thread *) arg;
@@ -123,7 +124,6 @@ int cleanup_registered_handlers(void *arg){
 			uint32_t attribute_id = get_attribute_id_by_protocol_and_attribute_names(condition_attribute->proto,condition_attribute->attribute);
 			if (is_registered_attribute_handler(th->mmt_handler, protocol_id, attribute_id, get_handler_by_name (handler_attribute->handler)) == 1){
 				i &=unregister_attribute_handler(th->mmt_handler, protocol_id,attribute_id, get_handler_by_name (handler_attribute->handler));
-				//printf ("here %u attr= %u\n",th->thread_number,condition_report->attributes_nb);
 			}
 
 		}
@@ -132,6 +132,9 @@ int cleanup_registered_handlers(void *arg){
 }
 
 #ifdef PCAP
+/* This function initializes/registers different handlers, functions and reports for each thread and
+ * provides packet for processing in mmt-dpi.
+ * */
 static void * smp_thread_routine(void *arg) {
 	struct timeval tv;
 	struct smp_thread *th = (struct smp_thread *) arg;
@@ -296,6 +299,10 @@ struct dispatcher_struct {
 	int nb;
 };
 
+/* This function reads the packets from trace file and process them.
+ *  In case of multi-thread, it reads the packets from the trace file and
+ *  dispatch it to one of the thread queues.
+ * */
 void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 	int i;
 	struct dispatcher_struct dispatcher[2];
@@ -344,7 +351,7 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 				if (mmt_probe->mmt_conf->enable_session_report == 1)process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
 				if (mmt_probe->mmt_conf->enable_proto_without_session_stats == 1 )iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
 
-				//Each thread need to call these function one by one to register the attributes
+				//A thread need to call these function one by one to register the attributes
 				//Need a handler, problem when flushing after all handlers are closed
 				if (mmt_probe->smp_threads->file_read_flag == 1){
 					new_conditional_reports_init((void *)mmt_probe->smp_threads);
@@ -466,6 +473,8 @@ void cleanup(int signo) {
 
 #ifdef PCAP
 //online-single thread
+/* This function processes the packet in online single thread mode.
+ * */
 void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *data) {
 	struct smp_thread *th;
 	struct pkthdr header;
@@ -509,19 +518,9 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 	nb_packets_processed_by_mmt ++;
 }
 
-//static inline void __attribute__((always_inline))
-//mmt_memcpy(void* dest, const void* src, const size_t size){
-//	char *d = (char *)dest, *s = (char *)src;
-//	size_t i=0;
-//	do{
-//		d = s;
-//		d++;
-//		s++;
-//		i++;
-//	}while( i< size );
-//}
-
-//We have more than one thread for processing packets! dispatch the packet to one of them
+/* This function is for online multi-thread mode.
+ * It  dispatches the packet to one of the thread queues for processing.
+ * */
 void got_packet_multi_thread(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *data) {
 	struct smp_thread *th;
 	uint32_t p_hash = 0;
@@ -552,7 +551,7 @@ void got_packet_multi_thread(u_char *args, const struct pcap_pkthdr *pkthdr, con
 }
 
 /*
- * This thread reads stdin or the network and appends to the ring buffer
+ * This function reads stdin or the network and appends to the ring buffer
  */
 void *Reader(void *arg) {
 	struct mmt_probe_struct * mmt_probe = (struct mmt_probe_struct *) arg;
@@ -663,6 +662,9 @@ void process_interface(char * ifname, struct mmt_probe_struct * mmt_probe) {
 
 #endif
 
+/* This function is executed before exiting the program,
+ * to free the allocated memory, close extraction, , cancels threads, flush the reports etc
+ * */
 void terminate_probe_processing(int wait_thread_terminate) {
 	char lg_msg[1024];
 	mmt_probe_context_t * mmt_conf = mmt_probe.mmt_conf;
@@ -848,7 +850,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
 
 	if (mmt_conf->thread_nb > 1){
 		for(i=0; i<mmt_conf->thread_nb; i++){
-
 			if (mmt_conf->socket_enable == 1){
 			    //printf ("th_nb =%2u, packets_reports_send = %"PRIu64" (%5.2f%%) \n", i,
 			   		 //mmt_probe.smp_threads[i].packet_send,
@@ -1060,7 +1061,7 @@ void signal_handler(int type) {
 		exit(1);
 	}
 }
-
+/* This function creates socket, UNIX or Internet domain */
 void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 	/*.....socket */
 	struct sockaddr_in in_serv_addr;
@@ -1143,12 +1144,13 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 	}
 }
 
-void *cpu_ram_usage_routine(void *f){
+/* This function monitors CPU and memory usage*/
+void *cpu_ram_usage_routine(void * args){
 	long double t1[7], t2[7];
 	FILE *fp;
 	char dump[50];
-	int freq = *((int*) f);
-
+	//int freq = *((int*) f);
+	mmt_probe_context_t * probe_context = get_probe_context_config();
 
 	while(1)
 	{
@@ -1161,7 +1163,7 @@ void *cpu_ram_usage_routine(void *f){
 		//printf("Memtotal: %Lf kB.\nMemFree: %Lf kB.\nMemAvailable: %Lf kB.\n", t1[4], t1[5], t1[6]);
 		fclose(fp);
 
-		sleep(freq);
+		sleep(probe_context->cpu_reports->cpu_mem_usage_rep_freq);
 
 		fp = fopen("/proc/stat","r");
 		if(fscanf(fp,"%*s %Lf %Lf %Lf %Lf",&t2[0],&t2[1],&t2[2],&t2[3]) != 4) fprintf(stderr , "\nError in fscanf the cpu stat\n");
@@ -1172,8 +1174,8 @@ void *cpu_ram_usage_routine(void *f){
 		//printf("Memtotal: %Lf kB.\nMemFree: %Lf kB.\nMemAvailable: %Lf kB.\n", t1[4], t1[5], t1[6]);
 		fclose(fp);
 
-		cpu_usage_avg = 100* ((t2[0]+t2[1]+t2[2]) - (t1[0]+t1[1]+t1[2])) / ((t2[0]+t2[1]+t2[2]+t2[3]) - (t1[0]+t1[1]+t1[2]+t1[3]));
-		mem_usage_avg = (t2[6]+t1[6])*100/(2*t1[4]);
+		probe_context->cpu_reports->cpu_usage_avg = 100* ((t2[0]+t2[1]+t2[2]) - (t1[0]+t1[1]+t1[2])) / ((t2[0]+t2[1]+t2[2]+t2[3]) - (t1[0]+t1[1]+t1[2]+t1[3]));
+		probe_context->cpu_reports->mem_usage_avg = (t2[6]+t1[6])*100/(2*t1[4]);
 		//printf("The current CPU utilization is : %Lf percent\n",cpu_usage_avg);
 		//printf("Memory usage : %Lf percent (%Lf/%Lf)\n",((t2[6]+t1[6])*100/(2*t1[4])),(t2[6]+t1[6])/2, t1[4]);
 	}
@@ -1254,7 +1256,7 @@ int main(int argc, char **argv) {
 	//Add the module for printing cpu_mem_usage here
 	if (mmt_conf->cpu_mem_usage_enabled == 1){
 		//printf("CPU, RAM usage report enabled\n");
-		pthread_create(&cpu_ram_usage_thr, NULL, cpu_ram_usage_routine, (void *) &mmt_conf->cpu_mem_usage_rep_freq);
+		pthread_create(&cpu_ram_usage_thr, NULL, cpu_ram_usage_routine, NULL);
 	}
 
 
@@ -1416,7 +1418,6 @@ int main(int argc, char **argv) {
 #ifdef DPDK
 	if(mmt_probe.mmt_conf->output_to_file_enable == 1 && mmt_probe.mmt_conf->redis_enable == 1)	start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
 	dpdk_capture(argc, argv, &mmt_probe );
-
 #endif
 	terminate_probe_processing(1);
 

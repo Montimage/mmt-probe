@@ -19,6 +19,9 @@ enum license_messages {
 	MMT_LICENSE_INFO
 
 };
+/* This function gets MAC addresses from the machine and compares with license MAC field in the license key.
+ * If machine MAC address matches license MAC returns 1, 0 otherwise
+ * */
 int gethostMACaddress(char *read_mac_address, int no_of_mac)
 {
 	unsigned char mac_address [7];
@@ -63,6 +66,9 @@ int gethostMACaddress(char *read_mac_address, int no_of_mac)
 	return 0;
 }
 
+/* This function checks MAC address, license expiry dates to validate the MMT license.
+ * If license is valid returns 0, 1 otherwise.
+ *  */
 int license_expiry_check(int status){
 	//struct tm *tm;
 	struct tm expiry_time;

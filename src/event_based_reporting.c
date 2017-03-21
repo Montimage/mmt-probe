@@ -12,6 +12,7 @@
 #include <pthread.h>
 #include "tcpip/mmt_tcpip.h"
 
+/* This function is for reporting event report * */
 void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	int j;
 	attribute_t * attr_extract;
@@ -62,7 +63,9 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
 	if (probe_context->redis_enable == 1) send_message_to_redis ("event.report", message);
 
 }
-
+/* This function registers attributes and handlers for event report.
+ * Returns 0 if unsuccessful
+ * */
 int register_event_report_handle(void * args) {
 	int i = 1, j;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -100,6 +103,9 @@ int register_event_report_handle(void * args) {
 	return i;
 }
 
+/* This function registers extraction attribute for multisession reports.
+ * Returns 0 if unsuccessful
+ * */
 int register_security_report_multisession_handle(void * args) {
 	int i=0, j =0, k = 1, l=0;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -127,6 +133,7 @@ int register_security_report_multisession_handle(void * args) {
 	}
 	return k;
 }
+/* This function initialize multisession reports.  * */
 void security_reports_multisession_init(void * args) {
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -146,6 +153,10 @@ void security_reports_multisession_init(void * args) {
 	if (is_registered_packet_handler(th->mmt_handler,6) == 1)unregister_packet_handler(th->mmt_handler, 6);
 	register_packet_handler(th->mmt_handler, 6, packet_handler, (void *) th);
 }
+
+/* This function registers extraction attribute for security report.
+ * Returns 0 if unsuccessful
+ * */
 int register_security_report_handle(void * args) {
 	int i = 0, j = 0, k = 1, l = 0, test=0;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -185,6 +196,9 @@ int register_security_report_handle(void * args) {
 	}
 	return k;
 }
+
+/* This function initialize security report.
+ * */
 void security_reports_init(void * args) {
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -208,6 +222,8 @@ void security_reports_init(void * args) {
 	register_packet_handler(th->mmt_handler, 6, packet_handler, (void *) th);
 }
 
+/* This function initialize event report.
+ * */
 void event_reports_init(void * args) {
 	int i;
 	mmt_probe_context_t * probe_context = get_probe_context_config();

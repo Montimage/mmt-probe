@@ -18,7 +18,6 @@
 #endif
 
 #include "processing.h"
-//#include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <unistd.h>
@@ -72,7 +71,7 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt) {
 }
 #endif
 
-
+/* This function takes start time and end time as an input and returns their difference.*/
 struct timeval mmt_time_diff(struct timeval tstart, struct timeval tend) {
 	tstart.tv_sec = tend.tv_sec - tstart.tv_sec;
 	tstart.tv_usec = tend.tv_usec - tstart.tv_usec;
@@ -83,6 +82,9 @@ struct timeval mmt_time_diff(struct timeval tstart, struct timeval tend) {
 	return tstart;
 }
 
+/*This function takes IPv6 address and finds whether this address belongs to a local network.
+ *It returns 1 if the address belongs to a IPv6 local network
+ */
 int is_localv6_net(char * addr) {
 
 	if (strncmp(addr, "fec0", 4) == 0)return 1;
@@ -91,6 +93,10 @@ int is_localv6_net(char * addr) {
 
 	return 0;
 }
+
+/*This function takes IPv4 address and finds whether this address belongs to a local network.
+ *It returns 1 if the address belongs to a IPv4 local network
+ */
 
 int is_local_net(int addr) {
 
@@ -109,6 +115,7 @@ int is_local_net(int addr) {
 
 	return 0;
 }
+/* This function writes messages to a log file, including the msg level, time and code */
 
 void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char * log_msg) {
 	if (level >= mmt_conf->log_level) {
@@ -119,6 +126,11 @@ void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char * l
 		fflush(log_file);
 	}
 }
+
+/* This function puts the protocol path as a string (for example, 99.178.376,
+ * where,99-Ethernet, 178-IP and 376-UDP), in a variable dest and
+ * returns its length as a offset.
+ * */
 
 int proto_hierarchy_ids_to_str(const proto_hierarchy_t * proto_hierarchy, char * dest) {
 	int offset = 0;
@@ -135,6 +147,10 @@ int proto_hierarchy_ids_to_str(const proto_hierarchy_t * proto_hierarchy, char *
 	return offset;
 }
 
+/* This function returns the index of a particular proto_id, in a proto_path.
+ * If the proto_id does not exit it returns -1
+ *  */
+
 int get_protocol_index_from_session(const proto_hierarchy_t * proto_hierarchy, uint32_t proto_id) {
 	int index = 0;
 	for (; index < proto_hierarchy->len && index < 16; index++) {
@@ -148,6 +164,10 @@ static mmt_probe_context_t probe_context = {0};
 inline mmt_probe_context_t * get_probe_context_config() {
 	return & probe_context;
 }
+
+/* This function assigns the session ID to a new flow (session), maintains session informations in session_struct_t and
+ * updates mmt_session_t context with new session informations (session_struct_t).
+ * */
 
 void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 
@@ -254,7 +274,9 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	temp_session->isFlowExtracted = 1;
 	set_user_session_context(session, temp_session);
 }
-
+/* This function extracts the required information from the #ipacket, which is required to create
+ * a security report and then sends the message/report to mmt-security through socket.
+ * */
 void get_security_report(const ipacket_t * ipacket,void * args){
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -364,9 +386,6 @@ void get_security_report(const ipacket_t * ipacket,void * args){
 		//safe string
 		report_ptr->data[report_ptr->security_report_counter][report_ptr->length] = '\0';
 
-		//if (probe_context->redis_enable == 1 && probe_context->socket_enable == 0)
-			//send_message_to_redis ("event.security_report", (char *)report_ptr->data[report_ptr->security_report_counter]);
-
 		if (probe_context->socket_enable == 1){
 			th->packet_send ++;
 
@@ -392,6 +411,9 @@ void get_security_report(const ipacket_t * ipacket,void * args){
 	}
 }
 
+/* This function extracts the required information from the #ipacket, which is required to create
+ * a multi_session report and then sends the message/report through redis in a particular channel.
+ * */
 void get_security_multisession_report(const ipacket_t * ipacket,void * args){
 	int i=0, j=0, offset =0, valid =0, k=0;
 	int LEN = 10000;
@@ -407,7 +429,6 @@ void get_security_multisession_report(const ipacket_t * ipacket,void * args){
 
 	for(i = 0; i < probe_context->security_reports_multisession_nb; i++) {
 		j=0, offset = 0, valid = 0;
-		//memset(message,'\0',LEN);
 
 		if (probe_context->security_reports_multisession[i].enable == 0)
 			continue;
@@ -445,7 +466,9 @@ void get_security_multisession_report(const ipacket_t * ipacket,void * args){
 	}
 
 }
-
+/* This function is called by mmt-dpi for each incoming packet.
+ * It extracts packet information from a #ipacket for creating messages/reports.
+ * */
 int packet_handler(const ipacket_t * ipacket, void * args) {
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -488,7 +511,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 
 	return 0;
 }
-
+/* This function registers the packet handler for each threads */
 void proto_stats_init(void * arg) {
 	struct smp_thread *th = (struct smp_thread *) arg;
 	register_packet_handler(th->mmt_handler, 6, packet_handler, arg);
@@ -497,6 +520,10 @@ void proto_stats_init(void * arg) {
 void proto_stats_cleanup(void * handler) {
 	(void) unregister_packet_handler((mmt_handler_t *) handler, 1);
 }
+
+/* This function returns the function handler corresponding to a particular func_name.
+ * If a func_name does not exist it returns 0.
+ * */
 void * get_handler_by_name(char * func_name){
 	if (strcmp(func_name,"ftp_session_connection_type_handle") == 0){
 		return ftp_session_connection_type_handle;
@@ -552,6 +579,8 @@ void * get_handler_by_name(char * func_name){
 	return 0;
 }
 
+/* This function registers attributes and attribute handlers for different condition_reports (if enabled in a configuration file).
+ * */
 int register_conditional_report_handle(void * args, mmt_condition_report_t * condition_report) {
 	int i = 1,j;
 	uint32_t protocol_id;
@@ -585,10 +614,12 @@ int register_conditional_report_handle(void * args, mmt_condition_report_t * con
 	}
 	return i;
 }
+
+/* This function initializes condition_reports (if enabled in a configuration file).
+ * */
 void conditional_reports_init(void * args) {
 	int i;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
-	//struct smp_thread *th = (struct smp_thread *) args;
 
 	for(i = 0; i < probe_context->condition_reports_nb; i++) {
 		mmt_condition_report_t * condition_report = &probe_context->condition_reports[i];
@@ -600,6 +631,8 @@ void conditional_reports_init(void * args) {
 	}
 
 }
+/* This function registers the required attributes for a flow (session)
+ * */
 void flowstruct_init(void * args) {
 	struct smp_thread *th = (struct smp_thread *) args;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -697,6 +730,8 @@ int time_diff(struct timeval t1, struct timeval t2) {
 	return (((t2.tv_sec - t1.tv_sec) * 1000000) + (t2.tv_usec - t1.tv_usec)) / 1000;
 }
 
+/* It provides os_id and device_id from a user_agent if it exists or returns 0
+ * */
 mmt_dev_properties_t get_dev_properties_from_user_agent(char * user_agent, uint32_t len) {
 	mmt_dev_properties_t retval = {0};
 	if ((len > 8) && (mmt_strncasecmp(user_agent, "Mozilla/", 8) == 0)) {
@@ -763,7 +798,9 @@ mmt_dev_properties_t get_dev_properties_from_user_agent(char * user_agent, uint3
 	}
 	return retval;
 }
-
+/* This function is called by mmt-dpi for each session time-out (expiry).
+ * It provides the expired session information and frees the memory allocated.
+ * */
 void classification_expiry_session(const mmt_session_t * expired_session, void * args) {
 	session_struct_t * temp_session = get_user_session_context(expired_session);
 	struct smp_thread *th = (struct smp_thread *) args;

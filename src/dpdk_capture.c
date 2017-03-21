@@ -63,11 +63,12 @@
 #include <errno.h>
 
 
-#define RX_RING_SIZE    4096
-#define NUM_MBUFS       196609
+#define RX_RING_SIZE    4096 	/* Size for each RX ring*/
+#define NUM_MBUFS       196609  /* Total size of MBUFS */
 #define MBUF_CACHE_SIZE 512
-#define BURST_SIZE      128
+#define BURST_SIZE      128  	/* Burst size to receive packets from RX ring */
 
+/* Symmetric RSS hash key */
 static uint8_t hash_key[52] = {
 		0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
 		0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
@@ -79,6 +80,7 @@ static uint8_t hash_key[52] = {
 
 };
 
+/* RX configuration struct */
 static const struct rte_eth_rxconf rx_conf = {
 		.rx_thresh = {
 				.pthresh = 8,   /* Ring prefetch threshold */
@@ -89,6 +91,7 @@ static const struct rte_eth_rxconf rx_conf = {
 		.rx_drop_en     = 0
 };
 
+/* eth port configuration struct */
 static const struct rte_eth_conf port_conf_default = {
 		.rxmode = {
 				//.max_rx_pkt_len = ETHER_MAX_LEN,
@@ -112,7 +115,7 @@ static const struct rte_eth_conf port_conf_default = {
 		// 		.mq_mode = ETH_MQ_TX_NONE,
 		// },
 };
-
+/* This function retrieves the general I/O statistics of an Ethernet device. */
 void print_stats (void * args){
 	struct rte_eth_stats stat;
 	int i;
@@ -138,6 +141,9 @@ void print_stats (void * args){
 
 }
 
+/* This function is executed by each worker thread to register handlers, function, reports etc,
+ * receive burst of  packets from eth ports and process the packets.
+ * */
 static int
 worker_thread(void *args_ptr){
 	const uint8_t nb_ports = 1;
@@ -270,8 +276,6 @@ worker_thread(void *args_ptr){
 	return 0;
 }
 
-/* basicfwd.c: Basic DPDK skeleton forwarding example. */
-
 /*
  * Initializes a given port using global settings and with the RX buffers
  * coming from the mbuf_pool passed as a parameter.
@@ -323,6 +327,9 @@ static __attribute__((noreturn)) void
 		sleep( 1 );
 	}
 }
+
+/* This function registers/initializes DPDK environment variables, ports, workers (threads) etc.
+ * */
 int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	struct rte_mempool *mbuf_pool;
 	unsigned nb_ports;

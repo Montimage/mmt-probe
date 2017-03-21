@@ -45,7 +45,8 @@ void init_redis (char * hostname, int port) {
 		}
 	}
 }
-
+/* This function publish message to redis channel.
+ * For multi-session reporting it LPUSH to redis channel */
 void send_message_to_redis (char *channel, char * message) {
 	//printf("---> report to redis: %s\n%s\n",channel,message);
 	// Publish to redis if it is enabled
@@ -60,7 +61,6 @@ void send_message_to_redis (char *channel, char * message) {
 
 		}else {
 			reply   = (redisReply *) thredis_command (thredis, "PUBLISH %s [%s]", channel, message);
-
 		}
 		if(reply == NULL){
 			printf("Redis command error: can't allocate reply context\n");
