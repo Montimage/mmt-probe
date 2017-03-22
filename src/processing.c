@@ -454,8 +454,8 @@ void get_security_multisession_report(const ipacket_t * ipacket,void * args){
 					printf ("ERROR: In function get_security_multisession_report, valid2 < 0 \n ");
 				}
 			}else {
-
-				offset += 1;
+				message[offset + 1] = ' ';
+				offset += 2;
 			}
 		}
 		message[ offset ] = '\0';
