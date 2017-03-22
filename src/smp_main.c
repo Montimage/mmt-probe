@@ -64,8 +64,7 @@ src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c s
 #define MAX_FILE_NAME 500
 //static int okcode  = EXIT_SUCCESS;
 static int errcode = EXIT_FAILURE;
-static long double cpu_usage_avg = 0;
-static long double mem_usage_avg = 0;
+
 
 pcap_t *handle = 0; /* packet capture handle */
 struct pcap_stat pcs; /* packet capture filter stats */
@@ -101,20 +100,20 @@ void error(const char *msg)
 /* This function unregisters the registered handlers of condition report and flowstruct_init.
  * */
 int cleanup_registered_handlers(void *arg){
-	int i = 1, j = 0, k = 0;
+	int i = 0, j = 0, k = 1;
 	struct smp_thread *th = (struct smp_thread *) arg;
 
 	if (is_registered_attribute_handler(th->mmt_handler, PROTO_IP, IP_RTT, ip_rtt_handler) == 1)
-		i &= unregister_attribute_handler(th->mmt_handler, PROTO_IP, IP_RTT, ip_rtt_handler);
+		k &= unregister_attribute_handler(th->mmt_handler, PROTO_IP, IP_RTT, ip_rtt_handler);
 
 	if (is_registered_attribute_handler(th->mmt_handler, PROTO_TCP, TCP_CONN_CLOSED, tcp_closed_handler) == 1)
-		i &= unregister_attribute_handler(th->mmt_handler, PROTO_TCP,TCP_CONN_CLOSED, tcp_closed_handler);
+		k &= unregister_attribute_handler(th->mmt_handler, PROTO_TCP,TCP_CONN_CLOSED, tcp_closed_handler);
 
 	if (is_registered_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle) == 1)
-		i &= unregister_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle);
+		k &= unregister_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle);
 
 	if (is_registered_attribute_handler(th->mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle) == 1)
-		i &=unregister_attribute_handler(th->mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle);
+		k &= unregister_attribute_handler(th->mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle);
 	for(i = 0; i < mmt_probe.mmt_conf->condition_reports_nb; i++) {
 		mmt_condition_report_t * condition_report = &mmt_probe.mmt_conf->condition_reports[i];
 		for(j = 0; j < condition_report->attributes_nb; j++) {
@@ -123,12 +122,12 @@ int cleanup_registered_handlers(void *arg){
 			uint32_t protocol_id = get_protocol_id_by_name (condition_attribute->proto);
 			uint32_t attribute_id = get_attribute_id_by_protocol_and_attribute_names(condition_attribute->proto,condition_attribute->attribute);
 			if (is_registered_attribute_handler(th->mmt_handler, protocol_id, attribute_id, get_handler_by_name (handler_attribute->handler)) == 1){
-				i &=unregister_attribute_handler(th->mmt_handler, protocol_id,attribute_id, get_handler_by_name (handler_attribute->handler));
+				k &= unregister_attribute_handler(th->mmt_handler, protocol_id,attribute_id, get_handler_by_name (handler_attribute->handler));
 			}
 
 		}
 	}
-	return i;
+	return k;
 }
 
 #ifdef PCAP
@@ -190,7 +189,7 @@ static void * smp_thread_routine(void *arg) {
 		if (mmt_probe.mmt_conf->condition_based_reporting_enable == 1)conditional_reports_init(th);// initialize our condition reports
 		if (mmt_probe.mmt_conf->radius_enable == 1)radius_ext_init(th); // initialize radius extraction and attribute event handler
 	}
-       	set_default_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->default_session_timeout);
+	set_default_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->default_session_timeout);
 	set_long_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->long_session_timeout);
 	set_short_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->short_session_timeout);
 	set_live_session_timed_out(th->mmt_handler, mmt_probe.mmt_conf->live_session_timeout);
@@ -211,12 +210,12 @@ static void * smp_thread_routine(void *arg) {
 	mmt_handler_t *mmt_handler = th->mmt_handler;
 
 	while ( 1 ) {
-		if (mmt_probe.mmt_conf->cpu_mem_usage_enabled == 1){
+		/*if (mmt_probe.mmt_conf->cpu_mem_usage_enabled == 1){
 			th->cpu_usage = cpu_usage_avg;
 			th->mem_usage = mem_usage_avg;
-			th->nb_dropped_packets_NIC = pcs.ps_ifdrop;
+		    th->nb_dropped_packets_NIC = pcs.ps_ifdrop;
 			th->nb_dropped_packets_kernel = pcs.ps_drop;
-		}
+		}*/
 		if(time(NULL)- th->last_stat_report_time >= mmt_probe.mmt_conf->stats_reporting_period ||
 				th->pcap_current_packet_time - th->pcap_last_stat_report_time >= mmt_probe.mmt_conf->stats_reporting_period){
 			th->report_counter++;
@@ -224,16 +223,6 @@ static void * smp_thread_routine(void *arg) {
 			th->pcap_last_stat_report_time = th->pcap_current_packet_time;
 			if (probe_context->enable_session_report == 1)process_session_timer_handler(th->mmt_handler);
 			if (probe_context->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, th);
-
-			//Each thread need to call these function one by one to register the attributes
-			//Need a handler, problem when flushing after all handlers are closed
-			if (th->file_read_flag == 1){
-				new_conditional_reports_init(arg);
-				new_event_reports_init(arg);
-				printf("Added new attributes_th_id= %u\n", th->thread_number);
-				th->file_read_flag = 0;
-			}
-
 		}
 
 		//get number of packets being available
@@ -320,7 +309,7 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 	static void *pdata;
 
 	//Initialise MMT_Security
-	if(mmt_probe->mmt_conf->security_enable==1)
+	if(mmt_probe->mmt_conf->security_enable == 1)
 		init_mmt_security(mmt_probe->smp_threads->mmt_handler, mmt_probe->mmt_conf->properties_file,(void *)mmt_probe->smp_threads );
 	//End initialise MMT_Security
 
@@ -350,16 +339,6 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 				mmt_probe->smp_threads->pcap_last_stat_report_time = mmt_probe->smp_threads->pcap_current_packet_time;
 				if (mmt_probe->mmt_conf->enable_session_report == 1)process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
 				if (mmt_probe->mmt_conf->enable_proto_without_session_stats == 1 )iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
-
-				//A thread need to call these function one by one to register the attributes
-				//Need a handler, problem when flushing after all handlers are closed
-				if (mmt_probe->smp_threads->file_read_flag == 1){
-					new_conditional_reports_init((void *)mmt_probe->smp_threads);
-					new_event_reports_init((void *)mmt_probe->smp_threads);
-					printf("Added new attributes_th_id = %u\n", mmt_probe->smp_threads->thread_number);
-					mmt_probe->smp_threads->file_read_flag = 0;
-				}
-
 			}
 
 
@@ -394,7 +373,7 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 			if( ! data ){
 				//printf("break read pcap");
 				fflush( stdout );
-				for( i=0; i<mmt_probe->mmt_conf->thread_nb; i++){
+				for( i = 0; i < mmt_probe->mmt_conf->thread_nb; i++){
 					th = &mmt_probe->smp_threads[i];
 					if( data_spsc_ring_get_tmp_element( &th->fifo, &pdata ) != QUEUE_SUCCESS)
 						continue;
@@ -488,12 +467,12 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 	header.len = pkthdr->len;
 	header.user_args = NULL;
 
-	if(mmt_probe.mmt_conf->cpu_mem_usage_enabled == 1){
+	/*if(mmt_probe.mmt_conf->cpu_mem_usage_enabled == 1){
 		mmt_probe.smp_threads->cpu_usage = cpu_usage_avg;
 		mmt_probe.smp_threads->mem_usage = mem_usage_avg;
-		mmt_probe.smp_threads->nb_dropped_packets_NIC = pcs.ps_ifdrop;
+	 	mmt_probe.smp_threads->nb_dropped_packets_NIC = pcs.ps_ifdrop;
 		mmt_probe.smp_threads->nb_dropped_packets_kernel = pcs.ps_drop;
-	}
+	}*/
 
 	if(time(NULL)- mmt_probe.smp_threads->last_stat_report_time >= mmt_probe.mmt_conf->stats_reporting_period){
 
@@ -501,14 +480,6 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 		mmt_probe.smp_threads->last_stat_report_time = time(NULL);
 		if (mmt_probe.mmt_conf->enable_session_report == 1)process_session_timer_handler(mmt_probe.smp_threads->mmt_handler);
 		if (mmt_probe.mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe.smp_threads);
-
-		if (mmt_probe.smp_threads->file_read_flag == 1){
-			new_conditional_reports_init((void *)mmt_probe.smp_threads);
-			new_event_reports_init((void *)mmt_probe.smp_threads);
-			printf("Added new attributes_th_id = %u\n",mmt_probe.smp_threads->thread_number);
-			mmt_probe.smp_threads->file_read_flag = 0;
-		}
-
 	}
 
 	if (!packet_process(mmt_probe.smp_threads->mmt_handler, &header, data)) {
@@ -613,7 +584,7 @@ void *Reader(void *arg) {
 	//	exit(EXIT_FAILURE);
 	//}
 	//Initialise MMT_Security
-	if(mmt_probe->mmt_conf->security_enable==1)
+	if(mmt_probe->mmt_conf->security_enable == 1)
 		init_mmt_security( mmt_probe->smp_threads->mmt_handler, mmt_probe->mmt_conf->properties_file, (void *)mmt_probe->smp_threads );
 	//End initialise MMT_Security
 
@@ -629,13 +600,6 @@ void *Reader(void *arg) {
 				mmt_probe->smp_threads->last_stat_report_time = time(NULL);
 				if(mmt_probe->mmt_conf->enable_session_report == 1)process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
 				if (mmt_probe->mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
-				if (mmt_probe->smp_threads->file_read_flag == 1){
-					new_conditional_reports_init((void *)mmt_probe->smp_threads);
-					new_event_reports_init((void *)mmt_probe->smp_threads);
-					printf("Added new attributes_th_id = %u\n", mmt_probe->smp_threads->thread_number);
-					mmt_probe->smp_threads->file_read_flag = 0;
-				}
-
 			}
 
 		}
@@ -662,13 +626,197 @@ void process_interface(char * ifname, struct mmt_probe_struct * mmt_probe) {
 
 #endif
 
+
+void cleanup_report_allocated_memory(){
+
+	mmt_probe_context_t * mmt_conf = mmt_probe.mmt_conf;
+	int i, j = 0, l = 0;
+	if (mmt_conf->server_adresses != NULL){
+		for (i = 0; i < mmt_conf->server_ip_nb; i++){
+			free (mmt_conf->server_adresses->server_portnb);
+		}
+		free (mmt_conf->server_adresses);
+	}
+	if (mmt_conf->register_new_condition_reports != NULL && mmt_conf->register_new_event_reports != NULL){
+		for (i=0; i < mmt_conf->new_condition_reports_nb; i++){
+			free (mmt_conf->register_new_condition_reports[i].attributes);
+			mmt_conf->register_new_condition_reports[i].attributes = NULL;
+			free (mmt_conf->register_new_condition_reports[i].handlers);
+			mmt_conf->register_new_condition_reports[i].handlers = NULL;
+		}
+
+		for (i=0; i < mmt_conf->new_event_reports_nb; i++){
+			free (mmt_conf->register_new_event_reports[i].attributes);
+			mmt_conf->register_new_event_reports[i].attributes = NULL;
+		}
+
+		free (mmt_conf->register_new_condition_reports);
+		mmt_conf->register_new_condition_reports = NULL;
+
+		free (mmt_conf->register_new_event_reports);
+		mmt_conf->register_new_event_reports = NULL;
+
+	}
+
+	for (i = 0; i < mmt_conf->condition_reports_nb; i++){
+		free (mmt_conf->condition_reports[i].attributes);
+		mmt_conf->condition_reports[i].attributes = NULL;
+		free (mmt_conf->condition_reports[i].handlers);
+		mmt_conf->condition_reports[i].handlers = NULL;
+	}
+	for (i = 0; i < mmt_conf->event_reports_nb; i++){
+		free (mmt_conf->event_reports[i].attributes);
+		mmt_conf->event_reports[i].attributes = NULL;
+	}
+	if (mmt_conf->condition_reports != NULL){
+		free (mmt_conf->condition_reports);
+		mmt_conf->condition_reports = NULL;
+	}
+	if (mmt_conf->event_reports != NULL) {
+		free (mmt_conf->event_reports);
+		mmt_conf->event_reports = NULL;
+	}
+	for (i=0; i < mmt_conf->security_reports_nb; i++){
+		free (mmt_conf->security_reports[i].attributes);
+		mmt_conf->security_reports[i].attributes = NULL;
+		for (l = 0; l < mmt_conf->security_reports[i].event_name_nb; l++ ){
+			free (mmt_conf->security_reports[i].event_name[l]);
+			mmt_conf->security_reports[i].event_name[l] = NULL;
+		}
+		free (mmt_conf->security_reports[i].event_name);
+		mmt_conf->security_reports[i].event_name = NULL;
+		free (mmt_conf->security_reports[i].event_id);
+		mmt_conf->security_reports[i].event_id = NULL;
+	}
+	if (mmt_conf->security_reports != NULL) {
+		free (mmt_conf->security_reports);
+	}
+
+	int retval = 0;
+	uint64_t count = 0;
+
+	if (mmt_conf->thread_nb > 1){
+		for(i = 0; i < mmt_conf->thread_nb; i++){
+			if (mmt_conf->socket_enable == 1){
+				//printf ("th_nb =%2u, packets_reports_send = %"PRIu64" (%5.2f%%) \n", i,
+				//mmt_probe.smp_threads[i].packet_send,
+				//	 mmt_probe.smp_threads[i].packet_send * 100.0 / mmt_probe.smp_threads[i].nb_packets );
+				printf ("[mmt-probe-2]{%u,%"PRIu64",%f}\n", i,
+						mmt_probe.smp_threads[i].packet_send,
+						mmt_probe.smp_threads[i].packet_send * 100.0 / mmt_probe.smp_threads[i].nb_packets);
+
+				//  mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length],1024 - mmt_conf->report_length,"%d,%"PRIu64",%f,", i, mmt_probe.smp_threads[i].packet_send, mmt_probe.smp_threads[i].packet_send * 100.0 / mmt_probe.smp_threads[i].nb_packets );
+				count += mmt_probe.smp_threads[i].packet_send;
+
+			}
+#ifdef PCAP
+			data_spsc_ring_free( &mmt_probe.smp_threads[i].fifo );
+#endif
+			if (mmt_probe.smp_threads[i].report != NULL){
+				for(j = 0; j < mmt_conf->security_reports_nb; j++) {
+					if (mmt_probe.smp_threads[i].report[j].data != NULL){
+						if (mmt_probe.smp_threads[i].report[j].security_report_counter > 0){
+
+							mmt_probe.smp_threads[i].report[j].grouped_msg.msg_hdr.msg_iov    = mmt_probe.smp_threads[i].report[j].msg;
+							mmt_probe.smp_threads[i].report[j].grouped_msg.msg_hdr.msg_iovlen = mmt_probe.smp_threads[i].report[j].security_report_counter;
+						}
+
+						if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_internet[j], &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
+						if (mmt_probe.mmt_conf->socket_domain == 0 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_unix, &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
+
+
+						if (retval == -1)
+							perror("sendmmsg()");
+						if (mmt_probe.smp_threads[i].report[j].msg != NULL){
+							free (mmt_probe.smp_threads[i].report[j].msg);
+						}
+						for (l = 0; l < mmt_conf->nb_of_report_per_msg; l++)free (mmt_probe.smp_threads[i].report[j].data[l]);
+					}
+					free (mmt_probe.smp_threads[i].report[j].data);
+				}
+
+				free (mmt_probe.smp_threads[i].report);
+
+			}
+
+			if (mmt_probe.smp_threads[i].sockfd_internet != NULL){
+				for (j = 0; j < mmt_conf->server_ip_nb; j++){
+					if(mmt_probe.smp_threads[i].sockfd_internet[j] > 0)close(mmt_probe.smp_threads[i].sockfd_internet[j]);
+				}
+				free (mmt_probe.smp_threads[i].sockfd_internet);
+			}
+
+
+			if (mmt_probe.smp_threads[i].security_attributes != NULL){
+				free (mmt_probe.smp_threads[i].security_attributes);
+			}
+
+		}
+		if (mmt_conf->socket_enable == 1){
+			//printf ("total_packets_report_send_by_threads = %"PRIu64" \n",count);
+			//mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length - 1],1024 - mmt_conf->report_length,",%"PRIu64"}",count);
+			printf ("[mmt-probe-3]{%"PRIu64"} \n",count);
+		}
+		free( mmt_probe.smp_threads);
+		mmt_probe.smp_threads = NULL;
+	} else {
+		if (mmt_probe.smp_threads->report != NULL){
+			for(j = 0; j < mmt_conf->security_reports_nb; j++) {
+				if (mmt_probe.smp_threads->report[j].data != NULL){
+					if (mmt_probe.smp_threads->report[j].security_report_counter > 0){
+
+						mmt_probe.smp_threads->report[j].grouped_msg.msg_hdr.msg_iov    = mmt_probe.smp_threads->report[j].msg;
+						mmt_probe.smp_threads->report[j].grouped_msg.msg_hdr.msg_iovlen = mmt_probe.smp_threads->report[j].security_report_counter;
+					}
+
+					if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_internet[j], &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
+					if (mmt_probe.mmt_conf->socket_domain == 0 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_unix, &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
+					//printf ("retval = %u, len = %u\n",retval,mmt_probe.smp_threads->report[j].grouped_msg.msg_hdr.msg_iovlen);
+
+					if (retval == -1)
+						perror("sendmmsg()");
+
+					if (mmt_probe.smp_threads->report[j].msg != NULL){
+						free (mmt_probe.smp_threads->report[j].msg);
+					}
+					for (l = 0; l < mmt_conf->nb_of_report_per_msg; l++) free (mmt_probe.smp_threads->report[j].data[l]);
+				}
+				free (mmt_probe.smp_threads->report[j].data);
+
+			}
+			free (mmt_probe.smp_threads->report);
+		}
+
+		if (mmt_probe.smp_threads->sockfd_internet != NULL){
+			for (j = 0; j < mmt_conf->server_ip_nb; j++){
+				if(mmt_probe.smp_threads->sockfd_internet[j] > 0)close(mmt_probe.smp_threads->sockfd_internet[j]);
+			}
+			free (mmt_probe.smp_threads->sockfd_internet);
+		}
+
+
+		if (mmt_probe.smp_threads->security_attributes != NULL){
+			free (mmt_probe.smp_threads->security_attributes);
+		}
+		if (mmt_conf->socket_enable == 1){
+			// mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length],1024 - mmt_conf->report_length,"%"PRIu64",%f",mmt_probe.smp_threads->packet_send, mmt_probe.smp_threads->packet_send * 100.0 / mmt_probe.smp_threads->nb_packets);
+			//mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length - 1],1024 - mmt_conf->report_length,",%"PRIu64"}",mmt_probe.smp_threads->packet_send);
+			printf ("[mmt-probe-2]{%u,%"PRIu64",%f} \n",mmt_probe.smp_threads->thread_number, mmt_probe.smp_threads->packet_send,mmt_probe.smp_threads->packet_send * 100.0 / mmt_probe.smp_threads->nb_packets);
+			printf ("[mmt-probe-3]{%"PRIu64"} \n",mmt_probe.smp_threads->packet_send);
+		}
+
+		free (mmt_probe.smp_threads);
+		mmt_probe.smp_threads = NULL;
+	}
+
+}
 /* This function is executed before exiting the program,
  * to free the allocated memory, close extraction, , cancels threads, flush the reports etc
  * */
 void terminate_probe_processing(int wait_thread_terminate) {
 	char lg_msg[1024];
 	mmt_probe_context_t * mmt_conf = mmt_probe.mmt_conf;
-	int i, j=0, l=0, k=0;
+	int i, j = 0, l = 0;
 
 	//For MMT_Security
 	//To finish results file (e.g. write summary in the XML file)
@@ -724,10 +872,10 @@ void terminate_probe_processing(int wait_thread_terminate) {
 				//if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[i]);
 				if (mmt_conf->output_to_file_enable == 1)flush_messages_to_file_thread(&mmt_probe.smp_threads[i]);
 				if(mmt_probe.smp_threads[i].cache_message_list != NULL) free(mmt_probe.smp_threads[i].cache_message_list);
-				mmt_probe.smp_threads[i].cache_message_list =NULL;
+				mmt_probe.smp_threads[i].cache_message_list = NULL;
 			}
 			exit_timers();
-                        
+
 		} else {
 			//We might have catched a SEGV or ABORT signal.
 			//We have seen the threads in deadlock situations.
@@ -769,7 +917,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 
 			}
 #endif
-                   exit_timers();
+			exit_timers();
 
 		}
 
@@ -784,188 +932,12 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_P_CLOSE_OUTPUT, lg_msg);
 
 	}
+	cleanup_report_allocated_memory ();
 
-	if (mmt_conf->server_adresses != NULL){
-		for (i=0; i < mmt_conf->server_ip_nb; i++){
-			free (mmt_conf->server_adresses->server_portnb);
-		}
-		free (mmt_conf->server_adresses);
-	}
-	if (mmt_conf->register_new_condition_reports != NULL && mmt_conf->register_new_event_reports != NULL){
-		for (i=0; i < mmt_conf->new_condition_reports_nb; i++){
-			free (mmt_conf->register_new_condition_reports[i].attributes);
-			mmt_conf->register_new_condition_reports[i].attributes = NULL;
-			free (mmt_conf->register_new_condition_reports[i].handlers);
-			mmt_conf->register_new_condition_reports[i].handlers = NULL;
-		}
-
-		for (i=0; i < mmt_conf->new_event_reports_nb; i++){
-			free (mmt_conf->register_new_event_reports[i].attributes);
-			mmt_conf->register_new_event_reports[i].attributes = NULL;
-		}
-
-		free (mmt_conf->register_new_condition_reports);
-		mmt_conf->register_new_condition_reports = NULL;
-
-		free (mmt_conf->register_new_event_reports);
-		mmt_conf->register_new_event_reports = NULL;
-
-	}
-
-	for (i = 0; i < mmt_conf->condition_reports_nb; i++){
-		free (mmt_conf->condition_reports[i].attributes);
-		mmt_conf->condition_reports[i].attributes = NULL;
-		free (mmt_conf->condition_reports[i].handlers);
-		mmt_conf->condition_reports[i].handlers = NULL;
-	}
-	for (i = 0; i < mmt_conf->event_reports_nb; i++){
-		free (mmt_conf->event_reports[i].attributes);
-		mmt_conf->event_reports[i].attributes = NULL;
-	}
-        if (mmt_conf->condition_reports != NULL){
-	    free (mmt_conf->condition_reports);
-	    mmt_conf->condition_reports = NULL;
-	}
-        if (mmt_conf->event_reports != NULL) {
-	    free (mmt_conf->event_reports);
-	    mmt_conf->event_reports = NULL;
-        }
-	for (i=0; i < mmt_conf->security_reports_nb; i++){
-		free (mmt_conf->security_reports[i].attributes);
-		mmt_conf->security_reports[i].attributes = NULL;
-		for (l = 0; l < mmt_conf->security_reports[i].event_name_nb; l++ ){
-			free (mmt_conf->security_reports[i].event_name[l]);
-			mmt_conf->security_reports[i].event_name[l] = NULL;
-		}
-		free (mmt_conf->security_reports[i].event_name);
-		mmt_conf->security_reports[i].event_name = NULL;
-		free (mmt_conf->security_reports[i].event_id);
-		mmt_conf->security_reports[i].event_id = NULL;
-	}
-        if (mmt_conf->security_reports != NULL) {
-	    free (mmt_conf->security_reports);
-        }
-	int retval = 0;
-	uint64_t count = 0;
-
-	if (mmt_conf->thread_nb > 1){
-		for(i=0; i<mmt_conf->thread_nb; i++){
-			if (mmt_conf->socket_enable == 1){
-			    //printf ("th_nb =%2u, packets_reports_send = %"PRIu64" (%5.2f%%) \n", i,
-			   		 //mmt_probe.smp_threads[i].packet_send,
-					//	 mmt_probe.smp_threads[i].packet_send * 100.0 / mmt_probe.smp_threads[i].nb_packets );
-                            printf ("[mmt-probe-2]{%u,%"PRIu64",%f}\n", i,
-                                         mmt_probe.smp_threads[i].packet_send,
-                                                 mmt_probe.smp_threads[i].packet_send * 100.0 / mmt_probe.smp_threads[i].nb_packets);                       
- 
-                          //  mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length],1024 - mmt_conf->report_length,"%d,%"PRIu64",%f,", i, mmt_probe.smp_threads[i].packet_send, mmt_probe.smp_threads[i].packet_send * 100.0 / mmt_probe.smp_threads[i].nb_packets );
-			    count += mmt_probe.smp_threads[i].packet_send;
-
-			}
-#ifdef PCAP
-			data_spsc_ring_free( &mmt_probe.smp_threads[i].fifo );
-#endif
-			if (mmt_probe.smp_threads[i].report != NULL){
-				for(j = 0; j < mmt_conf->security_reports_nb; j++) {
-					if (mmt_probe.smp_threads[i].report[j].data != NULL){
-						if (mmt_probe.smp_threads[i].report[j].security_report_counter > 0){
-
-							mmt_probe.smp_threads[i].report[j].grouped_msg.msg_hdr.msg_iov    = mmt_probe.smp_threads[i].report[j].msg;
-							mmt_probe.smp_threads[i].report[j].grouped_msg.msg_hdr.msg_iovlen = mmt_probe.smp_threads[i].report[j].security_report_counter;
-						}
-
-						if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_internet[j], &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
-						if (mmt_probe.mmt_conf->socket_domain == 0 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_unix, &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
-
-
-						if (retval == -1)
-							perror("sendmmsg()");
-						if (mmt_probe.smp_threads[i].report[j].msg != NULL){
-							free (mmt_probe.smp_threads[i].report[j].msg);
-						}
-						for (l = 0; l < mmt_conf->nb_of_report_per_msg; l++)free (mmt_probe.smp_threads[i].report[j].data[l]);
-					}
-					free (mmt_probe.smp_threads[i].report[j].data);
-				}
-
-				free (mmt_probe.smp_threads[i].report);
-
-			}
-
-			if (mmt_probe.smp_threads[i].sockfd_internet != NULL){
-				for (j = 0; j < mmt_conf->server_ip_nb; j++){
-					if(mmt_probe.smp_threads[i].sockfd_internet[j] > 0)close(mmt_probe.smp_threads[i].sockfd_internet[j]);
-				}
-				free (mmt_probe.smp_threads[i].sockfd_internet);
-			}
-
-
-			if (mmt_probe.smp_threads[i].security_attributes != NULL){
-				free (mmt_probe.smp_threads[i].security_attributes);
-			}
-
-		}
-		if (mmt_conf->socket_enable == 1){
-                    //printf ("total_packets_report_send_by_threads = %"PRIu64" \n",count);
-                    //mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length - 1],1024 - mmt_conf->report_length,",%"PRIu64"}",count);
-                   printf ("[mmt-probe-3]{%"PRIu64"} \n",count);
-                }
-		free( mmt_probe.smp_threads);
-		mmt_probe.smp_threads = NULL;
-	} else {
-		if (mmt_probe.smp_threads->report != NULL){
-			for(j = 0; j < mmt_conf->security_reports_nb; j++) {
-				if (mmt_probe.smp_threads->report[j].data != NULL){
-					if (mmt_probe.smp_threads->report[j].security_report_counter > 0){
-
-						mmt_probe.smp_threads->report[j].grouped_msg.msg_hdr.msg_iov    = mmt_probe.smp_threads->report[j].msg;
-						mmt_probe.smp_threads->report[j].grouped_msg.msg_hdr.msg_iovlen = mmt_probe.smp_threads->report[j].security_report_counter;
-					}
-
-					if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_internet[j], &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
-					if (mmt_probe.mmt_conf->socket_domain == 0 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_unix, &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
-	                //printf ("retval = %u, len = %u\n",retval,mmt_probe.smp_threads->report[j].grouped_msg.msg_hdr.msg_iovlen);
-
-					if (retval == -1)
-						perror("sendmmsg()");
-
-					if (mmt_probe.smp_threads->report[j].msg != NULL){
-						free (mmt_probe.smp_threads->report[j].msg);
-					}
-					for (l = 0; l < mmt_conf->nb_of_report_per_msg; l++) free (mmt_probe.smp_threads->report[j].data[l]);
-				}
-				free (mmt_probe.smp_threads->report[j].data);
-
-			}
-			free (mmt_probe.smp_threads->report);
-		}
-
-		if (mmt_probe.smp_threads->sockfd_internet != NULL){
-			for (j = 0; j < mmt_conf->server_ip_nb; j++){
-				if(mmt_probe.smp_threads->sockfd_internet[j] > 0)close(mmt_probe.smp_threads->sockfd_internet[j]);
-			}
-			free (mmt_probe.smp_threads->sockfd_internet);
-		}
-
-
-		if (mmt_probe.smp_threads->security_attributes != NULL){
-			free (mmt_probe.smp_threads->security_attributes);
-		}
-		if (mmt_conf->socket_enable == 1){
-                    //printf ("packets_report_send = %"PRIu64" \n", mmt_probe.smp_threads->packet_send);
-                   // mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length],1024 - mmt_conf->report_length,"%"PRIu64",%f",mmt_probe.smp_threads->packet_send, mmt_probe.smp_threads->packet_send * 100.0 / mmt_probe.smp_threads->nb_packets);
-                   //mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length - 1],1024 - mmt_conf->report_length,",%"PRIu64"}",mmt_probe.smp_threads->packet_send);
-                   printf ("[mmt-probe-2]{%u,%"PRIu64",%f} \n",mmt_probe.smp_threads->thread_number, mmt_probe.smp_threads->packet_send,mmt_probe.smp_threads->packet_send * 100.0 / mmt_probe.smp_threads->nb_packets);
-                   printf ("[mmt-probe-3]{%"PRIu64"} \n",mmt_probe.smp_threads->packet_send);
-                }
-
-		free (mmt_probe.smp_threads);
-		mmt_probe.smp_threads = NULL;
-	}
-        //printf("[Probe]%s\n",mmt_conf->report_msg);
-        printf("close_extraction_start\n");
+	//printf("[Probe]%s\n",mmt_conf->report_msg);
+	printf("close_extraction_start\n");
 	close_extraction();
-        printf("close_extraction_finish\n");
+	printf("close_extraction_finish\n");
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_E_END, "Closing MMT Extraction engine!");
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_P_END, "Closing MMT Probe!");
 	if(wait_thread_terminate)if (mmt_conf->log_output) fclose(mmt_conf->log_output);
@@ -976,7 +948,7 @@ void signal_handler(int type) {
 	static int i = 0;
 	i++;
 	int j,k,l;
- 	int retval = 0;
+	int retval = 0;
 	char lg_msg[1024];
 	fprintf(stderr, "\n reception of signal %d\n", type);
 	fflush( stderr );
@@ -986,13 +958,13 @@ void signal_handler(int type) {
 
 	if (i == 1) {
 # ifdef PCAP
-            terminate_probe_processing(0);
+		terminate_probe_processing(0);
 #endif
 #ifdef DPDK
-            print_stats((void *) &mmt_probe);
-            do_abort = 1;
-            sleep(5);
-            terminate_probe_processing(0);
+		print_stats((void *) &mmt_probe);
+		do_abort = 1;
+		sleep(5);
+		terminate_probe_processing(0);
 #endif
 	} else {
 		signal(SIGINT, signal_handler);
@@ -1070,7 +1042,7 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 	struct hostent *server;
 	char socket_name[256];
 	char common_socket_name[256] = "mysocket\0";
-	int valid=0;
+	int valid = 0;
 	struct smp_thread *th = (struct smp_thread *) args;
 	int i = 0, on;
 	on = 1;
@@ -1203,13 +1175,13 @@ int main(int argc, char **argv) {
 	/* Initialize the Environment Abstraction Layer (EAL). */
 	do_abort = 0;
 	int ret = rte_eal_init(argc, argv);
-	
+
 	//printf ("argv = %s\n",d_argv[2]);
-	
+
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Error with EAL initialization\n");
 
-//	setlocale(LC_NUMERIC, "en_US.UTF-8");
+	//	setlocale(LC_NUMERIC, "en_US.UTF-8");
 
 	argc -= ret;
 	argv += ret;
@@ -1248,7 +1220,7 @@ int main(int argc, char **argv) {
 	is_stop_timer = 0;
 
 	//if (license_expiry_check(0) == 1){
-		//exit(0);
+	//exit(0);
 	//}
 
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_P_INIT, "MMT Probe started!");
@@ -1324,13 +1296,14 @@ int main(int argc, char **argv) {
 		}
 		mmt_probe.smp_threads->iprobe.instance_id = mmt_probe.smp_threads->thread_number;
 		mmt_probe.smp_threads->thread_number = 0;
-
+		/*
 		if(mmt_probe.mmt_conf->cpu_mem_usage_enabled == 1){
 			mmt_probe.smp_threads->cpu_usage = 0;
 			mmt_probe.smp_threads->mem_usage = 0;
 			mmt_probe.smp_threads->nb_dropped_packets_NIC = 0;
 			mmt_probe.smp_threads->nb_dropped_packets_kernel = 0;
 		}
+		 */
 		pthread_spin_init(&mmt_probe.smp_threads->lock, 0);
 
 		// customized packet and session handling functions are then registered
@@ -1340,7 +1313,7 @@ int main(int argc, char **argv) {
 			flowstruct_init((void *)mmt_probe.smp_threads); // initialize our event handler
 			if(mmt_conf->condition_based_reporting_enable == 1)conditional_reports_init((void *)mmt_probe.smp_threads);// initialize our conditional reports
 			if(mmt_conf->radius_enable == 1)radius_ext_init((void *)mmt_probe.smp_threads); // initialize radius extraction and attribute event handler
-			}
+		}
 		set_default_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->default_session_timeout);
 		set_long_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->long_session_timeout);
 		set_short_session_timed_out(mmt_probe.smp_threads->mmt_handler, mmt_conf->short_session_timeout);
@@ -1351,8 +1324,6 @@ int main(int argc, char **argv) {
 		if (mmt_conf->enable_security_report_multisession == 1)security_reports_multisession_init((void *)mmt_probe.smp_threads);// should be defined before proto_stats_init
 		if (mmt_conf->enable_security_report == 0 && mmt_conf->enable_security_report_multisession == 0 )proto_stats_init(mmt_probe.smp_threads);
 		//initialisation of multisession report
-
-
 
 		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, "MMT Extraction engine! successfully initialized in a single threaded operation.");
 	} else {
@@ -1376,19 +1347,19 @@ int main(int argc, char **argv) {
 			mmt_probe.smp_threads[i].nb_dropped_packets = 0;
 			mmt_probe.smp_threads[i].nb_packets         = 0;
 
-			if(mmt_probe.mmt_conf->cpu_mem_usage_enabled == 1){
+			/*if(mmt_probe.mmt_conf->cpu_mem_usage_enabled == 1){
 				mmt_probe.smp_threads[i].cpu_usage = 0;
 				mmt_probe.smp_threads[i].mem_usage = 0;
 				mmt_probe.smp_threads[i].nb_dropped_packets_NIC = 0;
 				mmt_probe.smp_threads[i].nb_dropped_packets_kernel = 0;
-			}
+			}*/
 
 
 			mmt_probe.smp_threads[i].thread_number = i;
 			if( data_spsc_ring_init( &mmt_probe.smp_threads[i].fifo, mmt_conf->thread_queue_plen, mmt_conf->requested_snap_len ) != 0 ){
 				perror("Not enough memory. Please reduce thread-queue or thread-nb in .conf");
 				//free memory allocated
-				for(j=0; j<=i; j++)
+				for(j = 0; j <= i; j++)
 					data_spsc_ring_free( &mmt_probe.smp_threads[j].fifo );
 				exit( 0 );
 			}
@@ -1401,8 +1372,8 @@ int main(int argc, char **argv) {
 		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, lg_msg);
 	}
 	//we need to enable timer both for file and redis output since we need report number 200 (to check that probe is alive)
-        //TODO: Sementation faults
-        start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
+	//TODO: Sementation faults
+	start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
 
 	//Offline or Online processing
 
@@ -1421,7 +1392,7 @@ int main(int argc, char **argv) {
 #endif
 	terminate_probe_processing(1);
 
-//	printf("Process Terminated successfully\n");
+	//	printf("Process Terminated successfully\n");
 	return EXIT_SUCCESS;
 }
 

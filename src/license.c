@@ -73,7 +73,7 @@ int license_expiry_check(int status){
 	//struct tm *tm;
 	struct tm expiry_time;
 	time_t now;
-	now=time(0);
+	now = time(0);
 	FILE * license_key;
 	int MAX = 50;
 	char message [MAX];
@@ -98,7 +98,7 @@ int license_expiry_check(int status){
 	struct timeval current_time;
 	gettimeofday (&current_time, NULL);
 
-	license_key= fopen(probe_context->license_location, "r");
+	license_key = fopen(probe_context->license_location, "r");
 	//license_key= fopen("license.key", "r");
 
 	if(license_key == NULL) {

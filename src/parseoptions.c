@@ -89,9 +89,9 @@ cfg_t * parse_conf(const char *filename) {
 	};
 
 	cfg_opt_t cpu_mem_report_opts[] = {
-					CFG_INT("enable", 0, CFGF_NONE),
-					CFG_INT("frequency", 0, CFGF_NONE),
-					CFG_END()
+			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_INT("frequency", 0, CFGF_NONE),
+			CFG_END()
 	};
 
 	cfg_opt_t behaviour_opts[] = {
@@ -181,7 +181,6 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_INT("cache-size-for-reporting", 300000, CFGF_NONE),
 			CFG_INT_CB("input-mode", 0, CFGF_NONE, conf_parse_input_mode),
 			CFG_STR("input-source", "nosource", CFGF_NONE),
-			CFG_STR("dynamic-config-file", "noconfig", CFGF_NONE),
 			CFG_INT("probe-id-number", 0, CFGF_NONE),
 			CFG_STR("logfile", 0, CFGF_NONE),
 			CFG_STR("license_file_path", 0, CFGF_NONE),
@@ -191,8 +190,6 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_SEC("security-report", security_report_opts, CFGF_TITLE | CFGF_MULTI),
 			CFG_INT("num-of-report-per-msg", 1, CFGF_NONE),
 			CFG_SEC("security-report-multisession", security_report_multisession_opts, CFGF_TITLE | CFGF_MULTI),
-
-
 
 			CFG_END()
 	};
@@ -293,7 +290,7 @@ int parse_security_dot_proto_attribute(char * inputstring, mmt_security_attribut
 
 int parse_condition_attribute(char * inputstring, mmt_condition_attribute_t * conditionattr) {
 
-	if(inputstring!= NULL){
+	if(inputstring != NULL){
 		strncpy(conditionattr->condition, inputstring, 256);
 		return 0;
 	}
@@ -301,7 +298,7 @@ int parse_condition_attribute(char * inputstring, mmt_condition_attribute_t * co
 }
 int parse_location_attribute(char * inputstring, mmt_condition_attribute_t * conditionattr) {
 
-	if(inputstring!= NULL){
+	if(inputstring != NULL){
 		strncpy(conditionattr->location, inputstring, 256);
 		return 0;
 	}
@@ -309,7 +306,7 @@ int parse_location_attribute(char * inputstring, mmt_condition_attribute_t * con
 }
 
 int parse_handlers_attribute(char * inputstring, mmt_condition_attribute_t * handlersattr) {
-	if(inputstring!= NULL){
+	if(inputstring != NULL){
 		strncpy(handlersattr->handler, inputstring, 256);
 		return 0;
 	}
@@ -317,7 +314,7 @@ int parse_handlers_attribute(char * inputstring, mmt_condition_attribute_t * han
 }
 
 int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
-	int i=0, j=0,k=0;
+	int i = 0, j = 0, k = 0;
 	cfg_t *event_opts;
 	cfg_t *condition_opts;
 	cfg_t *security_report_opts;
@@ -362,10 +359,6 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			strncpy(mmt_conf->input_source, (char *) cfg_getstr(cfg, "input-source"), 256);
 		}
 
-		if (strcmp((char *) cfg_getstr(cfg, "dynamic-config-file"), "noconfig")!=0){
-			strncpy(mmt_conf->dynamic_config_file, (char *) cfg_getstr(cfg, "dynamic-config-file"), 256);
-		}
-
 		mmt_conf->probe_id_number = (uint32_t) cfg_getint(cfg, "probe-id-number");
 
 		if ((char *) cfg_getstr(cfg, "logfile") == NULL){
@@ -382,6 +375,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 		}
 		strncpy(mmt_conf->license_location, (char *) cfg_getstr(cfg, "license_file_path"), 256);
 
+		/***************micro flows report ********************/
 		if (cfg_size(cfg, "micro-flows")) {
 			cfg_t *microflows = cfg_getnsec(cfg, "micro-flows", 0);
 			if (microflows->line != 0){
@@ -394,6 +388,10 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				mmt_conf->microf_report_fthreshold = (uint32_t) cfg_getint(microflows, "report-flow-count");
 			}
 		}
+		/***************micro flows report ********************/
+
+		/***************Session timeout ********************/
+
 		if (cfg_size(cfg, "session-timeout")) {
 			cfg_t *session_timeout = cfg_getnsec(cfg, "session-timeout", 0);
 			if (session_timeout->line != 0){
@@ -407,6 +405,12 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				if (mmt_conf->live_session_timeout == 0)mmt_conf->live_session_timeout = 1500;
 			}
 		}
+
+		/***************Session timeout ********************/
+
+		/***************Output files ********************/
+
+
 		if (cfg_size(cfg, "output")) {
 			cfg_t *output = cfg_getnsec(cfg, "output", 0);
 			if (output->line != 0){
@@ -430,6 +434,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				exit(0);
 			}
 		}
+		/***************Output files ********************/
+
+		/***************low bandwidth security report ********************/
 
 		if (cfg_size(cfg, "security")) {
 			cfg_t *security = cfg_getnsec(cfg, "security", 0);
@@ -440,6 +447,10 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				strncpy(mmt_conf->properties_file, (char *) cfg_getstr(security, "properties-file"), 256);
 			}
 		}
+
+		/***************low bandwidth security report ********************/
+
+		/***************CPU memory usage ********************/
 		if (cfg_size(cfg, "cpu-mem-usage")) {
 			cfg_t *cpu_mem_usage = cfg_getnsec(cfg, "cpu-mem-usage", 0);
 			if (cpu_mem_usage->line != 0){
@@ -455,6 +466,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				}
 			}
 		}
+		/*************** CPU memory usage ********************/
+
+		/*************** Behaviour  ********************/
 
 		if (cfg_size(cfg, "behaviour")) {
 			cfg_t *behaviour = cfg_getnsec(cfg, "behaviour", 0);
@@ -467,6 +481,11 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				}
 			}
 		}
+
+		/*************** Behaviour  ********************/
+
+		/*************** reconstruct-ftp  ********************/
+
 		if (cfg_size(cfg, "reconstruct-ftp")) {
 			cfg_t *reconstruct_ftp = cfg_getnsec(cfg, "reconstruct-ftp", 0);
 			if (reconstruct_ftp->line != 0){
@@ -475,6 +494,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				strncpy(mmt_conf->ftp_reconstruct_output_location, (char *) cfg_getstr(reconstruct_ftp, "location"), 256);
 			}
 		}
+		/*************** reconstruct-ftp  ********************/
+
+		/*************** redis  ********************/
 
 		if (cfg_size(cfg, "redis-output")) {
 			cfg_t *redis_output = cfg_getnsec(cfg, "redis-output", 0);
@@ -488,10 +510,13 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				}
 			}
 		}
+		/*************** redis  ********************/
+
+		/*************** Radius  ********************/
 
 		if (cfg_size(cfg, "radius-output")) {
 			cfg_t *routput = cfg_getnsec(cfg, "radius-output", 0);
-			if (routput->line!=0){
+			if (routput->line != 0){
 				mmt_conf->radius_enable = (uint32_t) cfg_getint(routput, "enable");
 				if (cfg_getint(routput, "include-msg") == MMT_RADIUS_REPORT_ALL) {
 					mmt_conf->radius_starategy = MMT_RADIUS_REPORT_ALL;
@@ -502,6 +527,20 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				mmt_conf->radius_condition_id = (uint32_t) cfg_getint(routput, "include-condition");
 			}
 		}
+		/*************** Radius  ********************/
+
+		/*************** user-agent  ********************/
+
+		if (cfg_size(cfg, "data-output")) {
+			cfg_t *doutput = cfg_getnsec(cfg, "data-output", 0);
+			if (doutput->line != 0){
+				mmt_conf->user_agent_parsing_threshold = (uint32_t) cfg_getint(doutput, "include-user-agent")*1000;
+			}
+		}
+		/*************** user-agent  ********************/
+
+
+		/****************************socket*********************/
 
 		/*	int nb_port_address =0;
 		int nb_server_address = 0;
@@ -532,7 +571,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			}
 		}*/
 
-		int nb_port_address =0;
+		int nb_port_address = 0;
 		int nb_server_address = 0;
 		if (cfg_size(cfg, "socket")) {
 			cfg_t *socket = cfg_getnsec(cfg, "socket", 0);
@@ -540,7 +579,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			if (socket->line != 0){
 				mmt_conf->socket_enable = (uint32_t) cfg_getint(socket, "enable");
 				mmt_conf->socket_domain = (uint8_t) cfg_getint(socket, "domain");
-				if (mmt_conf->socket_enable ==1 ){
+				if (mmt_conf->socket_enable == 1 ){
 					nb_port_address = cfg_size(socket, "port");
 					mmt_conf->one_socket_server = (uint8_t) cfg_getint(socket, "one-socket-server");
 					if(nb_port_address > 0) {
@@ -584,12 +623,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			}
 		}
 
-		if (cfg_size(cfg, "data-output")) {
-			cfg_t *doutput = cfg_getnsec(cfg, "data-output", 0);
-			if (doutput->line!=0){
-				mmt_conf->user_agent_parsing_threshold = (uint32_t) cfg_getint(doutput, "include-user-agent")*1000;
-			}
-		}
+		/****************************socket*********************/
+
+		/*****************Security report*********************/
 
 		int security_reports_nb = cfg_size(cfg, "security-report");
 		int security_attributes_nb = 0;
@@ -641,6 +677,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				}
 			}
 		}
+
+		/*****************Security report*********************/
+
 		/******* report multisession **************/
 
 		int security_reports_multisession_nb = cfg_size(cfg, "security-report-multisession");
@@ -678,6 +717,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 		/******* report multisession **************/
 
+		/******* Event report **************/
 
 		int event_reports_nb = cfg_size(cfg, "event_report");
 		int event_attributes_nb = 0;
@@ -719,6 +759,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			}
 		}
 
+		/******* Event report **************/
+
+		/******* Condition report **************/
 
 		int condition_reports_nb = cfg_size(cfg, "condition_report");
 		int condition_attributes_nb = 0;
@@ -796,10 +839,14 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				}
 			}
 		}
+
+		/******* Condition report **************/
+
 		cfg_free(cfg);
 	}
 	return 1;
 }
+
 
 void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 	int opt, optcount = 0;
@@ -879,7 +926,7 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 	if (input) {
 		strncpy(mmt_conf->input_source, input, 256);
 	}
-	else if (strlen(mmt_conf->input_source)==0){
+	else if (strlen(mmt_conf->input_source) == 0){
 		if(versions_only != 1) printf("Error:Specify the input-source in the configuration file, for example, for offline analysis: trace file name and for online analysis: network interface\n");
 		exit(0);
 	}

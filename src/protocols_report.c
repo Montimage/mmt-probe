@@ -49,7 +49,7 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 			}
 		}
 		int skip = 0;
-		for (i=1; i <= proto_hierarchy.len; i++){
+		for (i = 1; i <= proto_hierarchy.len; i++){
 
 			if (proto_hierarchy.proto_path[i] == 178 || proto_hierarchy.proto_path[i] == 182){
 				skip = 1;

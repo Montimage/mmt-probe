@@ -75,7 +75,7 @@ int register_event_report_handle(void * args) {
 	th = p->smp_thread;
 	mmt_event_report_t * event_report = p->event_reports;
 
-	i =event_report->event.proto_id = get_protocol_id_by_name (event_report->event.proto);
+	i = event_report->event.proto_id = get_protocol_id_by_name (event_report->event.proto);
 	if (i == 0) return i;
 
 	i = event_report->event.attribute_id = get_attribute_id_by_protocol_and_attribute_names(event_report->event.proto, event_report->event.attribute);
@@ -107,7 +107,7 @@ int register_event_report_handle(void * args) {
  * Returns 0 if unsuccessful
  * */
 int register_security_report_multisession_handle(void * args) {
-	int i=0, j =0, k = 1, l=0;
+	int i = 0, j = 0, k = 1;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	struct smp_thread *th = (struct smp_thread *) args;
 
@@ -158,7 +158,7 @@ void security_reports_multisession_init(void * args) {
  * Returns 0 if unsuccessful
  * */
 int register_security_report_handle(void * args) {
-	int i = 0, j = 0, k = 1, l = 0, test=0;
+	int i = 0, j = 0, k = 1, l = 0;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	struct smp_thread *th = (struct smp_thread *) args;
 

@@ -48,9 +48,7 @@ void init_redis (char * hostname, int port) {
 /* This function publish message to redis channel.
  * For multi-session reporting it LPUSH to redis channel */
 void send_message_to_redis (char *channel, char * message) {
-	//printf("---> report to redis: %s\n%s\n",channel,message);
 	// Publish to redis if it is enabled
-	//printf ("\n%s\n%s",channel,message);
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	if (redis != NULL) {
 		// Publish an event

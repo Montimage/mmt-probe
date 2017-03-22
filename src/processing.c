@@ -415,7 +415,7 @@ void get_security_report(const ipacket_t * ipacket,void * args){
  * a multi_session report and then sends the message/report through redis in a particular channel.
  * */
 void get_security_multisession_report(const ipacket_t * ipacket,void * args){
-	int i=0, j=0, offset =0, valid =0, k=0;
+	int i = 0, j = 0, offset = 0, valid = 0, k = 0;
 	int LEN = 10000;
 	char message[LEN + 1];
 	//char attribute_value [MAX_MESS +1];

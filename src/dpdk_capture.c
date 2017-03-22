@@ -235,7 +235,7 @@ worker_thread(void *args_ptr){
 //			nanosleep( (const struct timespec[]){{0, 50000L}}, NULL );
 
 		header.ts = time_now;
-//		header.ts.tv_usec = time_now.tv_nsec;
+		//		header.ts.tv_usec = time_now.tv_nsec;
 
 		for (i = 0; likely(i < nb_rx); i++){
 			header.len         = (unsigned int) bufs[i]->pkt_len;
@@ -252,12 +252,7 @@ worker_thread(void *args_ptr){
 		th->nb_packets += nb_rx;
 	}
 
-	//printf("thread %2d, nb_packets = %'9"PRIu64" \n", th->thread_number, th->nb_packets );
-        printf ("[mmt-probe-1]{%u,%"PRIu64"}\n",th->thread_number, th->nb_packets);
-        //pthread_spin_lock(&spin_lock);
-        //probe_context->report_length += snprintf(probe_context->report_msg + probe_context->report_length - 2,1024 - probe_context->report_length,",%d,%"PRIu64"}",th->thread_number, th->nb_packets);
-        //printf ("length = %u, msg = %s\n",probe_context->report_length,probe_context->report_msg);
-        //pthread_spin_unlock(&spin_lock);
+	printf ("[mmt-probe-1]{%u,%"PRIu64"}\n",th->thread_number, th->nb_packets);
 	if(th->mmt_handler != NULL){
 		radius_ext_cleanup(th->mmt_handler); // cleanup our event handler for RADIUS initializations
 		flowstruct_cleanup(th->mmt_handler); // cleanup our event handler
@@ -267,7 +262,7 @@ worker_thread(void *args_ptr){
 		if (cleanup_registered_handlers (th) == 0){
 			fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",th->thread_number);
 		}
-                pthread_spin_lock(&spin_lock);
+		pthread_spin_lock(&spin_lock);
 		mmt_close_handler(th->mmt_handler);
 		th->mmt_handler = NULL;
 		pthread_spin_unlock(&spin_lock);
