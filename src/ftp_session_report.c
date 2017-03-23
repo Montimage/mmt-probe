@@ -15,22 +15,6 @@
 
 #define MAX_FILE_NAME 256
 
-/* This function writes FTP data to a file */
-void write_data_to_file (char * path,  char * content, int len) {
-	int fd = 0;
-	if ( (fd = open ( path , O_CREAT | O_WRONLY | O_APPEND | O_NOFOLLOW , S_IRWXU | S_IRWXG | S_IRWXO )) < 0 )
-	{
-		fprintf ( stderr , "\n[e] Error %d writting data to \"%s\": %s" , errno , path , strerror( errno ) );
-		return;
-	}
-
-	if (len > 0) {
-		debug("[FTP_RECONSTRUCT] Going to write to file: %s\n", path);
-		int buf_len = write ( fd , content , len );
-		debug("[FTP_RECONSTRUCT] %d bytes have been written\n", buf_len);
-	}
-	close ( fd );
-}
 /* This function resets FTP session attributes */
 void reset_ftp_parameters(const ipacket_t * ipacket, session_struct_t *temp_session ) {
 	((ftp_session_attr_t*) temp_session->app_data)->file_download_starttime_sec = 0;
