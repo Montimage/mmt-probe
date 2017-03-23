@@ -131,6 +131,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_INT("enable", 0, CFGF_NONE),
 			CFG_INT("id", 0, CFGF_NONE),
 			CFG_STR("condition", "", CFGF_NONE),
+			CFG_STR("location", 0, CFGF_NONE),
 			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
 			CFG_STR_LIST("handlers", "{}", CFGF_NONE),
 			CFG_END()
@@ -784,10 +785,12 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 						exit(0);
 					}
 					mmt_conf->condition_based_reporting_enable = 1;
-					// if (parse_location_attribute((char *) cfg_getstr(condition_opts, "location"), &temp_condn->condition)) {
-					//   fprintf(stderr, "Error: invalid condition_report location value '%s'\n", (char *) cfg_getstr(condition_opts, "location"));
-					//  exit(-1);
-					// }
+					char *condition_location;
+					condition_location = (char *) cfg_getstr(condition_opts, "location");
+					if(condition_location!=NULL){
+						strncpy(temp_condn->condition.location, condition_location, 256);
+					}
+					
 					if(strcmp(temp_condn->condition.condition, "FTP") == 0){
 						mmt_conf->ftp_id = temp_condn->id;
 						if (temp_condn->enable == 1) mmt_conf->ftp_enable = 1;
@@ -808,6 +811,16 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 						if (temp_condn->enable == 1) mmt_conf->ssl_enable = 1;
 						if (temp_condn->enable == 0) mmt_conf->ssl_enable = 0;
 					}
+					// LN: Add condition for reconstruct TCP
+					if(strcmp(temp_condn->condition.condition, "TCP-RECONSTRUCT") == 0){
+						mmt_conf->tcp_reconstruct_id = temp_condn->id;
+						if(temp_condn->condition.location!=NULL){
+							strcpy(mmt_conf->tcp_reconstruct_output_location,temp_condn->condition.location);
+						}
+						if (temp_condn->enable == 1) mmt_conf->tcp_reconstruct_enable = 1;
+						if (temp_condn->enable == 0) mmt_conf->tcp_reconstruct_enable = 0;
+					}
+
 					if (temp_condn->enable == 1){
 						condition_attributes_nb = cfg_size(condition_opts, "attributes");
 						temp_condn->attributes_nb = condition_attributes_nb;
