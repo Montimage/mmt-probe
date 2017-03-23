@@ -26,11 +26,10 @@
 #include <errno.h>
 #include <pthread.h>
 #include <sys/types.h>
-
+#include <netinet/tcp.h>
 #ifdef linux
 #include <syscall.h>
 #endif
-#include <netinet/ip.h>
 #include "tcpip/mmt_tcpip.h"
 
 
@@ -195,8 +194,10 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	temp_session->format_id = MMT_FLOW_REPORT_FORMAT;
 	temp_session->app_format_id = MMT_DEFAULT_APP_REPORT_FORMAT;
 
-	if (temp_session->isFlowExtracted)
+	if (temp_session->isFlowExtracted){
+		free(temp_session);
 		return;
+	}
 
 	// Flow extraction
 	int ipindex = get_protocol_index_by_id(ipacket, PROTO_IP);
@@ -576,6 +577,11 @@ void * get_handler_by_name(char * func_name){
 	if (strcmp(func_name,"ssl_server_name_handle") == 0){
 		return ssl_server_name_handle;
 	}
+	// LN: Reconstruct TCP payload on attribute handler
+	if (strcmp(func_name,"tcp_payload_handler") == 0){
+		// printf("[debug] link tcp_payload_handler function\n");
+		return tcp_payload_handler;
+	}
 	return 0;
 }
 
@@ -625,7 +631,6 @@ void conditional_reports_init(void * args) {
 		mmt_condition_report_t * condition_report = &probe_context->condition_reports[i];
 		if(register_conditional_report_handle(args, condition_report) == 0) {
 			fprintf(stderr, "Error while initializing condition report number %i!\n", condition_report->id);
-			printf( "Error while initializing condition report number %i!\n", condition_report->id);
 			exit(1);
 		}
 	}
@@ -810,7 +815,6 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 
-	int sslindex;
 	if (is_microflow(expired_session)) {
 		microsessions_stats_t * mf_stats = &th->iprobe.mf_stats[get_session_protocol_hierarchy(expired_session)->proto_path[(get_session_protocol_hierarchy(expired_session)->len <= 16)?(get_session_protocol_hierarchy(expired_session)->len - 1):(16 - 1)]];
 		update_microflows_stats(mf_stats, expired_session);
@@ -865,4 +869,81 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 
 	if(temp_session) free(temp_session);
 	temp_session = NULL;
+}
+
+
+void write_data_to_file (char * path,  char * content, int len) {
+	int fd = 0;
+	if ( (fd = open ( path , O_CREAT | O_WRONLY | O_APPEND | O_NOFOLLOW , S_IRWXU | S_IRWXG | S_IRWXO )) < 0 )
+	{
+		fprintf ( stderr , "\n[e] Error %d writting data to \"%s\": %s" , errno , path , strerror( errno ) );
+		return;
+	}
+
+	if (len > 0) {
+		// printf("[debug] write_data_to_file: Going to write to file: %s\n", path);
+		int buf_len = write ( fd , content , len );
+		// printf("[debug] write_data_to_file: %d bytes have been written\n", buf_len);
+	}
+	close ( fd );
+}
+
+void tcp_payload_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
+	// printf("[debug] tcp_payload_handler: %lu\n", ipacket->packet_id);
+
+	
+
+	if (ipacket->session == NULL) {
+		debug("[tcp_payload_handler: %lu] Cannot find IP session\n", ipacket->packet_id);
+		return;
+	}
+
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+
+	if (probe_context == NULL) {
+		debug("[tcp_payload_handler: %lu] Cannot get probe context\n", ipacket->packet_id);
+		return;
+	}
+	if(probe_context->tcp_reconstruct_enable==1){
+		session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
+
+		if (temp_session == NULL) {
+			debug("[tcp_payload_handler: %lu] Cannot get temp_session\n", ipacket->packet_id);
+			return;
+		}
+
+		uint32_t * payload_len = (uint32_t *)get_attribute_extracted_data(ipacket,PROTO_TCP,TCP_PAYLOAD_LEN); 
+		char * tcp_payload = (char*)get_attribute_extracted_data(ipacket,PROTO_TCP,PROTO_PAYLOAD);
+		if(payload_len != NULL && tcp_payload != NULL){
+			// printf("[debug] tcp_payload_handler going to reconstruct the payload: %lu\n", ipacket->packet_id);
+			char ip_src_str[46];
+			char ip_dst_str[46];
+			int direction = 0;
+			if (temp_session->ipversion == 4) {
+				inet_ntop(AF_INET, (void *) &temp_session->ipclient.ipv4, ip_src_str, INET_ADDRSTRLEN);
+				inet_ntop(AF_INET, (void *) &temp_session->ipserver.ipv4, ip_dst_str, INET_ADDRSTRLEN);
+				uint32_t * ip_src = (uint32_t *)get_attribute_extracted_data(ipacket,PROTO_IP,IP_SRC); 
+				if(*ip_src == temp_session->ipclient.ipv4){
+					direction = 1;
+				}
+			} else {
+				inet_ntop(AF_INET6, (void *) &temp_session->ipclient.ipv6, ip_src_str, INET6_ADDRSTRLEN);
+				inet_ntop(AF_INET6, (void *) &temp_session->ipserver.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
+				void * ipv6_src = (void *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SRC);
+				if(memcmp(ipv6_src, &temp_session->ipclient.ipv6, sizeof(&ipv6_src))==0){
+					direction = 1;
+				}
+			}
+			char *path;
+			path = (char*)malloc(sizeof(char)*1024);
+			int len = 0;
+			if(direction == 0){
+				sprintf(path,"%s/%s:%d-%s:%d",probe_context->tcp_reconstruct_output_location,ip_src_str,temp_session->clientport,ip_dst_str,temp_session->serverport);
+			}else{
+				sprintf(path,"%s/%s:%d-%s:%d",probe_context->tcp_reconstruct_output_location,ip_dst_str,temp_session->serverport,ip_src_str,temp_session->clientport);
+			}
+			write_data_to_file(path,tcp_payload,*payload_len);
+			free(path);
+		}	
+	}
 }
