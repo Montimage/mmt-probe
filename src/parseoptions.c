@@ -418,17 +418,19 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				strncpy(mmt_conf->data_out, (char *) cfg_getstr(output, "data-file"), 256);
 				strncpy(mmt_conf->output_location, (char *) cfg_getstr(output, "location"), 256);
 				mmt_conf->retain_files = (int) cfg_getint(output, "retain-files");
-				if (mmt_conf->output_to_file_enable == 1){
-					if (mmt_conf->retain_files < (mmt_conf->thread_nb +1)){
-						printf("Error: Number of retain files inside the output section in the configuration file, should be always greater than (thread_nb + 1) \n");
-						exit (0);
-					}
-				}
 				mmt_conf->sampled_report = (uint32_t) cfg_getint(output, "sampled_report");
 				if (mmt_conf->sampled_report > 1){
 					printf("Error: Sample_report inside the output section in the configuration file has a value either 1 or 0, 1 for sampled output and 0 for single output\n");
 					exit(0);
 				}
+
+				if (mmt_conf->output_to_file_enable == 1){
+					if (mmt_conf->retain_files < (mmt_conf->thread_nb + 1) && mmt_conf->retain_files != 0 && mmt_conf->sampled_report == 1){
+						printf("Error: Number of retain files inside the output section in the configuration file, should be always greater than (thread_nb + 1) \n");
+						exit (0);
+					}
+				}
+
 			}else{
 				printf("Error: Output section missing in the configuration file i.e. specify output_file_name, location, sample_report etc\n");
 				exit(0);

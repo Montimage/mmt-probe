@@ -935,9 +935,9 @@ void terminate_probe_processing(int wait_thread_terminate) {
 	cleanup_report_allocated_memory ();
 
 	//printf("[Probe]%s\n",mmt_conf->report_msg);
-	printf("close_extraction_start\n");
+	//printf("close_extraction_start\n");
 	close_extraction();
-	printf("close_extraction_finish\n");
+	//printf("close_extraction_finish\n");
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_E_END, "Closing MMT Extraction engine!");
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_P_END, "Closing MMT Probe!");
 	if(wait_thread_terminate)if (mmt_conf->log_output) fclose(mmt_conf->log_output);
