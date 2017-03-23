@@ -120,7 +120,8 @@ create:
 		$(INSTALL_DIR)/result/behaviour/online \
 		$(INSTALL_DIR)/result/behaviour/offline \
 		$(INSTALL_DIR)/result/security/online \
-		$(INSTALL_DIR)/result/security/offline
+		$(INSTALL_DIR)/result/security/offline \
+		$(INSTALL_DIR)/files
 
 #copy probe to existing dir from buit in DPDK
 ifdef DPDK
