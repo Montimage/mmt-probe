@@ -12,6 +12,7 @@
 #include <stdarg.h>
 #include <htmlstreamparser.h>
 #include "zlib.h"
+#include <ctype.h>
 
 /**
  * HTTP content processing structure

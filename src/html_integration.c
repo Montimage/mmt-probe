@@ -2,21 +2,6 @@
 #include <assert.h>
 
 /**
- * Writes @len bytes from @content to the filename @path.
- */
-int write_data_to_file (const char * path, const char * content, size_t len) {
-  printf("-]> Going to write %u in to file: %s\n",len,path );
-  int fd = 0;
-  if ( (fd = open ( path , O_CREAT | O_WRONLY | O_APPEND | O_NOFOLLOW , S_IRWXU | S_IRWXG | S_IRWXO )) < 0 )
-  {
-    fprintf ( stderr , "\n[e] Error %d writting data to \"%s\": %s" , errno , path , strerror( errno ) );
-    return;
-  }
-  write ( fd , content , len );
-  close ( fd );
-}
-
-/**
  * Sends a data chunk for processing by the html parser.
  * In this case, extract "href" attribute from "a" tags.
  */

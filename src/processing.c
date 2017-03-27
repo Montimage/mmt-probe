@@ -465,6 +465,32 @@ void * get_handler_by_name(char * func_name){
 	if (strcmp(func_name,"ssl_server_name_handle") == 0){
 		return ssl_server_name_handle;
 	}
+
+	//LN: HTTP reconstruct
+	if (strcmp(func_name,"ip_new_session_handle") == 0){
+		return ip_new_session_handle;
+	}
+
+	if (strcmp(func_name,"http_message_start_handle") == 0){
+		return http_message_start_handle;
+	}
+
+	if (strcmp(func_name,"http_generic_header_handle") == 0){
+		return http_generic_header_handle;
+	}
+	if (strcmp(func_name,"http_headers_end_handle") == 0){
+		return http_headers_end_handle;
+	}
+
+	if (strcmp(func_name,"http_data_handle") == 0){
+		return http_data_handle;
+	}
+
+	if (strcmp(func_name,"http_message_end_handle") == 0){
+		return http_message_end_handle;
+	}
+	// END of HTTP reconstruct
+
 	return 0;
 }
 
@@ -483,10 +509,20 @@ int register_conditional_report_handle(void * args, mmt_condition_report_t * con
 		if (strcmp(handler_attribute->handler,"NULL") == 0){
 			if (is_registered_attribute(th->mmt_handler, protocol_id, attribute_id) == 0){
 				i &= register_extraction_attribute_by_name(th->mmt_handler, condition_attribute->proto, condition_attribute->attribute);
+				if(i==0){
+					fprintf(stderr, "[error] cannot register_extraction_attribute_by_name for report: %i\n",condition_report->id);
+				}else{
+					printf("[debug] register_extraction_attribute_by_name: proto: %s ,attribute: %s\n",condition_attribute->proto,condition_attribute->attribute);
+				}
 			}
 		}else{
 			if (is_registered_attribute_handler(th->mmt_handler, protocol_id, attribute_id, get_handler_by_name (handler_attribute->handler)) == 0){
 				i &= register_attribute_handler_by_name(th->mmt_handler, condition_attribute->proto, condition_attribute->attribute, get_handler_by_name (handler_attribute->handler), NULL, args);
+				if(i==0){
+					fprintf(stderr, "[error] cannot register_attribute_handler_by_name for report: %i\n",condition_report->id);
+				}else{
+					printf("[debug] register_attribute_handler_by_name: proto: %s ,attribute: %s, handler: %s\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler);
+				}
 			}
 		}
 		//printf ("proto = %s, attribute = %s, output = %d\n",condition_attribute->proto,condition_attribute->attribute, output);

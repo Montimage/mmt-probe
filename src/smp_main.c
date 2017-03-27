@@ -191,7 +191,7 @@ static void *smp_thread_routine(void *arg) {
 	if (mmt_probe.mmt_conf->event_based_reporting_enable == 1)event_reports_init(th); // initialize our event reports
 	if (mmt_probe.mmt_conf->enable_security_report == 0)proto_stats_init(th);//initialise this before security_reports_init
 	if (mmt_probe.mmt_conf->enable_security_report == 1)security_reports_init(th);
-
+	if (mmt_probe.mmt_conf->http_reconstruct_enable == 1) http_reconstruct_init(th);
 
 	th->nb_packets = 0;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -1228,7 +1228,7 @@ int main(int argc, char **argv) {
 		if(mmt_conf->event_based_reporting_enable == 1)event_reports_init((void *)mmt_probe.smp_threads); // initialize our event reports
 		if (mmt_conf->enable_security_report == 1)security_reports_init((void *)mmt_probe.smp_threads);// should be defined before proto_stats_init
 		if (mmt_conf->enable_security_report == 0)proto_stats_init(mmt_probe.smp_threads);
-
+		if (mmt_conf->http_reconstruct_enable == 1) http_reconstruct_init(mmt_probe.smp_threads);
 
 		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, "MMT Extraction engine! successfully initialized in a single threaded operation.");
 	} else {

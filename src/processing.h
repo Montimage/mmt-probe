@@ -214,6 +214,7 @@ typedef struct mmt_probe_context_struct {
     char license_location[256 + 1];
     char behaviour_output_location[256 + 1];
     char ftp_reconstruct_output_location[256 + 1];
+    char http_reconstruct_output_location[256 + 1];
     char dynamic_config_file[256 + 1];
     uint32_t ftp_enable;
     uint32_t web_enable;
@@ -224,6 +225,7 @@ typedef struct mmt_probe_context_struct {
     uint16_t rtp_id;
     uint16_t ssl_id;
     uint16_t ftp_reconstruct_id;
+    uint16_t http_reconstruct_id;
     uint16_t security_id;
     uint32_t behaviour_enable;
     uint32_t security_enable;
@@ -232,6 +234,7 @@ typedef struct mmt_probe_context_struct {
     uint32_t enable_security_report;
 
     uint32_t ftp_reconstruct_enable;
+    uint32_t http_reconstruct_enable;
     uint32_t radius_enable;
 
     uint32_t default_session_timeout;
@@ -657,7 +660,21 @@ void ftp_last_command(const ipacket_t * ipacket,struct smp_thread *th,attribute_
 void ftp_last_response_code(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num);
 void ip_opts(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num);
 
-
+/** Luong NGUYEN: HTTP reconstruct */
+void http_reconstruct_init(void * arg);
+void ip_new_session_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void http_message_start_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void http_generic_header_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void http_headers_end_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void http_data_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void http_message_end_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+int http_packet_handler(const ipacket_t * ipacket, void * user_args);
+/**
+ * Session expiry handler that will be called every time MMT core detects a session expiry
+ * Close the HTTP content processing structure
+ */
+void http_classification_expiry_session(const mmt_session_t * expired_session, void * args);
+/** END OF HTTP RECONSTRUCT */
 
 //prototypes
 void print_ip_session_report (const mmt_session_t * session, void *user_args);
