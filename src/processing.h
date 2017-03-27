@@ -4,7 +4,9 @@
 extern "C" {
 #endif
 //#define _GNU_SOURCE
+
 #include "lib/data_spsc_ring.h"
+#include <semaphore.h>
 
 #ifndef __USE_GNU
 #define __USE_GNU
@@ -302,6 +304,15 @@ typedef struct mmt_probe_context_struct {
 	uint32_t enable_security_report_multisession;
 	uint32_t total_security_multisession_attribute_nb;
 
+	//hn - new security
+	bool security2_enable;
+	uint16_t security2_report_id;
+	char security2_rules_mask[1000];
+	//number of threads of security2 per one thread of probe
+	uint8_t security2_threads_count;
+	//configuration of output, len = 0 to disable output
+	bool security2_file_output_enable;
+	bool security2_redis_output_enable;
 } mmt_probe_context_t;
 
 typedef struct microsessions_stats_struct {
@@ -512,7 +523,7 @@ typedef struct worker_args {
 }worker_args_t;
 
 struct smp_thread {
-	int thread_number;
+	int thread_index;
 	mmt_handler_t *mmt_handler;
 	probe_internal_t iprobe;
 	uint32_t queue_plen;
@@ -538,6 +549,16 @@ struct smp_thread {
 	uint64_t packet_send;
 	worker_args_t * workers;
 	uint8_t socket_active;
+
+
+	unsigned lcore_id;	//lcore_id of probe
+
+	//hn - new security
+	unsigned security2_lcore_id; //lcore_id of security2
+	//number of alerts sent to file or redis
+	uint64_t security2_alerts_output_count;
+
+	sem_t sem_wait;
 };
 
 typedef struct mmt_probe_struct {
@@ -633,7 +654,7 @@ void security_reports_init(void * args);
 void * get_handler_by_name(char * func_name);
 void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe);
-void print_stats(void * args);
+//void print_stats(void * args);
 int cleanup_registered_handlers(void *arg);
 void payload_extraction(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num);
 void data_extraction(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num);

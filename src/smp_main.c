@@ -146,7 +146,7 @@ static void * smp_thread_routine(void *arg) {
 	int size;
 
 
-	sprintf(lg_msg, "Starting thread %i", th->thread_number);
+	sprintf(lg_msg, "Starting thread %i", th->thread_index);
 
 	mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_T_INIT, lg_msg);
 
@@ -155,7 +155,7 @@ static void * smp_thread_routine(void *arg) {
 
 	if( avail_processors > 1 ){
 		avail_processors -= 1;//avoid zero that is using by Reader
-		(void) move_the_current_thread_to_a_core( th->thread_number % avail_processors + 1, -10 );
+		(void) move_the_current_thread_to_a_core( th->thread_index % avail_processors + 1, -10 );
 	}
 	//printf ("core =%ld, th_id =%u\n",th->thread_number % avail_processors + 1,th->thread_number);
 
@@ -167,7 +167,7 @@ static void * smp_thread_routine(void *arg) {
 	pthread_spin_unlock(&spin_lock);
 
 	if (!th->mmt_handler) { /* pcap error ? */
-		sprintf(lg_msg, "Error while starting thread number %i", th->thread_number);
+		sprintf(lg_msg, "Error while starting thread number %i", th->thread_index);
 		mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_T_INIT, lg_msg);
 		return &errcode;
 	}
@@ -179,7 +179,7 @@ static void * smp_thread_routine(void *arg) {
 		th->iprobe.mf_stats[i].application = get_protocol_name_by_id(i);
 		th->iprobe.mf_stats[i].application_id = i;
 	}
-	th->iprobe.instance_id = th->thread_number;
+	th->iprobe.instance_id = th->thread_index;
 	// customized packet and session handling functions are then registered
 
 	if(mmt_probe.mmt_conf->enable_session_report == 1) {
@@ -260,7 +260,7 @@ static void * smp_thread_routine(void *arg) {
 		}
 	} //end while(1)
 
-	printf("thread %d : %"PRIu64" \n", th->thread_number, th->nb_packets );
+	printf("thread %d : %"PRIu64" \n", th->thread_index, th->nb_packets );
 
 	if(th->mmt_handler != NULL){
 		radius_ext_cleanup(th->mmt_handler); // cleanup our event handler for RADIUS initializations
@@ -269,13 +269,13 @@ static void * smp_thread_routine(void *arg) {
 		if (mmt_probe.mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, th);
 		//process_session_timer_handler(th->mmt_handler);
 		if (cleanup_registered_handlers (th) == 0){
-			fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",th->thread_number);
+			fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",th->thread_index);
 		}
 		mmt_close_handler(th->mmt_handler);
 		th->mmt_handler = NULL;
 	}
 
-	sprintf(lg_msg, "Thread %i ended (%"PRIu64" packets)", th->thread_number, th->nb_packets);
+	sprintf(lg_msg, "Thread %i ended (%"PRIu64" packets)", th->thread_index, th->nb_packets);
 	//printf("Thread %i ended (%"PRIu64" packets)\n", th->thread_number, nb_pkts);
 	mmt_log(mmt_probe.mmt_conf, MMT_L_INFO, MMT_T_END, lg_msg);
 	//fprintf(stdout, "Thread %i ended (%u packets)\n", th->thread_number, nb_pkts);
@@ -442,7 +442,7 @@ void cleanup(int signo) {
 		else
 			for (i = 0; i < mmt_conf->thread_nb; i++)
 				(void) fprintf( stderr, "- thread %2d processed %12"PRIu64" packets, dropped %12"PRIu64"\n",
-						mmt_probe.smp_threads[i].thread_number, mmt_probe.smp_threads[i].nb_packets, mmt_probe.smp_threads[i].nb_dropped_packets );
+						mmt_probe.smp_threads[i].thread_index, mmt_probe.smp_threads[i].nb_packets, mmt_probe.smp_threads[i].nb_dropped_packets );
 		fflush(stderr);
 #ifdef RHEL3
 		pcap_close(handle);
@@ -801,7 +801,7 @@ void cleanup_report_allocated_memory(){
 		if (mmt_conf->socket_enable == 1){
 			// mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length],1024 - mmt_conf->report_length,"%"PRIu64",%f",mmt_probe.smp_threads->packet_send, mmt_probe.smp_threads->packet_send * 100.0 / mmt_probe.smp_threads->nb_packets);
 			//mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length - 1],1024 - mmt_conf->report_length,",%"PRIu64"}",mmt_probe.smp_threads->packet_send);
-			printf ("[mmt-probe-2]{%u,%"PRIu64",%f} \n",mmt_probe.smp_threads->thread_number, mmt_probe.smp_threads->packet_send,mmt_probe.smp_threads->packet_send * 100.0 / mmt_probe.smp_threads->nb_packets);
+			printf ("[mmt-probe-2]{%u,%"PRIu64",%f} \n",mmt_probe.smp_threads->thread_index, mmt_probe.smp_threads->packet_send,mmt_probe.smp_threads->packet_send * 100.0 / mmt_probe.smp_threads->nb_packets);
 			printf ("[mmt-probe-3]{%"PRIu64"} \n",mmt_probe.smp_threads->packet_send);
 		}
 
@@ -829,7 +829,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		//Cleanup the MMT handler
 #ifdef PCAP		
 		if (cleanup_registered_handlers (mmt_probe.smp_threads) == 0){
-			fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",mmt_probe.smp_threads->thread_number);
+			fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",mmt_probe.smp_threads->thread_index);
 		}
 
 		radius_ext_cleanup(mmt_probe.smp_threads->mmt_handler); // cleanup our event handler for RADIUS initializations
@@ -897,11 +897,11 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
 				//pthread_join(mmt_probe.smp_threads[i].handle, NULL);
 				if (mmt_probe.smp_threads[i].mmt_handler != NULL) {
-					printf ("thread_id = %u, packet = %lu \n",mmt_probe.smp_threads[i].thread_number, mmt_probe.smp_threads[i].nb_packets );
+					printf ("thread_id = %u, packet = %lu \n",mmt_probe.smp_threads[i].thread_index, mmt_probe.smp_threads[i].nb_packets );
 
 					//flowstruct_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler
 					if (cleanup_registered_handlers (&mmt_probe.smp_threads[i]) == 0){
-						fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",mmt_probe.smp_threads[i].thread_number);
+						fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",mmt_probe.smp_threads[i].thread_index);
 					}
 					radius_ext_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler for RADIUS initializations
 					//process_session_timer_handler(mmt_probe.smp_threads[i].mmt_handler);
@@ -960,11 +960,10 @@ void signal_handler(int type) {
 # ifdef PCAP
 		terminate_probe_processing(0);
 #endif
+
 #ifdef DPDK
-		print_stats((void *) &mmt_probe);
 		do_abort = 1;
-		sleep(5);
-		terminate_probe_processing(0);
+		return;
 #endif
 	} else {
 		signal(SIGINT, signal_handler);
@@ -1061,7 +1060,7 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 			socket_name[ valid] = '\0';
 		}else{
 			valid = snprintf(socket_name, 256,"%s%s%u",
-					mmt_conf->unix_socket_descriptor,common_socket_name,th->thread_number);
+					mmt_conf->unix_socket_descriptor,common_socket_name,th->thread_index);
 			socket_name[ valid] = '\0';
 		}
 		strcpy(un_serv_addr.sun_path, socket_name);
@@ -1105,7 +1104,7 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 
 			}else{
 
-				in_serv_addr.sin_port = htons(mmt_conf->server_adresses[i].server_portnb[th->thread_number]);
+				in_serv_addr.sin_port = htons(mmt_conf->server_adresses[i].server_portnb[th->thread_index]);
 				//printf("th_nb=%u,ip = %s,port = %u \n",th->thread_number,mmt_conf->server_adresses[i].server_ip_address,mmt_conf->server_adresses[i].server_portnb[th->thread_number]);
 			}
 
@@ -1288,14 +1287,14 @@ int main(int argc, char **argv) {
 		}
 
 		//mmt_probe.iprobe.instance_id = 0;
-		mmt_probe.smp_threads->thread_number = 0;
+		mmt_probe.smp_threads->thread_index = 0;
 		for (i = 0; i < PROTO_MAX_IDENTIFIER; i++) {
 			reset_microflows_stats(&mmt_probe.smp_threads->iprobe.mf_stats[i]);
 			mmt_probe.smp_threads->iprobe.mf_stats[i].application = get_protocol_name_by_id(i);
 			mmt_probe.smp_threads->iprobe.mf_stats[i].application_id = i;
 		}
-		mmt_probe.smp_threads->iprobe.instance_id = mmt_probe.smp_threads->thread_number;
-		mmt_probe.smp_threads->thread_number = 0;
+		mmt_probe.smp_threads->iprobe.instance_id = mmt_probe.smp_threads->thread_index;
+		mmt_probe.smp_threads->thread_index = 0;
 		/*
 		if(mmt_probe.mmt_conf->cpu_mem_usage_enabled == 1){
 			mmt_probe.smp_threads->cpu_usage = 0;
@@ -1355,7 +1354,7 @@ int main(int argc, char **argv) {
 			}*/
 
 
-			mmt_probe.smp_threads[i].thread_number = i;
+			mmt_probe.smp_threads[i].thread_index = i;
 			if( data_spsc_ring_init( &mmt_probe.smp_threads[i].fifo, mmt_conf->thread_queue_plen, mmt_conf->requested_snap_len ) != 0 ){
 				perror("Not enough memory. Please reduce thread-queue or thread-nb in .conf");
 				//free memory allocated

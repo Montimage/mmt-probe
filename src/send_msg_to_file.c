@@ -227,7 +227,7 @@ void flush_messages_to_file_thread( void *arg){
 	double drop_percent = 0, drop_percent_NIC = 0, drop_percent_kernel =0;
 
 	//dummy report
-	if (th->thread_number == 0){
+	if (th->thread_index == 0){
 		valid = snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu",
 				200, probe_context->probe_id_number,
 				probe_context->input_source, ts.tv_sec, ts.tv_usec);
@@ -254,7 +254,7 @@ void flush_messages_to_file_thread( void *arg){
 	}
 	valid = 0;
 	//open a file
-	valid = snprintf(file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s", probe_context->output_location, present_time, th->thread_number, probe_context->data_out);
+	valid = snprintf(file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s", probe_context->output_location, present_time, th->thread_index, probe_context->data_out);
 	file_name_str[valid] = '\0';
 
 	file = fopen(file_name_str, "w");
@@ -314,7 +314,7 @@ void flush_messages_to_file_thread( void *arg){
 			}else {
 
 				//create semaphore
-				valid = snprintf(sem_file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s.sem", probe_context->behaviour_output_location, present_time, th->thread_number, probe_context->data_out);
+				valid = snprintf(sem_file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s.sem", probe_context->behaviour_output_location, present_time, th->thread_index, probe_context->data_out);
 				sem_file_name_str[ valid ] = '\0';
 				file= fopen(sem_file_name_str, "w");
 

@@ -11,6 +11,12 @@
 #include "processing.h"
 #include "confuse.h"
 
+#include "lib/security.h"
+
+//normally GIT_VERSION must be given by Makefile
+#ifndef GIT_VERSION
+	#define GIT_VERSION ""
+#endif
 
 void usage(const char * prg_name) {
 	fprintf(stderr, "%s [<option>]\n", prg_name);
@@ -85,6 +91,16 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_INT("id", 0, CFGF_NONE),
 			CFG_STR("results-dir", 0, CFGF_NONE),
 			CFG_STR("properties-file", 0, CFGF_NONE),
+			CFG_END()
+	};
+
+	cfg_opt_t security2_opts[] = {
+			CFG_INT("enable",       0, CFGF_NONE),
+			CFG_INT("thread-nb",    0, CFGF_NONE),
+			CFG_INT("id",           0, CFGF_NONE),
+			CFG_STR("rules-mask",   0, CFGF_NONE),
+			CFG_INT("file-output",  0, CFGF_NONE),
+			CFG_INT("redis-output", 0, CFGF_NONE),
 			CFG_END()
 	};
 
@@ -164,6 +180,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_SEC("redis-output", redis_output_opts, CFGF_NONE),
 			CFG_SEC("data-output", data_output_opts, CFGF_NONE),
 			CFG_SEC("security", security_opts, CFGF_NONE),
+			CFG_SEC("security2", security2_opts, CFGF_NONE),
 			CFG_SEC("cpu-mem-usage", cpu_mem_report_opts, CFGF_NONE),
 			CFG_SEC("socket", socket_opts, CFGF_NONE),
 			CFG_SEC("behaviour", behaviour_opts, CFGF_NONE),
@@ -447,6 +464,18 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				mmt_conf->security_id = (uint16_t) cfg_getint(security, "id");
 				strncpy(mmt_conf->dir_out, (char *) cfg_getstr(security, "results-dir"), 256);
 				strncpy(mmt_conf->properties_file, (char *) cfg_getstr(security, "properties-file"), 256);
+			}
+		}
+
+		if (cfg_size(cfg, "security2")) {
+			cfg_t *security = cfg_getnsec(cfg, "security2", 0);
+			if (security->line != 0){
+				mmt_conf->security2_enable        = (cfg_getint(security, "enable") != 0);
+				mmt_conf->security2_threads_count = (uint16_t) cfg_getint(security, "thread-nb");
+				mmt_conf->security2_report_id     = (uint16_t) cfg_getint(security, "id");
+				strncpy(mmt_conf->security2_rules_mask, cfg_getstr(security, "rules-mask"), sizeof( mmt_conf->security2_rules_mask ) - 1 );
+				mmt_conf->security2_file_output_enable  = (cfg_getint(security, "file-output")  != 0);
+				mmt_conf->security2_redis_output_enable = (cfg_getint(security, "redis-output") != 0);
 			}
 		}
 

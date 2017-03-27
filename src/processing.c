@@ -190,7 +190,7 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	memset(temp_session, '\0', sizeof (session_struct_t));
 
 	temp_session->session_id = get_session_id(session);
-	temp_session->thread_number = th->thread_number;
+	temp_session->thread_number = th->thread_index;
 
 	temp_session->format_id = MMT_FLOW_REPORT_FORMAT;
 	temp_session->app_format_id = MMT_DEFAULT_APP_REPORT_FORMAT;
