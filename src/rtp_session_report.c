@@ -8,7 +8,7 @@
 #include "tcpip/mmt_tcpip_protocols.h"
 #include "processing.h"
 
-
+/* This function resets rtp statistics */
 void reset_rtp (session_struct_t *temp_session){
     ((rtp_session_attr_t*) temp_session->app_data)->jitter = 0;
     ((rtp_session_attr_t*) temp_session->app_data)->nb_lost = 0;
@@ -17,6 +17,7 @@ void reset_rtp (session_struct_t *temp_session){
     ((rtp_session_attr_t*) temp_session->app_data)->packets_nb = 0;
 }
 
+/* This function is called by mmt-dpi for reporting rtp version, if an extraction handler is registered */
 void rtp_version_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     if(ipacket->session == NULL) return;
     session_struct_t * temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
@@ -39,6 +40,7 @@ void rtp_version_handle(const ipacket_t * ipacket, attribute_t * attribute, void
     }
 }
 
+/* This function is called by mmt-dpi for reporting rtp jitter, if an extraction handler is registered */
 void rtp_jitter_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     if(ipacket->session == NULL) return;
     mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -54,6 +56,7 @@ void rtp_jitter_handle(const ipacket_t * ipacket, attribute_t * attribute, void 
     }
 }
 
+/* This function is called by mmt-dpi for reporting rtp loss, if an extraction handler is registered */
 void rtp_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     if(ipacket->session == NULL) return;
     mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -67,6 +70,7 @@ void rtp_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * 
     }
 }
 
+/* This function is called by mmt-dpi for reporting rtp order error, if an extraction handler is registered */
 void rtp_order_error_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     if(ipacket->session == NULL) return;
     mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -80,6 +84,7 @@ void rtp_order_error_handle(const ipacket_t * ipacket, attribute_t * attribute, 
     }
 }
 
+/* This function is called by mmt-dpi for reporting rtp burst loss, if an extraction handler is registered */
 void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     if(ipacket->session == NULL) return;
     mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -93,6 +98,7 @@ void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, v
     }
 }
 
+/* This function is for reporting rtp session statistics*/
 void print_initial_rtp_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid){
     //case 1://missing dev_prop, cdn_flag
 

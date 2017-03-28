@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<?xml-stylesheet type="text/xsl" href="properties.xsl"?>
+<!-- MMT_Security Copyright (C) 2014  Montimage-->
+<beginning>
+	<!-- Simple multi-session property -->
+
+<property value="THEN" delay_units="s" delay_min="0+" delay_max="300" property_id="1" type_property="ATTACK" 
+    description="NFS synchronization and then upload">
+    <event value="COMPUTE" event_id="1" 
+           description="NFS synchronization"
+           boolean_expression="(nfs.file_opcode != 0)"/>
+    <event value="COMPUTE" event_id="2" 
+           description="Upload the same file"
+           boolean_expression="((ip.dst == ip.src.1)&amp;&amp;((http.packet_count != 0)&amp;&amp;(#check_nfs_upload(nfs.file_name.1, nfs.file_opcode.1, tcp.p_payload, tcp.payload_len) == 1)))"/>
+</property>
+</beginning>

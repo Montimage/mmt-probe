@@ -273,6 +273,7 @@ Autres tentatives sur IP et/ou TCP : depend de la genericite des regles par rapp
 
 <!-- Property 19: C4_Analyse_04g : SQL Injection detection.-->
 <!--
+
 <property value="THEN" delay_units="s" delay_min="0" delay_max="0" property_id="19" type_property="ATTACK" 
     description="SQL Injection detected"
     >

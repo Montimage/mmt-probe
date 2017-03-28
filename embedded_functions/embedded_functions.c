@@ -17,6 +17,8 @@
 #include "types_defs.h"
 #include "data_defs.h"
 #include <inttypes.h>
+#include "hiredis/hiredis.h"
+#include <sys/time.h>
 
 //#include "ocilib.h"
 //#define MAX_LEN 1000
@@ -69,8 +71,8 @@ int *check_ip_options(void *op2,void *op1){
   *handle = 0;
   int i2 = *((int*)op2);
   int i1 = *((int*)op1);
-  int bit2 = (i2 >> 1) & 1;
-  int bit1 = (i1 >> 1) & 1;
+  // int bit2 = (i2 >> 1) & 1;
+  // int bit1 = (i1 >> 1) & 1;
 //  if(bit2 == 1 || bit1 == 1){
       if(i2 != i1) *handle = 1;
 //  }
@@ -205,8 +207,8 @@ int *check_URI(void *URI){
   s3 = strstr(uri_str, "/."); //find the first occurrence of string "//" in string
   if ((s0 !=NULL) || (s1 !=NULL) || (s2 !=NULL) || (s3 !=NULL))  *handle = 1;
 #ifdef DEBUG
-  fprintf(stderr, "executing ceck_URI with parameters:h=%d:nb=%u:a1=%o:a2=%o\n", 
-                                           *handle, *(char*)(BLOC3+6),*(char*)(BLOC3+9));
+  fprintf(stderr, "executing check_URI with parameters:h=%d:nb=%u:a1=%o:a2=%o\n", 
+                                           *handle, *(char*)(BLOC3+6),*(char*)(BLOC3+9),*(char*)(BLOC3+12));
 #endif
   if (uri_str != NULL) free(uri_str);
   return handle;
@@ -255,7 +257,7 @@ int *check_sql_injection(void *p, void *pl){
   char *str = malloc(len+1);
   memcpy(str, p, len);
   str[len] = '\0';
-  //printf("String to be checked: %s", str);
+  //printf("String to be checked: %s\n", str);
   
     //Signature based dection begin here. 
   //(using  pattern matching techniques against signatures and 
@@ -302,5 +304,123 @@ int *check_ip_add(void *src, void *dst, void *src1, void *dst1){
 	  //printf("In the same session\n");
 	  return handle;
   }
+  return handle;
+}
+
+int *check_nfs_upload(void *file_name, void *file_opcode, void *p_payload, void *payload_len){
+  int *handle;
+  handle = malloc(sizeof(int));
+  *handle = 0;
+  if((file_name == NULL) || (file_opcode == NULL) || (p_payload == NULL) || (payload_len == NULL)){
+    return handle;
+  }
+  
+  //take the file name
+  uint16_t leng = *((uint16_t*)file_opcode);
+  char * fn_str = malloc(leng+1);
+  strncpy(fn_str, file_name, leng);
+  fn_str[leng] = '\0';
+  //printf("File name: %s. Leng: %d\n", fn_str, leng);
+  
+  //take the payload
+  uint16_t len = *((uint16_t *)payload_len);
+  //printf("Payload length: %"PRIu16"\n", len);
+  char *tcp_payload = malloc(len+1);
+  memcpy(tcp_payload, p_payload, len);
+  tcp_payload[len] = '\0';
+  //printf("TCP payload: %s\n", tcp_payload);
+  
+  if (strstr(tcp_payload, fn_str) != NULL){
+	  //printf ("Detected\n");
+	  *handle = 1;
+		}
+  free(fn_str);
+  free(tcp_payload);
+  return handle;
+}
+
+int *check_nfs_redis(void *p_payload, void *payload_len){
+  int *handle;
+  handle = malloc(sizeof(int));
+  *handle = 0;
+  if((p_payload == NULL) || (payload_len == NULL)){
+    return handle;
+  }
+  
+  redisContext *c, *command;
+  redisReply *reply;
+  
+  const char *hostname = "127.0.0.1";
+  //const char *hostname = "192.168.0.37";
+  int port = 6379;
+  
+  //take the payload
+  uint16_t len = *((uint16_t *)payload_len);
+  //printf("Payload length: %"PRIu16"\n", len);
+  char *tcp_payload = malloc(len+1);
+  memcpy(tcp_payload, p_payload, len);
+  tcp_payload[len] = '\0';
+  //printf("TCP payload: %s\n", tcp_payload);
+  
+  struct timeval timeout = { 1, 500000 }; // 1.5 seconds
+  c = redisConnectWithTimeout(hostname, port, timeout);
+  if (c == NULL || c->err) {
+        if (c) {
+            printf("Connection error: %s\n", c->errstr);
+            redisFree(c);
+        } else {
+            printf("Connection error: Impossible to allocate redis context\n");
+        }
+        exit(1);
+    }
+  
+    /* Let's check what we have inside the list */
+    reply = redisCommand(c,"LRANGE multisession.report 0 -1");
+    if (reply->type == REDIS_REPLY_ARRAY) {
+		int j=0;
+        for (j = 0; j < reply->elements; j++) {
+			//printf("report: %s\n", reply->element[j]->str);
+            char f_name[30], probe_report[256];
+            char *token;
+            strcpy(probe_report, reply->element[j]->str);
+            token = strtok(reply->element[j]->str, ",");
+            int i = 0;
+			while (token != NULL) {
+				if (i==1) {
+					//check the validity of the report
+					struct timeval now;
+					gettimeofday(&now, NULL);
+					char *_token;
+					char timestamp[30];
+					strcpy(timestamp, token);
+					token = strtok(NULL, ",");
+					_token = strtok(timestamp, ".");
+					i++;
+					if (_token != NULL){
+						//printf("Timestamp: %s\n", _token);
+						if (now.tv_sec - atoi(_token) > 300) {
+							redisCommand(c,"LREM multisession.report 1 %s", probe_report);
+							//printf("Delete the outdated report %s\n", probe_report);
+							continue;
+							}
+						}
+					}
+				if (i==2){
+					strcpy(f_name, token);
+					//printf("%s\n", f_name);
+					}
+				token = strtok(NULL, ",");
+				i++;
+				}
+			if (strstr(tcp_payload, f_name) != NULL){
+			//printf ("Detected\n");
+			*handle = 1;
+      free(tcp_payload);
+			return handle;
+			}            
+        }
+    }
+  redisFree(c);
+  free(tcp_payload);
   return handle;
 }

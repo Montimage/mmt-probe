@@ -11,7 +11,7 @@
 #include "tcpip/mmt_tcpip.h"
 #include "processing.h"
 
-
+/* This function resets http stats */
 void http_reset_report(session_struct_t *temp_session){
 
 	((web_session_attr_t *) temp_session->app_data)->mimetype[0] = '\0';
@@ -34,6 +34,7 @@ void http_reset_report(session_struct_t *temp_session){
     ((web_session_attr_t *) temp_session->app_data)->has_uri = 0;
 }
 
+/* This function is called by mmt-dpi for reporting http mime type, if an extraction handler is registered */
 void mime_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	if(ipacket->session == NULL) return;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -57,6 +58,7 @@ void mime_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user
 	}
 }
 
+/* This function is called by mmt-dpi for reporting http host, if an extraction handler is registered */
 void host_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	if(ipacket->session == NULL) return;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -84,6 +86,9 @@ void host_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user
 	}
 }
 
+/* This function is called by mmt-dpi for reporting http method, if an extraction handler is registered
+ * Initializes temp_session in the probe
+ * Reporting between two http requests */
 void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	if(ipacket->session == NULL) return;
 	session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
@@ -141,6 +146,7 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 	}
 }
 
+/* This function is called by mmt-dpi for reporting http referer, if an extraction handler is registered */
 void referer_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	if(ipacket->session == NULL) return;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -164,6 +170,7 @@ void referer_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	}
 }
 
+/* This function is called by mmt-dpi for reporting http useragent, if an extraction handler is registered */
 void useragent_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	if(ipacket->session == NULL) return;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -182,6 +189,7 @@ void useragent_handle(const ipacket_t * ipacket, attribute_t * attribute, void *
 	}
 }
 
+/* This function is called by mmt-dpi for reporting http xcdn_seen, if an extraction handler is registered */
 void xcdn_seen_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	if(ipacket->session == NULL) return;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -193,6 +201,7 @@ void xcdn_seen_handle(const ipacket_t * ipacket, attribute_t * attribute, void *
 	}
 }
 
+/* This function is called by mmt-dpi for reporting http content len, if an extraction handler is registered */
 void content_len_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	if(ipacket->session == NULL) return;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -208,6 +217,8 @@ void content_len_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 
 }
 
+/* This function is called by mmt-dpi for reporting http response, if an extraction handler is registered
+ * Response time calculation*/
 void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	if(ipacket->session == NULL) return;
 	session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
@@ -246,6 +257,7 @@ void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, vo
 	}
 }
 
+/* This function is called by mmt-dpi for reporting http uri, if an extraction handler is registered */
 void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	if(ipacket->session == NULL) return;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -267,6 +279,8 @@ void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_
 	}
 }
 
+/* This function is called by mmt-dpi for reporting tcp session close, if an extraction handler is registered
+ * Reporting at tcp close */
 void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 
 	if(ipacket->session == NULL) return;
@@ -294,7 +308,7 @@ void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void
 	}
 
 }
-
+/* This function is for reporting http session statistics*/
 void print_initial_web_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid){
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	uint32_t cdn_flag = 0;

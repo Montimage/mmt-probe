@@ -15,6 +15,7 @@
 
 #define MAX_FILE_NAME 256
 
+/* This function writes FTP data to a file */
 void write_data_to_file (char * path,  char * content, int len) {
 	int fd = 0;
 	if ( (fd = open ( path , O_CREAT | O_WRONLY | O_APPEND | O_NOFOLLOW , S_IRWXU | S_IRWXG | S_IRWXO )) < 0 )
@@ -30,7 +31,7 @@ void write_data_to_file (char * path,  char * content, int len) {
 	}
 	close ( fd );
 }
-
+/* This function resets FTP session attributes */
 void reset_ftp_parameters(const ipacket_t * ipacket, session_struct_t *temp_session ) {
 	((ftp_session_attr_t*) temp_session->app_data)->file_download_starttime_sec = 0;
 	((ftp_session_attr_t*) temp_session->app_data)->file_download_starttime_usec = 0;
@@ -203,7 +204,9 @@ void ftp_session_connection_type_handle(const ipacket_t * ipacket, attribute_t *
 		}
 	}
 }
-
+/* This function is called, whenever packet contains FTP response value.
+ * It reports FTP file transfer information, if FTP reconstruction is enabled.
+ *  */
 void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	char * response_value = (char *) attribute->data;
 	if (response_value == NULL) {
@@ -304,6 +307,7 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
 	}
 }
 
+/* This function is for reporting FTP session report */
 void print_initial_ftp_report(const mmt_session_t * session, session_struct_t * temp_session, char message [MAX_MESS + 1], int valid) {
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 

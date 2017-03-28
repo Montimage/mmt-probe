@@ -1,4 +1,5 @@
 *.a
+sftp-config.json
 *.o
 *.lo
 *.la

@@ -1,12 +1,65 @@
-CC     = gcc-4.9
-RM     = rm -rf
-MKDIR  = mkdir -p
-CP     = cp
-
-#name of executable file to generate
-OUTPUT   = probe
-#directory where probe will be installed on
+#Save files to
 INSTALL_DIR = /opt/mmt/probe
+MKDIR  = mkdir -p
+TOP ?= $(shell pwd)
+OUTPUT_DIR =$(TOP)/build
+CC     = gcc-4.9
+CP     = cp
+RM     = rm -rf
+
+#Name of executable file to generate
+APP = probe
+
+
+ifndef VERBOSE
+        QUIET := @
+endif
+
+ifdef DPDK
+RTE_SDK=/home/server10g/dpdk
+RTE_TARGET=build
+ifeq ($(RTE_SDK),)
+$(error "Please define RTE_SDK environment variable")
+endif
+
+# Default target, can be overriden by command line or environment
+RTE_TARGET ?= x86_64-native-linuxapp-gcc
+
+include $(RTE_SDK)/mk/rte.vars.mk
+
+#Name of executable file to generate
+#APP = probe
+
+#get git version abbrev
+GIT_VERSION := $(shell git log --format="%h" -n 1)
+VERSION     := 1.0
+
+SRCS-y := src/smp_main.c  src/processing.c src/web_session_report.c src/thredis.c \
+src/send_msg_to_file.c src/send_msg_to_redis.c src/ip_statics.c src/rtp_session_report.c src/ftp_session_report.c \
+src/event_based_reporting.c src/protocols_report.c src/ssl_session_report.c src/default_app_session_report.c \
+src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c src/parseoptions.c src/license.c src/dpdk_capture.c \
+src/lib/security.c src/lib/data_spsc_ring.c src/lib/lock_free_spsc_ring.c src/lib/packet_hash.c src/lib/system_info.c src/attributes_extraction.c
+
+#set of library
+LDLIBS   += -L/opt/mmt/dpi/lib -L/opt/mmt/security/lib -lmmt_core -lmmt_tcpip -lmmt_security -lmmt_security2 -lxml2 -lpcap -lconfuse -lhiredis -lpthread
+CFLAGS   += $(WERROR_CFLAGS) -O3 -I /opt/mmt/dpi/include -I /opt/mmt/security/include -Wall -Wno-unused-variable -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DDPDK
+#CFLAGS   = -Wall -Wno-unused-variable -DNDEBUG -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"
+CLDFLAGS += -I /opt/mmt/dpi/include -DNDEBUG
+ 
+include $(RTE_SDK)/mk/rte.extapp.mk
+
+keygen:
+	$(QUIET) $(CC) -o keygen $(CLDFLAGS)  key_generator.c
+
+#copy probe to current folder
+#	$(CP) $(OUTPUT_DIR)/probe $(TOP)
+
+endif
+# End of DPDK
+
+ifdef PCAP
+#name of executable file to generate
+#APP = probe
 
 #get git version abbrev
 GIT_VERSION := $(shell git log --format="%h" -n 1)
@@ -14,9 +67,9 @@ VERSION     := 1.0
 
 
 #set of library
-LIBS     = -L /opt/mmt/dpi/lib -lmmt_core -lmmt_tcpip -lmmt_security -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread -lhtmlstreamparser -lz
+LIBS     = -L /opt/mmt/dpi/lib -lmmt_core -lmmt_tcpip -lmmt_security -lmmt_security2 -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
 
-CFLAGS   = -Wall -Wno-unused-variable -DNDEBUG -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"
+CFLAGS   = -Wall -Wno-unused-variable -DNDEBUG -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DPCAP
 CLDFLAGS = -I /opt/mmt/dpi/include -DNDEBUG
 
 #for debuging
@@ -47,13 +100,9 @@ MAIN_SRCS := $(filter-out $(SRCDIR)/test_probe.c, $(MAIN_SRCS))
 
 MAIN_OBJS := $(patsubst %.c,%.o, $(MAIN_SRCS)) \
 
-ifndef VERBOSE
-	QUIET := @
-endif
-
 all: $(LIB_OBJS) $(MAIN_OBJS)
 	@echo "[COMPILE] probe"
-	$(QUIET) $(CC) -o $(OUTPUT) $(CLDFLAGS)  $^ $(LIBS)
+	$(QUIET) $(CC) -o $(APP) $(CLDFLAGS)  $^ $(LIBS)
 %.o: %.c
 	@echo "[COMPILE] $(notdir $@)"
 	$(QUIET) $(CC) $(CFLAGS) $(CLDFLAGS) -c -o $@ $<
@@ -63,10 +112,11 @@ clean:
 keygen:
 	$(QUIET) $(CC) -o keygen $(CLDFLAGS)  key_generator.c
 	
+endif
 #
 # Install probe
 #
-install: all
+create: 
 	@echo "Installing probe on" $(INSTALL_DIR)
 #create dir
 	$(QUIET) $(MKDIR) $(INSTALL_DIR)/bin $(INSTALL_DIR)/conf \
@@ -78,8 +128,16 @@ install: all
 		$(INSTALL_DIR)/result/behaviour/offline \
 		$(INSTALL_DIR)/result/security/online \
 		$(INSTALL_DIR)/result/security/offline
-#copy probe to bin
-	$(QUIET) $(CP) $(OUTPUT) $(INSTALL_DIR)/bin/probe
+
+#copy probe to existing dir from buit in DPDK
+ifdef DPDK
+	$(QUIET) $(CP) $(OUTPUT_DIR)/probe $(TOP)
+endif
+
+#copy to bin
+	$(QUIET) $(CP) $(APP) $(INSTALL_DIR)/bin/probe
+
+
 #create link
 #	$(QUIET) $(CP) $(INSTALL_DIR)/bin/probe $(INSTALL_DIR)/bin/probe_online
 #	$(QUIET) $(CP) $(INSTALL_DIR)/bin/probe $(INSTALL_DIR)/bin/probe_offline

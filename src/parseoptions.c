@@ -11,6 +11,12 @@
 #include "processing.h"
 #include "confuse.h"
 
+#include "lib/security.h"
+
+//normally GIT_VERSION must be given by Makefile
+#ifndef GIT_VERSION
+	#define GIT_VERSION ""
+#endif
 
 void usage(const char * prg_name) {
 	fprintf(stderr, "%s [<option>]\n", prg_name);
@@ -26,6 +32,7 @@ void usage(const char * prg_name) {
 	fprintf(stderr, "\t-s <0|1>         : Enables or disables protocol statistics reporting. \n");
 	fprintf(stderr, "\t-f <0|1>         : Enables or disables flows reporting. \n");
 	fprintf(stderr, "\t-n <probe number>: Unique probe id number. \n");
+	//fprintf(stderr, "\t-c <number of cores>: see dpdk manual to assign number of cores (2 * thread_nb + 2) \n");
 	fprintf(stderr, "\t-h               : Prints this help.\n");
 	exit(1);
 }
@@ -87,10 +94,20 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_END()
 	};
 
+	cfg_opt_t security2_opts[] = {
+			CFG_INT("enable",       0, CFGF_NONE),
+			CFG_INT("thread-nb",    0, CFGF_NONE),
+			CFG_INT("id",           0, CFGF_NONE),
+			CFG_STR("rules-mask",   0, CFGF_NONE),
+			CFG_INT("file-output",  0, CFGF_NONE),
+			CFG_INT("redis-output", 0, CFGF_NONE),
+			CFG_END()
+	};
+
 	cfg_opt_t cpu_mem_report_opts[] = {
-					CFG_INT("enable", 0, CFGF_NONE),
-					CFG_INT("frequency", 0, CFGF_NONE),
-					CFG_END()
+			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_INT("frequency", 0, CFGF_NONE),
+			CFG_END()
 	};
 
 	cfg_opt_t behaviour_opts[] = {
@@ -137,15 +154,22 @@ cfg_t * parse_conf(const char *filename) {
 	};
 	cfg_opt_t socket_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_INT("domain", 0, CFGF_NONE),
 			CFG_STR_LIST("port", "{}", CFGF_NONE),
 			CFG_STR_LIST("server-address", "{}", CFGF_NONE),
+			CFG_STR("socket-descriptor", "", CFGF_NONE),
 			CFG_INT("one-socket-server", 1, CFGF_NONE),
 			CFG_END()
 	};
 	cfg_opt_t security_report_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
 			CFG_STR_LIST("event", "{}", CFGF_NONE),
-			CFG_INT("event_operation", 0, CFGF_NONE),
+			CFG_INT("rule-type", 0, CFGF_NONE),
+			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
+			CFG_END()
+	};
+	cfg_opt_t security_report_multisession_opts[] = {
+			CFG_INT("enable", 0, CFGF_NONE),
 			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
 			CFG_END()
 	};
@@ -157,6 +181,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_SEC("redis-output", redis_output_opts, CFGF_NONE),
 			CFG_SEC("data-output", data_output_opts, CFGF_NONE),
 			CFG_SEC("security", security_opts, CFGF_NONE),
+			CFG_SEC("security2", security2_opts, CFGF_NONE),
 			CFG_SEC("cpu-mem-usage", cpu_mem_report_opts, CFGF_NONE),
 			CFG_SEC("socket", socket_opts, CFGF_NONE),
 			CFG_SEC("behaviour", behaviour_opts, CFGF_NONE),
@@ -174,7 +199,6 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_INT("cache-size-for-reporting", 300000, CFGF_NONE),
 			CFG_INT_CB("input-mode", 0, CFGF_NONE, conf_parse_input_mode),
 			CFG_STR("input-source", "nosource", CFGF_NONE),
-			CFG_STR("dynamic-config-file", "noconfig", CFGF_NONE),
 			CFG_INT("probe-id-number", 0, CFGF_NONE),
 			CFG_STR("logfile", 0, CFGF_NONE),
 			CFG_STR("license_file_path", 0, CFGF_NONE),
@@ -183,7 +207,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_SEC("condition_report", condition_report_opts, CFGF_TITLE | CFGF_MULTI),
 			CFG_SEC("security-report", security_report_opts, CFGF_TITLE | CFGF_MULTI),
 			CFG_INT("num-of-report-per-msg", 1, CFGF_NONE),
-
+			CFG_SEC("security-report-multisession", security_report_multisession_opts, CFGF_TITLE | CFGF_MULTI),
 
 			CFG_END()
 	};
@@ -255,7 +279,7 @@ int parse_dot_proto_attribute(char * inputstring, mmt_event_attribute_t * protoa
 }
 
 /** transforms "proto.attribute" into mmt_security_attribute_t
- *  Raturns 0 on success, a positive value otherwise
+ *  Returns 0 on success, a positive value otherwise
  **/
 int parse_security_dot_proto_attribute(char * inputstring, mmt_security_attribute_t * protoattr) {
 	char **ap, *argv[2];
@@ -281,9 +305,10 @@ int parse_security_dot_proto_attribute(char * inputstring, mmt_security_attribut
 		return 0;
 	}
 }
+
 int parse_condition_attribute(char * inputstring, mmt_condition_attribute_t * conditionattr) {
 
-	if(inputstring!= NULL){
+	if(inputstring != NULL){
 		strncpy(conditionattr->condition, inputstring, 256);
 		return 0;
 	}
@@ -291,7 +316,7 @@ int parse_condition_attribute(char * inputstring, mmt_condition_attribute_t * co
 }
 int parse_location_attribute(char * inputstring, mmt_condition_attribute_t * conditionattr) {
 
-	if(inputstring!= NULL){
+	if(inputstring != NULL){
 		strncpy(conditionattr->location, inputstring, 256);
 		return 0;
 	}
@@ -299,7 +324,7 @@ int parse_location_attribute(char * inputstring, mmt_condition_attribute_t * con
 }
 
 int parse_handlers_attribute(char * inputstring, mmt_condition_attribute_t * handlersattr) {
-	if(inputstring!= NULL){
+	if(inputstring != NULL){
 		strncpy(handlersattr->handler, inputstring, 256);
 		return 0;
 	}
@@ -307,10 +332,11 @@ int parse_handlers_attribute(char * inputstring, mmt_condition_attribute_t * han
 }
 
 int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
-	int i=0, j=0,k=0;
+	int i = 0, j = 0, k = 0;
 	cfg_t *event_opts;
 	cfg_t *condition_opts;
 	cfg_t *security_report_opts;
+	cfg_t *security_report_multisession_opts;
 
 
 	if (cfg) {
@@ -336,10 +362,10 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 		if (mmt_conf->requested_snap_len  == 0) mmt_conf->requested_snap_len  = 65535;
 
 		mmt_conf->nb_of_report_per_msg = (uint32_t) cfg_getint(cfg, "num-of-report-per-msg");
-        if (mmt_conf->nb_of_report_per_msg < 1){
-        	printf("Error: Number of report per msg should be greater than zero in case of security reporting \n");
-        	exit(0);
-        }
+		if (mmt_conf->nb_of_report_per_msg < 1){
+			printf("Error: Number of report per msg should be greater than zero in case of security reporting \n");
+			exit(0);
+		}
 
 		if(mmt_conf->input_mode == 0){
 			printf("Error: Specify the input-mode in the configuration file, for example input-mode = \"offline\" or \"online\" \n");
@@ -349,10 +375,6 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 		if (strcmp((char *) cfg_getstr(cfg, "input-source"),"nosource") != 0){
 			strncpy(mmt_conf->input_source, (char *) cfg_getstr(cfg, "input-source"), 256);
-		}
-
-		if (strcmp((char *) cfg_getstr(cfg, "dynamic-config-file"), "noconfig")!=0){
-			strncpy(mmt_conf->dynamic_config_file, (char *) cfg_getstr(cfg, "dynamic-config-file"), 256);
 		}
 
 		mmt_conf->probe_id_number = (uint32_t) cfg_getint(cfg, "probe-id-number");
@@ -371,6 +393,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 		}
 		strncpy(mmt_conf->license_location, (char *) cfg_getstr(cfg, "license_file_path"), 256);
 
+		/***************micro flows report ********************/
 		if (cfg_size(cfg, "micro-flows")) {
 			cfg_t *microflows = cfg_getnsec(cfg, "micro-flows", 0);
 			if (microflows->line != 0){
@@ -383,6 +406,10 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				mmt_conf->microf_report_fthreshold = (uint32_t) cfg_getint(microflows, "report-flow-count");
 			}
 		}
+		/***************micro flows report ********************/
+
+		/***************Session timeout ********************/
+
 		if (cfg_size(cfg, "session-timeout")) {
 			cfg_t *session_timeout = cfg_getnsec(cfg, "session-timeout", 0);
 			if (session_timeout->line != 0){
@@ -396,6 +423,12 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				if (mmt_conf->live_session_timeout == 0)mmt_conf->live_session_timeout = 1500;
 			}
 		}
+
+		/***************Session timeout ********************/
+
+		/***************Output files ********************/
+
+
 		if (cfg_size(cfg, "output")) {
 			cfg_t *output = cfg_getnsec(cfg, "output", 0);
 			if (output->line != 0){
@@ -403,22 +436,27 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				strncpy(mmt_conf->data_out, (char *) cfg_getstr(output, "data-file"), 256);
 				strncpy(mmt_conf->output_location, (char *) cfg_getstr(output, "location"), 256);
 				mmt_conf->retain_files = (int) cfg_getint(output, "retain-files");
-				if (mmt_conf->output_to_file_enable == 1){
-					if (mmt_conf->retain_files < (mmt_conf->thread_nb +1)){
-						printf("Error: Number of retain files inside the output section in the configuration file, should be always greater than (thread_nb + 1) \n");
-						exit (0);
-					}
-				}
 				mmt_conf->sampled_report = (uint32_t) cfg_getint(output, "sampled_report");
 				if (mmt_conf->sampled_report > 1){
 					printf("Error: Sample_report inside the output section in the configuration file has a value either 1 or 0, 1 for sampled output and 0 for single output\n");
 					exit(0);
 				}
+
+				if (mmt_conf->output_to_file_enable == 1){
+					if (mmt_conf->retain_files < (mmt_conf->thread_nb + 1) && mmt_conf->retain_files != 0 && mmt_conf->sampled_report == 1){
+						printf("Error: Number of retain files inside the output section in the configuration file, should be always greater than (thread_nb + 1) \n");
+						exit (0);
+					}
+				}
+
 			}else{
 				printf("Error: Output section missing in the configuration file i.e. specify output_file_name, location, sample_report etc\n");
 				exit(0);
 			}
 		}
+		/***************Output files ********************/
+
+		/***************low bandwidth security report ********************/
 
 		if (cfg_size(cfg, "security")) {
 			cfg_t *security = cfg_getnsec(cfg, "security", 0);
@@ -429,13 +467,40 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				strncpy(mmt_conf->properties_file, (char *) cfg_getstr(security, "properties-file"), 256);
 			}
 		}
+
+		if (cfg_size(cfg, "security2")) {
+			cfg_t *security = cfg_getnsec(cfg, "security2", 0);
+			if (security->line != 0){
+				mmt_conf->security2_enable        = (cfg_getint(security, "enable") != 0);
+				mmt_conf->security2_threads_count = (uint16_t) cfg_getint(security, "thread-nb");
+				mmt_conf->security2_report_id     = (uint16_t) cfg_getint(security, "id");
+				strncpy(mmt_conf->security2_rules_mask, cfg_getstr(security, "rules-mask"), sizeof( mmt_conf->security2_rules_mask ) - 1 );
+				mmt_conf->security2_file_output_enable  = (cfg_getint(security, "file-output")  != 0);
+				mmt_conf->security2_redis_output_enable = (cfg_getint(security, "redis-output") != 0);
+			}
+		}
+
+		/***************low bandwidth security report ********************/
+
+		/***************CPU memory usage ********************/
 		if (cfg_size(cfg, "cpu-mem-usage")) {
 			cfg_t *cpu_mem_usage = cfg_getnsec(cfg, "cpu-mem-usage", 0);
 			if (cpu_mem_usage->line != 0){
 				mmt_conf->cpu_mem_usage_enabled = (uint8_t) cfg_getint(cpu_mem_usage, "enable");
-				mmt_conf->cpu_mem_usage_rep_freq = (uint8_t) cfg_getint(cpu_mem_usage, "frequency");
+				if (mmt_conf->cpu_mem_usage_enabled == 1){
+					mmt_conf->cpu_reports = malloc (sizeof (mmt_cpu_perf_t));
+					if (mmt_conf->cpu_reports != NULL){
+						mmt_conf->cpu_reports->cpu_mem_usage_rep_freq = (uint8_t) cfg_getint(cpu_mem_usage, "frequency");
+						mmt_conf->cpu_reports->cpu_usage_avg = 0;
+						mmt_conf->cpu_reports->mem_usage_avg = 0;
+
+					}
+				}
 			}
 		}
+		/*************** CPU memory usage ********************/
+
+		/*************** Behaviour  ********************/
 
 		if (cfg_size(cfg, "behaviour")) {
 			cfg_t *behaviour = cfg_getnsec(cfg, "behaviour", 0);
@@ -448,6 +513,11 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				}
 			}
 		}
+
+		/*************** Behaviour  ********************/
+
+		/*************** reconstruct-ftp  ********************/
+
 		if (cfg_size(cfg, "reconstruct-ftp")) {
 			cfg_t *reconstruct_ftp = cfg_getnsec(cfg, "reconstruct-ftp", 0);
 			if (reconstruct_ftp->line != 0){
@@ -456,6 +526,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				strncpy(mmt_conf->ftp_reconstruct_output_location, (char *) cfg_getstr(reconstruct_ftp, "location"), 256);
 			}
 		}
+		/*************** reconstruct-ftp  ********************/
+
+		/*************** redis  ********************/
 
 		if (cfg_size(cfg, "redis-output")) {
 			cfg_t *redis_output = cfg_getnsec(cfg, "redis-output", 0);
@@ -469,10 +542,13 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				}
 			}
 		}
+		/*************** redis  ********************/
+
+		/*************** Radius  ********************/
 
 		if (cfg_size(cfg, "radius-output")) {
 			cfg_t *routput = cfg_getnsec(cfg, "radius-output", 0);
-			if (routput->line!=0){
+			if (routput->line != 0){
 				mmt_conf->radius_enable = (uint32_t) cfg_getint(routput, "enable");
 				if (cfg_getint(routput, "include-msg") == MMT_RADIUS_REPORT_ALL) {
 					mmt_conf->radius_starategy = MMT_RADIUS_REPORT_ALL;
@@ -483,8 +559,22 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				mmt_conf->radius_condition_id = (uint32_t) cfg_getint(routput, "include-condition");
 			}
 		}
+		/*************** Radius  ********************/
 
-	/*	int nb_port_address =0;
+		/*************** user-agent  ********************/
+
+		if (cfg_size(cfg, "data-output")) {
+			cfg_t *doutput = cfg_getnsec(cfg, "data-output", 0);
+			if (doutput->line != 0){
+				mmt_conf->user_agent_parsing_threshold = (uint32_t) cfg_getint(doutput, "include-user-agent")*1000;
+			}
+		}
+		/*************** user-agent  ********************/
+
+
+		/****************************socket*********************/
+
+		/*	int nb_port_address =0;
 		int nb_server_address = 0;
 		if (cfg_size(cfg, "socket")) {
 			cfg_t *socket = cfg_getnsec(cfg, "socket", 0);
@@ -513,63 +603,61 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			}
 		}*/
 
-		int nb_port_address =0;
-				int nb_server_address = 0;
-				if (cfg_size(cfg, "socket")) {
-					cfg_t *socket = cfg_getnsec(cfg, "socket", 0);
-					int len=0;
-					if (socket->line != 0){
-						mmt_conf->socket_enable = (uint32_t) cfg_getint(socket, "enable");
-						if (mmt_conf->socket_enable ==1 ){
-							nb_port_address = cfg_size(socket, "port");
-							mmt_conf->one_socket_server = (uint8_t) cfg_getint(socket, "one-socket-server");
-							if(nb_port_address > 0) {
-								if (nb_port_address != mmt_conf->thread_nb && mmt_conf->one_socket_server < 1){
-									printf("Error: Number of port address should be equal to thread number\n");
-									exit(0);
-								}
-		/*						mmt_conf->port_address = malloc(sizeof(int)*nb_port_address);
+		int nb_port_address = 0;
+		int nb_server_address = 0;
+		if (cfg_size(cfg, "socket")) {
+			cfg_t *socket = cfg_getnsec(cfg, "socket", 0);
+			int len=0;
+			if (socket->line != 0){
+				mmt_conf->socket_enable = (uint32_t) cfg_getint(socket, "enable");
+				mmt_conf->socket_domain = (uint8_t) cfg_getint(socket, "domain");
+				if (mmt_conf->socket_enable == 1 ){
+					nb_port_address = cfg_size(socket, "port");
+					mmt_conf->one_socket_server = (uint8_t) cfg_getint(socket, "one-socket-server");
+					if(nb_port_address > 0) {
+						if (nb_port_address != mmt_conf->thread_nb && mmt_conf->one_socket_server < 1){
+							printf("Error: Number of port address should be equal to thread number\n");
+							exit(0);
+						}
+						/*						mmt_conf->port_address = malloc(sizeof(int)*nb_port_address);
 								for(i = 0; i < nb_port_address; i++) {
 									mmt_conf->port_address[i] = atoi(cfg_getnstr(socket, "port", i));
 								}*/
-							}
-							nb_server_address = cfg_size(socket, "server-address");
-							mmt_conf->server_ip_nb = nb_server_address;
-							mmt_conf->server_port_nb = nb_port_address;
-							if (mmt_conf->one_socket_server == 1){
-									mmt_conf->server_adresses = calloc(sizeof(ip_port_t), nb_server_address);
-									for(j = 0; j < nb_server_address; j++) {
-										strncpy(mmt_conf->server_adresses[j].server_ip_address, (char *) cfg_getnstr(socket, "server-address", j),18);
-										mmt_conf->server_adresses[j].server_portnb = malloc(sizeof(uint32_t)*1);
-										mmt_conf->server_adresses[j].server_portnb[0] = atoi(cfg_getnstr(socket, "port", 0));
-									}
-							}else if (mmt_conf->one_socket_server == 0){
-								if(mmt_conf->thread_nb == mmt_conf->server_port_nb) {
-									mmt_conf->server_adresses = calloc(sizeof(ip_port_t), nb_server_address);
+					}
+					nb_server_address = cfg_size(socket, "server-address");
+					mmt_conf->server_ip_nb = nb_server_address;
+					mmt_conf->server_port_nb = nb_port_address;
+					if (mmt_conf->one_socket_server == 1){
+						mmt_conf->server_adresses = calloc(sizeof(ip_port_t), nb_server_address);
+						for(j = 0; j < nb_server_address; j++) {
+							strncpy(mmt_conf->server_adresses[j].server_ip_address, (char *) cfg_getnstr(socket, "server-address", j),18);
+							mmt_conf->server_adresses[j].server_portnb = malloc(sizeof(uint32_t)*1);
+							mmt_conf->server_adresses[j].server_portnb[0] = atoi(cfg_getnstr(socket, "port", 0));
+						}
+					}else if (mmt_conf->one_socket_server == 0){
+						if(mmt_conf->thread_nb == mmt_conf->server_port_nb) {
+							mmt_conf->server_adresses = calloc(sizeof(ip_port_t), nb_server_address);
 
-									for(j = 0; j < nb_server_address; j++) {
-										strncpy(mmt_conf->server_adresses[j].server_ip_address, (char *) cfg_getnstr(socket, "server-address", j),18);
-										mmt_conf->server_adresses[j].server_portnb = malloc(sizeof(uint32_t)*mmt_conf->server_port_nb);
-										for(i = 0; i < nb_port_address; i++) {
-											mmt_conf->server_adresses[j].server_portnb[i] = atoi(cfg_getnstr(socket, "port", i));
-										}
-									}
-								}else{
-									printf("Error: Number of port_nb should be equal to number of threads\n");
-
+							for(j = 0; j < nb_server_address; j++) {
+								strncpy(mmt_conf->server_adresses[j].server_ip_address, (char *) cfg_getnstr(socket, "server-address", j),18);
+								mmt_conf->server_adresses[j].server_portnb = malloc(sizeof(uint32_t)*mmt_conf->server_port_nb);
+								for(i = 0; i < nb_port_address; i++) {
+									mmt_conf->server_adresses[j].server_portnb[i] = atoi(cfg_getnstr(socket, "port", i));
 								}
 							}
+						}else{
+							printf("Error: Number of port_nb should be equal to number of threads\n");
 
 						}
 					}
+					strncpy(mmt_conf->unix_socket_descriptor, (char *) cfg_getstr(socket, "socket-descriptor"), 256);
 				}
-
-		if (cfg_size(cfg, "data-output")) {
-			cfg_t *doutput = cfg_getnsec(cfg, "data-output", 0);
-			if (doutput->line!=0){
-				mmt_conf->user_agent_parsing_threshold = (uint32_t) cfg_getint(doutput, "include-user-agent")*1000;
 			}
 		}
+
+		/****************************socket*********************/
+
+		/*****************Security report*********************/
 
 		int security_reports_nb = cfg_size(cfg, "security-report");
 		int security_attributes_nb = 0;
@@ -591,7 +679,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					mmt_conf->enable_security_report = 1;
 					security_event_nb = cfg_size(security_report_opts, "event");
 					temp_sr->event_name_nb = security_event_nb;
-                    temp_sr->event_operation = 	(uint8_t) cfg_getint(security_report_opts, "event_operation");
+					temp_sr->rule_type = 	(uint8_t) cfg_getint(security_report_opts, "rule-type");
 
 					if(security_event_nb > 0) {
 						//temp_sr->event= calloc(sizeof(mmt_security_attribute_t),security_attributes_nb);
@@ -622,6 +710,46 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			}
 		}
 
+		/*****************Security report*********************/
+
+		/******* report multisession **************/
+
+		int security_reports_multisession_nb = cfg_size(cfg, "security-report-multisession");
+		int security_attributes_multisession_nb = 0;
+		mmt_conf->security_reports_multisession = NULL;
+		mmt_security_report_multisession_t * temp_msr;
+		mmt_conf->security_reports_multisession_nb = security_reports_multisession_nb;
+		i = 0, j = 0, k = 0;
+
+		if (security_reports_multisession_nb > 0) {
+			mmt_conf->security_reports_multisession = calloc(sizeof(mmt_security_report_multisession_t), security_reports_multisession_nb);
+			for(j = 0; j < security_reports_multisession_nb; j++) {
+				security_report_multisession_opts = cfg_getnsec(cfg, "security-report-multisession", j);
+				temp_msr = &mmt_conf->security_reports_multisession[j];
+				temp_msr->enable = (uint32_t) cfg_getint(security_report_multisession_opts, "enable");
+
+				if (temp_msr->enable == 1){
+
+					mmt_conf->enable_security_report_multisession = 1;
+					security_attributes_multisession_nb = cfg_size(security_report_multisession_opts, "attributes");
+					temp_msr->attributes_nb = security_attributes_multisession_nb;
+					if(security_attributes_multisession_nb > 0) {
+						temp_msr->attributes = calloc(sizeof(mmt_security_attribute_t), security_attributes_multisession_nb);
+						for(i = 0; i < security_attributes_multisession_nb; i++) {
+							mmt_conf->total_security_multisession_attribute_nb += 1;
+							if (parse_security_dot_proto_attribute(cfg_getnstr(security_report_multisession_opts, "attributes", i), &temp_msr->attributes[i])) {
+								fprintf(stderr, "Error: invalid security_report_multisession attribute value '%s'\n", (char *) cfg_getnstr(security_report_multisession_opts, "attributes", i));
+								exit(0);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		/******* report multisession **************/
+
+		/******* Event report **************/
 
 		int event_reports_nb = cfg_size(cfg, "event_report");
 		int event_attributes_nb = 0;
@@ -663,6 +791,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			}
 		}
 
+		/******* Event report **************/
+
+		/******* Condition report **************/
 
 		int condition_reports_nb = cfg_size(cfg, "condition_report");
 		int condition_attributes_nb = 0;
@@ -755,10 +886,14 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				}
 			}
 		}
+
+		/******* Condition report **************/
+
 		cfg_free(cfg);
 	}
 	return 1;
 }
+
 
 void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 	int opt, optcount = 0;
@@ -772,6 +907,7 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 	int probe_id_number = 0;
 	int flow_stats = 1;
 	int versions_only = 0;
+
 	while ((opt = getopt(argc, argv, "c:t:i:o:R:P:p:s:n:f:hv")) != EOF) {
 		switch (opt) {
 		case 'c':
@@ -814,10 +950,13 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 			break;
 		case 'v':
 			versions_only = 1;
+
+
 			//fprintf(stderr,"Versions: \n Probe v1.0.0 \n DPI v%s \n Security v0.9b \n Compatible with Operator v1.5 \n",mmt_version());
 			fprintf(stderr,"Versions: \n Probe v%s (%s) \n DPI v%s \n Security v0.9b \n Compatible with Operator v1.5 \n",
-								VERSION, GIT_VERSION, //these version information are given by Makefile
-								mmt_version());
+					VERSION, GIT_VERSION, //these version information are given by Makefile
+					mmt_version());
+
 			break;
 		case 'h':
 		default: usage(argv[0]);
@@ -834,7 +973,7 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 	if (input) {
 		strncpy(mmt_conf->input_source, input, 256);
 	}
-	else if (strlen(mmt_conf->input_source)==0){
+	else if (strlen(mmt_conf->input_source) == 0){
 		if(versions_only != 1) printf("Error:Specify the input-source in the configuration file, for example, for offline analysis: trace file name and for online analysis: network interface\n");
 		exit(0);
 	}
