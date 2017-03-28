@@ -661,7 +661,7 @@ int register_conditional_report_handle(void * args, mmt_condition_report_t * con
 					// fprintf(stderr, "[error] cannot register_extraction_attribute for report: %i\n",condition_report->id);
 					return 0;
 				}else{
-					printf("[debug] register_extraction_attribute: proto: %s ,attribute: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,condition_report->id);
+					// printf("[debug] register_extraction_attribute: proto: %s ,attribute: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,condition_report->id);
 				}
 			}else{
 				fprintf(stderr,"[error] Already registered register_extraction_attribute: proto: %s ,attribute: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,condition_report->id);
@@ -673,7 +673,7 @@ int register_conditional_report_handle(void * args, mmt_condition_report_t * con
 					// fprintf(stderr, "[error] cannot register_attribute_handler for report: %i\n",condition_report->id);
 					return 0;
 				}else{
-					printf("[debug] register_attribute_handler: proto: %s ,attribute: %s, handler: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler,condition_report->id);
+					// printf("[debug] register_attribute_handler: proto: %s ,attribute: %s, handler: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler,condition_report->id);
 				}
 			}else{
 				fprintf(stderr,"[error] Already registered register_attribute_handler: proto: %s ,attribute: %s, handler: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler,condition_report->id);
