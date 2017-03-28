@@ -28,10 +28,17 @@ typedef struct sec_wrapper_struct{
 }sec_wrapper_t;
 
 /**
- * This function inits rules
+ * This function init globally mmt-security
+ * It must be called from main thread before any register_security
  * @return
  */
 int init_security( );
+
+/**
+ * This function closes globally mmt-security
+ * It must be called from main thread after all unregister_security
+ */
+void close_security( );
 
 /**
  * Send security alerts' information to file or redis depending .conf file

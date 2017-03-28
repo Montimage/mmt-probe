@@ -428,6 +428,9 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	for( thread_index=0; thread_index< mmt_conf->thread_nb; thread_index++ )
 		mmt_close_handler( mmt_probe->smp_threads[thread_index].mmt_handler );
 	
+	//release security rules
+	if( mmt_conf->security2_enable )
+		close_security();
 	
 	return 0;
 

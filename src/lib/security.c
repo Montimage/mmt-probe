@@ -104,6 +104,11 @@ int init_security(){
 	return 0;
 }
 
+
+void close_security(){
+	mmt_mem_free( security_rules_array );
+}
+
 /**
  * A function to be called when a rule is validated
  * Note: this function can be called from one or many different threads,

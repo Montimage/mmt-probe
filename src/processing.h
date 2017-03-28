@@ -6,14 +6,11 @@ extern "C" {
 //#define _GNU_SOURCE
 
 #include "lib/data_spsc_ring.h"
-<<<<<<< HEAD
 #include "mmt_core.h"
 #include "tcpip/mmt_tcpip_protocols.h"
     
-=======
 #include <semaphore.h>
 
->>>>>>> dpdk_probe
 #ifndef __USE_GNU
 #define __USE_GNU
 #endif
@@ -199,7 +196,6 @@ typedef struct ip_port_struct {
 	uint32_t *server_portnb;
 } ip_port_t;
 
-<<<<<<< HEAD
 #ifdef HTTP_RECONSTRUCT
 
 #define HSDS_START 1
@@ -325,10 +321,6 @@ typedef struct mmt_probe_context_struct {
     mmt_condition_report_t * condition_reports;
     mmt_condition_report_t * register_new_condition_reports;
     mmt_event_report_t * register_new_event_reports;
-
-	FILE * data_out_file;
-	FILE * log_output;
-	uint32_t log_level;
 
 	uint32_t socket_enable;
 
@@ -478,11 +470,6 @@ typedef struct session_struct {
 	uint16_t serverport;
 	unsigned char src_mac [7];
 	unsigned char dst_mac [7];
-	uint8_t dtt_seen;
-	struct timeval dtt_start_time;
-	uint64_t data_transfer_time;
-	uint64_t rtt_at_handshake;
-	uint8_t proto;
 	uint8_t isFlowExtracted;
 	uint8_t ipversion;
 	uint32_t contentclass;
