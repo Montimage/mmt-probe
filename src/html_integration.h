@@ -44,8 +44,15 @@ typedef struct
 /**
  * copies into @fname the file name given session identifier and interaction count
  */
-inline static int get_file_name(char * fname, int len, int session_id, int count) {
-  return snprintf(fname, len, "file_%i_%i", session_id, count);
+inline static char* get_file_name(int session_id, int count) {
+  char *filename = (char*)malloc(MAX_FILE_NAME*sizeof(char));
+  snprintf(filename, MAX_FILE_NAME, "file_%i_%i", session_id, count);
+  int real_len = strlen(filename) + 1;
+  char *fname = (char*)malloc(real_len*sizeof(char));
+  memcpy(fname,filename,real_len-1);
+  fname[real_len-1]='\0';
+  free(filename);
+  return fname;
 }
 
 /**

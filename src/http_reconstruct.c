@@ -346,8 +346,7 @@ void http_data_handle(const ipacket_t * ipacket, attribute_t * attribute, void *
     http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(session), list_http_session_data);
     if (http_session_data) {
         if (http_session_data->filename == NULL) {
-            get_file_name(fname, 128, get_session_id(session), sp->interaction_count);
-            http_session_data->filename = str_copy(fname);
+            http_session_data->filename = get_file_name(get_session_id(session), sp->interaction_count);
         }
         if (http_session_data->content_type && !http_session_data->file_has_extension) {
             update_file_extension(http_session_data);
@@ -424,11 +423,10 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args) {
     if (http_session_data) {
         // printf("[debug] http_packet_handler 3 :%lu\n", ipacket->packet_id);
         if (http_session_data->filename == NULL) {
-            http_session_data->filename = malloc(256 * sizeof(char));
             if (sp == NULL) {
-                get_file_name(http_session_data->filename, 256, get_session_id(ipacket->session), 0);
+                http_session_data->filename = get_file_name(get_session_id(ipacket->session), 0);
             } else {
-                get_file_name(http_session_data->filename, 256, get_session_id(ipacket->session), sp->interaction_count);
+                http_session_data->filename = get_file_name(get_session_id(ipacket->session), sp->interaction_count);
             }
             if (http_session_data->content_type && !http_session_data->file_has_extension) {
                 update_file_extension(http_session_data);
