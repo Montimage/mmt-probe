@@ -716,7 +716,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 						if (temp_condn->enable == 1) {
 							strncpy(mmt_conf->http_reconstruct_output_location, temp_condn->condition.location, 256);
 							mmt_conf->http_reconstruct_enable = 1;
-							printf("[debug] Enable http reconstruction\n");
+							// printf("[debug] Enable http reconstruction\n");
 						}
 						if (temp_condn->enable == 0) mmt_conf->http_reconstruct_enable = 0;
 #else						

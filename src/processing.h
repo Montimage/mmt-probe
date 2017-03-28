@@ -5,7 +5,9 @@ extern "C" {
 #endif
 //#define _GNU_SOURCE
 #include "lib/data_spsc_ring.h"
-
+#include "mmt_core.h"
+#include "tcpip/mmt_tcpip_protocols.h"
+    
 #ifndef __USE_GNU
 #define __USE_GNU
 #endif
@@ -192,6 +194,41 @@ typedef struct ip_port_struct {
 	char server_ip_address[18 + 1];
 	uint32_t *server_portnb;
 } ip_port_t;
+
+#ifdef HTTP_RECONSTRUCT
+
+#define HSDS_START 1
+#define HSDS_TRANSFER 2
+#define HSDS_END 3
+#define MAX_FILE_NAME 512
+
+/**
+ * HTTP content processing structure
+ */
+typedef struct 
+{
+  int status; //indicates if we can process data or not, not used but can be if we wish to limit processing to one direction client-> server or server->client
+  int interaction_count; //number of HTTP messages seen on the same session
+  int content_type; //set to 1 if the content type is html
+  int content_encoding; //set to 1 if the content encoding is gzip
+  void * pre_processor; //opaque pointer to the pre-processor (in this case gzip parser)
+  void * processor; //opaque pointer to the processor (in this case: html parse)
+} http_content_processor_t;
+
+typedef struct http_session_data_struct {
+    uint64_t session_id;
+    uint64_t http_session_status;
+    char * filename;
+    char * content_type;
+    uint64_t current_len;
+    uint64_t total_len;
+    uint8_t file_has_extension;
+    struct http_session_data_struct *next;
+} http_session_data_t;
+
+static http_session_data_t * list_http_session_data = NULL;
+
+#endif // End of HTTP_RECONSTRUCT
 
 typedef struct mmt_probe_context_struct {
     uint32_t thread_nb;
@@ -430,6 +467,9 @@ typedef struct session_struct {
     uint64_t session_id;
     uint64_t report_counter;
     temp_session_statistics_t * session_attr;
+#ifdef HTTP_RECONSTRUCT
+    http_content_processor_t * http_content_processor;
+#endif // End of HTTP_RECONSTRUCT   
     void * app_data;
 } session_struct_t;
 
@@ -675,7 +715,7 @@ void http_reconstruct_init(void * arg);
  * @param attribute session attribute
  * @param user_args user argument
  */
-void ip_new_session_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+// void ip_new_session_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 /**
  * Call when a HTTP message start
  * @param ipacket   ipacket - which contains the starting of a message
@@ -723,6 +763,22 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args);
  * Close the HTTP content processing structure
  */
 void http_classification_expiry_session(const mmt_session_t * expired_session, void * args);
+
+http_session_data_t * new_http_session_data();
+
+void add_http_session_data(http_session_data_t * current_http_data);
+
+http_session_data_t * get_http_session_data_by_id(uint64_t session_id, http_session_data_t * current_http_data);
+
+/**
+ * Initializes the HTTP content processing structure
+ */
+inline static void * init_http_content_processor()
+{
+  http_content_processor_t * sp = (http_content_processor_t *) calloc( 1, sizeof( http_content_processor_t ) );
+  return (void *) sp;
+}
+
 #endif // End of HTTP_RECONSTRUCT
 /** END OF HTTP RECONSTRUCT */
 //prototypes

@@ -10,22 +10,12 @@
 #include <signal.h>
 #include <errno.h>
 #include <stdarg.h>
+
+#ifdef HTTP_RECONSTRUCT
+#include "processing.h"
 #include <htmlstreamparser.h>
 #include "zlib.h"
 #include <ctype.h>
-
-/**
- * HTTP content processing structure
- */
-typedef struct 
-{
-  int status; //indicates if we can process data or not, not used but can be if we wish to limit processing to one direction client-> server or server->client
-  int interaction_count; //number of HTTP messages seen on the same session
-  int content_type; //set to 1 if the content type is html
-  int content_encoding; //set to 1 if the content encoding is gzip
-  void * pre_processor; //opaque pointer to the pre-processor (in this case gzip parser)
-  void * processor; //opaque pointer to the processor (in this case: html parse)
-} http_content_processor_t;
 
 /**
  * HTML stream parser structure
@@ -111,6 +101,7 @@ void html_parse(const char * chunck, size_t len, html_parser_t * hp, http_conten
  */
 inline static void * clean_html_parser(html_parser_t * hp) {
   if( hp == NULL) return NULL;
+  if (hp->hsp == NULL) return NULL;
   html_parser_cleanup(hp->hsp);
   free (hp);
   return NULL;
@@ -144,18 +135,11 @@ void gzip_process( const char * chunck, size_t len, gzip_processor_t * hp, http_
  */
 inline static void * clean_gzip_processor( gzip_processor_t * gzp ) {
   if( gzp == NULL ) return NULL;
-  (void)inflateEnd(& gzp->strm);
+  if(&gzp->strm!=NULL) {
+    (void)inflateEnd(& gzp->strm);
+  }
   free( gzp );
   return NULL;
-}
-
-/**
- * Initializes the HTTP content processing structure
- */
-inline static void * init_http_content_processor()
-{
-  http_content_processor_t * sp = (http_content_processor_t *) calloc( 1, sizeof( http_content_processor_t ) );
-  return (void *) sp;
 }
 
 /**
@@ -163,7 +147,7 @@ inline static void * init_http_content_processor()
  */
 inline static void * close_http_content_processor(http_content_processor_t * sp) {
   if( sp->processor ) sp->processor = clean_html_parser( (html_parser_t *) sp->processor );
-  if( sp->pre_processor ) clean_gzip_processor( (gzip_processor_t *) sp->pre_processor);
+  // if( sp->pre_processor ) clean_gzip_processor( (gzip_processor_t *) sp->pre_processor);
 
 
   sp->content_type = 0;
@@ -191,5 +175,6 @@ inline static void clean_http_content_processor(http_content_processor_t * sp) {
 /**
  * Writes @len bytes from @content to the filename @path.
  */
-int write_data_to_file (const char * path, const char * content, size_t len);
+void http_write_data_to_file (char * path, const char * content, size_t len);
 
+#endif // End of HTTP_RECONSTRUCT

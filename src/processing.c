@@ -180,8 +180,10 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	temp_session->format_id = MMT_FLOW_REPORT_FORMAT;
 	temp_session->app_format_id = MMT_DEFAULT_APP_REPORT_FORMAT;
 
-	if (temp_session->isFlowExtracted)
+	if (temp_session->isFlowExtracted){
+		free(temp_session);
 		return;
+	}
 
 	// Flow extraction
 	int ipindex = get_protocol_index_by_id(ipacket, PROTO_IP);
@@ -257,6 +259,32 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		}
 	}
 	temp_session->isFlowExtracted = 1;
+#ifdef HTTP_RECONSTRUCT
+	// printf("[debug] %lu: flow_nb_handle\n", ipacket->packet_id);
+    // printf("[debug] %lu: new_session_handle - 2\n", ipacket->packet_id);
+    http_content_processor_t * http_content_processor = init_http_content_processor();
+
+    if (http_content_processor == NULL) {
+    	fprintf(stderr, "[error] %lu: Cannot create http_content_processor\n", ipacket->packet_id);
+    	free(temp_session);
+        return;
+    }
+    // printf("[debug] %lu: new_session_handle - 3\n", ipacket->packet_id);
+    temp_session->http_content_processor = http_content_processor;
+    // printf("[debug] %lu: new_session_handle - 4\n", ipacket->packet_id);
+    http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(session), list_http_session_data);
+    if (http_session_data == NULL) {
+        http_session_data = new_http_session_data();
+        if (http_session_data) {
+            http_session_data->session_id = get_session_id(session);
+            http_session_data->http_session_status = HSDS_START;
+            add_http_session_data(http_session_data);
+        } else {
+            fprintf(stderr, "[error] Cannot create http session data for session %lu - packet: %lu\n", get_session_id(session), ipacket->packet_id);
+        }
+    }
+#endif // End of HTTP_RECONSTRUCT	
+
 	set_user_session_context(session, temp_session);
 }
 
@@ -467,9 +495,9 @@ void * get_handler_by_name(char * func_name){
 	}
 #ifdef HTTP_RECONSTRUCT
 	//LN: HTTP reconstruct
-	if (strcmp(func_name,"ip_new_session_handle") == 0){
-		return ip_new_session_handle;
-	}
+	// if (strcmp(func_name,"ip_new_session_handle") == 0){
+	// 	return ip_new_session_handle;
+	// }
 
 	if (strcmp(func_name,"http_message_start_handle") == 0){
 		return http_message_start_handle;
@@ -510,18 +538,20 @@ int register_conditional_report_handle(void * args, mmt_condition_report_t * con
 			if (is_registered_attribute(th->mmt_handler, protocol_id, attribute_id) == 0){
 				i &= register_extraction_attribute_by_name(th->mmt_handler, condition_attribute->proto, condition_attribute->attribute);
 				if(i==0){
-					fprintf(stderr, "[error] cannot register_extraction_attribute_by_name for report: %i\n",condition_report->id);
+					fprintf(stderr,"[error] Cannot register_extraction_attribute_by_name: proto: %s ,attribute: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,condition_report->id);
+					// fprintf(stderr, "[error] cannot register_extraction_attribute_by_name for report: %i\n",condition_report->id);
 				}else{
-					printf("[debug] register_extraction_attribute_by_name: proto: %s ,attribute: %s\n",condition_attribute->proto,condition_attribute->attribute);
+					// printf("[debug] register_extraction_attribute_by_name: proto: %s ,attribute: %s\n",condition_attribute->proto,condition_attribute->attribute);
 				}
 			}
 		}else{
 			if (is_registered_attribute_handler(th->mmt_handler, protocol_id, attribute_id, get_handler_by_name (handler_attribute->handler)) == 0){
 				i &= register_attribute_handler_by_name(th->mmt_handler, condition_attribute->proto, condition_attribute->attribute, get_handler_by_name (handler_attribute->handler), NULL, args);
 				if(i==0){
-					fprintf(stderr, "[error] cannot register_attribute_handler_by_name for report: %i\n",condition_report->id);
+					fprintf(stderr,"[error] Cannot register_attribute_handler_by_name: proto: %s ,attribute: %s, handler: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler,condition_report->id);
+					// fprintf(stderr, "[error] cannot register_attribute_handler_by_name for report: %i\n",condition_report->id);
 				}else{
-					printf("[debug] register_attribute_handler_by_name: proto: %s ,attribute: %s, handler: %s\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler);
+					// printf("[debug] register_attribute_handler_by_name: proto: %s ,attribute: %s, handler: %s\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler);
 				}
 			}
 		}
@@ -539,7 +569,7 @@ void conditional_reports_init(void * args) {
 		mmt_condition_report_t * condition_report = &probe_context->condition_reports[i];
 		if(register_conditional_report_handle(args, condition_report) == 0) {
 			fprintf(stderr, "Error while initializing condition report number %i!\n", condition_report->id);
-			printf( "Error while initializing condition report number %i!\n", condition_report->id);
+			// printf( "Error while initializing condition report number %i!\n", condition_report->id);
 		}
 	}
 
@@ -719,7 +749,6 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 
-	int sslindex;
 	if (is_microflow(expired_session)) {
 		microsessions_stats_t * mf_stats = &th->iprobe.mf_stats[get_session_protocol_hierarchy(expired_session)->proto_path[(get_session_protocol_hierarchy(expired_session)->len <= 16)?(get_session_protocol_hierarchy(expired_session)->len - 1):(16 - 1)]];
 		update_microflows_stats(mf_stats, expired_session);

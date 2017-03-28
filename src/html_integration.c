@@ -16,7 +16,7 @@ void html_parse(const char * chunck, size_t len, html_parser_t * hp, http_conten
       if (html_parser_cmp_attr(hsp, "href", 4))
         if (html_parser_is_in(hsp, HTML_VALUE_ENDED)) {
           html_parser_val(hsp)[html_parser_val_length(hsp)] = '\0';
-          printf("html_parse -]> %s\n", html_parser_val(hsp));
+          // printf("html_parse -]> %s\n", html_parser_val(hsp));
         }
   }
   return;
@@ -53,21 +53,19 @@ void zerr(int ret)
    invalid or incomplete, Z_VERSION_ERROR if the version of zlib.h and
    the version of the library linked do not match, or Z_ERRNO if there
    is an error reading or writing the files. */
-void gzip_process( const char * chunck, size_t len, gzip_processor_t * gzp, http_content_processor_t * sp ,char *filename)
+void gzip_process(const char * chunck, size_t len, gzip_processor_t * gzp, http_content_processor_t * sp ,char *filename)
 {
-
-  unsigned have;
 
   gzp->strm.avail_in = len;
   if (gzp->strm.avail_in == 0) {
-    fprintf(stdout, "Processing empty gzip chunk! check why the hell we got here\n");
-    printf("Processing empty gzip chunk! check why the hell we got here\n");
+    fprintf(stderr, "Processing empty gzip chunk! check why the hell we got here\n");
     return;
   }
   gzp->strm.next_in = chunck;
 
   /* run inflate() on input until output buffer not full */
   do {
+    unsigned have;
     gzp->strm.avail_out = CHUNK;
     gzp->strm.next_out = gzp->out;
     gzp->ret = inflate(& gzp->strm, Z_NO_FLUSH);
@@ -77,9 +75,9 @@ void gzip_process( const char * chunck, size_t len, gzip_processor_t * gzp, http
         gzp->ret = Z_DATA_ERROR;     /* and fall through */
       case Z_DATA_ERROR:
       case Z_MEM_ERROR:
-        sp->pre_processor = clean_gzip_processor( gzp );
         zerr(gzp->ret);
-        printf("gzip_process: There is some error!\n");
+        sp->pre_processor = clean_gzip_processor( gzp );
+        fprintf(stderr, "[error] gzip_process: There is some error!\n");
         return;
     }
     // This is how much we have deconmpressed
@@ -88,12 +86,12 @@ void gzip_process( const char * chunck, size_t len, gzip_processor_t * gzp, http
     // Process decompressed data to html parser if any
     if( sp->content_type && sp->processor ) {
       html_parser_t * hp = (html_parser_t *) sp->processor;
-      printf("gzip_process gzp->out: %s\n", gzp->out);
+      // printf("gzip_process gzp->out: %s\n", gzp->out);
       if(filename!=NULL){
-        printf("gzip_process: writing data to file: %s\n",filename);
-        write_data_to_file(filename,gzp->out,strlen(gzp->out));  
+        // printf("gzip_process: writing data to file: %s\n",filename);
+        http_write_data_to_file(filename,gzp->out,strlen(gzp->out));  
       }else{
-        printf("gzip_process: filename is NULL\n");
+        fprintf(stderr, "[error] gzip_process: filename is NULL\n");
       }
       html_parse(gzp->out, have, hp, sp);
     }
