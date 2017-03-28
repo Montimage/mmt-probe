@@ -637,14 +637,11 @@ void * get_handler_by_name(char * func_name){
  * */
 int register_conditional_report_handle(void * args, mmt_condition_report_t * condition_report) {
 	int j;
-	uint32_t protocol_id;
-	uint32_t attribute_id;
-	mmt_probe_context_t * probe_context = get_probe_context_config();
 	struct smp_thread *th = (struct smp_thread *) args;
 
 	for(j = 0; j < condition_report->attributes_nb; j++) {
-		protocol_id = 0;
-		attribute_id = 0;
+		uint32_t protocol_id;
+		uint32_t attribute_id;
 		mmt_condition_attribute_t * condition_attribute = &condition_report->attributes[j];
 		mmt_condition_attribute_t * handler_attribute = &condition_report->handlers[j];
 
