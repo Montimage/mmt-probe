@@ -127,6 +127,18 @@ void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char * l
 	}
 }
 
+#ifdef HTTP_RECONSTRUCT
+uint8_t is_http_packet(const ipacket_t * ipacket){
+	uint16_t http_index = get_protocol_index_by_id(ipacket, PROTO_HTTP);
+    // META->ETH->IP->TCP->HTTP
+    if(http_index < 4){
+        fprintf(stderr, "[error] %lu: PROTO_HTTP has index smaller than 4\n", ipacket->packet_id);
+        return 0;
+    }
+    return 1;
+}
+
+#endif // End of HTTP_RECONSTRUCT
 /* This function puts the protocol path as a string (for example, 99.178.376,
  * where,99-Ethernet, 178-IP and 376-UDP), in a variable dest and
  * returns its length as a offset.
@@ -275,28 +287,30 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	}
 	temp_session->isFlowExtracted = 1;
 #ifdef HTTP_RECONSTRUCT
-	// printf("[debug] %lu: flow_nb_handle\n", ipacket->packet_id);
-    // printf("[debug] %lu: new_session_handle - 2\n", ipacket->packet_id);
-    http_content_processor_t * http_content_processor = init_http_content_processor();
+	if(is_http_packet(ipacket) == 1){
+		// printf("[debug] %lu: flow_nb_handle\n", ipacket->packet_id);
+	    // printf("[debug] %lu: new_session_handle - 2\n", ipacket->packet_id);
+	    http_content_processor_t * http_content_processor = init_http_content_processor();
 
-    if (http_content_processor == NULL) {
-    	fprintf(stderr, "[error] %lu: Cannot create http_content_processor\n", ipacket->packet_id);
-    	free(temp_session);
-        return;
-    }
-    // printf("[debug] %lu: new_session_handle - 3\n", ipacket->packet_id);
-    temp_session->http_content_processor = http_content_processor;
-    // printf("[debug] %lu: new_session_handle - 4\n", ipacket->packet_id);
-    http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(session), list_http_session_data);
-    if (http_session_data == NULL) {
-        http_session_data = new_http_session_data();
-        if (http_session_data) {
-            http_session_data->session_id = get_session_id(session);
-            http_session_data->http_session_status = HSDS_START;
-            add_http_session_data(http_session_data);
-        } else {
-            fprintf(stderr, "[error] Cannot create http session data for session %lu - packet: %lu\n", get_session_id(session), ipacket->packet_id);
-        }
+	    if (http_content_processor == NULL) {
+	    	fprintf(stderr, "[error] %lu: Cannot create http_content_processor\n", ipacket->packet_id);
+	    	free(temp_session);
+	        return;
+	    }
+	    // printf("[debug] %lu: new_session_handle - 3\n", ipacket->packet_id);
+	    temp_session->http_content_processor = http_content_processor;
+	    // printf("[debug] %lu: new_session_handle - 4\n", ipacket->packet_id);
+	    http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(session), list_http_session_data);
+	    if (http_session_data == NULL) {
+	        http_session_data = new_http_session_data();
+	        if (http_session_data) {
+	            http_session_data->session_id = get_session_id(session);
+	            http_session_data->http_session_status = HSDS_START;
+	            add_http_session_data(http_session_data);
+	        } else {
+	            fprintf(stderr, "[error] Cannot create http session data for session %lu - packet: %lu\n", get_session_id(session), ipacket->packet_id);
+	        }
+	    }
     }
 #endif // End of HTTP_RECONSTRUCT	
 
@@ -866,11 +880,20 @@ mmt_dev_properties_t get_dev_properties_from_user_agent(char * user_agent, uint3
  * It provides the expired session information and frees the memory allocated.
  * */
 void classification_expiry_session(const mmt_session_t * expired_session, void * args) {
+	// printf("[debug] classification_expiry_session : %lu\n",get_session_id(expired_session));
 	session_struct_t * temp_session = get_user_session_context(expired_session);
 	struct smp_thread *th = (struct smp_thread *) args;
 	if (temp_session == NULL) {
 		return;
 	}
+
+#ifdef HTTP_RECONSTRUCT
+    // printf("[debug] cleaning HTTP_RECONSTRUCT ... %lu \n",get_session_id(expired_session));
+    if (temp_session->http_content_processor != NULL) {
+    	close_http_content_processor(temp_session->http_content_processor);
+    }
+    clean_http_session_data(get_session_id(expired_session));
+#endif	
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 

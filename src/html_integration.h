@@ -42,20 +42,6 @@ typedef struct
 } gzip_processor_t;
 
 /**
- * copies into @fname the file name given session identifier and interaction count
- */
-inline static char* get_file_name(int session_id, int count) {
-  char *filename = (char*)malloc(MAX_FILE_NAME*sizeof(char));
-  snprintf(filename, MAX_FILE_NAME, "file_%i_%i", session_id, count);
-  int real_len = strlen(filename) + 1;
-  char *fname = (char*)malloc(real_len*sizeof(char));
-  memcpy(fname,filename,real_len-1);
-  fname[real_len-1]='\0';
-  free(filename);
-  return fname;
-}
-
-/**
  * Returns a positive value if @found starts with @expected, 0 otherwise
  */
 inline static int check_str_eq (const char *expected, const char *found) {
@@ -146,21 +132,6 @@ inline static void * clean_gzip_processor( gzip_processor_t * gzp ) {
     (void)inflateEnd(& gzp->strm);
   }
   free( gzp );
-  return NULL;
-}
-
-/**
- * Cleans and closes the HTTP content processing structure
- */
-inline static void * close_http_content_processor(http_content_processor_t * sp) {
-  if( sp->processor ) sp->processor = clean_html_parser( (html_parser_t *) sp->processor );
-  // if( sp->pre_processor ) clean_gzip_processor( (gzip_processor_t *) sp->pre_processor);
-
-
-  sp->content_type = 0;
-  sp->content_encoding = 0;
-
-  free( sp );
   return NULL;
 }
 

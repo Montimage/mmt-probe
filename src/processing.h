@@ -777,7 +777,7 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args);
  * Session expiry handler that will be called every time MMT core detects a session expiry
  * Close the HTTP content processing structure
  */
-void http_classification_expiry_session(const mmt_session_t * expired_session, void * args);
+// void http_classification_expiry_session(const mmt_session_t * expired_session, void * args);
 
 http_session_data_t * new_http_session_data();
 
@@ -793,6 +793,17 @@ inline static void * init_http_content_processor()
   http_content_processor_t * sp = (http_content_processor_t *) calloc( 1, sizeof( http_content_processor_t ) );
   return (void *) sp;
 }
+
+void clean_http_session_data(uint64_t session_id);
+
+void * close_http_content_processor(http_content_processor_t * sp);
+
+/**
+ * Check if a packet is an HTTP packet or not
+ * @param  ipacket [description]
+ * @return         [description]
+ */
+uint8_t is_http_packet(const ipacket_t * ipacket);
 
 #endif // End of HTTP_RECONSTRUCT
 /** END OF HTTP RECONSTRUCT */

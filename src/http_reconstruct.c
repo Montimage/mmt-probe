@@ -43,6 +43,21 @@
 #include "html_integration.h"
 
 /**
+ * copies into @fname the file name given session identifier and interaction count
+ */
+char* get_file_name(int session_id, int count) {
+  char *filename = (char*)malloc(MAX_FILE_NAME*sizeof(char));
+  snprintf(filename, MAX_FILE_NAME, "file_%i_%i", session_id, count);
+  int real_len = strlen(filename) + 1;
+  char *fname = (char*)malloc(real_len*sizeof(char));
+  memcpy(fname,filename,real_len-1);
+  fname[real_len-1]='\0';
+  free(filename);
+  return fname;
+}
+
+
+/**
  * Writes @len bytes from @content to the filename @path.
  */
 void http_write_data_to_file ( char * path, const char * content, size_t len) {
@@ -195,12 +210,17 @@ char * get_extension_from_content_type(char *content_type) {
 
 
 void update_file_extension(http_session_data_t * http_data) {
-    char *filename = malloc(256 * sizeof(char));
+    char *filename = malloc(MAX_FILE_NAME * sizeof(char));
     if (filename) {
-        snprintf(filename, 256, "%s.%s", http_data->filename, get_extension_from_content_type(http_data->content_type));
+        snprintf(filename, MAX_FILE_NAME, "%s.%s", http_data->filename, get_extension_from_content_type(http_data->content_type));
         free(http_data->filename);
-        http_data->filename = filename;
+        int real_len = strlen(filename) + 1;
+        http_data->filename = (char*)malloc(real_len*sizeof(char));
+        memcpy(http_data->filename,filename,real_len-1);
+        http_data->filename[real_len-1]='\0';
         http_data->file_has_extension = 1;
+        free(filename);
+        // http_data->filename = filename;
     } else {
         fprintf(stderr, "Cannot allocate memory!\n");
     }
@@ -404,21 +424,10 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args) {
         return 0;   
     }
 
-    uint16_t http_index = get_protocol_index_by_id(ipacket, PROTO_HTTP);
-    // META->ETH->IP->TCP->HTTP
-    if(http_index < 4){
-        fprintf(stderr, "[error] %lu: PROTO_HTTP has index smaller than 4\n", ipacket->packet_id);
-        return 0;
-    }
+    if(is_http_packet(ipacket)==0) return 0;
     // printf("[debug] http_packet_handler 2 :%lu\n", ipacket->packet_id);
     http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(ipacket->session), list_http_session_data);
 
-    char * tcp_payload = (char*)get_attribute_extracted_data_by_name(ipacket, "tcp", "p_payload");
-    uint32_t * payload_len = (uint32_t *)get_attribute_extracted_data_by_name(ipacket, "tcp", "payload_len");
-    mmt_header_line_t * http_method = (mmt_header_line_t *)get_attribute_extracted_data_by_name(ipacket, "http", "method");
-    mmt_header_line_t * http_response = (mmt_header_line_t *)get_attribute_extracted_data_by_name(ipacket, "http", "response");
-    mmt_header_line_t * uri = (mmt_header_line_t *)get_attribute_extracted_data_by_name(ipacket, "http", "uri");
-    mmt_header_line_t * content_type = (mmt_header_line_t *)get_attribute_extracted_data_by_name(ipacket, "http", "content_type");
     http_content_processor_t * sp = get_http_content_processor_from_packet(ipacket);
     if (http_session_data) {
         // printf("[debug] http_packet_handler 3 :%lu\n", ipacket->packet_id);
@@ -432,17 +441,19 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args) {
                 update_file_extension(http_session_data);
             }
         }
-        if (content_type) {
-            char * data_type = malloc((content_type->len + 1) * sizeof(char));
-            memcpy(data_type, content_type->ptr, content_type->len);
-            data_type[content_type->len] = '\0';
-            if (http_session_data->content_type == NULL) {
+
+        // Update content type
+        if (http_session_data->content_type == NULL) {
+            mmt_header_line_t * content_type = (mmt_header_line_t *)get_attribute_extracted_data_by_name(ipacket, "http", "content_type");
+            if (content_type) {
+                char * data_type = (char*)malloc((content_type->len + 1) * sizeof(char));
+                memcpy(data_type, content_type->ptr, content_type->len);
+                data_type[content_type->len] = '\0';
                 http_session_data->content_type = data_type;
-                // printf("[debug] %lu packet_handler:  content_type: %s\n", ipacket->packet_id, http_session_data->content_type);
-            }else{
-                free(data_type);
             }
         }
+        // Update uri name
+        mmt_header_line_t * uri = (mmt_header_line_t *)get_attribute_extracted_data_by_name(ipacket, "http", "uri");
         if (uri) {
             char * pre_uri_data = malloc((uri->len + 1) * sizeof(char));
             char * uri_data = NULL;
@@ -501,7 +512,10 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args) {
             free(uri_data);
         }
     }
-
+    mmt_header_line_t * http_method = (mmt_header_line_t *)get_attribute_extracted_data_by_name(ipacket, "http", "method");
+    mmt_header_line_t * http_response = (mmt_header_line_t *)get_attribute_extracted_data_by_name(ipacket, "http", "response");
+    char * tcp_payload = (char*)get_attribute_extracted_data_by_name(ipacket, "tcp", "p_payload");
+    uint32_t * payload_len = (uint32_t *)get_attribute_extracted_data_by_name(ipacket, "tcp", "payload_len");
     // printf("[debug] %lu: http_method %p and http_response %p\n", ipacket->packet_id, http_method, http_response);
     if (tcp_payload && payload_len && *payload_len > 0 && http_method == NULL && http_response == NULL) {
         if (http_session_data) {
@@ -524,8 +538,23 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args) {
     return 0;
 }
 
-void clean_http_session_data(uint64_t session_id){
+/**
+ * Cleans and closes the HTTP content processing structure
+ */
+void * close_http_content_processor(http_content_processor_t * sp) {
+  if( sp->processor ) sp->processor = clean_html_parser( (html_parser_t *) sp->processor );
+  if( sp->pre_processor ) clean_gzip_processor( (gzip_processor_t *) sp->pre_processor);
 
+  sp->content_type = 0;
+  sp->content_encoding = 0;
+
+  free( sp );
+  return NULL;
+}
+
+void clean_http_session_data(uint64_t session_id){
+    // printf("[debug] clean_http_session_data : %lu\n",session_id );
+    // fprintf(stderr, "[debug] clean_http_session_data : %lu\n",session_id );
     if(list_http_session_data == NULL)  return;
 
     http_session_data_t * current_http_data = list_http_session_data;
@@ -549,23 +578,10 @@ void clean_http_session_data(uint64_t session_id){
     fprintf(stderr, "[error] Cannot find http_session_data with id: %lu\n",session_id);
 }
 
-/**
- * Session expiry handler that will be called every time MMT core detects a session expiry
- * Close the HTTP content processing structure
- */
-void http_classification_expiry_session(const mmt_session_t * expired_session, void * args) {
-    // printf("[debug] Session expired: %lu\n",get_session_id(expired_session));
-    session_struct_t *temp_session = (session_struct_t *) get_user_session_context(expired_session);
-    if (temp_session == NULL) return;
-    if (temp_session->http_content_processor == NULL) return;
-    close_http_content_processor(temp_session->http_content_processor);
-    clean_http_session_data(get_session_id(expired_session));
-}
-
 void http_reconstruct_init(void *arg){
     struct smp_thread *th = (struct smp_thread *) arg;
     register_packet_handler(th->mmt_handler, 10, http_packet_handler, arg);
-    register_session_timeout_handler(th->mmt_handler, http_classification_expiry_session, NULL);
+    // register_session_timeout_handler(th->mmt_handler, http_classification_expiry_session, NULL);
     // printf("[debug] http_reconstruct_init\n");
 }
 
