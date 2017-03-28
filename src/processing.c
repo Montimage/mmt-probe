@@ -465,7 +465,7 @@ void * get_handler_by_name(char * func_name){
 	if (strcmp(func_name,"ssl_server_name_handle") == 0){
 		return ssl_server_name_handle;
 	}
-
+#ifdef HTTP_RECONSTRUCT
 	//LN: HTTP reconstruct
 	if (strcmp(func_name,"ip_new_session_handle") == 0){
 		return ip_new_session_handle;
@@ -490,7 +490,7 @@ void * get_handler_by_name(char * func_name){
 		return http_message_end_handle;
 	}
 	// END of HTTP reconstruct
-
+#endif // end of HTTP_RECONSTRUCT
 	return 0;
 }
 

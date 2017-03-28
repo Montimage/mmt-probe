@@ -28,6 +28,12 @@ else
 	CLDFLAGS += -O3
 endif
 
+# For HTTP reconstruction option
+ifdef HTTP_RECONSTRUCT
+LIBS     += -lhtmlstreamparser -lz
+CFLAGS   += -DHTTP_RECONSTRUCT
+endif
+
 #folders containing source files
 SRCDIR = src
 

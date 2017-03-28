@@ -214,7 +214,6 @@ typedef struct mmt_probe_context_struct {
     char license_location[256 + 1];
     char behaviour_output_location[256 + 1];
     char ftp_reconstruct_output_location[256 + 1];
-    char http_reconstruct_output_location[256 + 1];
     char dynamic_config_file[256 + 1];
     uint32_t ftp_enable;
     uint32_t web_enable;
@@ -225,18 +224,14 @@ typedef struct mmt_probe_context_struct {
     uint16_t rtp_id;
     uint16_t ssl_id;
     uint16_t ftp_reconstruct_id;
-    uint16_t http_reconstruct_id;
     uint16_t security_id;
     uint32_t behaviour_enable;
     uint32_t security_enable;
     uint32_t event_based_reporting_enable;
     uint32_t condition_based_reporting_enable;
     uint32_t enable_security_report;
-
     uint32_t ftp_reconstruct_enable;
-    uint32_t http_reconstruct_enable;
     uint32_t radius_enable;
-
     uint32_t default_session_timeout;
     uint32_t long_session_timeout;
     uint32_t short_session_timeout;
@@ -303,7 +298,11 @@ typedef struct mmt_probe_context_struct {
 	uint32_t nb_of_report_per_msg;
 	uint8_t one_socket_server;
 	uint32_t retain_files;
-
+#ifdef HTTP_RECONSTRUCT
+    char http_reconstruct_output_location[256 + 1];
+    uint16_t http_reconstruct_id;
+    uint32_t http_reconstruct_enable;
+#endif    // End of HTTP_RECONSTRUCT
 
 } mmt_probe_context_t;
 
@@ -661,21 +660,71 @@ void ftp_last_response_code(const ipacket_t * ipacket,struct smp_thread *th,attr
 void ip_opts(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num);
 
 /** Luong NGUYEN: HTTP reconstruct */
+#ifdef HTTP_RECONSTRUCT
+/**
+ * Initialize for http reconstruction
+ * - Register handle
+ * - Register extract function
+ * - Register session expired handle
+ * @param arg [description]
+ */
 void http_reconstruct_init(void * arg);
+/**
+ * Handle new session event
+ * @param ipacket   ipacket - which starts a new session
+ * @param attribute session attribute
+ * @param user_args user argument
+ */
 void ip_new_session_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+/**
+ * Call when a HTTP message start
+ * @param ipacket   ipacket - which contains the starting of a message
+ * @param attribute [description]
+ * @param user_args [description]
+ */
 void http_message_start_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+/**
+ * Call when a HTTP header has been detected
+ * @param ipacket   ipacket
+ * @param attribute [description]
+ * @param user_args [description]
+ */
 void http_generic_header_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+/**
+ * Call at the end of a HTTP header
+ * @param ipacket   ipacket
+ * @param attribute [description]
+ * @param user_args [description]
+ */
 void http_headers_end_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+/**
+ * Call on HTTP data packet
+ * @param ipacket   ipacket - contains HTTP data
+ * @param attribute [description]
+ * @param user_args [description]
+ */
 void http_data_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+/**
+ * Call at the end of a HTTP message
+ * @param ipacket   ipacket
+ * @param attribute [description]
+ * @param user_args [description]
+ */
 void http_message_end_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+/**
+ * Packet handle to process HTTP reconstruction - call on every packet
+ * @param  ipacket   ipacket
+ * @param  user_args [description]
+ * @return           [description]
+ */
 int http_packet_handler(const ipacket_t * ipacket, void * user_args);
 /**
  * Session expiry handler that will be called every time MMT core detects a session expiry
  * Close the HTTP content processing structure
  */
 void http_classification_expiry_session(const mmt_session_t * expired_session, void * args);
+#endif // End of HTTP_RECONSTRUCT
 /** END OF HTTP RECONSTRUCT */
-
 //prototypes
 void print_ip_session_report (const mmt_session_t * session, void *user_args);
 void print_initial_web_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);

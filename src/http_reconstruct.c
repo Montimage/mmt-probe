@@ -38,14 +38,14 @@
 #include <time.h>
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
-#include "html_integration.h"
 
 #include "mmt_core.h"
 #include "tcpip/mmt_tcpip_protocols.h"
 #include "processing.h"
 
-#define __STDC_FORMAT_MACROS
-#include <inttypes.h>
+#ifdef HTTP_RECONSTRUCT
+
+#include "html_integration.h"
 
 #define HSDS_START 1
 #define HSDS_TRANSFER 2
@@ -556,3 +556,5 @@ void http_reconstruct_init(void *arg){
     register_session_timeout_handler(th->mmt_handler, http_classification_expiry_session, NULL);
     // printf("[debug] http_reconstruct_init\n");
 }
+
+#endif // End of HTTP_RECONSTRUCT
