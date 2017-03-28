@@ -202,7 +202,6 @@ int start_timer( uint32_t period, void *callback, void *user_data){
 /* This function writes messages from each thread queue to a separate file.
  * A semaphore is created to indicate writing is finished.
  * */
-#define MAX_FILE_NAME 500
 void flush_messages_to_file_thread( void *arg){
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -215,7 +214,7 @@ void flush_messages_to_file_thread( void *arg){
 	char lg_msg[1024];
 	int valid = 0;
 	int i = 0;
-	char command_str [500+1] = {0};
+	char command_str [MAX_FILE_NAME+1] = {0};
 	char message[MAX_MESS + 1];
 
 	struct timeval ts;
@@ -275,17 +274,6 @@ void flush_messages_to_file_thread( void *arg){
 			if( th->cache_message_list[ i ] == NULL ){
 				perror("this message should not be NULL");
 			}else{
-				if(probe_context->cpu_mem_usage_enabled == 1){
-							if (th->nb_packets != 0) {
-								drop_percent = th->nb_dropped_packets *100/ th->nb_packets;
-								drop_percent_NIC = th->nb_dropped_packets_NIC * 100 / th->nb_packets;
-								drop_percent_kernel = th->nb_dropped_packets_kernel * 100 / th->nb_packets;
-								}
-							fprintf ( file, "%s,%3.2Lf,%3.2Lf,%3.2f,%3.2f,%3.2f\n", th->cache_message_list[ i ], th->cpu_usage, th->mem_usage, drop_percent, drop_percent_NIC, drop_percent_kernel);
-						}
-				else{
-					fprintf ( file, "%s\n", th->cache_message_list[ i ]);
-				}
 				fprintf ( file, "%s\n", th->cache_message_list[ i ]);
 				//printf("message ,th->nd =%d,= %s\n",th->thread_number,th->cache_message_list[ i ]);
 				if (th->cache_message_list[ i ]) free( th->cache_message_list[ i ] );

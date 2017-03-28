@@ -63,7 +63,8 @@ void gzip_process(const char * chunck, size_t len, gzip_processor_t * gzp, http_
     fprintf(stderr, "Processing empty gzip chunk! check why the hell we got here\n");
     return;
   }
-  gzp->strm.next_in = chunck;
+
+  gzp->strm.next_in = (z_const Bytef *)chunck;
 
   /* run inflate() on input until output buffer not full */
   do {
@@ -91,11 +92,11 @@ void gzip_process(const char * chunck, size_t len, gzip_processor_t * gzp, http_
       // printf("gzip_process gzp->out: %s\n", gzp->out);
       if(filename!=NULL){
         // printf("gzip_process: writing data to file: %s\n",filename);
-        http_write_data_to_file(filename,gzp->out,strlen(gzp->out));  
+        http_write_data_to_file(filename,(const char*)gzp->out,strlen((const char*)gzp->out));  
       }else{
         fprintf(stderr, "[error] gzip_process: filename is NULL\n");
       }
-      html_parse(gzp->out, have, hp, sp);
+      html_parse((const char*)gzp->out, have, hp, sp);
     }
   } while (gzp->strm.avail_out == 0); //continue while we still have data to decompress
 }

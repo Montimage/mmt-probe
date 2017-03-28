@@ -61,7 +61,6 @@ src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c s
 #define READ_PRIO	-15	/* niceness value for Reader thread */
 //#define SNAP_LEN 65535	/* apparently what tcpdump uses for -s 0 */
 #define READER_CPU	0	/* assign Reader thread to this CPU */
-#define MAX_FILE_NAME 500
 //static int okcode  = EXIT_SUCCESS;
 static int errcode = EXIT_FAILURE;
 

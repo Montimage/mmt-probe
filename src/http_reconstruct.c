@@ -55,9 +55,12 @@ void http_write_data_to_file ( char * path, const char * content, size_t len) {
     // printf("[debug] Going to write to file: %s\n",filename);
     int fd = 0;
     if ( (fd = open ( filename , O_CREAT | O_WRONLY | O_APPEND | O_NOFOLLOW , S_IRWXU | S_IRWXG | S_IRWXO )) < 0 ){
-        fprintf ( stderr , "\n[e] Error %d writting data to \"%s\": %s" , errno , filename , strerror( errno ) );
+        fprintf ( stderr , "\n[error] %d writting data to \"%s\": %s" , errno , filename , strerror( errno ) );
     }
-    write ( fd , content , len );
+    int nb_bytes = write ( fd , content , len );
+    if(nb_bytes==0){
+        fprintf(stderr, "[error] Write 0 bytes\n");
+    }
     close ( fd );
 }
 
@@ -203,42 +206,6 @@ void update_file_extension(http_session_data_t * http_data) {
     }
 }
 
-// /**
-//  * Attribute handle for IP new sessions.
-//  * Will be called every time a new session is detected.
-//  * Initializes an HTTP content processing structure and attaches it
-//  * to the MMT session.
-//  */
-// void ip_new_session_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-//     printf("[debug] %lu: new_session_handle - 1\n", ipacket->packet_id);
-//     mmt_session_t * session = get_session_from_packet(ipacket);
-//     if (session == NULL) return;
-
-//     if (attribute->data == NULL) {
-//         return; //This should never happen! check it anyway
-//     }
-//     // printf("[debug] %lu: new_session_handle - 2\n", ipacket->packet_id);
-//     http_content_processor_t * temp_session = init_http_content_processor();
-
-//     if (temp_session == NULL) {
-//         return;
-//     }
-//     // printf("[debug] %lu: new_session_handle - 3\n", ipacket->packet_id);
-//     set_user_session_context(session, temp_session);
-//     // printf("[debug] %lu: new_session_handle - 4\n", ipacket->packet_id);
-//     http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(session), list_http_session_data);
-//     if (http_session_data == NULL) {
-//         http_session_data = new_http_session_data();
-//         if (http_session_data) {
-//             http_session_data->session_id = get_session_id(session);
-//             http_session_data->http_session_status = HSDS_START;
-//             add_http_session_data(http_session_data);
-//         } else {
-//             fprintf(stderr, "[error] Cannot create http session data for session %lu - packet: %lu\n", get_session_id(session), ipacket->packet_id);
-//         }
-//     }
-// }
-
 /**
  * Attribute handler that will be called every time an HTTP message start event is detected
  */
@@ -275,21 +242,25 @@ void http_generic_header_handle(const ipacket_t * ipacket, attribute_t * attribu
     if (session == NULL) return;
     http_content_processor_t * sp = get_http_content_processor_from_packet(ipacket);
     if (sp == NULL) return;
+    mmt_generic_header_line_t * header_data = (mmt_generic_header_line_t *) attribute->data;
     // printf("[debug] %lu: generic_header_handle - 2\n", ipacket->packet_id);
-    if ( check_str_eq( "Content-Encoding", ((mmt_generic_header_line_t *) attribute->data)->hfield) &&
-            check_str_eq( "gzip", ((mmt_generic_header_line_t *) attribute->data)->hvalue) ) {
+    if ( check_str_eq( "Content-Encoding", header_data->hfield) &&
+            check_str_eq( "gzip", header_data->hvalue) ) {
         // printf("[debug] %lu content is compressed!\n", ipacket->packet_id);
         sp->content_encoding = 1; //Content encoding is gzip
     }
     // printf("[debug] %lu: generic_header_handle - 3\n", ipacket->packet_id);
-    if ( check_str_eq( "Content-Type", ((mmt_generic_header_line_t *) attribute->data)->hfield) &&
-            check_str_eq( "text/html", ((mmt_generic_header_line_t *) attribute->data)->hvalue)) {
+    if ( check_str_eq( "Content-Type", header_data->hfield) &&
+            check_str_eq( "text/html", header_data->hvalue)) {
         sp->content_type = 1; // Content type is html
     }
     http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(ipacket->session), list_http_session_data);
-    if (check_str_eq( "Content-Type", ((mmt_generic_header_line_t *) attribute->data)->hfield)) {
+    if (check_str_eq( "Content-Type", header_data->hfield)) {
         if (http_session_data) {
-            http_session_data->content_type = str_copy(((mmt_generic_header_line_t *) attribute->data)->hvalue);
+            int hlen = strlen(header_data->hvalue) + 1;
+            http_session_data->content_type = (char*)malloc(hlen*sizeof(char));
+            memcpy(http_session_data->content_type,header_data->hvalue,hlen-1);
+            http_session_data->content_type[hlen-1]='\0';
             // printf("[debug] %lu generic_header_handle: content_type: %s\n", ipacket->packet_id, http_session_data->content_type);
             if (http_session_data->filename && !http_session_data->file_has_extension) {
                 update_file_extension(http_session_data);
@@ -297,9 +268,9 @@ void http_generic_header_handle(const ipacket_t * ipacket, attribute_t * attribu
         }
     }
 
-    if (check_str_eq( "Content-Length", ((mmt_generic_header_line_t *) attribute->data)->hfield)) {
+    if (check_str_eq( "Content-Length", header_data->hfield)) {
         if (http_session_data) {
-            http_session_data->total_len = atoi(((mmt_generic_header_line_t *) attribute->data)->hvalue);
+            http_session_data->total_len = atoi(header_data->hvalue);
         }
     }
 
