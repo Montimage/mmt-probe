@@ -27,13 +27,13 @@ void html_parse(const char * chunck, size_t len, html_parser_t * hp, http_conten
 /* report a zlib or i/o error */
 void zerr(int ret)
 {
-    fputs("zpipe: ", stderr);
+    fputs("[error] zpipe: ", stderr);
     switch (ret) {
     case Z_ERRNO:
         if (ferror(stdin))
-            fputs("error reading stdin\n", stderr);
+            fputs("reading stdin\n", stderr);
         if (ferror(stdout))
-            fputs("error writing stdout\n", stderr);
+            fputs("writing stdout\n", stderr);
         break;
     case Z_STREAM_ERROR:
         fputs("invalid compression level\n", stderr);
@@ -60,7 +60,7 @@ void gzip_process(const char * chunck, size_t len, gzip_processor_t * gzp, http_
 
   gzp->strm.avail_in = len;
   if (gzp->strm.avail_in == 0) {
-    fprintf(stderr, "Processing empty gzip chunk! check why the hell we got here\n");
+    fprintf(stderr, "[error] Processing empty gzip chunk! check why the hell we got here\n");
     return;
   }
 
@@ -80,7 +80,7 @@ void gzip_process(const char * chunck, size_t len, gzip_processor_t * gzp, http_
       case Z_MEM_ERROR:
         zerr(gzp->ret);
         sp->pre_processor = clean_gzip_processor( gzp );
-        fprintf(stderr, "[error] gzip_process: There is some error!\n");
+        // fprintf(stderr, "[error] gzip_process: There is some error!\n");
         return;
     }
     // This is how much we have deconmpressed
