@@ -636,7 +636,7 @@ void * get_handler_by_name(char * func_name){
 /* This function registers attributes and attribute handlers for different condition_reports (if enabled in a configuration file).
  * */
 int register_conditional_report_handle(void * args, mmt_condition_report_t * condition_report) {
-	int i = 1,j;
+	int j;
 	uint32_t protocol_id;
 	uint32_t attribute_id;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -648,37 +648,39 @@ int register_conditional_report_handle(void * args, mmt_condition_report_t * con
 		mmt_condition_attribute_t * condition_attribute = &condition_report->attributes[j];
 		mmt_condition_attribute_t * handler_attribute = &condition_report->handlers[j];
 
-		i = protocol_id = get_protocol_id_by_name (condition_attribute->proto);
-		if (i == 0) return i;
+		protocol_id = get_protocol_id_by_name (condition_attribute->proto);
+		if (protocol_id == 0) return 0;
 
-		i = attribute_id = get_attribute_id_by_protocol_and_attribute_names(condition_attribute->proto,condition_attribute->attribute);
-		if (i == 0) return i;
+		attribute_id = get_attribute_id_by_protocol_and_attribute_names(condition_attribute->proto,condition_attribute->attribute);
+		if (attribute_id == 0) return 0;
 
 		if (strcmp(handler_attribute->handler,"NULL") == 0){
 			if (is_registered_attribute(th->mmt_handler, protocol_id, attribute_id) == 0){
-				i &= register_extraction_attribute_by_name(th->mmt_handler, condition_attribute->proto, condition_attribute->attribute);
-				if(i==0){
-					fprintf(stderr,"[error] Cannot register_extraction_attribute_by_name: proto: %s ,attribute: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,condition_report->id);
-					// fprintf(stderr, "[error] cannot register_extraction_attribute_by_name for report: %i\n",condition_report->id);
-					return i;
+				if(!register_extraction_attribute(th->mmt_handler, protocol_id, attribute_id)){
+					fprintf(stderr,"[error] Cannot register_extraction_attribute: proto: %s ,attribute: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,condition_report->id);
+					// fprintf(stderr, "[error] cannot register_extraction_attribute for report: %i\n",condition_report->id);
+					return 0;
 				}else{
-					// printf("[debug] register_extraction_attribute_by_name: proto: %s ,attribute: %s\n",condition_attribute->proto,condition_attribute->attribute);
+					printf("[debug] register_extraction_attribute: proto: %s ,attribute: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,condition_report->id);
 				}
+			}else{
+				fprintf(stderr,"[error] Already registered register_extraction_attribute: proto: %s ,attribute: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,condition_report->id);
 			}
 		}else{
 			if (is_registered_attribute_handler(th->mmt_handler, protocol_id, attribute_id, get_handler_by_name (handler_attribute->handler)) == 0){
-				i &= register_attribute_handler_by_name(th->mmt_handler, condition_attribute->proto, condition_attribute->attribute, get_handler_by_name (handler_attribute->handler), NULL, args);
-				if(i==0){
-					fprintf(stderr,"[error] Cannot register_attribute_handler_by_name: proto: %s ,attribute: %s, handler: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler,condition_report->id);
-					// fprintf(stderr, "[error] cannot register_attribute_handler_by_name for report: %i\n",condition_report->id);
-					return i;
+				if(!register_attribute_handler(th->mmt_handler, protocol_id, attribute_id, get_handler_by_name (handler_attribute->handler), NULL, args)){
+					fprintf(stderr,"[error] Cannot register_attribute_handler: proto: %s ,attribute: %s, handler: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler,condition_report->id);
+					// fprintf(stderr, "[error] cannot register_attribute_handler for report: %i\n",condition_report->id);
+					return 0;
 				}else{
-					// printf("[debug] register_attribute_handler_by_name: proto: %s ,attribute: %s, handler: %s\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler);
+					printf("[debug] register_attribute_handler: proto: %s ,attribute: %s, handler: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler,condition_report->id);
 				}
+			}else{
+				fprintf(stderr,"[error] Already registered register_attribute_handler: proto: %s ,attribute: %s, handler: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler,condition_report->id);
 			}
 		}
 	}
-	return i;
+	return 1;
 }
 
 /* This function initializes condition_reports (if enabled in a configuration file).
