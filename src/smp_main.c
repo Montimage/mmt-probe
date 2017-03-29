@@ -568,7 +568,7 @@ void *Reader(void *arg) {
 
 	/* make sure we're capturing on an Ethernet device */
 	if (pcap_datalink(handle) != DLT_EN10MB) {
-		fprintf(stderr, "%s is not an Ethernet\n", mmt_probe->mmt_conf->input_source);
+		fprintf(stderr, "%s is not an Ethernet. (be sure that you are running probe with root permission)\n", mmt_probe->mmt_conf->input_source);
 		exit(0);
 	}
 
