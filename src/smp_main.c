@@ -41,6 +41,8 @@ src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c s
 #include "lib/system_info.h"
 #include <netinet/tcp.h>
 
+#include "lib/security.h"
+
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include "tcpip/mmt_tcpip.h"
@@ -81,7 +83,7 @@ uint64_t nb_packets_dropped_by_mmt = 0;
 uint64_t nb_packets_processed_by_mmt = 0;
 
 static void terminate_probe_processing(int wait_thread_terminate);
-
+sec_wrapper_t * security2_single_thread = NULL;
 
 uint32_t get_2_power(uint32_t nb) {
 	uint32_t ret = -1;
@@ -144,6 +146,7 @@ static void * smp_thread_routine(void *arg) {
 	uint32_t tail;
 	long avail_processors;
 	int size;
+	sec_wrapper_t * security2 = NULL;
 
 
 	sprintf(lg_msg, "Starting thread %i", th->thread_index);
@@ -152,7 +155,6 @@ static void * smp_thread_routine(void *arg) {
 
 	//move this thread to a specific processor
 	avail_processors = get_number_of_online_processors();
-
 	if( avail_processors > 1 ){
 		avail_processors -= 1;//avoid zero that is using by Reader
 		(void) move_the_current_thread_to_a_core( th->thread_index % avail_processors + 1, -10 );
@@ -201,6 +203,45 @@ static void * smp_thread_routine(void *arg) {
 
 
 
+	//security2
+	if( mmt_probe.mmt_conf->security2_enable ){
+
+		th->security2_lcore_id = (mmt_probe.mmt_conf->thread_nb + 1) + th->thread_index * mmt_probe.mmt_conf->security2_threads_count;
+
+		if ((th->security2_lcore_id + mmt_probe.mmt_conf->security2_threads_count) > get_number_of_online_processors()){
+
+			th->security2_lcore_id = th->thread_index % avail_processors + 1;
+		}
+
+		//lcore_id on which security2 will run
+		uint32_t *sec_cores_mask = malloc( sizeof( uint32_t ) * mmt_probe.mmt_conf->security2_threads_count );
+
+		int k = 1;
+		for( i=0; i < mmt_probe.mmt_conf->security2_threads_count; i++ ){
+			if (th->security2_lcore_id + i >= get_number_of_online_processors()){
+				th->security2_lcore_id = k++;
+				if (k == get_number_of_online_processors()) k = 1;
+				sec_cores_mask[ i ] = th->security2_lcore_id;
+			}else {
+				sec_cores_mask[ i ] = th->security2_lcore_id + i;
+			}
+		}
+
+		th->security2_alerts_output_count = 0;
+		security2 = register_security( th->mmt_handler,
+				mmt_probe.mmt_conf->security2_threads_count,
+				sec_cores_mask, mmt_probe.mmt_conf->security2_rules_mask,
+				th->thread_index == 0,//false, //true,
+				//this callback will be called from one or many different threads (depending on #security2_threads_count)
+				//print verdict only if output to file or redis is enable
+				( mmt_probe.mmt_conf->output_to_file_enable == 1 && mmt_probe.mmt_conf->security2_file_output_enable )
+				|| ( mmt_probe.mmt_conf->redis_enable == 1 &&  mmt_probe.mmt_conf->security2_redis_output_enable ) ? security_print_verdict : NULL,
+						th );
+
+		free( sec_cores_mask );
+	}
+
+
 	th->nb_packets = 0;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	char message[MAX_MESS + 1];
@@ -209,7 +250,7 @@ static void * smp_thread_routine(void *arg) {
 	data_spsc_ring_t *fifo     = &th->fifo;
 	mmt_handler_t *mmt_handler = th->mmt_handler;
 
-	while ( 1 ) {
+	while (likely (!do_abort)) {
 		/*if (mmt_probe.mmt_conf->cpu_mem_usage_enabled == 1){
 			th->cpu_usage = cpu_usage_avg;
 			th->mem_usage = mem_usage_avg;
@@ -260,9 +301,19 @@ static void * smp_thread_routine(void *arg) {
 		}
 	} //end while(1)
 
-	printf("thread %d : %"PRIu64" \n", th->thread_index, th->nb_packets );
+	//printf("thread %d : %"PRIu64" \n", th->thread_index, th->nb_packets );
 
 	if(th->mmt_handler != NULL){
+		if( mmt_probe.mmt_conf->security2_enable ){
+			//get number of packets being processed by security
+			uint64_t msg_count  = security2->msg_count;
+			//free security
+			size_t alerts_count = unregister_security( security2 );
+
+			printf ("[mmt-probe-1]{%3d,%9"PRIu64",%9"PRIu64",%7zu}\n",th->thread_index, th->nb_packets, msg_count, alerts_count );
+		}else
+			printf ("[mmt-probe-1]{%3d,%9"PRIu64"}\n",th->thread_index, th->nb_packets );
+
 		radius_ext_cleanup(th->mmt_handler); // cleanup our event handler for RADIUS initializations
 		flowstruct_cleanup(th->mmt_handler); // cleanup our event handler
 		th->report_counter++;
@@ -271,6 +322,7 @@ static void * smp_thread_routine(void *arg) {
 		if (cleanup_registered_handlers (th) == 0){
 			fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",th->thread_index);
 		}
+
 		mmt_close_handler(th->mmt_handler);
 		th->mmt_handler = NULL;
 	}
@@ -307,13 +359,59 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 	static uint32_t p_hash = 0;
 	static struct packet_element *pkt;
 	static void *pdata;
+	long avail_processors;
+
+	avail_processors = get_number_of_online_processors();
+	(void) move_the_current_thread_to_a_core( 0, -10 );
 
 	//Initialise MMT_Security
 	if(mmt_probe->mmt_conf->security_enable == 1)
 		init_mmt_security(mmt_probe->smp_threads->mmt_handler, mmt_probe->mmt_conf->properties_file,(void *)mmt_probe->smp_threads );
 	//End initialise MMT_Security
 
+
+	//Call mmt_core function that will parse the packet and analyse it.
+
+
 	if (mmt_probe->mmt_conf->thread_nb == 1) {
+
+		//security2
+
+		if( mmt_probe->mmt_conf->security2_enable ){
+			mmt_probe->smp_threads->security2_lcore_id = (mmt_probe->mmt_conf->thread_nb) + mmt_probe->smp_threads->thread_index * mmt_probe->mmt_conf->security2_threads_count;
+
+			if ((mmt_probe->smp_threads->security2_lcore_id + mmt_probe->mmt_conf->security2_threads_count) > get_number_of_online_processors()){
+				mmt_probe->smp_threads->security2_lcore_id = mmt_probe->smp_threads->thread_index % avail_processors + 1;
+			}
+
+			//lcore_id on which security2 will run
+			uint32_t *sec_cores_mask = malloc( sizeof( uint32_t ) * mmt_probe->mmt_conf->security2_threads_count );
+			int k = 1;
+			for( i=0; i < mmt_probe->mmt_conf->security2_threads_count; i++ ){
+				if (mmt_probe->smp_threads->security2_lcore_id + i >= get_number_of_online_processors()){
+					mmt_probe->smp_threads->security2_lcore_id = k++;
+					if (k == get_number_of_online_processors()) k = 1;
+					sec_cores_mask[ i ] = mmt_probe->smp_threads->security2_lcore_id;
+				}else {
+					sec_cores_mask[ i ] = mmt_probe->smp_threads->security2_lcore_id + i;
+				}
+			}
+
+			mmt_probe->smp_threads->security2_alerts_output_count = 0;
+			security2_single_thread = register_security( mmt_probe->smp_threads->mmt_handler,
+					mmt_probe->mmt_conf->security2_threads_count,
+					sec_cores_mask, mmt_probe->mmt_conf->security2_rules_mask,
+					mmt_probe->smp_threads->thread_index == 0,//false, //true,
+					//this callback will be called from one or many different threads (depending on #security2_threads_count)
+					//print verdict only if output to file or redis is enable
+					( mmt_probe->mmt_conf->output_to_file_enable == 1 && mmt_probe->mmt_conf->security2_file_output_enable )
+					|| ( mmt_probe->mmt_conf->redis_enable == 1 &&  mmt_probe->mmt_conf->security2_redis_output_enable ) ? security_print_verdict : NULL,
+							mmt_probe->smp_threads );
+
+			free( sec_cores_mask );
+		}
+
+		//security2
 
 		pcap = pcap_open_offline(filename, errbuf); // open offline trace
 
@@ -342,15 +440,15 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 			}
 
 
-			//Call mmt_core function that will parse the packet and analyse it.
-
 			if (!packet_process(mmt_probe->smp_threads->mmt_handler, &header, data)) {
 				sprintf(lg_msg, "MMT Extraction failure! Error while processing packet number %"PRIu64"", packets_count);
 				mmt_log(mmt_probe->mmt_conf, MMT_L_ERROR, MMT_E_PROCESS_ERROR, lg_msg);
 			}
-			packets_count++;
+			//packets_count++;
+			nb_packets_processed_by_mmt ++;
 		}
 		pcap_close(pcap);
+
 		sprintf(lg_msg, "End processing trace file: %s", filename);
 		mmt_log(mmt_probe->mmt_conf, MMT_L_INFO, MMT_P_END_PROCESS_TRACE, lg_msg);
 	}else {//We have more than one thread for processing packets! dispatch the packet to one of them
@@ -533,6 +631,11 @@ void *Reader(void *arg) {
 	bpf_u_int32 net; /* ip */
 	int num_packets = -1; /* number of packets to capture */
 	//int num_packets = 1000000; /* number of packets to capture */
+	int i = 0;
+
+	long avail_processors;
+
+	avail_processors = get_number_of_online_processors();
 
 	(void) move_the_current_thread_to_a_core(0, -15);
 
@@ -588,13 +691,51 @@ void *Reader(void *arg) {
 		init_mmt_security( mmt_probe->smp_threads->mmt_handler, mmt_probe->mmt_conf->properties_file, (void *)mmt_probe->smp_threads );
 	//End initialise MMT_Security
 
+	//security2
+	if( mmt_probe->mmt_conf->security2_enable && mmt_probe->mmt_conf->thread_nb == 1 ){
+		mmt_probe->smp_threads->security2_lcore_id = (mmt_probe->mmt_conf->thread_nb) + mmt_probe->smp_threads->thread_index * mmt_probe->mmt_conf->security2_threads_count;
+
+		if ((mmt_probe->smp_threads->security2_lcore_id + mmt_probe->mmt_conf->security2_threads_count) > get_number_of_online_processors()){
+			mmt_probe->smp_threads->security2_lcore_id = mmt_probe->smp_threads->thread_index % avail_processors + 1;
+		}
+
+		//lcore_id on which security2 will run
+		uint32_t *sec_cores_mask = malloc( sizeof( uint32_t ) * mmt_probe->mmt_conf->security2_threads_count );
+		int k = 1;
+		for( i=0; i < mmt_probe->mmt_conf->security2_threads_count; i++ ){
+			if (mmt_probe->smp_threads->security2_lcore_id + i >= get_number_of_online_processors()){
+				mmt_probe->smp_threads->security2_lcore_id = k++;
+				if (k == get_number_of_online_processors()) k = 1;
+				sec_cores_mask[ i ] = mmt_probe->smp_threads->security2_lcore_id;
+			}else {
+				sec_cores_mask[ i ] = mmt_probe->smp_threads->security2_lcore_id + i;
+			}
+		}
+
+		mmt_probe->smp_threads->security2_alerts_output_count = 0;
+		security2_single_thread = register_security( mmt_probe->smp_threads->mmt_handler,
+				mmt_probe->mmt_conf->security2_threads_count,
+				sec_cores_mask, mmt_probe->mmt_conf->security2_rules_mask,
+				mmt_probe->smp_threads->thread_index == 0,//false, //true,
+				//this callback will be called from one or many different threads (depending on #security2_threads_count)
+				//print verdict only if output to file or redis is enable
+				( mmt_probe->mmt_conf->output_to_file_enable == 1 && mmt_probe->mmt_conf->security2_file_output_enable )
+				|| ( mmt_probe->mmt_conf->redis_enable == 1 &&  mmt_probe->mmt_conf->security2_redis_output_enable ) ? security_print_verdict : NULL,
+						mmt_probe->smp_threads );
+
+		free( sec_cores_mask );
+	}
+	//security2
+
+
+
+
 	/* now we can set our callback function */
 	if (mmt_probe->mmt_conf->thread_nb > 1){
 		pcap_loop(handle, num_packets, got_packet_multi_thread, NULL);
 	}else {
 		while (1){
 			pcap_dispatch(handle, num_packets, got_packet_single_thread, NULL);
-
 			if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time  >= mmt_probe->mmt_conf->stats_reporting_period){
 				mmt_probe->smp_threads->report_counter ++;
 				mmt_probe->smp_threads->last_stat_report_time = time(NULL);
@@ -751,14 +892,21 @@ void cleanup_report_allocated_memory(){
 				free (mmt_probe.smp_threads[i].security_attributes);
 			}
 
+			if (mmt_probe.smp_threads[i].cache_message_list != NULL){
+				free (mmt_probe.smp_threads[i].cache_message_list);
+				mmt_probe.smp_threads[i].cache_message_list = NULL;
+			}
+
 		}
 		if (mmt_conf->socket_enable == 1){
 			//printf ("total_packets_report_send_by_threads = %"PRIu64" \n",count);
 			//mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length - 1],1024 - mmt_conf->report_length,",%"PRIu64"}",count);
 			printf ("[mmt-probe-3]{%"PRIu64"} \n",count);
 		}
+
 		free( mmt_probe.smp_threads);
 		mmt_probe.smp_threads = NULL;
+
 	} else {
 		if (mmt_probe.smp_threads->report != NULL){
 			for(j = 0; j < mmt_conf->security_reports_nb; j++) {
@@ -801,10 +949,22 @@ void cleanup_report_allocated_memory(){
 		if (mmt_conf->socket_enable == 1){
 			// mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length],1024 - mmt_conf->report_length,"%"PRIu64",%f",mmt_probe.smp_threads->packet_send, mmt_probe.smp_threads->packet_send * 100.0 / mmt_probe.smp_threads->nb_packets);
 			//mmt_conf->report_length += snprintf(&mmt_conf->report_msg[mmt_conf->report_length - 1],1024 - mmt_conf->report_length,",%"PRIu64"}",mmt_probe.smp_threads->packet_send);
-			printf ("[mmt-probe-2]{%u,%"PRIu64",%f} \n",mmt_probe.smp_threads->thread_index, mmt_probe.smp_threads->packet_send,mmt_probe.smp_threads->packet_send * 100.0 / mmt_probe.smp_threads->nb_packets);
+			printf ("[mmt-probe-2]{%u,%"PRIu64",%f} \n",mmt_probe.smp_threads->thread_index, mmt_probe.smp_threads->packet_send, mmt_probe.smp_threads->packet_send * 100.0 / mmt_probe.smp_threads->nb_packets);
 			printf ("[mmt-probe-3]{%"PRIu64"} \n",mmt_probe.smp_threads->packet_send);
 		}
+		if (mmt_probe.smp_threads->cache_message_list != NULL){
+			free (mmt_probe.smp_threads->cache_message_list);
+			mmt_probe.smp_threads->cache_message_list = NULL;
+		}
 
+		if( mmt_probe.mmt_conf->security2_enable && mmt_probe.mmt_conf->thread_nb == 1){
+			//get number of packets being processed by security
+			uint64_t msg_count  = security2_single_thread->msg_count;
+			//free security
+			size_t alerts_count = unregister_security( security2_single_thread );
+
+			printf ("[mmt-probe-1]{%3d,%9"PRIu64",%9"PRIu64",%7zu}\n",mmt_probe.smp_threads->thread_index, nb_packets_processed_by_mmt, msg_count, alerts_count );
+		}
 		free (mmt_probe.smp_threads);
 		mmt_probe.smp_threads = NULL;
 	}
@@ -840,8 +1000,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
 #endif
 		if (mmt_conf->microf_enable == 1)report_all_protocols_microflows_stats((void *)mmt_probe.smp_threads);
 		if (mmt_conf->output_to_file_enable == 1)flush_messages_to_file_thread((void *)mmt_probe.smp_threads);
-		free (mmt_probe.smp_threads->cache_message_list);
-		mmt_probe.smp_threads->cache_message_list = NULL;
 		exit_timers();
 	} else {
 		if (wait_thread_terminate) {
@@ -871,8 +1029,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
 				//if (mmt_probe.smp_threads->report_counter == 0)mmt_probe.smp_threads->report_counter++;
 				//if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[i]);
 				if (mmt_conf->output_to_file_enable == 1)flush_messages_to_file_thread(&mmt_probe.smp_threads[i]);
-				if(mmt_probe.smp_threads[i].cache_message_list != NULL) free(mmt_probe.smp_threads[i].cache_message_list);
-				mmt_probe.smp_threads[i].cache_message_list = NULL;
 			}
 			exit_timers();
 
@@ -938,6 +1094,8 @@ void terminate_probe_processing(int wait_thread_terminate) {
 	//printf("close_extraction_start\n");
 	close_extraction();
 	//printf("close_extraction_finish\n");
+	if( mmt_conf->security2_enable )
+		close_security();
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_E_END, "Closing MMT Extraction engine!");
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_P_END, "Closing MMT Probe!");
 	if(wait_thread_terminate)if (mmt_conf->log_output) fclose(mmt_conf->log_output);
@@ -958,6 +1116,7 @@ void signal_handler(int type) {
 
 	if (i == 1) {
 # ifdef PCAP
+		do_abort = 1;
 		terminate_probe_processing(0);
 #endif
 
@@ -1194,6 +1353,10 @@ int main(int argc, char **argv) {
 
 	mmt_conf->log_output = fopen(mmt_conf->log_file, "a");
 
+	if (mmt_conf->log_output == NULL){
+		printf ("Error: log file creation failed \n");
+	}
+
 	sigfillset(&signal_set);
 	signal(SIGINT, signal_handler);
 	signal(SIGTERM, signal_handler);
@@ -1262,7 +1425,12 @@ int main(int argc, char **argv) {
 			}
 		}
 	}
-
+	//config security2
+	if( mmt_conf->security2_enable ){
+		//initialize security rules
+		if( init_security() != 0 )
+			return 1;
+	}
 #ifdef PCAP
 	//For MMT_Security
 	if (mmt_conf->security_enable == 1)
@@ -1367,6 +1535,9 @@ int main(int argc, char **argv) {
 					smp_thread_routine, &mmt_probe.smp_threads[i]);
 
 		}
+
+
+
 		sprintf(lg_msg, "MMT Extraction engine! successfully initialized in a multi threaded operation (%i threads)", mmt_conf->thread_nb);
 		mmt_log(mmt_conf, MMT_L_INFO, MMT_E_STARTED, lg_msg);
 	}
