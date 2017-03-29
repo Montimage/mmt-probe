@@ -55,6 +55,7 @@ keygen:
 #	$(CP) $(OUTPUT_DIR)/probe $(TOP)
 
 endif
+# End of DPDK
 
 ifdef PCAP
 #name of executable file to generate
@@ -66,10 +67,10 @@ VERSION     := 1.0
 
 
 #set of library
-LIBS     = -L /opt/mmt/dpi/lib -lmmt_core -lmmt_tcpip -lmmt_security -lmmt_security2 -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
+LIBS     = -L /opt/mmt/dpi/lib -L/opt/mmt/security/lib -lmmt_core -lmmt_tcpip -lmmt_security -lmmt_security2 -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
 
 CFLAGS   = -Wall -Wno-unused-variable -DNDEBUG -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DPCAP
-CLDFLAGS = -I /opt/mmt/dpi/include -DNDEBUG
+CLDFLAGS = -I /opt/mmt/dpi/include -I /opt/mmt/security/include -DNDEBUG
 
 #for debuging
 ifdef DEBUG
@@ -78,6 +79,12 @@ ifdef DEBUG
 else
 	CFLAGS   += -O3
 	CLDFLAGS += -O3
+endif
+
+# For HTTP reconstruction option
+ifdef HTTP_RECONSTRUCT
+LIBS     += -lhtmlstreamparser -lz
+CFLAGS   += -DHTTP_RECONSTRUCT
 endif
 
 #folders containing source files

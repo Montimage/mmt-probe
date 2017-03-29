@@ -272,6 +272,7 @@ Autres tentatives sur IP et/ou TCP : depend de la genericite des regles par rapp
 </property>
 
 <!-- Property 19: C4_Analyse_04g : SQL Injection detection.-->
+<!--
 
 <property value="THEN" delay_units="s" delay_min="0" delay_max="0" property_id="19" type_property="ATTACK" 
     description="SQL Injection detected"
@@ -283,7 +284,7 @@ Autres tentatives sur IP et/ou TCP : depend de la genericite des regles par rapp
            description="Trigger: SQL Injection in the payload"
            boolean_expression="((ip.src != ip.dst) &amp;&amp; (tcp.p_payload == tcp.p_payload))"/>
 </property>
-
+-->
 
 <!-- Property 20: C4_Analyse_04i: ICMP redirect flood detection-->
 <!-- Depending on OS implementation, these host based routes can have the characteristic of being short lived.  

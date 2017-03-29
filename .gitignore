@@ -1,4 +1,6 @@
 *.a
+.DS_Store
+sftp-config.json
 *.o
 *.lo
 *.la
