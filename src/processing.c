@@ -287,31 +287,33 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	}
 	temp_session->isFlowExtracted = 1;
 #ifdef HTTP_RECONSTRUCT
-	if(is_http_packet(ipacket) == 1){
-		// printf("[debug] %lu: flow_nb_handle\n", ipacket->packet_id);
-	    // printf("[debug] %lu: new_session_handle - 2\n", ipacket->packet_id);
-	    http_content_processor_t * http_content_processor = init_http_content_processor();
+	if(probe_context.http_reconstruct_enable == 1){
+		if(is_http_packet(ipacket) == 1){
+			// printf("[debug] %lu: flow_nb_handle\n", ipacket->packet_id);
+		    // printf("[debug] %lu: new_session_handle - 2\n", ipacket->packet_id);
+		    http_content_processor_t * http_content_processor = init_http_content_processor();
 
-	    if (http_content_processor == NULL) {
-	    	fprintf(stderr, "[error] %lu: Cannot create http_content_processor\n", ipacket->packet_id);
-	    	free(temp_session);
-	        return;
+		    if (http_content_processor == NULL) {
+		    	fprintf(stderr, "[error] %lu: Cannot create http_content_processor\n", ipacket->packet_id);
+		    	free(temp_session);
+		        return;
+		    }
+		    // printf("[debug] %lu: new_session_handle - 3\n", ipacket->packet_id);
+		    temp_session->http_content_processor = http_content_processor;
+		    // printf("[debug] %lu: new_session_handle - 4\n", ipacket->packet_id);
+		    http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(session), list_http_session_data);
+		    if (http_session_data == NULL) {
+		        http_session_data = new_http_session_data();
+		        if (http_session_data) {
+		            http_session_data->session_id = get_session_id(session);
+		            http_session_data->http_session_status = HSDS_START;
+		            add_http_session_data(http_session_data);
+		        } else {
+		            fprintf(stderr, "[error] Cannot create http session data for session %lu - packet: %lu\n", get_session_id(session), ipacket->packet_id);
+		        }
+		    }
 	    }
-	    // printf("[debug] %lu: new_session_handle - 3\n", ipacket->packet_id);
-	    temp_session->http_content_processor = http_content_processor;
-	    // printf("[debug] %lu: new_session_handle - 4\n", ipacket->packet_id);
-	    http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(session), list_http_session_data);
-	    if (http_session_data == NULL) {
-	        http_session_data = new_http_session_data();
-	        if (http_session_data) {
-	            http_session_data->session_id = get_session_id(session);
-	            http_session_data->http_session_status = HSDS_START;
-	            add_http_session_data(http_session_data);
-	        } else {
-	            fprintf(stderr, "[error] Cannot create http session data for session %lu - packet: %lu\n", get_session_id(session), ipacket->packet_id);
-	        }
-	    }
-    }
+	}
 #endif // End of HTTP_RECONSTRUCT	
 
 	set_user_session_context(session, temp_session);

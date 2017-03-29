@@ -412,6 +412,8 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args) {
         return 0;
     }
     
+    uint64_t session_id = get_session_id(ipacket->session);
+
     mmt_probe_context_t * probe_context = get_probe_context_config();
 
     if(probe_context == NULL){
@@ -426,16 +428,16 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args) {
 
     if(is_http_packet(ipacket)==0) return 0;
     // printf("[debug] http_packet_handler 2 :%lu\n", ipacket->packet_id);
-    http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(ipacket->session), list_http_session_data);
+    http_session_data_t * http_session_data = get_http_session_data_by_id(session_id, list_http_session_data);
 
     http_content_processor_t * sp = get_http_content_processor_from_packet(ipacket);
     if (http_session_data) {
         // printf("[debug] http_packet_handler 3 :%lu\n", ipacket->packet_id);
         if (http_session_data->filename == NULL) {
             if (sp == NULL) {
-                http_session_data->filename = get_file_name(get_session_id(ipacket->session), 0);
+                http_session_data->filename = get_file_name(session_id, 0);
             } else {
-                http_session_data->filename = get_file_name(get_session_id(ipacket->session), sp->interaction_count);
+                http_session_data->filename = get_file_name(session_id, sp->interaction_count);
             }
             if (http_session_data->content_type && !http_session_data->file_has_extension) {
                 update_file_extension(http_session_data);
@@ -487,6 +489,9 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args) {
                 }
 
                 if(default_name){
+                    if(http_session_data->filename !=NULL){
+                        free(http_session_data->filename );
+                    }
                     http_session_data->filename = str_copy(default_name);
                     if(strstr(http_session_data->filename,".")){
                         http_session_data->file_has_extension = 1;    
@@ -501,7 +506,7 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args) {
             
             if(http_session_data->filename!=NULL){
                 free(http_session_data->filename);
-                http_session_data->filename = NULL;
+                // http_session_data->filename = NULL;
             }
             http_session_data->filename = default_name;
 
@@ -555,12 +560,15 @@ void * close_http_content_processor(http_content_processor_t * sp) {
 void clean_http_session_data(uint64_t session_id){
     // printf("[debug] clean_http_session_data : %lu\n",session_id );
     // fprintf(stderr, "[debug] clean_http_session_data : %lu\n",session_id );
-    if(list_http_session_data == NULL)  return;
+    if(list_http_session_data == NULL)  {
+        fprintf(stderr, "[error] Cannot find http_session_data with id: %lu\n",session_id);
+        return;
+    }
 
     http_session_data_t * current_http_data = list_http_session_data;
     if(current_http_data->session_id == session_id){
+        list_http_session_data = current_http_data->next;
         free_http_session_data(current_http_data);
-        list_http_session_data = NULL;
         return;
     }
 
