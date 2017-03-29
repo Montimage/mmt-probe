@@ -13,8 +13,6 @@
 #include "tcpip/mmt_tcpip.h"
 #include "processing.h"
 
-#define MAX_FILE_NAME 256
-
 /* This function writes FTP data to a file */
 void write_data_to_file (char * path,  char * content, int len) {
 	int fd = 0;

@@ -71,8 +71,8 @@ int *check_ip_options(void *op2,void *op1){
   *handle = 0;
   int i2 = *((int*)op2);
   int i1 = *((int*)op1);
-  int bit2 = (i2 >> 1) & 1;
-  int bit1 = (i1 >> 1) & 1;
+  // int bit2 = (i2 >> 1) & 1;
+  // int bit1 = (i1 >> 1) & 1;
 //  if(bit2 == 1 || bit1 == 1){
       if(i2 != i1) *handle = 1;
 //  }
@@ -207,8 +207,8 @@ int *check_URI(void *URI){
   s3 = strstr(uri_str, "/."); //find the first occurrence of string "//" in string
   if ((s0 !=NULL) || (s1 !=NULL) || (s2 !=NULL) || (s3 !=NULL))  *handle = 1;
 #ifdef DEBUG
-  fprintf(stderr, "executing ceck_URI with parameters:h=%d:nb=%u:a1=%o:a2=%o\n", 
-                                           *handle, *(char*)(BLOC3+6),*(char*)(BLOC3+9));
+  fprintf(stderr, "executing check_URI with parameters:h=%d:nb=%u:a1=%o:a2=%o\n", 
+                                           *handle, *(char*)(BLOC3+6),*(char*)(BLOC3+9),*(char*)(BLOC3+12));
 #endif
   if (uri_str != NULL) free(uri_str);
   return handle;
@@ -415,6 +415,7 @@ int *check_nfs_redis(void *p_payload, void *payload_len){
 			if (strstr(tcp_payload, f_name) != NULL){
 			//printf ("Detected\n");
 			*handle = 1;
+      free(tcp_payload);
 			return handle;
 			}            
         }

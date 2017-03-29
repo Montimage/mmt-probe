@@ -61,7 +61,6 @@ src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c s
 #define READ_PRIO	-15	/* niceness value for Reader thread */
 //#define SNAP_LEN 65535	/* apparently what tcpdump uses for -s 0 */
 #define READER_CPU	0	/* assign Reader thread to this CPU */
-#define MAX_FILE_NAME 500
 //static int okcode  = EXIT_SUCCESS;
 static int errcode = EXIT_FAILURE;
 
@@ -197,9 +196,10 @@ static void * smp_thread_routine(void *arg) {
 	if (mmt_probe.mmt_conf->event_based_reporting_enable == 1)event_reports_init(th); // initialize our event reports
 	if (mmt_probe.mmt_conf->enable_security_report == 0 && mmt_probe.mmt_conf->enable_security_report_multisession == 0)proto_stats_init(th);//initialise this before security_reports_init
 	if (mmt_probe.mmt_conf->enable_security_report == 1)security_reports_init(th);
+#ifdef HTTP_RECONSTRUCT	
+	if (mmt_probe.mmt_conf->http_reconstruct_enable == 1) http_reconstruct_init(th);
+#endif // End of HTTP_RECONSTRUCT
 	if (mmt_probe.mmt_conf->enable_security_report_multisession == 1)security_reports_multisession_init(th);// should be defined before proto_stats_init
-
-
 
 	th->nb_packets = 0;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -568,7 +568,7 @@ void *Reader(void *arg) {
 
 	/* make sure we're capturing on an Ethernet device */
 	if (pcap_datalink(handle) != DLT_EN10MB) {
-		fprintf(stderr, "%s is not an Ethernet\n", mmt_probe->mmt_conf->input_source);
+		fprintf(stderr, "%s is not an Ethernet. (be sure that you are running probe with root permission)\n", mmt_probe->mmt_conf->input_source);
 		exit(0);
 	}
 
@@ -1320,6 +1320,10 @@ int main(int argc, char **argv) {
 
 		if(mmt_conf->event_based_reporting_enable == 1)event_reports_init((void *)mmt_probe.smp_threads); // initialize our event reports
 		if (mmt_conf->enable_security_report == 1)security_reports_init((void *)mmt_probe.smp_threads);// should be defined before proto_stats_init
+		if (mmt_conf->enable_security_report == 0)proto_stats_init(mmt_probe.smp_threads);
+#ifdef HTTP_RECONSTRUCT		
+		if (mmt_conf->http_reconstruct_enable == 1) http_reconstruct_init(mmt_probe.smp_threads);
+#endif // End of HTTP_RECONSTRUCT
 		if (mmt_conf->enable_security_report_multisession == 1)security_reports_multisession_init((void *)mmt_probe.smp_threads);// should be defined before proto_stats_init
 		if (mmt_conf->enable_security_report == 0 && mmt_conf->enable_security_report_multisession == 0 )proto_stats_init(mmt_probe.smp_threads);
 		//initialisation of multisession report

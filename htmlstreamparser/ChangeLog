@@ -1,0 +1,12 @@
+HTML stream parser ver 0.2
+- functions returning length now always returns positive value
+
+HTML stream parser ver 0.3
+- added function html_parser_set_val_to_lower
+
+HTML stream parser ver 0.4
+- added function html_parser_tag_real_length
+- added function html_parser_attr_real_length
+- added function html_parser_val_real_length
+- added function html_parser_inner_text_real_length
+
