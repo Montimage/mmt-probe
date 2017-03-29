@@ -40,7 +40,7 @@ extern "C" {
 #define MAX_MESS 3000
 #define TIMEVAL_2_MSEC(tval) ((tval.tv_sec << 10) + (tval.tv_usec >> 10))
 #define TIMEVAL_2_USEC(tval) ((tval.tv_sec * 1000000) + (tval.tv_usec))
-
+#define MAX_FILE_NAME 512
 
 pthread_mutex_t mutex_lock;
 pthread_spinlock_t spin_lock;
@@ -201,7 +201,7 @@ typedef struct ip_port_struct {
 #define HSDS_START 1
 #define HSDS_TRANSFER 2
 #define HSDS_END 3
-#define MAX_FILE_NAME 512
+
 
 /**
  * HTTP content processing structure
