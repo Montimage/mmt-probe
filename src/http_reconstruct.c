@@ -561,7 +561,7 @@ void clean_http_session_data(uint64_t session_id){
     // printf("[debug] clean_http_session_data : %lu\n",session_id );
     // fprintf(stderr, "[debug] clean_http_session_data : %lu\n",session_id );
     if(list_http_session_data == NULL)  {
-        fprintf(stderr, "[error] Cannot find http_session_data with id: %lu\n",session_id);
+        // fprintf(stderr, "[error] Cannot find http_session_data with id: %lu\n",session_id);
         return;
     }
 
