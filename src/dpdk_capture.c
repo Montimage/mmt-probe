@@ -183,7 +183,7 @@ static int _worker_thread( void *args_ptr ){
 	//security2
 	if( mmt_conf->security2_enable ){
 		//lcore_id on which security2 will run
-		uint32_t *sec_cores_mask = malloc( sizeof( uint32_t ) + mmt_conf->security2_threads_count );
+		uint32_t *sec_cores_mask = malloc( sizeof( uint32_t ) * mmt_conf->security2_threads_count );
 
 		for( i=0; i < mmt_conf->security2_threads_count; i++ )
 			sec_cores_mask[ i ] = th->security2_lcore_id + i;
