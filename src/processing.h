@@ -8,7 +8,7 @@ extern "C" {
 #include "lib/data_spsc_ring.h"
 #include "mmt_core.h"
 #include "tcpip/mmt_tcpip_protocols.h"
-    
+
 #include <semaphore.h>
 
 #ifndef __USE_GNU
@@ -713,7 +713,14 @@ void data_extraction(const ipacket_t * ipacket,struct smp_thread *th,attribute_t
 void ftp_last_command(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num);
 void ftp_last_response_code(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num);
 void ip_opts(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num);
-
+void get_security_multisession_report(const ipacket_t * ipacket,void * args);
+void get_security_report(const ipacket_t * ipacket,void * args);
+void cleanup(int signo, mmt_probe_struct_t * mmt_probe);
+void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe);
+void process_interface(char * ifname, struct mmt_probe_struct * mmt_probe);
+void clean_up_security2();
+void * smp_thread_routine(void *arg);//TODO: Static removed
+int pcap_capture(struct mmt_probe_struct * mmt_probe);
 /** Luong NGUYEN: HTTP reconstruct */
 #ifdef HTTP_RECONSTRUCT
 /**
