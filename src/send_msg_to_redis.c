@@ -54,7 +54,7 @@ void send_message_to_redis (char *channel, char * message) {
 		// Publish an event
 		redisReply *reply;
 		//reply = (redisReply *) redisCommand    (  redis, "PUBLISH %s %s", channel, message );
-		if (probe_context->enable_security_report_multisession == 1){
+		if (probe_context->enable_security_report_multisession == 1 && strcmp(channel,"multisession.report") == 0){
 			reply = (redisReply *) thredis_command (thredis,"LPUSH %s %s", channel, message);
 
 		}else {

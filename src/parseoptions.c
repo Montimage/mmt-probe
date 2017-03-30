@@ -86,7 +86,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_END()
 	};
 
-	cfg_opt_t security_opts[] = {
+	cfg_opt_t security1_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
 			CFG_INT("id", 0, CFGF_NONE),
 			CFG_STR("results-dir", 0, CFGF_NONE),
@@ -170,6 +170,8 @@ cfg_t * parse_conf(const char *filename) {
 	};
 	cfg_opt_t security_report_multisession_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_INT("file-output", 0, CFGF_NONE),
+			CFG_INT("redis-output", 0, CFGF_NONE),
 			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
 			CFG_END()
 	};
@@ -180,7 +182,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_SEC("output", output_opts, CFGF_NONE),
 			CFG_SEC("redis-output", redis_output_opts, CFGF_NONE),
 			CFG_SEC("data-output", data_output_opts, CFGF_NONE),
-			CFG_SEC("security", security_opts, CFGF_NONE),
+			CFG_SEC("security1", security1_opts, CFGF_NONE),
 			CFG_SEC("security2", security2_opts, CFGF_NONE),
 			CFG_SEC("cpu-mem-usage", cpu_mem_report_opts, CFGF_NONE),
 			CFG_SEC("socket", socket_opts, CFGF_NONE),
@@ -458,8 +460,8 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 		/***************low bandwidth security report ********************/
 
-		if (cfg_size(cfg, "security")) {
-			cfg_t *security = cfg_getnsec(cfg, "security", 0);
+		if (cfg_size(cfg, "security1")) {
+			cfg_t *security = cfg_getnsec(cfg, "security1", 0);
 			if (security->line != 0){
 				mmt_conf->security_enable = (uint32_t) cfg_getint(security, "enable");
 				mmt_conf->security_id = (uint16_t) cfg_getint(security, "id");
@@ -729,8 +731,10 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				temp_msr->enable = (uint32_t) cfg_getint(security_report_multisession_opts, "enable");
 
 				if (temp_msr->enable == 1){
+                   mmt_conf->multisession_report_output_file = (uint8_t) cfg_getint(security_report_multisession_opts, "file-output");
+                   mmt_conf->multisession_report_redis = (uint8_t) cfg_getint(security_report_multisession_opts, "redis-output");
 
-					mmt_conf->enable_security_report_multisession = 1;
+                   mmt_conf->enable_security_report_multisession = 1;
 					security_attributes_multisession_nb = cfg_size(security_report_multisession_opts, "attributes");
 					temp_msr->attributes_nb = security_attributes_multisession_nb;
 					if(security_attributes_multisession_nb > 0) {

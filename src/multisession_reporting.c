@@ -56,8 +56,8 @@ void get_security_multisession_report(const ipacket_t * ipacket,void * args){
 		}
 		message[ offset ] = '\0';
 		if (k == 0)return;
-		if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message, th);
-		if (probe_context->redis_enable == 1) send_message_to_redis ("multisession.report", message);
+		if (probe_context->output_to_file_enable == 1 && probe_context->multisession_report_output_file == 1) send_message_to_file_thread (message, th);
+		if (probe_context->redis_enable == 1 && probe_context->multisession_report_redis == 1) send_message_to_redis ("multisession.report", message);
 	}
 }
 

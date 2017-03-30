@@ -351,6 +351,9 @@ typedef struct mmt_probe_context_struct {
 	uint32_t security_reports_multisession_nb;
 	uint32_t enable_security_report_multisession;
 	uint32_t total_security_multisession_attribute_nb;
+	uint8_t multisession_report_output_file;
+	uint8_t multisession_report_redis;
+
 
 	//hn - new security
 	bool security2_enable;
