@@ -391,9 +391,6 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 
 	//config security2
 	if( mmt_conf->security2_enable ){
-		//initialize security rules
-		if( init_security() != 0 )
-				return 1;
 		//initialize security for each worker
 		for( thread_index=0; thread_index< mmt_conf->thread_nb; thread_index++ ){
 			th = &mmt_probe->smp_threads[thread_index];
