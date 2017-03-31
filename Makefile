@@ -79,12 +79,6 @@ else
 	CLDFLAGS += -O3
 endif
 
-# For HTTP reconstruction option
-ifdef HTTP_RECONSTRUCT
-LIBS     += -lhtmlstreamparser -lz
-CFLAGS   += -DHTTP_RECONSTRUCT
-endif
-
 #folders containing source files
 SRCDIR = src
 
@@ -109,6 +103,13 @@ clean:
 		
 endif
 
+# For HTTP reconstruction option
+ifdef HTTP_RECONSTRUCT
+LIBS     += -lhtmlstreamparser -lz
+CFLAGS   += -DHTTP_RECONSTRUCT
+endif
+
+# For showing message from debug(...)
 ifndef NDEBUG
 CLDFLAGS   += -DNDEBUG
 CFLAGS 	   += -DNDEBUG
