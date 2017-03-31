@@ -35,7 +35,7 @@ See [Wiki](https://bitbucket.org/montimage/mmt-probe/wiki)
     #CORE_MASK: hexadecimal bit mask (eg. AAAAAAAAAB)
     sudo ./build/probe -c CORE_MASK -- -c mmt_online.conf
 # Execute locally:
-    sudo ./probe -c ./mmt_online.conf
+    sudo ./probe -c mmt_online.conf
 # Execute as service
     sudo service probe_online_d start
     #see status
