@@ -49,9 +49,6 @@ CLDFLAGS += -I /opt/mmt/dpi/include -DNDEBUG
  
 include $(RTE_SDK)/mk/rte.extapp.mk
 
-keygen:
-	$(QUIET) $(CC) -o keygen $(CLDFLAGS)  key_generator.c
-
 #copy probe to current folder
 #	$(CP) $(OUTPUT_DIR)/probe $(TOP)
 
@@ -109,10 +106,7 @@ all: $(LIB_OBJS) $(MAIN_OBJS)
 	$(QUIET) $(CC) $(CFLAGS) $(CLDFLAGS) -c -o $@ $<
 clean:
 	$(QUIET) $(RM) $(MAIN_OBJS) $(LIB_OBJS) $(OUTPUT)
-	
-keygen:
-	$(QUIET) $(CC) -o keygen $(CLDFLAGS)  key_generator.c
-	
+		
 endif
 #
 # Install probe
@@ -155,7 +149,10 @@ endif
 	@echo "To run probe online: sudo service probe_online_d start"
 	@echo "online's config file is located at " $(INSTALL_DIR)/conf/online.conf
 	@echo
-	
+
+keygen:
+	$(QUIET) $(CC) -o keygen $(CLDFLAGS)  key_generator.c
+		
 dist-clean:
 	$(QUIET) $(RM) -rf $(INSTALL_DIR)
 	$(QUIET) $(RM) -rf /etc/init.d/probe_*_d
