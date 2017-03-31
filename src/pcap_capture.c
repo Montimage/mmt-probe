@@ -676,6 +676,9 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 		mmt_probe->smp_threads->last_stat_report_time = time(0);
 		mmt_probe->smp_threads->pcap_last_stat_report_time = 0;
 		mmt_probe->smp_threads->pcap_current_packet_time = 0;
+#ifdef HTTP_RECONSTRUCT
+		mmt_probe->smp_threads->list_http_session_data = NULL;
+#endif		
 		//One thread for reading packets and processing them
 		//Initialize an MMT handler
 		mmt_probe->smp_threads->mmt_handler = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
@@ -743,6 +746,9 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 			mmt_probe->smp_threads[i].nb_packets         = 0;
 
 			mmt_probe->smp_threads[i].thread_index = i;
+#ifdef HTTP_RECONSTRUCT
+			mmt_probe->smp_threads[i].list_http_session_data = NULL;
+#endif			
 			if( data_spsc_ring_init( &mmt_probe->smp_threads[i].fifo, mmt_probe->mmt_conf->thread_queue_plen, mmt_probe->mmt_conf->requested_snap_len ) != 0 ){
 				perror("Not enough memory. Please reduce thread-queue or thread-nb in .conf");
 				//free memory allocated

@@ -227,7 +227,7 @@ typedef struct http_session_data_struct {
     struct http_session_data_struct *next;
 } http_session_data_t;
 
-static http_session_data_t * list_http_session_data = NULL;
+// static http_session_data_t * list_http_session_data = NULL;
 
 #endif // End of HTTP_RECONSTRUCT
 
@@ -614,6 +614,10 @@ struct smp_thread {
 	uint64_t security2_alerts_output_count;
 
 	sem_t sem_wait;
+#ifdef HTTP_RECONSTRUCT
+	http_session_data_t * list_http_session_data;
+#endif	
+
 };
 
 typedef struct mmt_probe_struct {
@@ -791,7 +795,7 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args);
 
 http_session_data_t * new_http_session_data();
 
-void add_http_session_data(http_session_data_t * current_http_data);
+void add_http_session_data(http_session_data_t * current_http_data, struct smp_thread * th);
 
 http_session_data_t * get_http_session_data_by_id(uint64_t session_id, http_session_data_t * current_http_data);
 
@@ -804,7 +808,7 @@ inline static void * init_http_content_processor()
   return (void *) sp;
 }
 
-void clean_http_session_data(uint64_t session_id);
+void clean_http_session_data(uint64_t session_id,struct smp_thread * th);
 
 void * close_http_content_processor(http_content_processor_t * sp);
 

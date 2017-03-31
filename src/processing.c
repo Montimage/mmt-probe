@@ -301,13 +301,13 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		    // printf("[debug] %lu: new_session_handle - 3\n", ipacket->packet_id);
 		    temp_session->http_content_processor = http_content_processor;
 		    // printf("[debug] %lu: new_session_handle - 4\n", ipacket->packet_id);
-		    http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(session), list_http_session_data);
+		    http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(session), th->list_http_session_data);
 		    if (http_session_data == NULL) {
 		        http_session_data = new_http_session_data();
 		        if (http_session_data) {
 		            http_session_data->session_id = get_session_id(session);
 		            http_session_data->http_session_status = HSDS_START;
-		            add_http_session_data(http_session_data);
+		            add_http_session_data(http_session_data,th);
 		        } else {
 		            fprintf(stderr, "[error] Cannot create http session data for session %lu - packet: %lu\n", get_session_id(session), ipacket->packet_id);
 		        }
@@ -543,7 +543,7 @@ mmt_dev_properties_t get_dev_properties_from_user_agent(char * user_agent, uint3
  * It provides the expired session information and frees the memory allocated.
  * */
 void classification_expiry_session(const mmt_session_t * expired_session, void * args) {
-	// printf("[debug] classification_expiry_session : %lu\n",get_session_id(expired_session));
+	debug("classification_expiry_session : %lu",get_session_id(expired_session));
 	session_struct_t * temp_session = get_user_session_context(expired_session);
 	struct smp_thread *th = (struct smp_thread *) args;
 	if (temp_session == NULL) {
@@ -555,7 +555,7 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
     if (temp_session->http_content_processor != NULL) {
     	close_http_content_processor(temp_session->http_content_processor);
     }
-    clean_http_session_data(get_session_id(expired_session));
+    clean_http_session_data(get_session_id(expired_session),th);
 #endif	
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
