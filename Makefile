@@ -10,14 +10,48 @@ RM     = rm -rf
 #Name of executable file to generate
 APP = probe
 
-
 ifndef VERBOSE
         QUIET := @
 endif
 
+#get git version abbrev
+GIT_VERSION := $(shell git log --format="%h" -n 1)
+VERSION     := 1.1.0.0
+
+
+#set of library
+LIBS     := -L/opt/mmt/dpi/lib -L/opt/mmt/security/lib -lmmt_core -lmmt_tcpip -lmmt_security -lmmt_security2 -lxml2 -lconfuse -lhiredis -lpthread
+
+#for debuging
+ifdef DEBUG
+	CFLAGS   := -g
+	CLDFLAGS := -g
+else
+	CFLAGS   := -O3
+	CLDFLAGS := -O3
+endif
+
+# For HTTP reconstruction option
+ifdef HTTP_RECONSTRUCT
+LIBS     += -lhtmlstreamparser -lz
+CFLAGS   += -DHTTP_RECONSTRUCT
+endif
+
+# For showing message from debug(...)
+ifndef NDEBUG
+CLDFLAGS   += -DNDEBUG
+CFLAGS 	   += -DNDEBUG
+endif
+
+
+# - - - - - - - - - - -
+# FOR DPDK ENVIRONMENT
+# - - - - - - - - - - - 
+
 ifdef DPDK
-RTE_SDK=/home/server10g/dpdk
-RTE_TARGET=build
+
+RTE_SDK = /home/server10g/dpdk
+RTE_TARGET = build
 ifeq ($(RTE_SDK),)
 $(error "Please define RTE_SDK environment variable")
 endif
@@ -30,54 +64,37 @@ include $(RTE_SDK)/mk/rte.vars.mk
 #Name of executable file to generate
 #APP = probe
 
-#get git version abbrev
-GIT_VERSION := $(shell git log --format="%h" -n 1)
-VERSION     := 1.0
-
 SRCS-y := src/smp_main.c  src/processing.c src/web_session_report.c src/thredis.c \
 src/send_msg_to_file.c src/send_msg_to_redis.c src/ip_statics.c src/init_socket.c src/rtp_session_report.c src/ftp_session_report.c \
 src/event_based_reporting.c src/protocols_report.c src/ssl_session_report.c src/default_app_session_report.c \
 src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c src/parseoptions.c src/license.c src/dpdk_capture.c \
 src/lib/security.c src/lib/data_spsc_ring.c src/lib/lock_free_spsc_ring.c src/lib/packet_hash.c src/lib/system_info.c src/attributes_extraction.c \
-src/multisession_reporting.c src/security_msg_reporting.c src/condition_based_reporting.c  src/pcap_capture.c
+src/multisession_reporting.c src/security_msg_reporting.c src/condition_based_reporting.c  src/pcap_capture.c src/html_integration.c src/http_reconstruct.c
 
 #set of library
-LDLIBS   += -L/opt/mmt/dpi/lib -L/opt/mmt/security/lib -lmmt_core -lmmt_tcpip -lmmt_security -lmmt_security2 -lxml2 -lpcap -lconfuse -lhiredis -lpthread
-CFLAGS   += $(WERROR_CFLAGS) -O3 -I /opt/mmt/dpi/include -I /opt/mmt/security/include -Wall -Wno-unused-variable -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DDPDK
-#CFLAGS   = -Wall -Wno-unused-variable -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"
-CLDFLAGS += -I /opt/mmt/dpi/include
+LDLIBS   += $(LIBS)
+CFLAGS   += $(WERROR_CFLAGS) -I /opt/mmt/dpi/include -I /opt/mmt/security/include -Wall -Wno-unused-variable -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DDPDK
  
 include $(RTE_SDK)/mk/rte.extapp.mk
 
-#copy probe to current folder
-#	$(CP) $(OUTPUT_DIR)/probe $(TOP)
-
 endif
-# End of DPDK
+# - - - - - -
+# END OF DPDK
+# - - - - - -
+
+
+# - - - - - - - - - - -
+# FOR PCAP ENVIRONMENT
+# - - - - - - - - - - - 
 
 ifdef PCAP
 #name of executable file to generate
 #APP = probe
 
-#get git version abbrev
-GIT_VERSION := $(shell git log --format="%h" -n 1)
-VERSION     := 1.0
-
-
 #set of library
-LIBS     = -L /opt/mmt/dpi/lib -L/opt/mmt/security/lib -lmmt_core -lmmt_tcpip -lmmt_security -lmmt_security2 -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
-
-CFLAGS   = -Wall -Wno-unused-variable -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DPCAP
-CLDFLAGS = -I /opt/mmt/dpi/include -I /opt/mmt/security/include
-
-#for debuging
-ifdef DEBUG
-	CFLAGS   += -g -O0
-	CLDFLAGS += -g -O0
-else
-	CFLAGS   += -O3
-	CLDFLAGS += -O3
-endif
+LIBS     += -lpcap -ldl
+CFLAGS   += -Wall -Wno-unused-variable -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DPCAP
+CLDFLAGS += -I /opt/mmt/dpi/include -I /opt/mmt/security/include
 
 #folders containing source files
 SRCDIR = src
@@ -101,19 +118,11 @@ all: $(LIB_OBJS) $(MAIN_OBJS)
 clean:
 	$(QUIET) $(RM) $(MAIN_OBJS) $(LIB_OBJS) $(OUTPUT)
 		
-endif
+endif 
+# - - - - - -
+# END OF PCAP
+# - - - - - -
 
-# For HTTP reconstruction option
-ifdef HTTP_RECONSTRUCT
-LIBS     += -lhtmlstreamparser -lz
-CFLAGS   += -DHTTP_RECONSTRUCT
-endif
-
-# For showing message from debug(...)
-ifndef NDEBUG
-CLDFLAGS   += -DNDEBUG
-CFLAGS 	   += -DNDEBUG
-endif
 
 #
 # Install probe
