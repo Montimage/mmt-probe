@@ -148,7 +148,7 @@ void free_http_session_data(http_session_data_t* http_data) {
         http_data->total_len = 0;
         http_data->file_has_extension = 0;
         free(http_data);
-        // http_data = NULL;
+        http_data = NULL;
     }
 }
 
@@ -177,18 +177,18 @@ http_session_data_t * get_http_session_data_by_id(uint64_t session_id, http_sess
     return get_http_session_data_by_id(session_id, current_http_data->next);
 }
 
-void add_http_session_data(http_session_data_t * current_http_data) {
+void add_http_session_data(http_session_data_t * current_http_data, struct smp_thread * th) {
     if (current_http_data == NULL) {
         fprintf(stderr, "[error] Could not add NULL session\n");
         return;
     }
 
-    if (list_http_session_data == NULL) {
-        list_http_session_data = current_http_data;
+    if (th->list_http_session_data == NULL) {
+        th->list_http_session_data = current_http_data;
     } else {
-        http_session_data_t * cur_head = list_http_session_data;
+        http_session_data_t * cur_head = th->list_http_session_data;
         current_http_data->next = cur_head;
-        list_http_session_data = current_http_data;
+        th->list_http_session_data = current_http_data;
     }
 }
 
@@ -230,25 +230,25 @@ void update_file_extension(http_session_data_t * http_data) {
  * Attribute handler that will be called every time an HTTP message start event is detected
  */
 void http_message_start_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-    // printf("[debug] %lu: http_message_start_handle - 1\n", ipacket->packet_id);
+    // debug("%lu: http_message_start_handle - 1\n", ipacket->packet_id);
     if (ipacket->session == NULL) return;
-
+    struct smp_thread *th = (struct smp_thread *) user_args;
     uint64_t session_id = get_session_id(ipacket->session);
-    http_session_data_t * http_session_data = get_http_session_data_by_id(session_id, list_http_session_data);
+    http_session_data_t * http_session_data = get_http_session_data_by_id(session_id, th->list_http_session_data);
     if (http_session_data == NULL) {
         http_session_data = new_http_session_data();
         if (http_session_data) {
             http_session_data->session_id = session_id;
             http_session_data->http_session_status = HSDS_TRANSFER;
-            add_http_session_data(http_session_data);
+            add_http_session_data(http_session_data,th);
         } else {
             fprintf(stderr, "[error] Cannot create http session data for session %lu - packet: %lu\n", session_id, ipacket->packet_id);
         }
     } else {
         http_session_data->http_session_status = HSDS_TRANSFER;
     }
-    // printf("[debug] %lu: %s.%s: %i\n", ipacket->packet_id, get_protocol_name_by_id(attribute->proto_id), get_attribute_name_by_protocol_and_attribute_ids(attribute->proto_id, attribute->field_id), *((uint32_t *) attribute->data));
-    // printf("[debug] %lu: http_message_start_handle - 2\n", ipacket->packet_id);
+    // debug("%lu: %s.%s: %i\n", ipacket->packet_id, get_protocol_name_by_id(attribute->proto_id), get_attribute_name_by_protocol_and_attribute_ids(attribute->proto_id, attribute->field_id), *((uint32_t *) attribute->data));
+    // debug("%lu: http_message_start_handle - 2\n", ipacket->packet_id);
 }
 
 /**
@@ -257,24 +257,25 @@ void http_message_start_handle(const ipacket_t * ipacket, attribute_t * attribut
  * and checks if the content type is htmp to initialize the html parser
  */
 void http_generic_header_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-    // printf("[debug] %lu: generic_header_handle - 1\n", ipacket->packet_id);
+    // debug("%lu: generic_header_handle - 1\n", ipacket->packet_id);
     mmt_session_t * session = get_session_from_packet(ipacket);
     if (session == NULL) return;
     http_content_processor_t * sp = get_http_content_processor_from_packet(ipacket);
     if (sp == NULL) return;
     mmt_generic_header_line_t * header_data = (mmt_generic_header_line_t *) attribute->data;
-    // printf("[debug] %lu: generic_header_handle - 2\n", ipacket->packet_id);
+    // debug("%lu: generic_header_handle - 2\n", ipacket->packet_id);
     if ( check_str_eq( "Content-Encoding", header_data->hfield) &&
             check_str_eq( "gzip", header_data->hvalue) ) {
         // printf("[debug] %lu content is compressed!\n", ipacket->packet_id);
         sp->content_encoding = 1; //Content encoding is gzip
     }
-    // printf("[debug] %lu: generic_header_handle - 3\n", ipacket->packet_id);
+    // debug("%lu: generic_header_handle - 3\n", ipacket->packet_id);
     if ( check_str_eq( "Content-Type", header_data->hfield) &&
             check_str_eq( "text/html", header_data->hvalue)) {
         sp->content_type = 1; // Content type is html
     }
-    http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(ipacket->session), list_http_session_data);
+    struct smp_thread *th = (struct smp_thread *) user_args;
+    http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(ipacket->session), th->list_http_session_data);
     if (check_str_eq( "Content-Type", header_data->hfield)) {
         if (http_session_data) {
             int hlen = strlen(header_data->hvalue) + 1;
@@ -294,9 +295,9 @@ void http_generic_header_handle(const ipacket_t * ipacket, attribute_t * attribu
         }
     }
 
-    // printf("[debug] %lu: generic_header_handle - 4\n", ipacket->packet_id);
-    // printf("[debug] %lu: %s.%s: %s: %s\n", ipacket->packet_id,get_protocol_name_by_id(attribute->proto_id),get_attribute_name_by_protocol_and_attribute_ids(attribute->proto_id, attribute->field_id),((mmt_generic_header_line_t *) attribute->data)->hfield,((mmt_generic_header_line_t *) attribute->data)->hvalue);
-    // printf("[debug] %lu: generic_header_handle - 5\n", ipacket->packet_id);
+    // debug("%lu: generic_header_handle - 4\n", ipacket->packet_id);
+    // debug("%lu: %s.%s: %s: %s\n", ipacket->packet_id,get_protocol_name_by_id(attribute->proto_id),get_attribute_name_by_protocol_and_attribute_ids(attribute->proto_id, attribute->field_id),((mmt_generic_header_line_t *) attribute->data)->hfield,((mmt_generic_header_line_t *) attribute->data)->hvalue);
+    // debug("%lu: generic_header_handle - 5\n", ipacket->packet_id);
 }
 
 /**
@@ -305,19 +306,19 @@ void http_generic_header_handle(const ipacket_t * ipacket, attribute_t * attribu
  * and content type is html respectively.
  */
 void http_headers_end_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-    // printf("[debug] %lu: http_headers_end_handle - 1\n", ipacket->packet_id);
+    // debug("%lu: http_headers_end_handle - 1\n", ipacket->packet_id);
     mmt_session_t * session = get_session_from_packet(ipacket);
     if (session == NULL) return;
-    // printf("[debug] %lu: http_headers_end_handle - 2\n", ipacket->packet_id);
+    // debug("%lu: http_headers_end_handle - 2\n", ipacket->packet_id);
     http_content_processor_t * sp = get_http_content_processor_from_packet(ipacket);
     if (sp == NULL) return;
-    // printf("[debug] %lu: http_headers_end_handle - 3\n", ipacket->packet_id);
+    // debug("%lu: http_headers_end_handle - 3\n", ipacket->packet_id);
     if ( sp->content_encoding == 1 ) sp->pre_processor = (void *) init_gzip_processor();
-    // printf("[debug] %lu: http_headers_end_handle - 4\n", ipacket->packet_id);
+    // debug("%lu: http_headers_end_handle - 4\n", ipacket->packet_id);
     if ( sp->content_type == 1 ) sp->processor = (void *) init_html_parser();
-    // printf("[debug] %lu: http_headers_end_handle - 5\n", ipacket->packet_id);
-    // printf("[debug] %lu: %s.%s: %i\n", ipacket->packet_id,get_protocol_name_by_id(attribute->proto_id),get_attribute_name_by_protocol_and_attribute_ids(attribute->proto_id, attribute->field_id),*((uint32_t *) attribute->data));
-    // printf("[debug] %lu: http_headers_end_handle - 6\n", ipacket->packet_id);
+    // debug("%lu: http_headers_end_handle - 5\n", ipacket->packet_id);
+    // debug("%lu: %s.%s: %i\n", ipacket->packet_id,get_protocol_name_by_id(attribute->proto_id),get_attribute_name_by_protocol_and_attribute_ids(attribute->proto_id, attribute->field_id),*((uint32_t *) attribute->data));
+    // debug("%lu: http_headers_end_handle - 6\n", ipacket->packet_id);
 }
 
 /**
@@ -325,24 +326,25 @@ void http_headers_end_handle(const ipacket_t * ipacket, attribute_t * attribute,
  * Cleans up the HTTP content processing structure and prepares it to a new message eventually.
  */
 void http_message_end_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-    // printf("[debug] %lu: http_message_end_handle - 1\n", ipacket->packet_id);
+    // debug("%lu: http_message_end_handle - 1\n", ipacket->packet_id);
     mmt_session_t * session = get_session_from_packet(ipacket);
     if (session == NULL) return;
-    // printf("[debug] %lu: http_message_end_handle - 2\n", ipacket->packet_id);
+    // debug("%lu: http_message_end_handle - 2\n", ipacket->packet_id);
     http_content_processor_t * sp = get_http_content_processor_from_packet(ipacket);
     if (sp == NULL) return;
-    // printf("[debug] %lu: http_message_end_handle - 3\n", ipacket->packet_id);
+    // debug("%lu: http_message_end_handle - 3\n", ipacket->packet_id);
     clean_http_content_processor(sp);
-    // printf("[debug] %lu: http_message_end_handle - 4\n", ipacket->packet_id);
-    http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(session), list_http_session_data);
+    // debug("%lu: http_message_end_handle - 4\n", ipacket->packet_id);
+    struct smp_thread *th = (struct smp_thread *) user_args;
+    http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(session), th->list_http_session_data);
     if (http_session_data) {
         if (http_session_data->filename && http_session_data->content_type) {
             // printf("[debug] %lu Transferred completed %s content_type: %s\n",ipacket->packet_id, http_session_data->filename, http_session_data->content_type);
         }
         reset_http_session_data(http_session_data);
     }
-    // printf("[debug] %lu: %s.%s: %i\n", ipacket->packet_id,get_protocol_name_by_id(attribute->proto_id),get_attribute_name_by_protocol_and_attribute_ids(attribute->proto_id, attribute->field_id),*((uint32_t *) attribute->data));
-    // printf("[debug] %lu: http_message_end_handle - 5\n", ipacket->packet_id);
+    // debug("%lu: %s.%s: %i\n", ipacket->packet_id,get_protocol_name_by_id(attribute->proto_id),get_attribute_name_by_protocol_and_attribute_ids(attribute->proto_id, attribute->field_id),*((uint32_t *) attribute->data));
+    // debug("%lu: http_message_end_handle - 5\n", ipacket->packet_id);
 }
 
 /**
@@ -353,17 +355,17 @@ void http_message_end_handle(const ipacket_t * ipacket, attribute_t * attribute,
  * and the interaction number in the session to take into account keep alive HTTP sessions
  */
 void http_data_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-    // printf("[debug] %lu: data_handle - 1\n", ipacket->packet_id);
+    // debug("%lu: data_handle - 1\n", ipacket->packet_id);
     mmt_session_t * session = get_session_from_packet(ipacket);
 
     char fname[128];
 
     if (session == NULL) return;
-    // printf("[debug] %lu: data_handle - 2\n", ipacket->packet_id);
+    // debug("%lu: data_handle - 2\n", ipacket->packet_id);
     http_content_processor_t * sp = get_http_content_processor_from_packet(ipacket);
     // if (sp == NULL) return;
-
-    http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(session), list_http_session_data);
+    struct smp_thread *th = (struct smp_thread *) user_args;
+    http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(session), th->list_http_session_data);
     if (http_session_data) {
         if (http_session_data->filename == NULL) {
             http_session_data->filename = get_file_name(get_session_id(session), sp->interaction_count);
@@ -374,12 +376,12 @@ void http_data_handle(const ipacket_t * ipacket, attribute_t * attribute, void *
         http_session_data->current_len += ((mmt_header_line_t *) attribute->data)->len;
     }
 
-    // printf("[debug] %lu: data_handle - 3\n", ipacket->packet_id);
+    // debug("%lu: data_handle - 3\n", ipacket->packet_id);
     //Process body
     if (sp && sp->content_encoding ) {
-        // printf("[debug] %lu: data_handle - 4\n", ipacket->packet_id);
+        // debug("%lu: data_handle - 4\n", ipacket->packet_id);
         if ( sp->pre_processor ) {
-            // printf("[debug] %lu: data_handle - 5\n", ipacket->packet_id);
+            // debug("%lu: data_handle - 5\n", ipacket->packet_id);
             gzip_processor_t * gzp = (gzip_processor_t *) sp->pre_processor;
             if (http_session_data->filename) {
                 gzip_process(((mmt_header_line_t *) attribute->data)->ptr, ((mmt_header_line_t *) attribute->data)->len, gzp, sp, http_session_data->filename);
@@ -389,19 +391,19 @@ void http_data_handle(const ipacket_t * ipacket, attribute_t * attribute, void *
 
         }
     } else if ( sp && sp->content_type && sp->processor ) {
-        // printf("[debug] %lu: data_handle - 6\n", ipacket->packet_id);
+        // debug("%lu: data_handle - 6\n", ipacket->packet_id);
         html_parser_t * hp = (html_parser_t *) sp->processor;
         html_parse(((mmt_header_line_t *) attribute->data)->ptr, ((mmt_header_line_t *) attribute->data)->len, hp, sp);
-        // printf("[debug] %lu: data_handle - 7\n", ipacket->packet_id);
+        // debug("%lu: data_handle - 7\n", ipacket->packet_id);
     }
 
     if(!sp || !sp->content_encoding){
         http_write_data_to_file (http_session_data->filename, ((mmt_header_line_t *) attribute->data)->ptr, ((mmt_header_line_t *) attribute->data)->len);
     }
     
-    // printf("[debug] %lu: data_handle - 8\n", ipacket->packet_id);
-    // printf("[debug] %lu: %s.%s: %i\n", ipacket->packet_id,get_protocol_name_by_id(attribute->proto_id),get_attribute_name_by_protocol_and_attribute_ids(attribute->proto_id, attribute->field_id),((mmt_header_line_t *) attribute->data)->len);
-    // printf("[debug] %lu: data_handle - 9\n", ipacket->packet_id);
+    // debug("%lu: data_handle - 8\n", ipacket->packet_id);
+    // debug("%lu: %s.%s: %i\n", ipacket->packet_id,get_protocol_name_by_id(attribute->proto_id),get_attribute_name_by_protocol_and_attribute_ids(attribute->proto_id, attribute->field_id),((mmt_header_line_t *) attribute->data)->len);
+    // debug("%lu: data_handle - 9\n", ipacket->packet_id);
 }
 
 int http_packet_handler(const ipacket_t * ipacket, void * user_args) {
@@ -428,7 +430,8 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args) {
 
     if(is_http_packet(ipacket)==0) return 0;
     // printf("[debug] http_packet_handler 2 :%lu\n", ipacket->packet_id);
-    http_session_data_t * http_session_data = get_http_session_data_by_id(session_id, list_http_session_data);
+    struct smp_thread *th = (struct smp_thread *) user_args;
+    http_session_data_t * http_session_data = get_http_session_data_by_id(session_id, th->list_http_session_data);
 
     http_content_processor_t * sp = get_http_content_processor_from_packet(ipacket);
     if (http_session_data) {
@@ -521,14 +524,14 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args) {
     mmt_header_line_t * http_response = (mmt_header_line_t *)get_attribute_extracted_data_by_name(ipacket, "http", "response");
     char * tcp_payload = (char*)get_attribute_extracted_data_by_name(ipacket, "tcp", "p_payload");
     uint32_t * payload_len = (uint32_t *)get_attribute_extracted_data_by_name(ipacket, "tcp", "payload_len");
-    // printf("[debug] %lu: http_method %p and http_response %p\n", ipacket->packet_id, http_method, http_response);
     if (tcp_payload && payload_len && *payload_len > 0 && http_method == NULL && http_response == NULL) {
         if (http_session_data) {
+            // debug("http_packet_handler of packet: %lu in session: %lu (http_data session: %lu)",ipacket->packet_id, get_session_id(ipacket->session), http_session_data->session_id);
             if (http_session_data->http_session_status == HSDS_TRANSFER) {
                 if ( sp && sp->content_encoding ) {
-                    // printf("[debug] %lu: packet_handler - 4\n", ipacket->packet_id);
+                    // debug("%lu: packet_handler - 4\n", ipacket->packet_id);
                     if ( sp->pre_processor ) {
-                        // printf("[debug] %lu: packet_handler - 5\n", ipacket->packet_id);
+                        // debug("%lu: packet_handler - 5\n", ipacket->packet_id);
                         gzip_processor_t * gzp = (gzip_processor_t *) sp->pre_processor;
                         http_session_data->current_len += *payload_len;
                         gzip_process(tcp_payload, *payload_len, gzp, sp, http_session_data->filename);
@@ -557,17 +560,17 @@ void * close_http_content_processor(http_content_processor_t * sp) {
   return NULL;
 }
 
-void clean_http_session_data(uint64_t session_id){
-    // printf("[debug] clean_http_session_data : %lu\n",session_id );
+void clean_http_session_data(uint64_t session_id, struct smp_thread * th){
+    // debug("clean_http_session_data : %lu",session_id );
     // fprintf(stderr, "[debug] clean_http_session_data : %lu\n",session_id );
-    if(list_http_session_data == NULL)  {
+    if(th->list_http_session_data == NULL)  {
         // fprintf(stderr, "[error] Cannot find http_session_data with id: %lu\n",session_id);
         return;
     }
 
-    http_session_data_t * current_http_data = list_http_session_data;
+    http_session_data_t * current_http_data = th->list_http_session_data;
     if(current_http_data->session_id == session_id){
-        list_http_session_data = current_http_data->next;
+        th->list_http_session_data = current_http_data->next;
         free_http_session_data(current_http_data);
         return;
     }

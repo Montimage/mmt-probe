@@ -44,8 +44,8 @@ src/multisession_reporting.c src/security_msg_reporting.c src/condition_based_re
 #set of library
 LDLIBS   += -L/opt/mmt/dpi/lib -L/opt/mmt/security/lib -lmmt_core -lmmt_tcpip -lmmt_security -lmmt_security2 -lxml2 -lpcap -lconfuse -lhiredis -lpthread
 CFLAGS   += $(WERROR_CFLAGS) -O3 -I /opt/mmt/dpi/include -I /opt/mmt/security/include -Wall -Wno-unused-variable -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DDPDK
-#CFLAGS   = -Wall -Wno-unused-variable -DNDEBUG -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"
-CLDFLAGS += -I /opt/mmt/dpi/include -DNDEBUG
+#CFLAGS   = -Wall -Wno-unused-variable -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"
+CLDFLAGS += -I /opt/mmt/dpi/include
  
 include $(RTE_SDK)/mk/rte.extapp.mk
 
@@ -67,22 +67,16 @@ VERSION     := 1.0
 #set of library
 LIBS     = -L /opt/mmt/dpi/lib -L/opt/mmt/security/lib -lmmt_core -lmmt_tcpip -lmmt_security -lmmt_security2 -lxml2 -ldl -lpcap -lconfuse -lhiredis -lpthread
 
-CFLAGS   = -Wall -Wno-unused-variable -DNDEBUG -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DPCAP
-CLDFLAGS = -I /opt/mmt/dpi/include -I /opt/mmt/security/include -DNDEBUG
+CFLAGS   = -Wall -Wno-unused-variable -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DPCAP
+CLDFLAGS = -I /opt/mmt/dpi/include -I /opt/mmt/security/include
 
 #for debuging
 ifdef DEBUG
-	CFLAGS   += -g -DNDEBUG -O0
-	CLDFLAGS += -g -DNDEBUG -O0
+	CFLAGS   += -g -O0
+	CLDFLAGS += -g -O0
 else
 	CFLAGS   += -O3
 	CLDFLAGS += -O3
-endif
-
-# For HTTP reconstruction option
-ifdef HTTP_RECONSTRUCT
-LIBS     += -lhtmlstreamparser -lz
-CFLAGS   += -DHTTP_RECONSTRUCT
 endif
 
 #folders containing source files
@@ -108,6 +102,19 @@ clean:
 	$(QUIET) $(RM) $(MAIN_OBJS) $(LIB_OBJS) $(OUTPUT)
 		
 endif
+
+# For HTTP reconstruction option
+ifdef HTTP_RECONSTRUCT
+LIBS     += -lhtmlstreamparser -lz
+CFLAGS   += -DHTTP_RECONSTRUCT
+endif
+
+# For showing message from debug(...)
+ifndef NDEBUG
+CLDFLAGS   += -DNDEBUG
+CFLAGS 	   += -DNDEBUG
+endif
+
 #
 # Install probe
 #
