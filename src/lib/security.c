@@ -27,9 +27,8 @@ static size_t security_rules_count = 0;
  * Otherwise it creates a new memory segment to store the result message. One need
  * to use #free_message_t to free the message.
  */
-static inline message_t* _get_packet_info( const ipacket_t *pkt, const message_element_t *proto_atts, size_t proto_atts_count ){
+static inline message_t* _get_packet_info( const ipacket_t *pkt, const proto_attribute_t **proto_atts, size_t proto_atts_count ){
 	int i;
-	bool has_data = NO;
 	void *data;
 	int type;
 	message_t *msg = create_message_t( proto_atts_count );
@@ -38,21 +37,10 @@ static inline message_t* _get_packet_info( const ipacket_t *pkt, const message_e
 
 	//get a list of proto/attributes being used by mmt-security
 	for( i=0; i<proto_atts_count; i++ ){
-		msg->elements[i].att_id    = proto_atts[i].att_id;
-		msg->elements[i].proto_id  = proto_atts[i].proto_id;
-
-		dpi_message_set_data( pkt, proto_atts[i].data_type, msg, &msg->elements[i] );
-
-		if( msg->elements[i].data != NULL )
-			has_data = YES;
+		dpi_message_set_data( pkt, proto_atts[i]->dpi_type, msg, proto_atts[i]->proto_id, proto_atts[i]->att_id );
 	}
 
-	if( likely( has_data ))
-		return msg;
-
-	//need to free #msg when the packet contains no-interested information
-	free_message_t( msg );
-	return NULL;
+	return msg;
 }
 
 /**
@@ -67,8 +55,10 @@ static int _packet_handler( const ipacket_t *ipacket, void *args ) {
 
 	//if there is no interested information
 	//TODO: to check if we still need to send timestamp/counter to mmt-sec?
-	if( unlikely( msg == NULL ))
+	if( unlikely( msg->elements_count == 0 )){
+		free_message_t( msg );
 		return 0;
+	}
 
 	wrapper->sec_process( wrapper->sec_handler, msg );
 	wrapper->msg_count ++;
@@ -107,6 +97,7 @@ int init_security(){
 
 void close_security(){
 	mmt_mem_free( security_rules_array );
+	security_rules_array = NULL;
 }
 
 /**
@@ -171,7 +162,6 @@ sec_wrapper_t* register_security( mmt_handler_t *dpi_handler, size_t threads_cou
 	sec_wrapper_t *ret = mmt_mem_alloc(sizeof( sec_wrapper_t ));
 
 	size_t i, j, size;
-	const proto_attribute_t **p_atts;
 	char att_registed[10000], *att_registed_ptr = att_registed;
 
 
@@ -182,7 +172,7 @@ sec_wrapper_t* register_security( mmt_handler_t *dpi_handler, size_t threads_cou
 	if( threads_count == 0 ){
 		ret->sec_handler = mmt_sec_register( security_rules_array, security_rules_count, false, callback, th );
 		ret->sec_process = &mmt_sec_process;
-		size = mmt_sec_get_unique_protocol_attributes( ret->sec_handler, &p_atts );
+		size = mmt_sec_get_unique_protocol_attributes( ret->sec_handler, &ret->proto_atts );
 
 		if( verbose )
 			mmt_info( "Security %s is verifying %zu rules having %zu proto.atts using probe threads",
@@ -193,7 +183,7 @@ sec_wrapper_t* register_security( mmt_handler_t *dpi_handler, size_t threads_cou
 		ret->sec_handler = mmt_smp_sec_register( security_rules_array, security_rules_count, threads_count,
 																				cores_id, rules_mask, false, callback, th );
 		ret->sec_process = &mmt_smp_sec_process;
-		size = mmt_smp_sec_get_unique_protocol_attributes( ret->sec_handler, &p_atts );
+		size = mmt_smp_sec_get_unique_protocol_attributes( ret->sec_handler, &ret->proto_atts );
 
 		if( verbose )
 			mmt_info( "Security %s is verifying %zu rules having %zu proto.atts using %zu threads",
@@ -204,18 +194,13 @@ sec_wrapper_t* register_security( mmt_handler_t *dpi_handler, size_t threads_cou
 	//register protocols and their attributes using by mmt-sec
 	ret->proto_atts_count = size;
 
-	ret->proto_atts = mmt_mem_alloc( size * sizeof( message_element_t ));
 	for( i=0; i<size; i++ ){
 		//mmt_debug( "Registered attribute to extract: %s.%s", proto_atts[i]->proto, proto_atts[i]->att );
-		if( register_extraction_attribute( dpi_handler, p_atts[i]->proto_id, p_atts[i]->att_id ) == 0){
-			mmt_warn( "Cannot register protocol/attribute %s.%s", p_atts[i]->proto, p_atts[i]->att );
+		if( register_extraction_attribute( dpi_handler, ret->proto_atts[i]->proto_id, ret->proto_atts[i]->att_id ) == 0){
+			mmt_warn( "Cannot register protocol/attribute %s.%s", ret->proto_atts[i]->proto, ret->proto_atts[i]->att );
 		}
 
-		ret->proto_atts[i].proto_id  = p_atts[i]->proto_id;
-		ret->proto_atts[i].att_id    = p_atts[i]->att_id;
-		ret->proto_atts[i].data_type = get_attribute_data_type( p_atts[i]->proto_id, p_atts[i]->att_id );
-
-		att_registed_ptr += sprintf( att_registed_ptr, "%s.%s,", p_atts[i]->proto, p_atts[i]->att );
+		att_registed_ptr += sprintf( att_registed_ptr, "%s.%s,", ret->proto_atts[i]->proto, ret->proto_atts[i]->att );
 	}
 	if( verbose ){
 		//replace the last comma by dot
@@ -244,9 +229,6 @@ size_t unregister_security( sec_wrapper_t* ret ){
 		alerts_count = mmt_smp_sec_unregister( ret->sec_handler, NO );
 	else
 		alerts_count = mmt_sec_unregister( ret->sec_handler );
-
-	//free list proto and att
-	mmt_mem_free( ret->proto_atts );
 
 	mmt_mem_free( ret );
 

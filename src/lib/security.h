@@ -20,7 +20,7 @@ typedef struct sec_wrapper_struct{
 
 	void (*sec_process)( const void *, message_t *);
 
-	message_element_t *proto_atts;
+	const proto_attribute_t **proto_atts;
 
 	uint32_t proto_atts_count;
 
