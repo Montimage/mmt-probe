@@ -148,7 +148,7 @@ void get_security_report(const ipacket_t * ipacket,void * args){
  * Returns 0 if unsuccessful
  * */
 int register_security_report_handle(void * args) {
-	int i = 0, j = 0, k = 1, l = 0;
+	int i = 0, j = 0, l = 0;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	struct smp_thread *th = (struct smp_thread *) args;
 
@@ -171,20 +171,25 @@ int register_security_report_handle(void * args) {
 			for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
 				mmt_security_attribute_t * security_attribute = &probe_context->security_reports[i].attributes[j];
 
-				k = security_attribute->proto_id = get_protocol_id_by_name (security_attribute->proto);
-				if (k == 0) return k;
+				security_attribute->proto_id = get_protocol_id_by_name (security_attribute->proto);
+				if (security_attribute->proto_id == 0) return 0;
 
-				k = security_attribute->attribute_id = get_attribute_id_by_protocol_and_attribute_names(security_attribute->proto, security_attribute->attribute);
-				if (k == 0) return k;
+				security_attribute->attribute_id = get_attribute_id_by_protocol_and_attribute_names(security_attribute->proto, security_attribute->attribute);
+				if (security_attribute->attribute_id == 0) return 0;
 
 				if (is_registered_attribute(th->mmt_handler, security_attribute->proto_id, security_attribute->attribute_id) == 0){
-					k = register_extraction_attribute(th->mmt_handler, security_attribute->proto_id, security_attribute->attribute_id);
-					if (k == 0) return k;
+					if (!register_extraction_attribute(th->mmt_handler, security_attribute->proto_id, security_attribute->attribute_id)) {
+						fprintf(stderr,"[Error] Cannot register_extraction_attribute (security-report): proto: %s ,attribute: %s \n",security_attribute->proto,security_attribute->attribute);
+						return 0;
+					}
+				}else{
+					fprintf(stderr,"[WARNING] Already registered register_extraction_attribute (security-report): proto: %s ,attribute: %s \n",security_attribute->proto,security_attribute->attribute);
+
 				}
 			}
 		}
 	}
-	return k;
+	return 1;
 }
 
 /* This function initialize security report.

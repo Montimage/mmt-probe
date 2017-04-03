@@ -86,25 +86,32 @@ void ftp_last_command(const ipacket_t * ipacket,struct smp_thread *th,attribute_
 
 	uint16_t length = 0;
 	ftp_command_t * last_command = (ftp_command_t *)attr_extract->data;
-	length = strlen(last_command->str_cmd);
-	memcpy(&th->report[report_num].data[th->report[report_num].security_report_counter][th->report[report_num].length], &length, 2);
-	th->report[report_num].length += 2;
-	memcpy(&th->report[report_num].data[th->report[report_num].security_report_counter][th->report[report_num].length], last_command->str_cmd,length);
-	th->report[report_num].length +=  length;
-	//printf ("len= %u, attribute_data ...=%s \n",length,last_command->str_cmd);
+
+	if (last_command != NULL){
+		length = strlen(last_command->str_cmd);
+		memcpy(&th->report[report_num].data[th->report[report_num].security_report_counter][th->report[report_num].length], &length, 2);
+		th->report[report_num].length += 2;
+		memcpy(&th->report[report_num].data[th->report[report_num].security_report_counter][th->report[report_num].length], last_command->str_cmd,length);
+		th->report[report_num].length +=  length;
+		//printf ("len= %u, attribute_data ...=%s \n",length,last_command->str_cmd);
+	}
 }
 
 /* This function extracts the ftp_last_response_code from a packet for reporting  */
 void ftp_last_response_code(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num){
 
 	uint16_t length = 0;
-	ftp_response_t * last_command = (ftp_response_t *)attr_extract->data;
-	length = strlen(last_command->str_code);
-	memcpy(&th->report[report_num].data[th->report[report_num].security_report_counter][th->report[report_num].length], &length, 2);
-	th->report[report_num].length += 2;
-	memcpy(&th->report[report_num].data[th->report[report_num].security_report_counter][th->report[report_num].length], last_command->str_code,length);
-	th->report[report_num].length +=  length;
-	//printf ("len= %u, attribute_data ...=%s \n",length,last_command->str_code);
+	ftp_response_t * last_response_code = (ftp_response_t *)attr_extract->data;
+
+	if ( last_response_code != NULL){
+		length = strlen(last_response_code->str_code);
+		memcpy(&th->report[report_num].data[th->report[report_num].security_report_counter][th->report[report_num].length], &length, 2);
+		th->report[report_num].length += 2;
+		memcpy(&th->report[report_num].data[th->report[report_num].security_report_counter][th->report[report_num].length], last_response_code->str_code,length);
+		th->report[report_num].length +=  length;
+		//printf ("len= %u, attribute_data ...=%s \n",length,last_command->str_code);
+	}
+
 }
 
 /* This function extracts the ip_opts from a packet for reporting  */
