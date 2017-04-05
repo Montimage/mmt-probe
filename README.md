@@ -9,6 +9,10 @@ See [Wiki](https://bitbucket.org/montimage/mmt-probe/wiki)
 # Compile the key generator if need
     make keygen
     #./keygen
+    
+# Complile MMT-SDK and MMT-security
+    MMT-probe requires MMT-SDK and MMT-security to be installed before hand
+    
 # Compile the probe
     #if need, remove old installation:
     #sudo make dist-clean
