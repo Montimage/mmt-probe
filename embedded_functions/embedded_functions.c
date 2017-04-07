@@ -409,6 +409,7 @@ int *check_nfs_redis(void *p_payload, void *payload_len){
 					if (strstr(p_payload, token) != NULL){
 					//printf ("Detected\n");
 					redisFree(c);
+                    free(tcp_payload);
 					return 1;
 					}        
 					}
