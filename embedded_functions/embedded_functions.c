@@ -249,7 +249,7 @@ int *check_sql_injection(void *p, void *pl){
   *handle = 0;
  
   if( (p == NULL) || (pl == NULL) ){
-    *handle = 1;
+    *handle = 2;
     return handle;
   }
   uint16_t len = *((uint16_t *)pl);
@@ -377,47 +377,45 @@ int *check_nfs_redis(void *p_payload, void *payload_len){
     /* Let's check what we have inside the list */
     reply = redisCommand(c,"LRANGE multisession.report 0 -1");
     if (reply->type == REDIS_REPLY_ARRAY) {
-		int j=0;
+ 		int j=0;
         for (j = 0; j < reply->elements; j++) {
 			//printf("report: %s\n", reply->element[j]->str);
-            char f_name[30], probe_report[256];
+            char probe_report[256];
             char *token;
             strcpy(probe_report, reply->element[j]->str);
             token = strtok(reply->element[j]->str, ",");
             int i = 0;
 			while (token != NULL) {
+				//printf("Token:%s\n", token);
 				if (i==1) {
 					//check the validity of the report
 					struct timeval now;
 					gettimeofday(&now, NULL);
-					char *_token;
-					char timestamp[30];
-					strcpy(timestamp, token);
-					token = strtok(NULL, ",");
-					_token = strtok(timestamp, ".");
-					i++;
-					if (_token != NULL){
-						//printf("Timestamp: %s\n", _token);
-						if (now.tv_sec - atoi(_token) > 300) {
+					double element_ts = atof(token);
+					//printf("Timestamp: %4.4f\n", element_ts);
+					if (now.tv_sec - element_ts > 300) {
 							redisCommand(c,"LREM multisession.report 1 %s", probe_report);
 							//printf("Delete the outdated report %s\n", probe_report);
-							continue;
+							i++;
+							break;
 							}
-						}
 					}
 				if (i==2){
-					strcpy(f_name, token);
-					//printf("%s\n", f_name);
+					if (token[0] == ' '){
+					//printf("NULL report\n");
+					break;
+					}
+					//printf("Filename: %s\n", token);
+					if (strstr(p_payload, token) != NULL){
+					//printf ("Detected\n");
+					redisFree(c);
+					return 1;
+					}        
 					}
 				token = strtok(NULL, ",");
 				i++;
 				}
-			if (strstr(tcp_payload, f_name) != NULL){
-			//printf ("Detected\n");
-			*handle = 1;
-      free(tcp_payload);
-			return handle;
-			}            
+			    
         }
     }
   redisFree(c);
