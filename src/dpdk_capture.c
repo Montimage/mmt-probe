@@ -225,7 +225,7 @@ static int _worker_thread( void *args_ptr ){
 			if (mmt_conf->enable_session_report == 1)
 				process_session_timer_handler( th->mmt_handler );
 
-			if (mmt_conf->enable_proto_without_session_stats == 1 || probe_context->enable_IP_fragmentation_report == 1)
+			if (mmt_conf->enable_proto_without_session_stats == 1 || mmt_conf->enable_IP_fragmentation_report == 1)
 				iterate_through_protocols(protocols_stats_iterator, th);
 		}
 
@@ -267,7 +267,7 @@ static int _worker_thread( void *args_ptr ){
 	radius_ext_cleanup( th->mmt_handler ); // cleanup our event handler for RADIUS initializations
 	flowstruct_cleanup( th->mmt_handler ); // cleanup our event handler
 	th->report_counter++;
-	if ( mmt_conf->enable_proto_without_session_stats == 1 || probe_context->enable_IP_fragmentation_report == 1)
+	if ( mmt_conf->enable_proto_without_session_stats == 1 || mmt_conf->enable_IP_fragmentation_report == 1)
 		iterate_through_protocols( protocols_stats_iterator, th );
 	if ( cleanup_registered_handlers (th) == 0 )
 		fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",th->thread_index);
