@@ -20,7 +20,7 @@ VERSION     := 1.1.0.0
 
 
 #set of library
-LIBS     := -L/opt/mmt/dpi/lib -L/opt/mmt/security/lib -lmmt_core -lmmt_tcpip -lmmt_security -lmmt_security2 -lxml2 -lconfuse -lhiredis -lpthread
+LIBS     := -L/opt/mmt/dpi/lib -L/opt/mmt/security/lib -lmmt_core -lmmt_tcpip -lmmt_security -lmmt_security2 -lxml2 -lconfuse -lhiredis -lpthread -lrdkafka -lz -lrt
 
 #for debuging
 ifdef DEBUG
@@ -73,7 +73,8 @@ src/multisession_reporting.c src/security_msg_reporting.c src/condition_based_re
 
 #set of library
 LDLIBS   += $(LIBS)
-CFLAGS   += $(WERROR_CFLAGS) -I /opt/mmt/dpi/include -I /opt/mmt/security/include -Wall -Wno-unused-variable -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DDPDK
+CFLAGS   += $(WERROR_CFLAGS) -I /opt/mmt/dpi/include -I /opt/mmt/security/include -I /usr/local/include/librdkafka \
+ -Wall -Wno-unused-variable -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DDPDK
  
 include $(RTE_SDK)/mk/rte.extapp.mk
 
@@ -94,7 +95,7 @@ ifdef PCAP
 #set of library
 LIBS     += -lpcap -ldl
 CFLAGS   += -Wall -Wno-unused-variable -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DPCAP
-CLDFLAGS += -I /opt/mmt/dpi/include -I /opt/mmt/security/include
+CLDFLAGS += -I /opt/mmt/dpi/include -I /opt/mmt/security/include -I /usr/local/include/librdkafka 
 
 #folders containing source files
 SRCDIR = src
