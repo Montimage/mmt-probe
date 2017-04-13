@@ -59,8 +59,10 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
 	}
 	message[ offset ] = '\0';
 	//send_message_to_file ("event.report", message);
-	if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message, th);
-	if (probe_context->redis_enable == 1) send_message_to_redis ("event.report", message);
+
+	if (probe_context->output_to_file_enable && probe_context->event_output_channel[0] ) send_message_to_file_thread (message, th);
+	if (probe_context->redis_enable && probe_context->event_output_channel[1] ) send_message_to_redis ("event.report", message);
+	if (probe_context->kafka_enable && probe_context->event_output_channel[2] ) send_msg_to_kafka(probe_context->topic_object->rkt_event, message);
 
 }
 /* This function registers attributes and handlers for event report.

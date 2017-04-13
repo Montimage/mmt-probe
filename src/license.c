@@ -106,6 +106,8 @@ int license_expiry_check(int status){
 		license_message[ MAX_MESS ] = '\0';
 		if (probe_context->output_to_file_enable == 1 && status == 0) send_message_to_file (license_message);
 		if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
+		if (probe_context->kafka_enable == 1 && status == 0)send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
+
 
 		sprintf(lg_msg, "\n\t*************************************\n"
 				"\t*  MMT LICENSE KEY DOES-NOT EXIST   *\n"
@@ -144,6 +146,8 @@ int license_expiry_check(int status){
 		license_message[ MAX_MESS ] = '\0';
 		if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
 		if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
+		if (probe_context->kafka_enable == 1 && status == 0)send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
+
 
 		sprintf(lg_msg,"\n\t*************************************\n"
 				"\t*        MMT LICENSE MODIFIED       *\n"
@@ -174,6 +178,8 @@ int license_expiry_check(int status){
 		license_message[ MAX_MESS ] = '\0';
 		if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
 		if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
+		if (probe_context->kafka_enable == 1 && status == 0 )send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
+
 
 		sprintf(lg_msg,"\n\t*************************************\n"
 				"\t*        MMT LICENSE MODIFIED       *\n"
@@ -196,6 +202,8 @@ int license_expiry_check(int status){
 		license_message[ MAX_MESS ] = '\0';
 		if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
 		if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
+		if (probe_context->kafka_enable == 1 && status == 0)send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
+
 
 		sprintf(lg_msg,"\n\t*************************************\n"
 				"\t*        MMT LICENSE MODIFIED       *\n"
@@ -272,7 +280,9 @@ int license_expiry_check(int status){
 
 			license_message[ MAX_MESS ] = '\0';
 			if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
-			if (probe_context->redis_enable == 1&& status == 0)send_message_to_redis ("license.stat", license_message);
+			if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
+			if (probe_context->kafka_enable == 1 && status == 0)send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
+
 
 			sprintf(lg_msg, "\n\t*************************************\n"
 					"\t*          BUY MMT LICENSE          *\n"
@@ -289,6 +299,8 @@ int license_expiry_check(int status){
 			license_message[ MAX_MESS ] = '\0';
 			if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
 			if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
+			if (probe_context->kafka_enable == 1 && status == 0)send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
+
 
 			sprintf(lg_msg, "\n\t*************************************\n"
 					"\t* MMT LICENSE EXPIRED ON %04d-%02d-%02d *\n"
@@ -307,6 +319,8 @@ int license_expiry_check(int status){
 			license_message[ MAX_MESS ] = '\0';
 			if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
 			if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
+			if (probe_context->kafka_enable == 1 && status ==0)send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
+
 
 			sprintf(lg_msg,"\n\t***********************************************\n"
 					"\t*  MMT LICENSE WILL EXPIRE ON %04d-%02d-%02d  *\n"
@@ -321,6 +335,7 @@ int license_expiry_check(int status){
 			license_message[ MAX_MESS ] = '\0';
 			if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
 			if (probe_context->redis_enable== 1 && status == 0)send_message_to_redis ("license.stat", license_message);
+			if (probe_context->kafka_enable == 1)send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
 
 		}
 	}else{
@@ -330,6 +345,7 @@ int license_expiry_check(int status){
 		license_message[ MAX_MESS ] = '\0';
 		if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
 		if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
+		if (probe_context->kafka_enable == 1 && status == 0)send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
 
 		sprintf(lg_msg,"\n\t*************************************\n"
 				"\t*        MMT LICENSE MODIFIED       *\n"

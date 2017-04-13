@@ -59,6 +59,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_INT("report-packet-count", 10000, CFGF_NONE),
 			CFG_INT("report-byte-count", 5000, CFGF_NONE),
 			CFG_INT("report-flow-count", 1000, CFGF_NONE),
+			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
 	};
 	cfg_opt_t session_timeout_opts[] = {
@@ -72,6 +73,13 @@ cfg_t * parse_conf(const char *filename) {
 	cfg_opt_t redis_output_opts[] = {
 			CFG_STR("hostname", "localhost", CFGF_NONE),
 			CFG_INT("port", 6379, CFGF_NONE),
+			CFG_INT("enabled", 0, CFGF_NONE),
+			CFG_END()
+	};
+
+	cfg_opt_t kafka_output_opts[] = {
+			CFG_STR("hostname", "localhost", CFGF_NONE),
+			CFG_INT("port", 9092, CFGF_NONE),
 			CFG_INT("enabled", 0, CFGF_NONE),
 			CFG_END()
 	};
@@ -91,6 +99,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_INT("id", 0, CFGF_NONE),
 			CFG_STR("results-dir", 0, CFGF_NONE),
 			CFG_STR("properties-file", 0, CFGF_NONE),
+			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
 	};
 
@@ -99,14 +108,14 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_INT("thread-nb",    0, CFGF_NONE),
 			CFG_INT("id",           0, CFGF_NONE),
 			CFG_STR("rules-mask",   0, CFGF_NONE),
-			CFG_INT("file-output",  0, CFGF_NONE),
-			CFG_INT("redis-output", 0, CFGF_NONE),
+			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
 	};
 
 	cfg_opt_t cpu_mem_report_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
 			CFG_INT("frequency", 0, CFGF_NONE),
+			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
 	};
 
@@ -120,6 +129,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_INT("enable", 0, CFGF_NONE),
 			CFG_INT("id", 0, CFGF_NONE),
 			CFG_STR("location", 0, CFGF_NONE),
+			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
 	};
 
@@ -127,6 +137,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_INT("enable", 0, CFGF_NONE),
 			CFG_INT("include-msg", 0, CFGF_NONE),
 			CFG_INT("include-condition", 0, CFGF_NONE),
+			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
 	};
 
@@ -140,6 +151,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_INT("id", 0, CFGF_NONE),
 			CFG_STR("event", "", CFGF_NONE),
 			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
+			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
 	};
 
@@ -173,14 +185,21 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_INT("file-output", 0, CFGF_NONE),
 			CFG_INT("redis-output", 0, CFGF_NONE),
 			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
+			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
+			CFG_END()
+	};
+	cfg_opt_t session_report_opts[] = {
+			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
 	};
 
 	cfg_opt_t opts[] = {
 			CFG_SEC("micro-flows", micro_flows_opts, CFGF_NONE),
 			CFG_SEC("session-timeout", session_timeout_opts, CFGF_NONE),
-			CFG_SEC("output", output_opts, CFGF_NONE),
+			CFG_SEC("file-output", output_opts, CFGF_NONE),
 			CFG_SEC("redis-output", redis_output_opts, CFGF_NONE),
+			CFG_SEC("kafka-output", redis_output_opts, CFGF_NONE),
 			CFG_SEC("data-output", data_output_opts, CFGF_NONE),
 			CFG_SEC("security1", security1_opts, CFGF_NONE),
 			CFG_SEC("security2", security2_opts, CFGF_NONE),
@@ -210,6 +229,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_SEC("security-report", security_report_opts, CFGF_TITLE | CFGF_MULTI),
 			CFG_INT("num-of-report-per-msg", 1, CFGF_NONE),
 			CFG_SEC("security-report-multisession", security_report_multisession_opts, CFGF_TITLE | CFGF_MULTI),
+			CFG_SEC("session-report", session_report_opts, CFGF_TITLE | CFGF_MULTI),
 
 			CFG_END()
 	};
@@ -345,7 +365,6 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 		//mmt_conf->enable_proto_stats = 1; //enabled by default
 		mmt_conf->enable_proto_without_session_stats = (uint32_t) cfg_getint(cfg, "enable-proto-without-session-stat");
 		mmt_conf->enable_IP_fragmentation_report = (uint32_t) cfg_getint(cfg, "enable-IP-fragmentation-report");
-		mmt_conf->enable_session_report = (uint32_t) cfg_getint(cfg, "enable-session-report");
 		//mmt_conf->enable_flow_stats = 1;  //enabled by default
 		mmt_conf->stats_reporting_period = (uint32_t) cfg_getint(cfg, "stats-period");
 		mmt_conf->sampled_report_period = (uint32_t) cfg_getint(cfg, "file-output-period");
@@ -399,13 +418,25 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 		if (cfg_size(cfg, "micro-flows")) {
 			cfg_t *microflows = cfg_getnsec(cfg, "micro-flows", 0);
 			if (microflows->line != 0){
+				char output_channel[10];
 				mmt_conf->microf_enable = (uint32_t) cfg_getint(microflows, "enable");
-				mmt_conf->microf_id = (uint32_t) cfg_getint(microflows, "id");
-				mmt_conf->microf_pthreshold = (uint32_t) cfg_getint(microflows, "include-packet-count");
-				mmt_conf->microf_bthreshold = (uint32_t) cfg_getint(microflows, "include-byte-count")*1000/*in Bytes*/;
-				mmt_conf->microf_report_pthreshold = (uint32_t) cfg_getint(microflows, "report-packet-count");
-				mmt_conf->microf_report_bthreshold = (uint32_t) cfg_getint(microflows, "report-byte-count")*1000/*in Bytes*/;
-				mmt_conf->microf_report_fthreshold = (uint32_t) cfg_getint(microflows, "report-flow-count");
+				if (mmt_conf->microf_enable == 1){
+					mmt_conf->microf_id = (uint32_t) cfg_getint(microflows, "id");
+					mmt_conf->microf_pthreshold = (uint32_t) cfg_getint(microflows, "include-packet-count");
+					mmt_conf->microf_bthreshold = (uint32_t) cfg_getint(microflows, "include-byte-count")*1000/*in Bytes*/;
+					mmt_conf->microf_report_pthreshold = (uint32_t) cfg_getint(microflows, "report-packet-count");
+					mmt_conf->microf_report_bthreshold = (uint32_t) cfg_getint(microflows, "report-byte-count")*1000/*in Bytes*/;
+					mmt_conf->microf_report_fthreshold = (uint32_t) cfg_getint(microflows, "report-flow-count");
+					j = 0;
+					int nb_output_channel = cfg_size(microflows, "output-channel");
+					for(j = 0; j < nb_output_channel; j++) {
+						strncpy(output_channel, (char *) cfg_getnstr(microflows, "output-channel", j),10);
+                        if (strncmp(output_channel, "file", 4) == 0) mmt_conf->microf_output_channel[0] = 1;
+                        if (strncmp(output_channel, "redis", 5) == 0) mmt_conf->microf_output_channel[1] = 1;
+                        if (strncmp(output_channel, "kafka", 5) == 0) mmt_conf->microf_output_channel[2] = 1;
+					}
+					if (nb_output_channel == 0)mmt_conf->microf_output_channel[0] = 1;
+				}
 			}
 		}
 		/***************micro flows report ********************/
@@ -431,8 +462,8 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 		/***************Output files ********************/
 
 
-		if (cfg_size(cfg, "output")) {
-			cfg_t *output = cfg_getnsec(cfg, "output", 0);
+		if (cfg_size(cfg, "file-output")) {
+			cfg_t *output = cfg_getnsec(cfg, "file-output", 0);
 			if (output->line != 0){
 				mmt_conf->output_to_file_enable = (uint32_t) cfg_getint(output, "enable");
 				strncpy(mmt_conf->data_out, (char *) cfg_getstr(output, "data-file"), 256);
@@ -463,33 +494,82 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 		if (cfg_size(cfg, "security1")) {
 			cfg_t *security = cfg_getnsec(cfg, "security1", 0);
 			if (security->line != 0){
+				char output_channel[10];
 				mmt_conf->security_enable = (uint32_t) cfg_getint(security, "enable");
-				mmt_conf->security_id = (uint16_t) cfg_getint(security, "id");
-				strncpy(mmt_conf->dir_out, (char *) cfg_getstr(security, "results-dir"), 256);
-				strncpy(mmt_conf->properties_file, (char *) cfg_getstr(security, "properties-file"), 256);
+				if (mmt_conf->security_enable == 1){
+					mmt_conf->security_id = (uint16_t) cfg_getint(security, "id");
+					strncpy(mmt_conf->dir_out, (char *) cfg_getstr(security, "results-dir"), 256);
+					strncpy(mmt_conf->properties_file, (char *) cfg_getstr(security, "properties-file"), 256);
+					j = 0;
+					int nb_output_channel = cfg_size(security, "output-channel");
+					for(j = 0; j < nb_output_channel; j++) {
+						strncpy(output_channel, (char *) cfg_getnstr(security, "output-channel", j),10);
+                        if (strncmp(output_channel, "file", 4) == 0) mmt_conf->security1_output_channel[0] = 1;
+                        if (strncmp(output_channel, "redis", 5) == 0) mmt_conf->security1_output_channel[1] = 1;
+                        if (strncmp(output_channel, "kafka", 5) == 0) mmt_conf->security1_output_channel[2] = 1;
+					}
+					if (nb_output_channel == 0)mmt_conf->security1_output_channel[0] = 1;
+				}
 			}
 		}
+		/***************low bandwidth security report ********************/
 
+		/***************high bandwidth security report ********************/
 		if (cfg_size(cfg, "security2")) {
 			cfg_t *security = cfg_getnsec(cfg, "security2", 0);
 			if (security->line != 0){
+				char output_channel[10];
 				mmt_conf->security2_enable        = (cfg_getint(security, "enable") != 0);
-				mmt_conf->security2_threads_count = (uint16_t) cfg_getint(security, "thread-nb");
-				mmt_conf->security2_report_id     = (uint16_t) cfg_getint(security, "id");
-				strncpy(mmt_conf->security2_rules_mask, cfg_getstr(security, "rules-mask"), sizeof( mmt_conf->security2_rules_mask ) - 1 );
-				mmt_conf->security2_file_output_enable  = (cfg_getint(security, "file-output")  != 0);
-				mmt_conf->security2_redis_output_enable = (cfg_getint(security, "redis-output") != 0);
+				if (mmt_conf->security2_enable){
+					mmt_conf->security2_threads_count = (uint16_t) cfg_getint(security, "thread-nb");
+					mmt_conf->security2_report_id     = (uint16_t) cfg_getint(security, "id");
+					strncpy(mmt_conf->security2_rules_mask, cfg_getstr(security, "rules-mask"), sizeof( mmt_conf->security2_rules_mask ) - 1 );
+					j = 0;
+					int nb_output_channel = cfg_size(security, "output-channel");
+					for(j = 0; j < nb_output_channel; j++) {
+						strncpy(output_channel, (char *) cfg_getnstr(security, "output-channel", j),10);
+						if (strncmp(output_channel, "file", 4) == 0) mmt_conf->security2_output_channel[0] = 1;
+						if (strncmp(output_channel, "redis", 5) == 0) mmt_conf->security2_output_channel[1] = 1;
+						if (strncmp(output_channel, "kafka", 5) == 0) mmt_conf->security2_output_channel[2] = 1;
+					}
+					if (nb_output_channel == 0)mmt_conf->security2_output_channel[0] = 1;
+				}
 			}
 		}
+		/***************high bandwidth security report ********************/
 
-		/***************low bandwidth security report ********************/
+
+		/***************session report ********************/
+		if (cfg_size(cfg, "session-report")) {
+			cfg_t *session = cfg_getnsec(cfg, "session-report", 0);
+			if (session->line != 0){
+				char output_channel[10];
+				mmt_conf->enable_session_report = (uint8_t) cfg_getint(session, "enable");
+				if (mmt_conf->enable_session_report){
+					j = 0;
+					int nb_output_channel = cfg_size(session, "output-channel");
+					for(j = 0; j < nb_output_channel; j++) {
+						strncpy(output_channel, (char *) cfg_getnstr(session, "output-channel", j),10);
+						if (strncmp(output_channel, "file", 4) == 0) mmt_conf->session_output_channel[0] = 1;
+						if (strncmp(output_channel, "redis", 5) == 0) mmt_conf->session_output_channel[1] = 1;
+						if (strncmp(output_channel, "kafka", 5) == 0) mmt_conf->session_output_channel[2] = 1;
+					}
+					if (nb_output_channel == 0)mmt_conf->session_output_channel[0] = 1;
+				}
+			}
+		}
+		/***************session report ********************/
+
 
 		/***************CPU memory usage ********************/
 		if (cfg_size(cfg, "cpu-mem-usage")) {
 			cfg_t *cpu_mem_usage = cfg_getnsec(cfg, "cpu-mem-usage", 0);
 			if (cpu_mem_usage->line != 0){
+				char output_channel[10];
 				mmt_conf->cpu_mem_usage_enabled = (uint8_t) cfg_getint(cpu_mem_usage, "enable");
 				if (mmt_conf->cpu_mem_usage_enabled == 1){
+					//mmt_conf->cpu_mem_output_channel = strncmp(output_channel,"file",4) == 0 ? 1: strncmp(output_channel,"redis",5) == 0
+						//	? 2 : strncmp(output_channel,"kafka",5) == 0 ? 3 : 1;
 					mmt_conf->cpu_reports = malloc (sizeof (mmt_cpu_perf_t));
 					if (mmt_conf->cpu_reports != NULL){
 						mmt_conf->cpu_reports->cpu_mem_usage_rep_freq = (uint8_t) cfg_getint(cpu_mem_usage, "frequency");
@@ -497,6 +577,15 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 						mmt_conf->cpu_reports->mem_usage_avg = 0;
 
 					}
+					j = 0;
+					int nb_output_channel = cfg_size(cpu_mem_usage, "output-channel");
+					for(j = 0; j < nb_output_channel; j++) {
+						strncpy(output_channel, (char *) cfg_getnstr(cpu_mem_usage, "output-channel", j),10);
+	                    if (strncmp(output_channel, "file", 4) == 0) mmt_conf->cpu_mem_output_channel[0] = 1;
+	                    if (strncmp(output_channel, "redis", 5) == 0) mmt_conf->cpu_mem_output_channel[1] = 1;
+	                    if (strncmp(output_channel, "kafka", 5) == 0) mmt_conf->cpu_mem_output_channel[2] = 1;
+					}
+					if (nb_output_channel == 0)mmt_conf->cpu_mem_output_channel[0] = 1;
 				}
 			}
 		}
@@ -524,11 +613,25 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			cfg_t *reconstruct_ftp = cfg_getnsec(cfg, "reconstruct-ftp", 0);
 			if (reconstruct_ftp->line != 0){
 				mmt_conf->ftp_reconstruct_enable = (uint32_t) cfg_getint(reconstruct_ftp, "enable");
-				mmt_conf->ftp_reconstruct_id = (uint16_t) cfg_getint(reconstruct_ftp, "id");
-				strncpy(mmt_conf->ftp_reconstruct_output_location, (char *) cfg_getstr(reconstruct_ftp, "location"), 256);
+				if (mmt_conf->ftp_reconstruct_enable == 1){
+					char output_channel[10];
+					mmt_conf->ftp_reconstruct_id = (uint16_t) cfg_getint(reconstruct_ftp, "id");
+					strncpy(mmt_conf->ftp_reconstruct_output_location, (char *) cfg_getstr(reconstruct_ftp, "location"), 256);
+					//mmt_conf->ftp_reconstruct_output_channel = strncmp(output_channel,"file",4) == 0 ? 1: strncmp(output_channel,"redis",5) == 0
+					//	? 2 : strncmp(output_channel,"kafka",5) == 0 ? 3 : 1;
+					j = 0;
+					int nb_output_channel = cfg_size(reconstruct_ftp, "output-channel");
+					for(j = 0; j < nb_output_channel; j++) {
+						strncpy(output_channel, (char *) cfg_getnstr(reconstruct_ftp, "output-channel", j),10);
+						if (strncmp(output_channel, "file", 4) == 0) mmt_conf->ftp_reconstruct_output_channel[0] = 1;
+						if (strncmp(output_channel, "redis", 5) == 0) mmt_conf->ftp_reconstruct_output_channel[1] = 1;
+						if (strncmp(output_channel, "kafka", 5) == 0) mmt_conf->ftp_reconstruct_output_channel[2] = 1;
+					}
+					if (nb_output_channel == 0)mmt_conf->ftp_reconstruct_output_channel[0] = 1;
+				}
 			}
 		}
-		/*************** reconstruct-ftp  ********************/
+			/*************** reconstruct-ftp  ********************/
 
 		/*************** redis  ********************/
 
@@ -546,19 +649,52 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 		}
 		/*************** redis  ********************/
 
+		/*************** kafka  ********************/
+
+		if (cfg_size(cfg, "kafka-output")) {
+			cfg_t *kafka_output = cfg_getnsec(cfg, "kafka-output", 0);
+			if (kafka_output->line != 0){
+				char hostname[256 + 1];
+				mmt_conf->kafka_enable = (uint32_t) cfg_getint(kafka_output, "enabled");
+				if (mmt_conf->kafka_enable == 1){
+					int port = (uint32_t) cfg_getint(kafka_output, "port");
+					strncpy(hostname, (char *) cfg_getstr(kafka_output, "hostname"), 256);
+					if (mmt_conf->kafka_enable) {
+						init_kafka(hostname, port);
+					}
+				}
+			}
+		}
+		/*************** kafka  ********************/
+
+
 		/*************** Radius  ********************/
 
 		if (cfg_size(cfg, "radius-output")) {
 			cfg_t *routput = cfg_getnsec(cfg, "radius-output", 0);
 			if (routput->line != 0){
+				char output_channel[10];
 				mmt_conf->radius_enable = (uint32_t) cfg_getint(routput, "enable");
-				if (cfg_getint(routput, "include-msg") == MMT_RADIUS_REPORT_ALL) {
-					mmt_conf->radius_starategy = MMT_RADIUS_REPORT_ALL;
-				} else {
-					mmt_conf->radius_starategy = MMT_RADIUS_REPORT_MSG;
-					mmt_conf->radius_message_id = (uint32_t) cfg_getint(routput, "include-msg");
+				if (mmt_conf->radius_enable){
+					if (cfg_getint(routput, "include-msg") == MMT_RADIUS_REPORT_ALL) {
+						mmt_conf->radius_starategy = MMT_RADIUS_REPORT_ALL;
+					} else {
+						mmt_conf->radius_starategy = MMT_RADIUS_REPORT_MSG;
+						mmt_conf->radius_message_id = (uint32_t) cfg_getint(routput, "include-msg");
+					}
+					mmt_conf->radius_condition_id = (uint32_t) cfg_getint(routput, "include-condition");
+					//mmt_conf->radius_output_channel = strncmp(output_channel,"file",4) == 0 ? 1: strncmp(output_channel,"redis",5) == 0
+					//	? 2 : strncmp(output_channel,"kafka",5) == 0 ? 3 : 1;
+					j = 0;
+					int nb_output_channel = cfg_size(routput, "output-channel");
+					for(j = 0; j < nb_output_channel; j++) {
+						strncpy(output_channel, (char *) cfg_getnstr(routput, "output-channel", j),10);
+						if (strncmp(output_channel, "file", 4) == 0) mmt_conf->radius_output_channel[0] = 1;
+						if (strncmp(output_channel, "redis", 5) == 0) mmt_conf->radius_output_channel[1] = 1;
+						if (strncmp(output_channel, "kafka", 5) == 0) mmt_conf->radius_output_channel[2] = 1;
+					}
+					if (nb_output_channel == 0)mmt_conf->radius_output_channel[0] = 1;
 				}
-				mmt_conf->radius_condition_id = (uint32_t) cfg_getint(routput, "include-condition");
 			}
 		}
 		/*************** Radius  ********************/
@@ -731,10 +867,19 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				temp_msr->enable = (uint32_t) cfg_getint(security_report_multisession_opts, "enable");
 
 				if (temp_msr->enable == 1){
-                   mmt_conf->multisession_report_output_file = (uint8_t) cfg_getint(security_report_multisession_opts, "file-output");
-                   mmt_conf->multisession_report_redis = (uint8_t) cfg_getint(security_report_multisession_opts, "redis-output");
-
-                   mmt_conf->enable_security_report_multisession = 1;
+					char output_channel[10];
+					//mmt_conf->security_report_output_channel = strncmp(output_channel,"file",4) == 0 ? 1: strncmp(output_channel,"redis",5) == 0
+					//		? 2 : strncmp(output_channel,"kafka",5) == 0 ? 3 : 1;
+					int nb_output_channel = cfg_size(security_report_multisession_opts, "output-channel");
+					j = 0;
+					for(j = 0; j < nb_output_channel; j++) {
+						strncpy(output_channel, (char *) cfg_getnstr(security_report_multisession_opts, "output-channel", j),10);
+						if (strncmp(output_channel, "file", 4) == 0) mmt_conf->multisession_output_channel[0] = 1;
+						if (strncmp(output_channel, "redis", 5) == 0) mmt_conf->multisession_output_channel[1] = 1;
+						if (strncmp(output_channel, "kafka", 5) == 0) mmt_conf->multisession_output_channel[2] = 1;
+					}
+					if (nb_output_channel == 0) mmt_conf->multisession_output_channel[0] = 1;//default
+					mmt_conf->enable_security_report_multisession = 1;
 					security_attributes_multisession_nb = cfg_size(security_report_multisession_opts, "attributes");
 					temp_msr->attributes_nb = security_attributes_multisession_nb;
 					if(security_attributes_multisession_nb > 0) {
@@ -772,6 +917,19 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 				if (temp_er->enable == 1){
 
+					char output_channel[10];
+					//mmt_conf->event_report_output_channel = strncmp(output_channel,"file",4) == 0 ? 1: strncmp(output_channel,"redis",5) == 0
+					//		? 2 : strncmp(output_channel,"kafka",5) == 0 ? 3 : 1;
+
+					int nb_output_channel = cfg_size(event_opts, "output-channel");
+					j = 0;
+					for(j = 0; j < nb_output_channel; j++) {
+						strncpy(output_channel, (char *) cfg_getnstr(event_opts, "output-channel", j),10);
+						if (strncmp(output_channel, "file", 4) == 0) mmt_conf->event_output_channel[0] = 1;
+						if (strncmp(output_channel, "redis", 5) == 0) mmt_conf->event_output_channel[1] = 1;
+						if (strncmp(output_channel, "kafka", 5) == 0) mmt_conf->event_output_channel[2] = 1;
+					}
+					if (nb_output_channel == 0) mmt_conf->event_output_channel[0] = 1;//default
 					temp_er->id = (uint32_t)cfg_getint(event_opts, "id");
 					if (parse_dot_proto_attribute((char *) cfg_getstr(event_opts, "event"), &temp_er->event)) {
 						fprintf(stderr, "Error: invalid event_report event value '%s'\n", (char *) cfg_getstr(event_opts, "event"));

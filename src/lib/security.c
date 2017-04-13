@@ -112,7 +112,7 @@ void security_print_verdict(
 		uint64_t counter,					//moment (by order of packet) the rule is validated
 		const mmt_array_t * const trace,//historic of messages that validates the rule
 		void *user_data					//#user-data being given in register_security
-		)
+)
 {
 	const char *description = rule->description;
 	const char *exec_trace  = mmt_convert_execution_trace_to_json_string( trace, rule );
@@ -136,12 +136,15 @@ void security_print_verdict(
 
 	message[ len ] = '\0';
 
-	if( mmt_conf->output_to_file_enable == 1 && mmt_conf->security2_file_output_enable )
-		send_message_to_file_thread ( message, user_data );
-	if ( mmt_conf->redis_enable == 1         && mmt_conf->security2_redis_output_enable )
-		send_message_to_redis ( "security.report", message );
 
-//	printf("%s", message );
+	if( mmt_conf->output_to_file_enable && mmt_conf->security2_output_channel[0])
+		send_message_to_file_thread ( message, user_data );
+	if ( mmt_conf->redis_enable && mmt_conf->security2_output_channel[1])
+		send_message_to_redis ( "security.report", message );
+	if ( mmt_conf->kafka_enable && mmt_conf->security2_output_channel[2])
+		send_msg_to_kafka( mmt_conf->topic_object->rkt_security, message );
+
+	//	printf("%s", message );
 }
 
 /**
@@ -181,7 +184,7 @@ sec_wrapper_t* register_security( mmt_handler_t *dpi_handler, size_t threads_cou
 
 	} else {
 		ret->sec_handler = mmt_smp_sec_register( security_rules_array, security_rules_count, threads_count,
-																				cores_id, rules_mask, false, callback, th );
+				cores_id, rules_mask, false, callback, th );
 		ret->sec_process = &mmt_smp_sec_process;
 		size = mmt_smp_sec_get_unique_protocol_attributes( ret->sec_handler, &ret->proto_atts );
 

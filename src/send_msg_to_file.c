@@ -224,7 +224,6 @@ void flush_messages_to_file_thread( void *arg){
 	gettimeofday(&ts, NULL);
 	struct smp_thread *th = (struct smp_thread *) arg;
 	double drop_percent = 0, drop_percent_NIC = 0, drop_percent_kernel =0;
-
 	//dummy report
 	if (th->thread_index == 0){
 		valid = snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu",
@@ -237,13 +236,12 @@ void flush_messages_to_file_thread( void *arg){
 				drop_percent_NIC = th->nb_dropped_packets_NIC * 100 / th->nb_packets;
 				drop_percent_kernel = th->nb_dropped_packets_kernel * 100 / th->nb_packets;
 			}*/
-			valid += snprintf(&message[valid], MAX_MESS, ",%3.2Lf%%, %3.2Lf%% \n",
+			valid += snprintf(&message[valid], MAX_MESS, ",%3.2Lf%%,%3.2Lf%% \n",
 					probe_context->cpu_reports->cpu_usage_avg, probe_context->cpu_reports->mem_usage_avg);
 		}
 		message[ valid] = '\0';
 
-		if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message, (void *)th);
-		if (probe_context->redis_enable == 1)send_message_to_redis ("session.cpu.report", message);
+		if (probe_context->output_to_file_enable && probe_context->cpu_mem_output_channel[0]) send_message_to_file_thread (message, (void *)th);
 	}
 
 	if( th->cache_count == 0 ){

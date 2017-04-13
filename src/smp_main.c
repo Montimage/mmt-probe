@@ -177,18 +177,17 @@ void cleanup_report_allocated_memory(){
 			if (mmt_probe.smp_threads[i].report != NULL){
 				for(j = 0; j < mmt_conf->security_reports_nb; j++) {
 					if (mmt_probe.smp_threads[i].report[j].data != NULL){
-						if (mmt_probe.smp_threads[i].report[j].security_report_counter > 0){
+						if (mmt_probe.smp_threads[i].report[j].security_report_counter > 0 && mmt_probe.mmt_conf->socket_enable ==1){
 
 							mmt_probe.smp_threads[i].report[j].grouped_msg.msg_hdr.msg_iov    = mmt_probe.smp_threads[i].report[j].msg;
 							mmt_probe.smp_threads[i].report[j].grouped_msg.msg_hdr.msg_iovlen = mmt_probe.smp_threads[i].report[j].security_report_counter;
+							if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_internet[j], &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
+							if (mmt_probe.mmt_conf->socket_domain == 0 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_unix, &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
+							if (retval == -1)
+								perror("sendmmsg()");
+
 						}
 
-						if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_internet[j], &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
-						if (mmt_probe.mmt_conf->socket_domain == 0 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_unix, &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
-
-
-						if (retval == -1)
-							perror("sendmmsg()");
 						if (mmt_probe.smp_threads[i].report[j].msg != NULL){
 							free (mmt_probe.smp_threads[i].report[j].msg);
 						}
@@ -232,18 +231,16 @@ void cleanup_report_allocated_memory(){
 		if (mmt_probe.smp_threads->report != NULL){
 			for(j = 0; j < mmt_conf->security_reports_nb; j++) {
 				if (mmt_probe.smp_threads->report[j].data != NULL){
-					if (mmt_probe.smp_threads->report[j].security_report_counter > 0){
+					if (mmt_probe.smp_threads->report[j].security_report_counter > 0 && mmt_conf->socket_enable == 1){
 
 						mmt_probe.smp_threads->report[j].grouped_msg.msg_hdr.msg_iov    = mmt_probe.smp_threads->report[j].msg;
 						mmt_probe.smp_threads->report[j].grouped_msg.msg_hdr.msg_iovlen = mmt_probe.smp_threads->report[j].security_report_counter;
+						if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_internet[j], &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
+						if (mmt_probe.mmt_conf->socket_domain == 0 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_unix, &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
+						//printf ("retval = %u, len = %u\n",retval,mmt_probe.smp_threads->report[j].grouped_msg.msg_hdr.msg_iovlen);
+						if (retval == -1)
+							perror("sendmmsg()");
 					}
-
-					if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_internet[j], &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
-					if (mmt_probe.mmt_conf->socket_domain == 0 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_unix, &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
-					//printf ("retval = %u, len = %u\n",retval,mmt_probe.smp_threads->report[j].grouped_msg.msg_hdr.msg_iovlen);
-
-					if (retval == -1)
-						perror("sendmmsg()");
 
 					if (mmt_probe.smp_threads->report[j].msg != NULL){
 						free (mmt_probe.smp_threads->report[j].msg);
@@ -283,6 +280,29 @@ void cleanup_report_allocated_memory(){
 		mmt_probe.smp_threads = NULL;
 	}
 
+
+	/* Destroy the producer instance */
+	if (mmt_conf->kafka_producer_instance != NULL){
+		fprintf(stderr, "Flushing final messages..\n");
+		rd_kafka_flush(mmt_conf->kafka_producer_instance, 10*1000 /* wait for max 10 seconds */);
+		/* Destroy topic object */
+		if (mmt_conf->topic_object != NULL){
+			if (mmt_conf->topic_object->rkt_session != NULL) rd_kafka_topic_destroy(mmt_conf->topic_object->rkt_session);
+			if (mmt_conf->topic_object->rkt_event != NULL) rd_kafka_topic_destroy(mmt_conf->topic_object->rkt_event);
+			if (mmt_conf->topic_object->rkt_cpu != NULL) rd_kafka_topic_destroy(mmt_conf->topic_object->rkt_cpu);
+			if (mmt_conf->topic_object->rkt_ftp_download != NULL) rd_kafka_topic_destroy(mmt_conf->topic_object->rkt_ftp_download);
+			if (mmt_conf->topic_object->rkt_multisession != NULL) rd_kafka_topic_destroy(mmt_conf->topic_object->rkt_multisession);
+			if (mmt_conf->topic_object->rkt_license != NULL) rd_kafka_topic_destroy(mmt_conf->topic_object->rkt_license);
+			if (mmt_conf->topic_object->rkt_protocol_stat != NULL) rd_kafka_topic_destroy(mmt_conf->topic_object->rkt_protocol_stat);
+			if (mmt_conf->topic_object->rkt_radius != NULL) rd_kafka_topic_destroy(mmt_conf->topic_object->rkt_radius);
+			if (mmt_conf->topic_object->rkt_microflows != NULL) rd_kafka_topic_destroy(mmt_conf->topic_object->rkt_microflows);
+			if (mmt_conf->topic_object->rkt_security != NULL) rd_kafka_topic_destroy(mmt_conf->topic_object->rkt_security);
+			if (mmt_conf->topic_object->rkt_frag != NULL) rd_kafka_topic_destroy(mmt_conf->topic_object->rkt_frag);
+			free (mmt_conf->topic_object);
+		}
+		rd_kafka_destroy(mmt_conf->kafka_producer_instance);
+	}
+
 }
 /* This function is executed before exiting the program,
  * to free the allocated memory, close extraction, , cancels threads, flush the reports etc
@@ -309,7 +329,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		radius_ext_cleanup(mmt_probe.smp_threads->mmt_handler); // cleanup our event handler for RADIUS initializations
 		//process_session_timer_handler(mmt_probe.->mmt_handler);
 		if (mmt_probe.smp_threads->report_counter == 0)mmt_probe.smp_threads->report_counter++;
-		if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.smp_threads);
+		if (mmt_conf->enable_proto_without_session_stats == 1 || mmt_conf->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.smp_threads);
 		mmt_close_handler(mmt_probe.smp_threads->mmt_handler);
 #endif
 		if (mmt_conf->microf_enable == 1)report_all_protocols_microflows_stats((void *)mmt_probe.smp_threads);
@@ -376,7 +396,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 					radius_ext_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler for RADIUS initializations
 					//process_session_timer_handler(mmt_probe.smp_threads[i].mmt_handler);
 					if (mmt_probe.smp_threads[i].report_counter == 0)mmt_probe.smp_threads[i].report_counter++;
-					if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[i]);
+					if (mmt_conf->enable_proto_without_session_stats == 1 || mmt_conf->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[i]);
 					mmt_close_handler(mmt_probe.smp_threads[i].mmt_handler);
 					mmt_probe.smp_threads[i].mmt_handler = NULL;
 					free(mmt_probe.smp_threads[i].cache_message_list);
@@ -393,7 +413,14 @@ void terminate_probe_processing(int wait_thread_terminate) {
 
 	}
 
-
+	// cancel the thread used by cpu_mem_usage
+	if (mmt_conf->cpu_mem_usage_enabled == 1){
+		int c;
+		c = pthread_cancel(mmt_conf->cpu_ram_usage_thr);
+		if (c != 0) {
+			exit(1);
+		}
+	}
 	//Now close the reporting files.
 	//Offline or Online processing
 	if (mmt_conf->input_mode == OFFLINE_ANALYSIS||mmt_conf->input_mode == ONLINE_ANALYSIS) {
@@ -403,6 +430,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 
 	}
 	cleanup_report_allocated_memory ();
+
 
 	//printf("close_extraction_start\n");
 	close_extraction();
@@ -512,8 +540,10 @@ void *cpu_ram_usage_routine(void * args){
 	char dump[50];
 	//int freq = *((int*) f);
 	mmt_probe_context_t * probe_context = get_probe_context_config();
-
-	while(1)
+	char message[MAX_MESS + 1];
+	int valid = 0;
+	struct timeval ts;
+	while(!do_abort)
 	{
 		fp = fopen("/proc/stat","r");
 		if(fscanf(fp,"%*s %Lf %Lf %Lf %Lf",&t1[0],&t1[1],&t1[2],&t1[3]) != 4) fprintf(stderr , "\nError in fscanf the cpu stat\n");
@@ -537,8 +567,28 @@ void *cpu_ram_usage_routine(void * args){
 
 		probe_context->cpu_reports->cpu_usage_avg = 100* ((t2[0]+t2[1]+t2[2]) - (t1[0]+t1[1]+t1[2])) / ((t2[0]+t2[1]+t2[2]+t2[3]) - (t1[0]+t1[1]+t1[2]+t1[3]));
 		probe_context->cpu_reports->mem_usage_avg = (t2[6]+t1[6])*100/(2*t1[4]);
-		//printf("The current CPU utilization is : %Lf percent\n",cpu_usage_avg);
-		//printf("Memory usage : %Lf percent (%Lf/%Lf)\n",((t2[6]+t1[6])*100/(2*t1[4])),(t2[6]+t1[6])/2, t1[4]);
+
+		if (probe_context->redis_enable == 1 || probe_context->kafka_enable == 1) {
+			valid = 0;
+			//Print this report every 5 second
+			time_t present_time;
+			gettimeofday(&ts, NULL);
+
+			valid = snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu",
+					200, probe_context->probe_id_number,
+					probe_context->input_source, ts.tv_sec, ts.tv_usec);
+
+			if(probe_context->cpu_mem_usage_enabled == 1){
+				valid += snprintf(&message[valid], MAX_MESS, ",%3.2Lf%%,%3.2Lf%% \n",
+						probe_context->cpu_reports->cpu_usage_avg, probe_context->cpu_reports->mem_usage_avg);
+			}
+			message[ valid] = '\0';
+
+			if (probe_context->redis_enable && probe_context->cpu_mem_output_channel[1] )send_message_to_redis ("cpu.report", message);
+			if (probe_context->kafka_enable && probe_context->cpu_mem_output_channel[2] )send_msg_to_kafka(probe_context->topic_object->rkt_cpu, message);
+			//printf("The current CPU utilization is : %Lf percent\n",cpu_usage_avg);
+			//printf("Memory usage : %Lf percent (%Lf/%Lf)\n",((t2[6]+t1[6])*100/(2*t1[4])),(t2[6]+t1[6])/2, t1[4]);
+		}
 	}
 
 	return(0);
@@ -549,7 +599,7 @@ int main(int argc, char **argv) {
 	char lg_msg[1024];
 	sigset_t signal_set;
 	char single_file [MAX_FILE_NAME+1] = {0};
-	pthread_t cpu_ram_usage_thr;
+	//pthread_t cpu_ram_usage_thr;
 	pthread_mutex_init(&mutex_lock, NULL);
 	pthread_spin_init(&spin_lock, 0);
 
@@ -615,7 +665,7 @@ int main(int argc, char **argv) {
 	//Add the module for printing cpu_mem_usage here
 	if (mmt_conf->cpu_mem_usage_enabled == 1){
 		//printf("CPU, RAM usage report enabled\n");
-		pthread_create(&cpu_ram_usage_thr, NULL, cpu_ram_usage_routine, NULL);
+		pthread_create(&mmt_conf->cpu_ram_usage_thr, NULL, cpu_ram_usage_routine, NULL);
 	}
 
 
