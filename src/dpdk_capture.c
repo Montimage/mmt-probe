@@ -34,7 +34,7 @@
 
 
 #define RX_RING_SIZE    4096 	/* Size for each RX ring*/
-#define NUM_MBUFS       196609  /* Total size of MBUFS */
+#define NUM_MBUFS       65535  /* Total size of MBUFS */
 #define MBUF_CACHE_SIZE 512
 #define BURST_SIZE      128  	/* Burst size to receive packets from RX ring */
 
