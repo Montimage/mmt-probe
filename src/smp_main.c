@@ -274,8 +274,9 @@ void cleanup_report_allocated_memory(){
 			free (mmt_probe.smp_threads->cache_message_list);
 			mmt_probe.smp_threads->cache_message_list = NULL;
 		}
+#ifdef PCAP
 		clean_up_security2(&mmt_probe);
-
+#endif
 		free (mmt_probe.smp_threads);
 		mmt_probe.smp_threads = NULL;
 	}
