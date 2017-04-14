@@ -108,6 +108,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_INT("thread-nb",    0, CFGF_NONE),
 			CFG_INT("id",           0, CFGF_NONE),
 			CFG_STR("rules-mask",   0, CFGF_NONE),
+			CFG_STR("exclude-rules",   0, CFGF_NONE),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
 	};
@@ -524,6 +525,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					mmt_conf->security2_threads_count = (uint16_t) cfg_getint(security, "thread-nb");
 					mmt_conf->security2_report_id     = (uint16_t) cfg_getint(security, "id");
 					strncpy(mmt_conf->security2_rules_mask, cfg_getstr(security, "rules-mask"), sizeof( mmt_conf->security2_rules_mask ) - 1 );
+					strncpy(mmt_conf->security2_excluded_rules, cfg_getstr(security, "exclude-rules"), sizeof( mmt_conf->security2_excluded_rules ) - 1 );
 					j = 0;
 					int nb_output_channel = cfg_size(security, "output-channel");
 					for(j = 0; j < nb_output_channel; j++) {
