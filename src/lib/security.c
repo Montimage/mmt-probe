@@ -105,11 +105,9 @@ void security_print_verdict(
 	const mmt_probe_context_t * mmt_conf = get_probe_context_config();
 	struct smp_thread *th = (struct smp_thread *) user_data;
 
-	//atomic increase alert_index
-	__sync_add_and_fetch( &(th->security2_alerts_output_count), 1 );
-
-	len = snprintf( message, len, "%d,0,\"%s\",%ld,%"PRIu32",\"%s\",\"%s\",\"%s\", {%s}",
+	len = snprintf( message, len, "%d,%d,\"%s\",%ld,%"PRIu32",\"%s\",\"%s\",\"%s\", {%s}",
 			mmt_conf->security2_report_id,
+			mmt_conf->probe_id_number,
 			mmt_conf->input_source,
 			time( NULL ),
 			rule->id,

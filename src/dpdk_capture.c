@@ -188,7 +188,6 @@ static int _worker_thread( void *args_ptr ){
 		for( i=0; i < mmt_conf->security2_threads_count; i++ )
 			sec_cores_mask[ i ] = th->security2_lcore_id + i;
 
-		th->security2_alerts_output_count = 0;
 		security = register_security( th->mmt_handler,
 				mmt_conf->security2_threads_count,
 				sec_cores_mask, mmt_conf->security2_rules_mask,

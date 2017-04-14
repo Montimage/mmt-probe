@@ -677,8 +677,6 @@ struct smp_thread {
 
 	//hn - new security
 	unsigned security2_lcore_id; //lcore_id of security2
-	//number of alerts sent to file or redis
-	uint64_t security2_alerts_output_count;
 
 	sem_t sem_wait;
 #ifdef HTTP_RECONSTRUCT
