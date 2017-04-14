@@ -25,19 +25,19 @@ char *topic;      /* Argument: topic to produce to */
  * The callback is triggered from rd_kafka_poll() and executes on
  * the application's thread.
  */
-/*static void dr_msg_cb (rd_kafka_t *rk,
+static void dr_msg_cb (rd_kafka_t *rk,
 		const rd_kafka_message_t *rkmessage, void *opaque) {
 	if (rkmessage->err)
 		fprintf(stderr, "%% Message delivery failed: %s\n",
 				rd_kafka_err2str(rkmessage->err));
-	else
-		fprintf(stderr,
-				"%% Message delivered (%zd bytes, "
-				"partition %"PRId32")\n",
-				rkmessage->len, rkmessage->partition);
+//	else
+		//fprintf(stderr,
+		//		"%% Message delivered (%zd bytes, "
+		//		"partition %"PRId32")\n",
+		//		rkmessage->len, rkmessage->partition);
 
-	 The rkmessage is destroyed automatically by librdkafka
-}*/
+	/* The rkmessage is destroyed automatically by librdkafka*/
+}
 
 
 
@@ -62,6 +62,9 @@ void init_kafka(char * hostname, int port){
 	 * librdkafka will use the bootstrap brokers to acquire the full
 	 * set of brokers from the cluster. */
 
+        rd_kafka_conf_set(conf, "queue.buffering.max.messages", "10000000", errstr, sizeof(errstr));
+        rd_kafka_conf_set(conf, "batch.num.messages", "5000000", errstr, sizeof(errstr)); 
+
 	if (rd_kafka_conf_set(conf, "bootstrap.servers", brokers,
 			errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
 		fprintf(stderr, "%s\n", errstr);
@@ -72,7 +75,7 @@ void init_kafka(char * hostname, int port){
 	 * This callback will be called once per message to inform
 	 * the application if delivery succeeded or failed.
 	 * See dr_msg_cb() above. */
-	//rd_kafka_conf_set_dr_msg_cb(conf, dr_msg_cb);
+	rd_kafka_conf_set_dr_msg_cb(conf, dr_msg_cb);
 
 	/*
 	 * Create producer instance.
@@ -178,7 +181,7 @@ void send_msg_to_kafka(rd_kafka_topic_t *rkt, char *message){
 				 * The internal queue is limited by the
 				 * configuration property
 				 * queue.buffering.max.messages */
-				rd_kafka_poll(probe_context->kafka_producer_instance, 1000/*block for max 1000ms*/);
+				rd_kafka_poll(probe_context->kafka_producer_instance, 10/*block for max 1000ms*/);
 				goto retry;
 			}
 		} else {
