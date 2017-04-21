@@ -116,25 +116,16 @@ void ftp_last_response_code(const ipacket_t * ipacket,struct smp_thread *th,attr
 
 /* This function extracts the ip_opts from a packet for reporting  */
 void ip_opts(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num){
-	int  j = 0;
+
 	uint16_t length = 0;
-	uint16_t offset = 0;
-	uint16_t offset_ip = 0;
-	for (j = 1; j < ipacket->proto_hierarchy->len; j++){
-		offset +=ipacket->proto_headers_offset->proto_path[j];
-		if (ipacket->proto_hierarchy->proto_path[j] == attr_extract->proto_id){
-			if (j < ipacket->proto_hierarchy->len){
-				offset_ip = offset;
-				offset += ipacket->proto_headers_offset->proto_path[j+1];
-				length = ipacket->p_hdr->caplen - offset - offset_ip - 20;
-				//printf ("proto_id = %u, packet_len =%u, offset = %u\n",ipacket->proto_hierarchy->proto_path[j],ipacket->p_hdr->caplen,length);
-			}
-		}
+	uint8_t * ip_header_len = (uint8_t *) get_attribute_extracted_data(ipacket,PROTO_IP,IP_HEADER_LEN);
+
+	if (ip_header_len != NULL){
+		length = *ip_header_len - 20;
 	}
 	memcpy(&th->report[report_num].data[th->report[report_num].security_report_counter][th->report[report_num].length], &length, 2);
 	th->report[report_num].length += 2;
 	memcpy(&th->report[report_num].data[th->report[report_num].security_report_counter][th->report[report_num].length], attr_extract->data,length);
 	th->report[report_num].length +=  length;
-	//printf ("attribute_data ...=%s \n",(char *)attr_extract->data);
 
 }
