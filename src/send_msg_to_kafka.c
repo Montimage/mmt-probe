@@ -63,8 +63,9 @@ void init_kafka(char * hostname, int port){
 	 * set of brokers from the cluster. */
 
         rd_kafka_conf_set(conf, "queue.buffering.max.messages", "10000000", errstr, sizeof(errstr));
-        rd_kafka_conf_set(conf, "batch.num.messages", "5000000", errstr, sizeof(errstr)); 
-
+        rd_kafka_conf_set(conf, "batch.num.messages", "10000", errstr, sizeof(errstr)); 
+        rd_kafka_conf_set(conf, "queue.buffering.max.ms", "1000", errstr, sizeof(errstr));
+	
 	if (rd_kafka_conf_set(conf, "bootstrap.servers", brokers,
 			errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
 		fprintf(stderr, "%s\n", errstr);
@@ -129,7 +130,7 @@ void send_msg_to_kafka(rd_kafka_topic_t *rkt, char *message){
 	if (len == 0) {
 		/* Empty line: only serve delivery reports */
 		rd_kafka_poll(probe_context->kafka_producer_instance, 0/*non-blocking */);
-        printf("WARNING:kafka message len is 0 \n");
+                printf("WARNING:kafka message len is 0 \n");
 		//continue;
 	}
 
@@ -189,7 +190,7 @@ void send_msg_to_kafka(rd_kafka_topic_t *rkt, char *message){
 			//		"for topic %s\n",
 			//		len, rd_kafka_topic_name(rkt));
 		}
-
+		
 		/* A producer application should continually serve
 		 * the delivery report queue by calling rd_kafka_poll()
 		 * at frequent intervals.
@@ -201,5 +202,5 @@ void send_msg_to_kafka(rd_kafka_topic_t *rkt, char *message){
 		 * to make sure previously produced messages have their
 		 * delivery report callback served (and any other callbacks
 		 * you register). */
-		rd_kafka_poll(probe_context->kafka_producer_instance, 0/*non-blocking*/);
+		 rd_kafka_poll(probe_context->kafka_producer_instance, 0/*non-blocking*/);
 }
