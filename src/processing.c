@@ -401,10 +401,10 @@ void flowstruct_init(void * args) {
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_SERVER_PORT);
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_CLIENT_PORT);
 	if (probe_context->enable_IP_fragmentation_report == 1){
-		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_IP_FRAG_PACKET_COUNT);
-		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_IP_FRAG_DATA_VOLUME);
-		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_IP_DF_PACKET_COUNT);
-		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_IP_DF_DATA_VOLUME);
+		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, IP_FRAG_PACKET_COUNT);
+		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, IP_FRAG_DATA_VOLUME);
+		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, IP_DF_PACKET_COUNT);
+		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, IP_DF_DATA_VOLUME);
 	}
 
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);

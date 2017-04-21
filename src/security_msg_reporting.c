@@ -89,7 +89,7 @@ void get_security_report(const ipacket_t * ipacket,void * args){
 					if (attr_extract->field_id == PROTO_DATA)data_extraction(ipacket,th,attr_extract, i);
 					if (attr_extract->proto_id == PROTO_FTP && attr_extract->field_id == FTP_LAST_COMMAND)ftp_last_command(ipacket,th,attr_extract, i);
 					if (attr_extract->proto_id == PROTO_FTP && attr_extract->field_id == FTP_LAST_RESPONSE_CODE)ftp_last_response_code(ipacket,th,attr_extract, i);
-					//if (attr_extract->proto_id == PROTO_IP && attr_extract->field_id == IP_OPTS)ip_opts(ipacket,th,attr_extract, i);
+					if (attr_extract->proto_id == PROTO_IP && attr_extract->field_id == IP_OPTS)ip_opts(ipacket,th,attr_extract, i);
 
 				} else {
 					memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length], &attr_extract->data_len, 2);
@@ -151,6 +151,11 @@ int register_security_report_handle(void * args) {
 	int i = 0, j = 0, l = 0;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	struct smp_thread *th = (struct smp_thread *) args;
+
+    if (!register_extraction_attribute(th->mmt_handler,PROTO_IP,IP_HEADER_LEN)){ //ip_header_len is used for extraction of ip_opts
+		fprintf(stderr,"[Error] Cannot register_extraction_attribute (security-report): IP_HEADER_LEN)");
+    	return 0;
+    }
 
 	for(i = 0; i < probe_context->security_reports_nb; i++) {
 		if (probe_context->security_reports[i].enable == 1){
