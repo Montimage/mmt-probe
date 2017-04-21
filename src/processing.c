@@ -543,7 +543,7 @@ mmt_dev_properties_t get_dev_properties_from_user_agent(char * user_agent, uint3
  * It provides the expired session information and frees the memory allocated.
  * */
 void classification_expiry_session(const mmt_session_t * expired_session, void * args) {
-	debug("classification_expiry_session : %lu",get_session_id(expired_session));
+//	debug("classification_expiry_session : %lu",get_session_id(expired_session));
 	session_struct_t * temp_session = get_user_session_context(expired_session);
 	struct smp_thread *th = (struct smp_thread *) args;
 	if (temp_session == NULL) {
