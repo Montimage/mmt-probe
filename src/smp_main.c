@@ -712,7 +712,7 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef DPDK
-	if(mmt_probe.mmt_conf->output_to_file_enable == 1 && mmt_probe.mmt_conf->redis_enable == 1)	start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
+	start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
 	dpdk_capture(argc, argv, &mmt_probe );
 #endif
 	terminate_probe_processing(1);
