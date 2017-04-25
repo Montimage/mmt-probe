@@ -163,8 +163,18 @@ sec_wrapper_t* register_security( mmt_handler_t *dpi_handler, size_t threads_cou
 		if( register_extraction_attribute( dpi_handler, ret->proto_atts[i]->proto_id, ret->proto_atts[i]->att_id ) == 0){
 			mmt_warn( "Cannot register protocol/attribute %s.%s", ret->proto_atts[i]->proto, ret->proto_atts[i]->att );
 		}
+		else
+			att_registed_ptr += sprintf( att_registed_ptr, "%s.%s,", ret->proto_atts[i]->proto, ret->proto_atts[i]->att );
 
-		att_registed_ptr += sprintf( att_registed_ptr, "%s.%s,", ret->proto_atts[i]->proto, ret->proto_atts[i]->att );
+		//we need IP_HEADER_LEN to calculate length of IP_OPTS
+		if( ret->proto_atts[i]->proto_id == PROTO_IP && ret->proto_atts[i]->att_id == IP_OPTS ){
+			if (!register_extraction_attribute( dpi_handler, PROTO_IP, IP_HEADER_LEN)){
+				mmt_warn("Cannot register protocol/attribute ip.header_len");
+			}
+			else
+				att_registed_ptr += sprintf( att_registed_ptr, "ip.header_len");
+		}
+
 	}
 	if( verbose ){
 		//replace the last comma by dot
