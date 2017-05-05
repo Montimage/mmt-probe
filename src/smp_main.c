@@ -688,7 +688,7 @@ int main(int argc, char **argv) {
 	printf("[info] built %s %s\n", __DATE__, __TIME__);
 
 
-	for(i = 0; i < mmt_conf->security_reports_nb; i++) {
+/*	for(i = 0; i < mmt_conf->security_reports_nb; i++) {
 		if (mmt_conf->security_reports[i].enable == 1){
 			mmt_conf->security_reports[i].event_id = malloc (mmt_conf->security_reports[i].event_name_nb * sizeof (uint32_t *));
 			if (strcmp(mmt_conf->security_reports[i].event_name[0],"null") != 0){
@@ -705,7 +705,7 @@ int main(int argc, char **argv) {
 				mmt_conf->security_reports[i].event_id[0] = 0;//when the event_name is NULL;
 			}
 		}
-	}
+	}*/
 
 #ifdef PCAP
 	if (pcap_capture(&mmt_probe) == EXIT_FAILURE) return EXIT_FAILURE;

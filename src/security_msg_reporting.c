@@ -16,7 +16,8 @@ void get_security_report(const ipacket_t * ipacket,void * args){
 	attribute_t * attr_extract;
 	struct smp_thread *th = (struct smp_thread *) args;
 	int MAX_LEN = 1024;
-	int i = 0, j = 0, k = 0, condition1 = 0, condition2 = 0, condition3 = 0;
+	int i = 0, j = 0, k = 0;
+	//condition1 = 0, condition2 = 0, condition3 = 0;
 	int retval =0;
 
 
@@ -31,7 +32,8 @@ void get_security_report(const ipacket_t * ipacket,void * args){
 		//memset(report_ptr->data[report_ptr->security_report_counter], '\0', 10000);
 		memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length + 5], &ipacket->p_hdr->ts,sizeof(struct timeval));
 		report_ptr->length += sizeof(struct timeval) + 5; //4 bytes are reserved to assign the total length of the report and 1 byte for the number of attributes
-		k = 0, condition1 = 0, condition2 = 0, condition3 = 0;
+		k = 0;
+		//condition1 = 0, condition2 = 0, condition3 = 0;
 
 		for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
 			mmt_security_attribute_t * security_attribute = &probe_context->security_reports[i].attributes[j];
@@ -43,27 +45,6 @@ void get_security_report(const ipacket_t * ipacket,void * args){
 				if( unlikely( attr_extract->data_len > rem_buffer )){
 					printf("Buffer_overflow\n");
 					break;
-				}
-				//condition for reporting
-				if (probe_context->security_reports[i].event_id[0] == 0){
-					if (attr_extract->proto_id == 178 && attr_extract->field_id == 7) {
-						uint8_t ms_flag_data = 0;
-						memcpy(&ms_flag_data, attr_extract->data, attr_extract->data_len);
-						if (ms_flag_data > 0) condition1++;
-					}
-					if (attr_extract->proto_id == 30) condition2++;
-					//if (attr_extract->proto_id == 137)condition3++;
-
-					if (attr_extract->proto_id == 354 && attr_extract->field_id == 6) {
-						uint8_t tcp_flag_data = 0;
-						memcpy(&tcp_flag_data, attr_extract->data, attr_extract->data_len);
-						if (tcp_flag_data == 2) condition3++;
-					}
-
-				} else if (attr_extract->proto_id == probe_context->security_reports[i].event_id[0]) {
-					if (attr_extract->proto_id == 153 && attr_extract->field_id == 1)condition1++;
-					if (attr_extract->proto_id == 153 && attr_extract->field_id == 4) condition2++;
-					if (attr_extract->proto_id == 153 && attr_extract->field_id == 7) condition3++;
 				}
 
 				memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length], &attr_extract->proto_id, 4);
@@ -100,12 +81,6 @@ void get_security_report(const ipacket_t * ipacket,void * args){
 				k++;
 
 			}
-		}
-		if (condition1 == 0 && probe_context->security_reports[i].rule_type == 1) {
-			continue;
-		}
-		else if ((condition1 == 0 && condition2 == 0 && condition3 == 0) && probe_context->security_reports[i].rule_type == 2){
-			continue;
 		}
 
 		//all attribute data are NULL

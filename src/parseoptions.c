@@ -355,7 +355,7 @@ int parse_handlers_attribute(char * inputstring, mmt_condition_attribute_t * han
 }
 
 int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
-	int i = 0, j = 0, k = 0;
+	int i = 0, j = 0;
 	cfg_t *event_opts;
 	cfg_t *condition_opts;
 	cfg_t *security_report_opts;
@@ -805,7 +805,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 		mmt_conf->security_reports = NULL;
 		mmt_security_report_t * temp_sr;
 		mmt_conf->security_reports_nb = security_reports_nb;
-		i = 0, j = 0, k = 0;
+		i = 0, j = 0;
 
 		if (security_reports_nb > 0) {
 			mmt_conf->security_reports = calloc(sizeof(mmt_security_report_t), security_reports_nb);
@@ -817,7 +817,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				if (temp_sr->enable == 1){
 
 					mmt_conf->enable_security_report = 1;
-					security_event_nb = cfg_size(security_report_opts, "event");
+					/*security_event_nb = cfg_size(security_report_opts, "event");
 					temp_sr->event_name_nb = security_event_nb;
 					temp_sr->rule_type = 	(uint8_t) cfg_getint(security_report_opts, "rule-type");
 
@@ -832,7 +832,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 							//printf("name=%s\n",temp_sr->event_name[k]);
 
 						}
-					}
+					}*/
 
 					security_attributes_nb = cfg_size(security_report_opts, "attributes");
 					temp_sr->attributes_nb = security_attributes_nb;
@@ -859,7 +859,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 		mmt_conf->security_reports_multisession = NULL;
 		mmt_security_report_multisession_t * temp_msr;
 		mmt_conf->security_reports_multisession_nb = security_reports_multisession_nb;
-		i = 0, j = 0, k = 0;
+		i = 0, j = 0;
 
 		if (security_reports_multisession_nb > 0) {
 			mmt_conf->security_reports_multisession = calloc(sizeof(mmt_security_report_multisession_t), security_reports_multisession_nb);
