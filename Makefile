@@ -50,13 +50,7 @@ endif
 
 ifdef DPDK
 
-RTE_SDK = /home/server10ga/dpdk
-RTE_TARGET = build
-ifeq ($(RTE_SDK),)
-$(error "Please define RTE_SDK environment variable")
-endif
-
-# Default target, can be overriden by command line or environment
+RTE_SDK = /home/mmt/dpdk
 RTE_TARGET ?= x86_64-native-linuxapp-gcc
 
 include $(RTE_SDK)/mk/rte.vars.mk
@@ -129,7 +123,7 @@ endif
 #
 # Install probe
 #
-create: 
+create: all
 	@echo "Installing probe on" $(INSTALL_DIR)
 #create dir
 	$(QUIET) $(MKDIR) $(INSTALL_DIR)/bin $(INSTALL_DIR)/conf \
@@ -150,23 +144,44 @@ endif
 #copy to bin
 	$(QUIET) $(CP) $(APP) $(INSTALL_DIR)/bin/probe
 
-
-#create link
-#	$(QUIET) $(CP) $(INSTALL_DIR)/bin/probe $(INSTALL_DIR)/bin/probe_online
-#	$(QUIET) $(CP) $(INSTALL_DIR)/bin/probe $(INSTALL_DIR)/bin/probe_offline
-#copy config files
 	$(QUIET) $(CP) mmt_offline.conf $(INSTALL_DIR)/conf/offline.conf
 	$(QUIET) $(CP) mmt_online.conf  $(INSTALL_DIR)/conf/online.conf
-#install deamon -e: regex expression
-	$(QUIET) sed "s|/opt/mmt/probe|$(INSTALL_DIR)|g" daemon.sh  > /tmp/probe_daemon
-	$(QUIET) sed "s|runing_mode|online|g" /tmp/probe_daemon     > /etc/init.d/probe_online_d
-	$(QUIET) sed "s|runing_mode|offline|g" /tmp/probe_daemon    > /etc/init.d/probe_offline_d
-	$(QUIET) chmod +x /etc/init.d/probe_*_d
-#
+
 	@echo
-	@echo "To run probe online: sudo service probe_online_d start"
-	@echo "online's config file is located at " $(INSTALL_DIR)/conf/online.conf
-	@echo
+
+
+DEB_NAME = mmt-probe_$(VERSION)_$(GIT_VERSION)_`uname -s`_`uname -p`
+
+deb: create
+	$(QUIET) $(MKDIR) $(DEB_NAME)/DEBIAN
+	$(QUIET) echo "Package: mmt-probe \
+        \nVersion: $(VERSION) \
+        \nSection: base \
+        \nPriority: standard \
+        \nDepends: mmt-dpi, mmt-security \
+        \nArchitecture: all \
+        \nMaintainer: Montimage <contact@montimage.com> \
+        \nDescription: MMT-Probe:  \
+        \n  Version id: $(GIT_VERSION). Build time: `date +"%Y-%m-%d %H:%M:%S"` \
+        \nHomepage: http://www.montimage.com" \
+		> $(DEB_NAME)/DEBIAN/control
+
+	$(QUIET) $(MKDIR) $(DEB_NAME)/usr/bin/
+	$(QUIET) ln -s /opt/mmt/probe/bin/probe $(DEB_NAME)/usr/bin/mmt-probe
+	
+	$(QUIET) $(MKDIR) $(DEB_NAME)/etc/ld.so.conf.d/
+	@echo "/opt/mmt/probe/lib" >> $(DEB_NAME)/etc/ld.so.conf.d/mmt-probe.conf
+	
+	$(QUIET) $(MKDIR) $(DEB_NAME)$(INSTALL_DIR)
+	$(QUIET) $(CP) -r $(INSTALL_DIR)/* $(DEB_NAME)$(INSTALL_DIR)
+	
+	$(QUIET) $(MKDIR) $(DEB_NAME)$(INSTALL_DIR)/lib
+	$(QUIET) $(CP) /usr/local/lib/libhiredis.so.*  $(DEB_NAME)$(INSTALL_DIR)/lib
+	$(QUIET) $(CP) /usr/local/lib/librdkafka.so.*  $(DEB_NAME)$(INSTALL_DIR)/lib
+	
+	$(QUIET) dpkg-deb -b $(DEB_NAME)
+	$(QUIET) $(RM) $(DEB_NAME)
+	$(QUIET) $(RM) -rf $(INSTALL_DIR)
 
 keygen:
 	$(QUIET) $(CC) -o keygen $(CLDFLAGS)  key_generator.c
