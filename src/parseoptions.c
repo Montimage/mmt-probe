@@ -53,7 +53,6 @@ int conf_parse_input_mode(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *r
 cfg_t * parse_conf(const char *filename) {
 	cfg_opt_t micro_flows_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
-			CFG_INT("id", 0, CFGF_NONE),
 			CFG_INT("include-packet-count", 10, CFGF_NONE),
 			CFG_INT("include-byte-count", 5, CFGF_NONE),
 			CFG_INT("report-packet-count", 10000, CFGF_NONE),
@@ -96,7 +95,6 @@ cfg_t * parse_conf(const char *filename) {
 
 	cfg_opt_t security1_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
-			CFG_INT("id", 0, CFGF_NONE),
 			CFG_STR("results-dir", 0, CFGF_NONE),
 			CFG_STR("properties-file", 0, CFGF_NONE),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
@@ -106,7 +104,6 @@ cfg_t * parse_conf(const char *filename) {
 	cfg_opt_t security2_opts[] = {
 			CFG_INT("enable",       0, CFGF_NONE),
 			CFG_INT("thread-nb",    0, CFGF_NONE),
-			CFG_INT("id",           0, CFGF_NONE),
 			CFG_STR("rules-mask",   0, CFGF_NONE),
 			CFG_STR("exclude-rules",   0, CFGF_NONE),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
@@ -128,7 +125,6 @@ cfg_t * parse_conf(const char *filename) {
 
 	cfg_opt_t reconstruct_ftp_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
-			CFG_INT("id", 0, CFGF_NONE),
 			CFG_STR("location", 0, CFGF_NONE),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
@@ -149,7 +145,6 @@ cfg_t * parse_conf(const char *filename) {
 
 	cfg_opt_t event_report_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
-			CFG_INT("id", 0, CFGF_NONE),
 			CFG_STR("event", "", CFGF_NONE),
 			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
@@ -158,7 +153,6 @@ cfg_t * parse_conf(const char *filename) {
 
 	cfg_opt_t condition_report_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
-			CFG_INT("id", 0, CFGF_NONE),
 			CFG_STR("condition", "", CFGF_NONE),
 			CFG_STR("location", 0, CFGF_NONE),
 			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
@@ -355,7 +349,7 @@ int parse_handlers_attribute(char * inputstring, mmt_condition_attribute_t * han
 }
 
 int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
-	int i = 0, j = 0;
+	int i = 0, j = 0, k=0;
 	cfg_t *event_opts;
 	cfg_t *condition_opts;
 	cfg_t *security_report_opts;
@@ -422,7 +416,6 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				char output_channel[10];
 				mmt_conf->microf_enable = (uint32_t) cfg_getint(microflows, "enable");
 				if (mmt_conf->microf_enable == 1){
-					mmt_conf->microf_id = (uint32_t) cfg_getint(microflows, "id");
 					mmt_conf->microf_pthreshold = (uint32_t) cfg_getint(microflows, "include-packet-count");
 					mmt_conf->microf_bthreshold = (uint32_t) cfg_getint(microflows, "include-byte-count")*1000/*in Bytes*/;
 					mmt_conf->microf_report_pthreshold = (uint32_t) cfg_getint(microflows, "report-packet-count");
@@ -498,7 +491,6 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				char output_channel[10];
 				mmt_conf->security_enable = (uint32_t) cfg_getint(security, "enable");
 				if (mmt_conf->security_enable == 1){
-					mmt_conf->security_id = (uint16_t) cfg_getint(security, "id");
 					strncpy(mmt_conf->dir_out, (char *) cfg_getstr(security, "results-dir"), 256);
 					strncpy(mmt_conf->properties_file, (char *) cfg_getstr(security, "properties-file"), 256);
 					j = 0;
@@ -523,7 +515,6 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				mmt_conf->security2_enable        = (cfg_getint(security, "enable") != 0);
 				if (mmt_conf->security2_enable){
 					mmt_conf->security2_threads_count = (uint16_t) cfg_getint(security, "thread-nb");
-					mmt_conf->security2_report_id     = (uint16_t) cfg_getint(security, "id");
 					strncpy(mmt_conf->security2_rules_mask, cfg_getstr(security, "rules-mask"), sizeof( mmt_conf->security2_rules_mask ) - 1 );
 					strncpy(mmt_conf->security2_excluded_rules, cfg_getstr(security, "exclude-rules"), sizeof( mmt_conf->security2_excluded_rules ) - 1 );
 					j = 0;
@@ -617,10 +608,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				mmt_conf->ftp_reconstruct_enable = (uint32_t) cfg_getint(reconstruct_ftp, "enable");
 				if (mmt_conf->ftp_reconstruct_enable == 1){
 					char output_channel[10];
-					mmt_conf->ftp_reconstruct_id = (uint16_t) cfg_getint(reconstruct_ftp, "id");
 					strncpy(mmt_conf->ftp_reconstruct_output_location, (char *) cfg_getstr(reconstruct_ftp, "location"), 256);
-					//mmt_conf->ftp_reconstruct_output_channel = strncmp(output_channel,"file",4) == 0 ? 1: strncmp(output_channel,"redis",5) == 0
-					//	? 2 : strncmp(output_channel,"kafka",5) == 0 ? 3 : 1;
 					j = 0;
 					int nb_output_channel = cfg_size(reconstruct_ftp, "output-channel");
 					for(j = 0; j < nb_output_channel; j++) {
@@ -685,8 +673,6 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 						mmt_conf->radius_message_id = (uint32_t) cfg_getint(routput, "include-msg");
 					}
 					mmt_conf->radius_condition_id = (uint32_t) cfg_getint(routput, "include-condition");
-					//mmt_conf->radius_output_channel = strncmp(output_channel,"file",4) == 0 ? 1: strncmp(output_channel,"redis",5) == 0
-					//	? 2 : strncmp(output_channel,"kafka",5) == 0 ? 3 : 1;
 					j = 0;
 					int nb_output_channel = cfg_size(routput, "output-channel");
 					for(j = 0; j < nb_output_channel; j++) {
@@ -859,7 +845,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 		mmt_conf->security_reports_multisession = NULL;
 		mmt_security_report_multisession_t * temp_msr;
 		mmt_conf->security_reports_multisession_nb = security_reports_multisession_nb;
-		i = 0, j = 0;
+		i = 0, j = 0, k=0;
 
 		if (security_reports_multisession_nb > 0) {
 			mmt_conf->security_reports_multisession = calloc(sizeof(mmt_security_report_multisession_t), security_reports_multisession_nb);
@@ -870,12 +856,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 				if (temp_msr->enable == 1){
 					char output_channel[10];
-					//mmt_conf->security_report_output_channel = strncmp(output_channel,"file",4) == 0 ? 1: strncmp(output_channel,"redis",5) == 0
-					//		? 2 : strncmp(output_channel,"kafka",5) == 0 ? 3 : 1;
 					int nb_output_channel = cfg_size(security_report_multisession_opts, "output-channel");
-					j = 0;
-					for(j = 0; j < nb_output_channel; j++) {
-						strncpy(output_channel, (char *) cfg_getnstr(security_report_multisession_opts, "output-channel", j),10);
+					for(k = 0; k < nb_output_channel; k++) {
+						strncpy(output_channel, (char *) cfg_getnstr(security_report_multisession_opts, "output-channel", k),10);
 						if (strncmp(output_channel, "file", 4) == 0) mmt_conf->multisession_output_channel[0] = 1;
 						if (strncmp(output_channel, "redis", 5) == 0) mmt_conf->multisession_output_channel[1] = 1;
 						if (strncmp(output_channel, "kafka", 5) == 0) mmt_conf->multisession_output_channel[2] = 1;
@@ -907,7 +890,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 		mmt_conf->event_reports = NULL;
 		mmt_event_report_t * temp_er;
 		mmt_conf->event_reports_nb = event_reports_nb;
-		i=0,j=0;
+		i=0,j=0, k=0;
 
 		if (event_reports_nb > 0) {
 			mmt_conf->event_reports = calloc(sizeof(mmt_event_report_t), event_reports_nb);
@@ -920,25 +903,20 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				if (temp_er->enable == 1){
 
 					char output_channel[10];
-					//mmt_conf->event_report_output_channel = strncmp(output_channel,"file",4) == 0 ? 1: strncmp(output_channel,"redis",5) == 0
-					//		? 2 : strncmp(output_channel,"kafka",5) == 0 ? 3 : 1;
-
 					int nb_output_channel = cfg_size(event_opts, "output-channel");
-					j = 0;
-					for(j = 0; j < nb_output_channel; j++) {
-						strncpy(output_channel, (char *) cfg_getnstr(event_opts, "output-channel", j),10);
+					for(k = 0; k < nb_output_channel; k++) {
+						strncpy(output_channel, (char *) cfg_getnstr(event_opts, "output-channel", k),10);
 						if (strncmp(output_channel, "file", 4) == 0) mmt_conf->event_output_channel[0] = 1;
 						if (strncmp(output_channel, "redis", 5) == 0) mmt_conf->event_output_channel[1] = 1;
 						if (strncmp(output_channel, "kafka", 5) == 0) mmt_conf->event_output_channel[2] = 1;
 					}
 					if (nb_output_channel == 0) mmt_conf->event_output_channel[0] = 1;//default
-					temp_er->id = (uint32_t)cfg_getint(event_opts, "id");
+					temp_er->id = j + 1;
 					if (parse_dot_proto_attribute((char *) cfg_getstr(event_opts, "event"), &temp_er->event)) {
 						fprintf(stderr, "Error: invalid event_report event value '%s'\n", (char *) cfg_getstr(event_opts, "event"));
 						exit(0);
 					}
 					mmt_conf->event_based_reporting_enable = (uint32_t) cfg_getint(event_opts, "enable");
-
 					event_attributes_nb = cfg_size(event_opts, "attributes");
 					temp_er->attributes_nb = event_attributes_nb;
 					if(event_attributes_nb > 0) {
@@ -972,7 +950,6 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			for(j = 0; j < condition_reports_nb; j++) {
 				condition_opts = cfg_getnsec(cfg, "condition_report", j);
 				temp_condn = & mmt_conf->condition_reports[j];
-				temp_condn->id = (uint16_t)cfg_getint(condition_opts, "id");
 				temp_condn->enable = (uint32_t)cfg_getint(condition_opts, "enable");
 				if (temp_condn->enable == 1){
 					if (parse_condition_attribute((char *) cfg_getstr(condition_opts, "condition"), &temp_condn->condition)) {
@@ -986,28 +963,23 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					}
 
 					if(strcmp(temp_condn->condition.condition, "FTP") == 0){
-						mmt_conf->ftp_id = temp_condn->id;
 						if (temp_condn->enable == 1) mmt_conf->ftp_enable = 1;
 						if (temp_condn->enable == 0) mmt_conf->ftp_enable = 0;
 					}
 					if(strcmp(temp_condn->condition.condition, "WEB") == 0){
-						mmt_conf->web_id = temp_condn->id;
 						if (temp_condn->enable == 1) mmt_conf->web_enable = 1;
 						if (temp_condn->enable == 0) mmt_conf->web_enable = 0;
 					}
 					if(strcmp(temp_condn->condition.condition, "RTP") == 0){
-						mmt_conf->rtp_id = temp_condn->id;
 						if (temp_condn->enable == 1) mmt_conf->rtp_enable = 1;
 						if (temp_condn->enable == 0) mmt_conf->rtp_enable = 0;
 					}
 					if(strcmp(temp_condn->condition.condition, "SSL") == 0){
-						mmt_conf->ssl_id = temp_condn->id;
 						if (temp_condn->enable == 1) mmt_conf->ssl_enable = 1;
 						if (temp_condn->enable == 0) mmt_conf->ssl_enable = 0;
 					}
 					if(strcmp(temp_condn->condition.condition, "HTTP-RECONSTRUCT") == 0){
 #ifdef HTTP_RECONSTRUCT						
-						mmt_conf->http_reconstruct_id = temp_condn->id;
 						if (temp_condn->enable == 1) {
 							strncpy(mmt_conf->http_reconstruct_output_location, temp_condn->condition.location, 256);
 							mmt_conf->http_reconstruct_enable = 1;
