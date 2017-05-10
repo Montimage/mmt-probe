@@ -21,7 +21,7 @@ void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, 
             ssl_session_attr_t * ssl_data = (ssl_session_attr_t *) malloc(sizeof (ssl_session_attr_t));
             if (ssl_data != NULL) {
                 memset(ssl_data, '\0', sizeof (ssl_session_attr_t));
-                temp_session->app_format_id = probe_context->ssl_id;
+                temp_session->app_format_id = MMT_SSL_REPORT_FORMAT;
                 temp_session->app_data = (void *) ssl_data;
             } else {
                 mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating SSL reporting context");
@@ -30,7 +30,7 @@ void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, 
             }
         }
         http_line_struct_t * server_name = (http_line_struct_t *) attribute->data;
-        if (server_name != NULL && temp_session->app_format_id == probe_context->ssl_id) {
+        if (server_name != NULL && temp_session->app_format_id == MMT_SSL_REPORT_FORMAT) {
             uint16_t max = ((uint16_t) server_name->len > 63) ? 63 : server_name->len;
             strncpy(((ssl_session_attr_t *) temp_session->app_data)->hostname, (char *) server_name->ptr, max);
             ((ssl_session_attr_t *) temp_session->app_data)->hostname[max] = '\0';

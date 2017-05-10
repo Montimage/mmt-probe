@@ -80,14 +80,14 @@ void ftp_session_connection_type_handle(const ipacket_t * ipacket, attribute_t *
 		ftp_data = (ftp_session_attr_t *) malloc(sizeof (ftp_session_attr_t));
 		if (ftp_data != NULL) {
 			memset(ftp_data, '\0', sizeof (ftp_session_attr_t));
-			temp_session->app_format_id = probe_context->ftp_id;
+			temp_session->app_format_id = MMT_FTP_REPORT_FORMAT;
 			temp_session->app_data = (void *) ftp_data;
 		} else {
 			fprintf(stderr, "[FTP_REPORT: %lu] Out of memory error when creating FTP data report!\n", ipacket->packet_id);
 			return;
 		}
 	} else {
-		if (temp_session->app_format_id != probe_context->ftp_id) {
+		if (temp_session->app_format_id != MMT_FTP_REPORT_FORMAT) {
 			debug("[FTP_REPORT: %lu] Not FTP report\n", ipacket->packet_id);
 			return;
 		}
@@ -238,7 +238,7 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
 		return;
 	}
 
-	if (temp_session->app_format_id != probe_context->ftp_id) {
+	if (temp_session->app_format_id != MMT_FTP_REPORT_FORMAT) {
 		debug("[FTP_REPORT: %lu] Not FTP report\n", ipacket->packet_id);
 		free (response_value);
 		return;
@@ -279,7 +279,7 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
 			ftp_data->file_download_finishtime_usec = ipacket->p_hdr->ts.tv_usec;
 			snprintf(message, MAX_MESS,
 			         "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%"PRIu32",\"%s\",\"%s\",%hu,%hu,%"PRIu8",%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%lu.%06lu,%lu.%06lu,%"PRIu64",%u",
-			         probe_context->ftp_reconstruct_id, probe_context->probe_id_number, probe_context->input_source, end_time.tv_sec, end_time.tv_usec, temp_session->session_id, temp_session->thread_number,
+					 MMT_FTP_RECONSTRUCTION_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, end_time.tv_sec, end_time.tv_usec, temp_session->session_id, temp_session->thread_number,
 			         ip_dst_str, ip_src_str,
 			         temp_session->serverport, temp_session->clientport,
 			         ftp_data->session_conn_type,
@@ -316,7 +316,7 @@ void print_initial_ftp_report(const mmt_session_t * session, session_struct_t * 
 		return;
 	}
 	
-	if(session == NULL || temp_session == NULL || temp_session->app_data == NULL || temp_session->app_format_id != probe_context->ftp_id){
+	if(session == NULL || temp_session == NULL || temp_session->app_data == NULL || temp_session->app_format_id != MMT_FTP_REPORT_FORMAT){
 		debug("[FTP_REPORT] Does not have data, or not FTP report\n");
 		return;
 	}

@@ -106,7 +106,7 @@ void security_print_verdict(
 	struct smp_thread *th = (struct smp_thread *) user_data;
 
 	len = snprintf( message, len, "%d,%d,\"%s\",%ld,%"PRIu32",\"%s\",\"%s\",\"%s\",%s",
-			mmt_conf->security2_report_id,
+			MMT_SECURITY_REPORT_FORMAT,
 			mmt_conf->probe_id_number,
 			mmt_conf->input_source,
 			time( NULL ),

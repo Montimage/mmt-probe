@@ -28,13 +28,13 @@ void rtp_version_handle(const ipacket_t * ipacket, attribute_t * attribute, void
             if (rtp_attr != NULL) {
                 memset(rtp_attr, '\0', sizeof (rtp_session_attr_t));
                 temp_session->app_data = (void *) rtp_attr;
-                temp_session->app_format_id = probe_context->rtp_id;
+                temp_session->app_format_id = MMT_RTP_REPORT_FORMAT;
                 rtp_attr->packets_nb += 1;
             } else {
                 mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating RTP reporting context");
                 //fprintf(stderr, "Out of memory error when creating RTP specific data structure!\n");
             }
-        } else if(temp_session->app_format_id == probe_context->rtp_id) {
+        } else if(temp_session->app_format_id == MMT_RTP_REPORT_FORMAT) {
             ((rtp_session_attr_t*) temp_session->app_data)->packets_nb += 1;
         }
     }
@@ -48,7 +48,7 @@ void rtp_jitter_handle(const ipacket_t * ipacket, attribute_t * attribute, void 
     session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
     if (temp_session != NULL && temp_session->app_data != NULL) {
         uint32_t * jitter = (uint32_t *) attribute->data;
-        if (jitter != NULL && temp_session->app_format_id == probe_context->rtp_id) {
+        if (jitter != NULL && temp_session->app_format_id == MMT_RTP_REPORT_FORMAT) {
             if (*jitter > ((rtp_session_attr_t*) temp_session->app_data)->jitter) {
                 ((rtp_session_attr_t*) temp_session->app_data)->jitter = *jitter;
             }
@@ -64,7 +64,7 @@ void rtp_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * 
     session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
     if (temp_session != NULL && temp_session->app_data != NULL) {
         uint16_t * loss = (uint16_t *) attribute->data;
-        if (loss != NULL && temp_session->app_format_id == probe_context->rtp_id) {
+        if (loss != NULL && temp_session->app_format_id == MMT_RTP_REPORT_FORMAT) {
             ((rtp_session_attr_t*) temp_session->app_data)->nb_lost += *loss;
         }
     }
@@ -78,7 +78,7 @@ void rtp_order_error_handle(const ipacket_t * ipacket, attribute_t * attribute, 
     session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
     if (temp_session != NULL && temp_session->app_data != NULL) {
         uint16_t * order_error = (uint16_t *) attribute->data;
-        if (order_error != NULL && temp_session->app_format_id == probe_context->rtp_id) {
+        if (order_error != NULL && temp_session->app_format_id == MMT_RTP_REPORT_FORMAT) {
             ((rtp_session_attr_t*) temp_session->app_data)->nb_order_error += *order_error;
         }
     }
@@ -92,7 +92,7 @@ void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, v
     session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
     if (temp_session != NULL && temp_session->app_data != NULL) {
         uint16_t * burst_loss = (uint16_t *) attribute->data;
-        if (burst_loss != NULL && temp_session->app_format_id == probe_context->rtp_id) {
+        if (burst_loss != NULL && temp_session->app_format_id == MMT_RTP_REPORT_FORMAT) {
             ((rtp_session_attr_t*) temp_session->app_data)->nb_loss_bursts += 1;
         }
     }

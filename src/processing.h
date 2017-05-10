@@ -19,23 +19,31 @@ extern "C" {
 #include <unistd.h>
 #define ONLINE_ANALYSIS 0x1
 #define OFFLINE_ANALYSIS 0x2
-
-#define MMT_STATISTICS_REPORT_FORMAT    0x63 //decimal 99
-//HN
-#define MMT_STATISTICS_FLOW_REPORT_FORMAT    0x64 //decimal 100
-#define MMT_SECURITY_REPORT_FORMAT  0xa
-
-#define MMT_RADIUS_REPORT_FORMAT    0x9
-#define MMT_FLOW_REPORT_FORMAT      0x7
-
-#define MMT_SKIP_APP_REPORT_FORMAT      0xFF //This is mainly to skip the reporting of flows of specific applications.
-#define MMT_DEFAULT_APP_REPORT_FORMAT   0x0
-
 #define MMT_RADIUS_REPORT_ALL 0x0
 #define MMT_RADIUS_REPORT_MSG 0x1
 
 //#define MMT_RADIUS_ANY_CONDITION 0x0
 #define MMT_RADIUS_IP_MSISDN_PRESENT 0x1
+
+/////////////////////////////// report formats JP
+#define MMT_STATISTICS_NON_FLOW_REPORT_FORMAT    0x63 //decimal 99
+#define MMT_STATISTICS_FLOW_REPORT_FORMAT    0x64 //decimal 100
+#define MMT_FTP_RECONSTRUCTION_REPORT_FORMAT 0xd
+#define MMT_SECURITY_REPORT_FORMAT  0xa
+#define MMT_RADIUS_REPORT_FORMAT    0x9
+#define MMT_MICRO_FLOW_REPORT_FORMAT    0x8
+#define MMT_WEB_REPORT_FORMAT    0x1
+#define MMT_FTP_REPORT_FORMAT    0x4
+#define MMT_RTP_REPORT_FORMAT    0x3
+#define MMT_SSL_REPORT_FORMAT    0x2
+#define MMT_HTTP_RECONSTRUCT_REPORT_FORMAT    0xb
+//#define MMT_SKIP_APP_REPORT_FORMAT      0xFF //This is mainly to skip the reporting of flows of specific applications.
+#define MMT_DEFAULT_APP_REPORT_FORMAT   0x0
+#define MMT_IP_FRAG_REPORT_FORMAT   0x65
+#define MMT_MULTI_SESSION_REPORT_FORMAT   0xc
+#define MMT_LICENSE_REPORT_FORMAT 0x1E
+#define MMT_EVENT_REPORT_FORMAT 0x3E8
+///////////////////////////////report format JP
 
 #define MMT_USER_AGENT_THRESHOLD 0x20 //32KB
 #define MAX_MESS 3000
@@ -280,12 +288,6 @@ typedef struct mmt_probe_context_struct {
     uint32_t web_enable;
     uint32_t rtp_enable;
     uint32_t ssl_enable;
-    uint16_t ftp_id;
-    uint16_t web_id;
-    uint16_t rtp_id;
-    uint16_t ssl_id;
-    uint16_t ftp_reconstruct_id;
-    uint16_t security_id;
     uint32_t behaviour_enable;
     uint32_t security_enable;
     uint32_t event_based_reporting_enable;
@@ -321,7 +323,6 @@ typedef struct mmt_probe_context_struct {
     uint32_t radius_condition_id;
 
     uint32_t microf_enable;
-    uint16_t microf_id;
     uint32_t microf_pthreshold;
     uint32_t microf_bthreshold;
     uint32_t microf_report_pthreshold;
@@ -425,7 +426,7 @@ typedef struct mmt_probe_context_struct {
 
 	//hn - new security
 	bool security2_enable;
-	uint16_t security2_report_id;
+
 	char security2_rules_mask[1000];
 	char security2_excluded_rules[1000];
 	//number of threads of security2 per one thread of probe

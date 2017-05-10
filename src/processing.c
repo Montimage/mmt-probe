@@ -204,7 +204,7 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	temp_session->session_id = get_session_id(session);
 	temp_session->thread_number = th->thread_index;
 
-	temp_session->format_id = MMT_FLOW_REPORT_FORMAT;
+	temp_session->format_id = MMT_STATISTICS_FLOW_REPORT_FORMAT;
 	temp_session->app_format_id = MMT_DEFAULT_APP_REPORT_FORMAT;
 
 	if (temp_session->isFlowExtracted){
@@ -567,7 +567,7 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 			report_microflows_stats(mf_stats, args);
 		}
 	}else{
-		if(temp_session->app_format_id == probe_context->web_id ){
+		if(temp_session->app_format_id == MMT_WEB_REPORT_FORMAT){
 			if (temp_session->app_data == NULL) {
 				if (temp_session->session_attr != NULL) {
 					//Free the application specific data
@@ -593,7 +593,7 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 
 	if (temp_session->app_data != NULL) {
 		//Free the application specific data
-		if (temp_session->app_format_id == probe_context->ftp_id){
+		if (temp_session->app_format_id == MMT_FTP_REPORT_FORMAT){
 			if (((ftp_session_attr_t*) temp_session->app_data)->filename != NULL)free (((ftp_session_attr_t*) temp_session->app_data)->filename);
 			if (((ftp_session_attr_t*) temp_session->app_data)->response_value != NULL)free(((ftp_session_attr_t*) temp_session->app_data)->response_value);
 			if (((ftp_session_attr_t*) temp_session->app_data)->session_username != NULL)free(((ftp_session_attr_t*) temp_session->app_data)->session_username);
