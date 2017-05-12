@@ -36,8 +36,8 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 		//Count for fragmented and defragmented packets
 		if (probe_context->enable_IP_fragmentation_report == 1){
 			if (proto_id == 178 && (proto_stats->ip_frag_packets_count + proto_stats->ip_df_packets_count > 0)){
-				long int ip_nodf_data_volume = (long int)(proto_stats->ip_frag_data_volume - proto_stats->ip_df_data_volume);
-				long int ip_nodf_packets_count = (long int)(proto_stats->ip_frag_packets_count - proto_stats->ip_df_packets_count);
+				long int ip_nodf_data_volume = (long int)(proto_stats->ip_frag_data_volume + proto_stats->ip_df_data_volume);
+				long int ip_nodf_packets_count = (long int)(proto_stats->ip_frag_packets_count + proto_stats->ip_df_packets_count);
 				snprintf(ip_message, MAX_MESS,
 						"%u,%u,\"%s\",%lu.%06lu,%"PRIu64",\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%ld,%ld",
 						MMT_IP_FRAG_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, proto_stats->last_packet_time.tv_sec, proto_stats->last_packet_time.tv_usec, th->report_counter, path,
