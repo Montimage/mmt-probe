@@ -34,7 +34,7 @@
 
 
 #define RX_RING_SIZE    4096 	/* Size for each RX ring*/
-#define NUM_MBUFS       196609  /* Total size of MBUFS */
+#define NUM_MBUFS       65535  /* Total size of MBUFS */
 #define MBUF_CACHE_SIZE 512
 #define BURST_SIZE      128  	/* Burst size to receive packets from RX ring */
 
@@ -188,15 +188,15 @@ static int _worker_thread( void *args_ptr ){
 		for( i=0; i < mmt_conf->security2_threads_count; i++ )
 			sec_cores_mask[ i ] = th->security2_lcore_id + i;
 
-		th->security2_alerts_output_count = 0;
 		security = register_security( th->mmt_handler,
 				mmt_conf->security2_threads_count,
 				sec_cores_mask, mmt_conf->security2_rules_mask,
 				th->thread_index == 0,//false, //true,
 				//this callback will be called from one or many different threads (depending on #security2_threads_count)
 				//print verdict only if output to file or redis is enable
-				( mmt_conf->output_to_file_enable == 1 && mmt_conf->security2_file_output_enable )
-				|| ( mmt_conf->redis_enable == 1 &&  mmt_conf->security2_redis_output_enable ) ? security_print_verdict : NULL,
+				( mmt_conf->output_to_file_enable == 1 && mmt_conf->security2_output_channel[0] )
+				|| ( mmt_conf->redis_enable == 1 &&  mmt_conf->security2_output_channel[1] )
+				|| ( mmt_conf->kafka_enable == 1 &&  mmt_conf->security2_output_channel[2] ) ? security_print_verdict : NULL,
 				th );
 
 		free( sec_cores_mask );
@@ -224,7 +224,7 @@ static int _worker_thread( void *args_ptr ){
 			if (mmt_conf->enable_session_report == 1)
 				process_session_timer_handler( th->mmt_handler );
 
-			if (mmt_conf->enable_proto_without_session_stats == 1)
+			if (mmt_conf->enable_proto_without_session_stats == 1 || mmt_conf->enable_IP_fragmentation_report == 1)
 				iterate_through_protocols(protocols_stats_iterator, th);
 		}
 
@@ -266,7 +266,7 @@ static int _worker_thread( void *args_ptr ){
 	radius_ext_cleanup( th->mmt_handler ); // cleanup our event handler for RADIUS initializations
 	flowstruct_cleanup( th->mmt_handler ); // cleanup our event handler
 	th->report_counter++;
-	if ( mmt_conf->enable_proto_without_session_stats == 1 )
+	if ( mmt_conf->enable_proto_without_session_stats == 1 || mmt_conf->enable_IP_fragmentation_report == 1)
 		iterate_through_protocols( protocols_stats_iterator, th );
 	if ( cleanup_registered_handlers (th) == 0 )
 		fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",th->thread_index);

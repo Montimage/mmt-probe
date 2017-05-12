@@ -138,16 +138,17 @@ void * smp_thread_routine(void *arg) {
 			}
 		}
 
-		th->security2_alerts_output_count = 0;
+		//th->security2_alerts_output_count = 0;
 		security2 = register_security( th->mmt_handler,
 				probe_context->security2_threads_count,
 				sec_cores_mask, probe_context->security2_rules_mask,
 				th->thread_index == 0,//false, //true,
 				//this callback will be called from one or many different threads (depending on #security2_threads_count)
 				//print verdict only if output to file or redis is enable
-				( probe_context->output_to_file_enable == 1 && probe_context->security2_file_output_enable )
-				|| ( probe_context->redis_enable == 1 &&  probe_context->security2_redis_output_enable ) ? security_print_verdict : NULL,
-						th );
+				( probe_context->output_to_file_enable && probe_context->security2_output_channel[0] )
+				|| ( probe_context->redis_enable &&  probe_context->security2_output_channel[1] )
+				|| ( probe_context->kafka_enable &&  probe_context->security2_output_channel[2] ) ? security_print_verdict : NULL,th
+		);
 
 		free( sec_cores_mask );
 	}
@@ -165,7 +166,7 @@ void * smp_thread_routine(void *arg) {
 			th->last_stat_report_time = time(NULL);
 			th->pcap_last_stat_report_time = th->pcap_current_packet_time;
 			if (probe_context->enable_session_report == 1)process_session_timer_handler(th->mmt_handler);
-			if (probe_context->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, th);
+			if (probe_context->enable_proto_without_session_stats == 1 || probe_context->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, th);
 		}
 
 		//get number of packets being available
@@ -219,7 +220,7 @@ void * smp_thread_routine(void *arg) {
 		radius_ext_cleanup(th->mmt_handler); // cleanup our event handler for RADIUS initializations
 		flowstruct_cleanup(th->mmt_handler); // cleanup our event handler
 		th->report_counter++;
-		if (probe_context->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, th);
+		if (probe_context->enable_proto_without_session_stats == 1 || probe_context->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, th);
 		//process_session_timer_handler(th->mmt_handler);
 		if (cleanup_registered_handlers (th) == 0){
 			fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",th->thread_index);
@@ -299,15 +300,16 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 				}
 			}
 
-			mmt_probe->smp_threads->security2_alerts_output_count = 0;
+			//mmt_probe->smp_threads->security2_alerts_output_count = 0;
 			security2_single_thread = register_security( mmt_probe->smp_threads->mmt_handler,
 					mmt_probe->mmt_conf->security2_threads_count,
 					sec_cores_mask, mmt_probe->mmt_conf->security2_rules_mask,
 					mmt_probe->smp_threads->thread_index == 0,//false, //true,
 					//this callback will be called from one or many different threads (depending on #security2_threads_count)
 					//print verdict only if output to file or redis is enable
-					( mmt_probe->mmt_conf->output_to_file_enable == 1 && mmt_probe->mmt_conf->security2_file_output_enable )
-					|| ( mmt_probe->mmt_conf->redis_enable == 1 &&  mmt_probe->mmt_conf->security2_redis_output_enable ) ? security_print_verdict : NULL,
+					( mmt_probe->mmt_conf->output_to_file_enable && mmt_probe->mmt_conf->security2_output_channel[0] )
+					|| ( mmt_probe->mmt_conf->redis_enable &&  mmt_probe->mmt_conf->security2_output_channel[1] )
+					|| ( mmt_probe->mmt_conf->kafka_enable &&  mmt_probe->mmt_conf->security2_output_channel[2] ) ? security_print_verdict : NULL,
 							mmt_probe->smp_threads );
 
 			free( sec_cores_mask );
@@ -338,7 +340,7 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 				mmt_probe->smp_threads->last_stat_report_time = time(NULL);
 				mmt_probe->smp_threads->pcap_last_stat_report_time = mmt_probe->smp_threads->pcap_current_packet_time;
 				if (mmt_probe->mmt_conf->enable_session_report == 1)process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
-				if (mmt_probe->mmt_conf->enable_proto_without_session_stats == 1 )iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
+				if (mmt_probe->mmt_conf->enable_proto_without_session_stats == 1 || mmt_probe->mmt_conf->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
 			}
 
 
@@ -434,7 +436,7 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 		mmt_probe->smp_threads->report_counter++;
 		mmt_probe->smp_threads->last_stat_report_time = time(NULL);
 		if (mmt_probe->mmt_conf->enable_session_report == 1)process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
-		if (mmt_probe->mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
+		if (mmt_probe->mmt_conf->enable_proto_without_session_stats == 1 || mmt_probe->mmt_conf->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
 	}
 
 	if (!packet_process(mmt_probe->smp_threads->mmt_handler, &header, data)) {
@@ -570,15 +572,16 @@ void *Reader(void *arg) {
 			}
 		}
 
-		mmt_probe->smp_threads->security2_alerts_output_count = 0;
+		//mmt_probe->smp_threads->security2_alerts_output_count = 0;
 		security2_single_thread = register_security( mmt_probe->smp_threads->mmt_handler,
 				mmt_probe->mmt_conf->security2_threads_count,
 				sec_cores_mask, mmt_probe->mmt_conf->security2_rules_mask,
 				mmt_probe->smp_threads->thread_index == 0,//false, //true,
 				//this callback will be called from one or many different threads (depending on #security2_threads_count)
-				//print verdict only if output to file or redis is enable
-				( mmt_probe->mmt_conf->output_to_file_enable == 1 && mmt_probe->mmt_conf->security2_file_output_enable )
-				|| ( mmt_probe->mmt_conf->redis_enable == 1 &&  mmt_probe->mmt_conf->security2_redis_output_enable ) ? security_print_verdict : NULL,
+				//print verdict only if output to file or redis or kafka is enable
+				( mmt_probe->mmt_conf->output_to_file_enable && mmt_probe->mmt_conf->security2_output_channel[0] )
+				|| ( mmt_probe->mmt_conf->redis_enable &&  mmt_probe->mmt_conf->security2_output_channel[1] )
+				|| ( mmt_probe->mmt_conf->kafka_enable &&  mmt_probe->mmt_conf->security2_output_channel[2] ) ? security_print_verdict : NULL,
 						mmt_probe->smp_threads );
 
 		free( sec_cores_mask );
@@ -598,7 +601,7 @@ void *Reader(void *arg) {
 				mmt_probe->smp_threads->report_counter ++;
 				mmt_probe->smp_threads->last_stat_report_time = time(NULL);
 				if(mmt_probe->mmt_conf->enable_session_report == 1)process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
-				if (mmt_probe->mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
+				if (mmt_probe->mmt_conf->enable_proto_without_session_stats == 1 || mmt_probe->mmt_conf->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
 			}
 
 		}

@@ -162,22 +162,23 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	}
 	valid = strlen(message);
 
-	if (temp_session->app_format_id == probe_context->web_id && probe_context->web_enable == 1) print_initial_web_report(session, temp_session, message,valid);
-	else if (temp_session->app_format_id == probe_context->rtp_id && probe_context->rtp_enable == 1) print_initial_rtp_report(session, temp_session, message,valid);
-	else if (temp_session->app_format_id == probe_context->ssl_id && temp_session->session_attr->touched == 0 && probe_context->ssl_enable == 1) print_initial_ssl_report(session, temp_session, message, valid);
-	else if (temp_session->app_format_id == probe_context->ftp_id && probe_context->ftp_enable == 1) print_initial_ftp_report(session, temp_session, message, valid);
+	if (temp_session->app_format_id == MMT_WEB_REPORT_FORMAT && probe_context->web_enable == 1) print_initial_web_report(session, temp_session, message,valid);
+	else if (temp_session->app_format_id == MMT_RTP_REPORT_FORMAT && probe_context->rtp_enable == 1) print_initial_rtp_report(session, temp_session, message,valid);
+	else if (temp_session->app_format_id == MMT_SSL_REPORT_FORMAT && temp_session->session_attr->touched == 0 && probe_context->ssl_enable == 1) print_initial_ssl_report(session, temp_session, message, valid);
+	else if (temp_session->app_format_id == MMT_FTP_REPORT_FORMAT && probe_context->ftp_enable == 1) print_initial_ftp_report(session, temp_session, message, valid);
 	else if(temp_session->session_attr->touched == 0){
 		sslindex = get_protocol_index_from_session(proto_hierarchy, PROTO_SSL);
 		if (sslindex != -1 && probe_context->ssl_enable == 1 ){
-			temp_session->app_format_id = probe_context->ssl_id;
+			temp_session->app_format_id = MMT_SSL_REPORT_FORMAT;
 			print_initial_ssl_report(session, temp_session, message, valid);
 		}else print_initial_default_report(session, temp_session, message, valid);
 	}
 	valid = strlen(message);
 	message[ valid ] = '\0'; // correct end of string in case of truncated message
 
-	if (probe_context->output_to_file_enable == 1)send_message_to_file_thread (message, (void *)user_args);
-	if (probe_context->redis_enable == 1)send_message_to_redis ("session.flow.report", message);
+	if (probe_context->output_to_file_enable && probe_context->session_output_channel[0])send_message_to_file_thread (message, (void *)user_args);
+	if (probe_context->redis_enable && probe_context->session_output_channel[1])send_message_to_redis ("session.flow.report", message);
+	if (probe_context->kafka_enable && probe_context->session_output_channel[2])send_msg_to_kafka(probe_context->topic_object->rkt_session, message);
 
 	temp_session->session_attr->retransmission_count = get_session_retransmission_count (session);
 

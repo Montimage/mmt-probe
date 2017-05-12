@@ -24,8 +24,8 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
 	mmt_event_report_t * event_report   = p->event_reports; //(mmt_event_report_t *) user_args;
 
 	valid= snprintf(message, MAX_MESS,
-			"%u,%u,\"%s\",%lu.%lu",
-			event_report->id, probe_context->probe_id_number, probe_context->input_source, ipacket->p_hdr->ts.tv_sec,ipacket->p_hdr->ts.tv_usec);
+			"%u,%u,\"%s\",%lu.%lu,%u",
+			MMT_EVENT_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, ipacket->p_hdr->ts.tv_sec,ipacket->p_hdr->ts.tv_usec, event_report->id);
 	if(valid > 0) {
 		offset += valid;
 	}else {
@@ -59,15 +59,17 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
 	}
 	message[ offset ] = '\0';
 	//send_message_to_file ("event.report", message);
-	if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message, th);
-	if (probe_context->redis_enable == 1) send_message_to_redis ("event.report", message);
+
+	if (probe_context->output_to_file_enable && probe_context->event_output_channel[0] ) send_message_to_file_thread (message, th);
+	if (probe_context->redis_enable && probe_context->event_output_channel[1] ) send_message_to_redis ("event.report", message);
+	if (probe_context->kafka_enable && probe_context->event_output_channel[2] ) send_msg_to_kafka(probe_context->topic_object->rkt_event, message);
 
 }
 /* This function registers attributes and handlers for event report.
  * Returns 0 if unsuccessful
  * */
 int register_event_report_handle(void * args) {
-	int i = 1, j;
+	int j;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 
 	struct smp_thread *th ;
@@ -75,32 +77,42 @@ int register_event_report_handle(void * args) {
 	th = p->smp_thread;
 	mmt_event_report_t * event_report = p->event_reports;
 
-	i = event_report->event.proto_id = get_protocol_id_by_name (event_report->event.proto);
-	if (i == 0) return i;
+	event_report->event.proto_id = get_protocol_id_by_name (event_report->event.proto);
+	if (event_report->event.proto_id == 0) return 0;
 
-	i = event_report->event.attribute_id = get_attribute_id_by_protocol_and_attribute_names(event_report->event.proto, event_report->event.attribute);
-	if (i == 0) return i;
+	event_report->event.attribute_id = get_attribute_id_by_protocol_and_attribute_names(event_report->event.proto, event_report->event.attribute);
+	if (event_report->event.attribute_id == 0) return 0;
 
 	if (is_registered_attribute_handler(th->mmt_handler, event_report->event.proto_id, event_report->event.attribute_id, event_report_handle) == 0){
-		i = register_attribute_handler(th->mmt_handler, event_report->event.proto_id, event_report->event.attribute_id, event_report_handle, NULL, (void *) p);
-		if (i == 0) return i;
+		if (!register_attribute_handler(th->mmt_handler, event_report->event.proto_id, event_report->event.attribute_id, event_report_handle, NULL, (void *) p)){
+			fprintf(stderr,"[Error] Cannot registered register_attribute_handler (event_report): proto: %s ,attribute: %s (report: %i)\n",event_report->event.proto,event_report->event.attribute, event_report->id);
+			return 0;
+		}
+
+	}else{
+		fprintf(stderr,"[WARNING] Already registered register_attribute_handler (event_report): proto: %s ,attribute: %s (report: %i)\n",event_report->event.proto,event_report->event.attribute, event_report->id);
+
 	}
 
 	for(j = 0; j < event_report->attributes_nb; j++) {
 		mmt_event_attribute_t * event_attribute = &event_report->attributes[j];
-		i = event_attribute->proto_id = get_protocol_id_by_name (event_attribute->proto);
-		if (i == 0) return i;
+		event_attribute->proto_id = get_protocol_id_by_name (event_attribute->proto);
+		if (event_attribute->proto_id == 0) return 0;
 
 
-		i = event_attribute->attribute_id = get_attribute_id_by_protocol_and_attribute_names(event_attribute->proto, event_attribute->attribute);
-		if (i == 0) return i;
+		event_attribute->attribute_id = get_attribute_id_by_protocol_and_attribute_names(event_attribute->proto, event_attribute->attribute);
+		if (event_attribute->attribute_id == 0) return 0;
 
 		if (is_registered_attribute(th->mmt_handler, event_attribute->proto_id, event_attribute->attribute_id) == 0){
-			i = register_extraction_attribute(th->mmt_handler, event_attribute->proto_id, event_attribute->attribute_id);
-			if (i == 0) return i;
+			if (!register_extraction_attribute(th->mmt_handler, event_attribute->proto_id, event_attribute->attribute_id)){
+				fprintf(stderr,"[Error] Cannot register_extraction_attribute (event_report): proto: %s ,attribute: %s (report: %i)\n",event_attribute->proto,event_attribute->attribute, event_report->id);
+				return 0;
+			}
+		}else{
+			fprintf(stderr,"[WARNING] Already registered register_extraction_attribute (event_report): proto: %s ,attribute: %s (report: %i)\n",event_attribute->proto,event_attribute->attribute, event_report->id);
 		}
 	}
-	return i;
+	return 1;
 }
 
 /* This function initialize event report.

@@ -29,9 +29,6 @@
 // - close html parser and gzip decoder (if any) and cleanup at message end event - OK
 // - cleanup and free user data at session expiry - OK
 
-/**
- * gcc -g -o http_reconstruct_body reconstruct_body.c html_integration.c -I /opt/mmt/dpi/include -L /opt/mmt/dpi/lib -lmmt_core -ldl -lpcap -lhtmlstreamparser -lz
- */
 
 #include <stdio.h>
 #include <string.h>

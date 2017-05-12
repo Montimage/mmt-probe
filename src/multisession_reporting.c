@@ -29,8 +29,8 @@ void get_security_multisession_report(const ipacket_t * ipacket,void * args){
 		if (probe_context->security_reports_multisession[i].enable == 0)
 			continue;
 		valid= snprintf(message, LEN,
-				"%u,%lu.%lu",
-				probe_context->probe_id_number, current_time.tv_sec,current_time.tv_usec);
+				"%u,%u,%lu.%lu",
+				MMT_MULTI_SESSION_REPORT_FORMAT,probe_context->probe_id_number, current_time.tv_sec,current_time.tv_usec);
 		if(valid > 0) {
 			offset += valid;
 		}else {
@@ -56,16 +56,18 @@ void get_security_multisession_report(const ipacket_t * ipacket,void * args){
 		}
 		message[ offset ] = '\0';
 		if (k == 0)return;
-		if (probe_context->output_to_file_enable == 1 && probe_context->multisession_report_output_file == 1) send_message_to_file_thread (message, th);
-		if (probe_context->redis_enable == 1 && probe_context->multisession_report_redis == 1) send_message_to_redis ("multisession.report", message);
 	}
+
+		if (probe_context->output_to_file_enable && probe_context->multisession_output_channel[0]) send_message_to_file_thread (message, th);
+		if (probe_context->redis_enable && probe_context->multisession_output_channel[1]) send_message_to_redis ("multisession.report", message);
+		if (probe_context->kafka_enable && probe_context->multisession_output_channel[2])send_msg_to_kafka(probe_context->topic_object->rkt_multisession, message);
 }
 
 /* This function registers extraction attribute for multisession reports.
  * Returns 0 if unsuccessful
  * */
 int register_security_report_multisession_handle(void * args) {
-	int i = 0, j = 0, k = 1;
+	int i = 0, j = 0;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	struct smp_thread *th = (struct smp_thread *) args;
 
@@ -75,21 +77,25 @@ int register_security_report_multisession_handle(void * args) {
 			for(j = 0; j < probe_context->security_reports_multisession[i].attributes_nb; j++) {
 				mmt_security_attribute_t * security_attribute_multisession = &probe_context->security_reports_multisession[i].attributes[j];
 
-				k = security_attribute_multisession->proto_id = get_protocol_id_by_name (security_attribute_multisession->proto);
-				if (k == 0) return k;
+				security_attribute_multisession->proto_id = get_protocol_id_by_name (security_attribute_multisession->proto);
+				if (security_attribute_multisession->proto_id == 0) return 0;
 
-				k = security_attribute_multisession->attribute_id = get_attribute_id_by_protocol_and_attribute_names(security_attribute_multisession->proto, security_attribute_multisession->attribute);
-				if (k == 0) return k;
+				security_attribute_multisession->attribute_id = get_attribute_id_by_protocol_and_attribute_names(security_attribute_multisession->proto, security_attribute_multisession->attribute);
+				if (security_attribute_multisession->attribute_id == 0) return 0;
 
 				if (is_registered_attribute(th->mmt_handler, security_attribute_multisession->proto_id, security_attribute_multisession->attribute_id) == 0){
-					k = register_extraction_attribute(th->mmt_handler, security_attribute_multisession->proto_id, security_attribute_multisession->attribute_id);
-					if (k == 0) return k;
-					//printf("proto_id = %u, attribute_id = %u \n",security_attribute_multisession->proto_id, security_attribute_multisession->attribute_id);
+					if (!register_extraction_attribute(th->mmt_handler, security_attribute_multisession->proto_id, security_attribute_multisession->attribute_id)){
+						fprintf(stderr,"[Error] Cannot register_extraction_attribute (multisession_report): proto: %s ,attribute: %s \n",security_attribute_multisession->proto,security_attribute_multisession->attribute);
+						return 0;
+					}
+				}else {
+					fprintf(stderr,"[WARNING] Already registered register_extraction_attribute (multisession_report): proto: %s ,attribute: %s \n",security_attribute_multisession->proto,security_attribute_multisession->attribute);
 				}
+
 			}
 		}
 	}
-	return k;
+	return 1;
 }
 
 /* This function initialize multisession reports.  * */
@@ -101,7 +107,7 @@ void security_reports_multisession_init(void * args) {
 
 
 	if(register_security_report_multisession_handle((void *) th) == 0) {
-		fprintf(stderr, "Error while initializing security report !\n");
+		fprintf(stderr, "Error while initializing security_reports_multisession !\n");
 	}
 /*
 	if (probe_context->socket_enable == 1 && th->socket_active == 0){

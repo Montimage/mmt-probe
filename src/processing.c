@@ -204,7 +204,7 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	temp_session->session_id = get_session_id(session);
 	temp_session->thread_number = th->thread_index;
 
-	temp_session->format_id = MMT_FLOW_REPORT_FORMAT;
+	temp_session->format_id = MMT_STATISTICS_FLOW_REPORT_FORMAT;
 	temp_session->app_format_id = MMT_DEFAULT_APP_REPORT_FORMAT;
 
 	if (temp_session->isFlowExtracted){
@@ -401,10 +401,10 @@ void flowstruct_init(void * args) {
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_SERVER_PORT);
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_CLIENT_PORT);
 	if (probe_context->enable_IP_fragmentation_report == 1){
-		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_IP_FRAG_PACKET_COUNT);
-		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_IP_FRAG_DATA_VOLUME);
-		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_IP_DF_PACKET_COUNT);
-		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_IP_DF_DATA_VOLUME);
+		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, IP_FRAG_PACKET_COUNT);
+		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, IP_FRAG_DATA_VOLUME);
+		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, IP_DF_PACKET_COUNT);
+		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, IP_DF_DATA_VOLUME);
 	}
 
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
@@ -543,7 +543,7 @@ mmt_dev_properties_t get_dev_properties_from_user_agent(char * user_agent, uint3
  * It provides the expired session information and frees the memory allocated.
  * */
 void classification_expiry_session(const mmt_session_t * expired_session, void * args) {
-	debug("classification_expiry_session : %lu",get_session_id(expired_session));
+//	debug("classification_expiry_session : %lu",get_session_id(expired_session));
 	session_struct_t * temp_session = get_user_session_context(expired_session);
 	struct smp_thread *th = (struct smp_thread *) args;
 	if (temp_session == NULL) {
@@ -567,7 +567,7 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 			report_microflows_stats(mf_stats, args);
 		}
 	}else{
-		if(temp_session->app_format_id == probe_context->web_id ){
+		if(temp_session->app_format_id == MMT_WEB_REPORT_FORMAT){
 			if (temp_session->app_data == NULL) {
 				if (temp_session->session_attr != NULL) {
 					//Free the application specific data
@@ -593,7 +593,7 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 
 	if (temp_session->app_data != NULL) {
 		//Free the application specific data
-		if (temp_session->app_format_id == probe_context->ftp_id){
+		if (temp_session->app_format_id == MMT_FTP_REPORT_FORMAT){
 			if (((ftp_session_attr_t*) temp_session->app_data)->filename != NULL)free (((ftp_session_attr_t*) temp_session->app_data)->filename);
 			if (((ftp_session_attr_t*) temp_session->app_data)->response_value != NULL)free(((ftp_session_attr_t*) temp_session->app_data)->response_value);
 			if (((ftp_session_attr_t*) temp_session->app_data)->session_username != NULL)free(((ftp_session_attr_t*) temp_session->app_data)->session_username);

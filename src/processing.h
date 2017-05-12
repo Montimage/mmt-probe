@@ -10,6 +10,7 @@ extern "C" {
 #include "tcpip/mmt_tcpip_protocols.h"
 
 #include <semaphore.h>
+#include "rdkafka.h"
 
 #ifndef __USE_GNU
 #define __USE_GNU
@@ -18,23 +19,31 @@ extern "C" {
 #include <unistd.h>
 #define ONLINE_ANALYSIS 0x1
 #define OFFLINE_ANALYSIS 0x2
-
-#define MMT_STATISTICS_REPORT_FORMAT    0x63 //decimal 99
-//HN
-#define MMT_STATISTICS_FLOW_REPORT_FORMAT    0x64 //decimal 100
-#define MMT_SECURITY_REPORT_FORMAT  0xa
-
-#define MMT_RADIUS_REPORT_FORMAT    0x9
-#define MMT_FLOW_REPORT_FORMAT      0x7
-
-#define MMT_SKIP_APP_REPORT_FORMAT      0xFF //This is mainly to skip the reporting of flows of specific applications.
-#define MMT_DEFAULT_APP_REPORT_FORMAT   0x0
-
 #define MMT_RADIUS_REPORT_ALL 0x0
 #define MMT_RADIUS_REPORT_MSG 0x1
 
 //#define MMT_RADIUS_ANY_CONDITION 0x0
 #define MMT_RADIUS_IP_MSISDN_PRESENT 0x1
+
+/////////////////////////////// report formats JP
+#define MMT_STATISTICS_NON_FLOW_REPORT_FORMAT    0x63 //decimal 99
+#define MMT_STATISTICS_FLOW_REPORT_FORMAT    0x64 //decimal 100
+#define MMT_FTP_RECONSTRUCTION_REPORT_FORMAT 0xd
+#define MMT_SECURITY_REPORT_FORMAT  0xa
+#define MMT_RADIUS_REPORT_FORMAT    0x9
+#define MMT_MICRO_FLOW_REPORT_FORMAT    0x8
+#define MMT_WEB_REPORT_FORMAT    0x1
+#define MMT_FTP_REPORT_FORMAT    0x4
+#define MMT_RTP_REPORT_FORMAT    0x3
+#define MMT_SSL_REPORT_FORMAT    0x2
+#define MMT_HTTP_RECONSTRUCT_REPORT_FORMAT    0xb
+//#define MMT_SKIP_APP_REPORT_FORMAT      0xFF //This is mainly to skip the reporting of flows of specific applications.
+#define MMT_DEFAULT_APP_REPORT_FORMAT   0x0
+#define MMT_IP_FRAG_REPORT_FORMAT   0x65
+#define MMT_MULTI_SESSION_REPORT_FORMAT   0xc
+#define MMT_LICENSE_REPORT_FORMAT 0x1E
+#define MMT_EVENT_REPORT_FORMAT 0x3E8
+///////////////////////////////report format JP
 
 #define MMT_USER_AGENT_THRESHOLD 0x20 //32KB
 #define MAX_MESS 3000
@@ -237,6 +246,20 @@ typedef struct mmt_cpu_perf_struct {
     long double mem_usage_avg;
 } mmt_cpu_perf_t;
 
+typedef struct kafka_topic_object_struct{
+	rd_kafka_topic_t * rkt_session;
+	rd_kafka_topic_t * rkt_event;
+	rd_kafka_topic_t * rkt_cpu;
+	rd_kafka_topic_t * rkt_ftp_download;
+	rd_kafka_topic_t * rkt_multisession;
+	rd_kafka_topic_t * rkt_license;
+	rd_kafka_topic_t * rkt_protocol_stat;
+	rd_kafka_topic_t * rkt_radius;
+	rd_kafka_topic_t * rkt_microflows;
+	rd_kafka_topic_t * rkt_security;
+	rd_kafka_topic_t * rkt_frag;
+
+}kafka_topic_object_t;
 
 typedef struct mmt_probe_context_struct {
     uint32_t thread_nb;
@@ -265,12 +288,6 @@ typedef struct mmt_probe_context_struct {
     uint32_t web_enable;
     uint32_t rtp_enable;
     uint32_t ssl_enable;
-    uint16_t ftp_id;
-    uint16_t web_id;
-    uint16_t rtp_id;
-    uint16_t ssl_id;
-    uint16_t ftp_reconstruct_id;
-    uint16_t security_id;
     uint32_t behaviour_enable;
     uint32_t security_enable;
     uint32_t event_based_reporting_enable;
@@ -285,6 +302,10 @@ typedef struct mmt_probe_context_struct {
 
     uint32_t output_to_file_enable;
     uint32_t redis_enable;
+    uint32_t kafka_enable;
+    //rd_kafka_topic_conf_t * topic_old;
+
+    kafka_topic_object_t * topic_object;
 
     char out_f_name_index[256 + 1];
     FILE * data_out_file;
@@ -296,14 +317,12 @@ typedef struct mmt_probe_context_struct {
     uint32_t enable_proto_without_session_stats;
     uint32_t enable_flow_stats;
     uint32_t enable_IP_fragmentation_report;
-    uint32_t enable_session_report;
 
     uint32_t radius_starategy;
     uint32_t radius_message_id;
     uint32_t radius_condition_id;
 
     uint32_t microf_enable;
-    uint16_t microf_id;
     uint32_t microf_pthreshold;
     uint32_t microf_bthreshold;
     uint32_t microf_report_pthreshold;
@@ -326,6 +345,7 @@ typedef struct mmt_probe_context_struct {
 
 	mmt_cpu_perf_t * cpu_reports;
 	uint8_t cpu_mem_usage_enabled;
+	pthread_t cpu_ram_usage_thr; /* thread handle */
 
 	uint32_t new_attribute_register_flag;
 	time_t file_modified_time;
@@ -351,19 +371,67 @@ typedef struct mmt_probe_context_struct {
 	uint32_t security_reports_multisession_nb;
 	uint32_t enable_security_report_multisession;
 	uint32_t total_security_multisession_attribute_nb;
-	uint8_t multisession_report_output_file;
-	uint8_t multisession_report_redis;
+
+	/*
+	uint8_t multisession_file_output_enable;
+	uint8_t multisession_redis_output_enable;
+	uint8_t multisession_kafka_output_enable;
+
+
+	uint8_t security1_file_output_enable;
+	uint8_t security1_redis_output_enable;
+	uint8_t security1_kafka_output_enable;
+
+	uint8_t cpu_mem_usage_file_output_enable;
+	uint8_t cpu_mem_usage_redis_output_enable;
+	uint8_t cpu_mem_usage_kafka_output_enable;
+
+	uint8_t ftp_reconstruct_file_output_enable;
+	uint8_t ftp_reconstruct_redis_output_enable;
+	uint8_t ftp_reconstruct_kafka_output_enable;
+
+	uint8_t radius_file_output_enable;
+	uint8_t radius_redis_output_enable;
+	uint8_t radius_kafka_output_enable;
+
+	uint8_t event_file_output_enable;
+	uint8_t event_redis_output_enable;
+	uint8_t event_kafka_output_enable;
+
+	uint8_t session_file_output_enable;
+	uint8_t session_redis_output_enable;
+	uint8_t session_kafka_output_enable;
+
+	//configuration of output, len = 0 to disable output
+	bool security2_file_output_enable;
+	bool security2_redis_output_enable;
+	bool security2_kafka_output_enable;
+	*/
+    uint32_t enable_session_report;
+	uint8_t microf_output_channel[3];
+	uint8_t multisession_output_channel[3];
+	uint8_t security1_output_channel[3];
+	uint8_t event_output_channel[3];
+	uint8_t session_output_channel[3];
+	uint8_t radius_output_channel[3];
+	uint8_t ftp_reconstruct_output_channel[3];
+	uint8_t cpu_mem_output_channel[3];
+	uint8_t security2_output_channel[3];
+
+
+
+
+	rd_kafka_t *kafka_producer_instance;         /* Producer instance handle */
 
 
 	//hn - new security
 	bool security2_enable;
-	uint16_t security2_report_id;
+
 	char security2_rules_mask[1000];
+	char security2_excluded_rules[1000];
 	//number of threads of security2 per one thread of probe
 	uint8_t security2_threads_count;
-	//configuration of output, len = 0 to disable output
-	bool security2_file_output_enable;
-	bool security2_redis_output_enable;
+
 } mmt_probe_context_t;
 
 typedef struct microsessions_stats_struct {
@@ -610,8 +678,6 @@ struct smp_thread {
 
 	//hn - new security
 	unsigned security2_lcore_id; //lcore_id of security2
-	//number of alerts sent to file or redis
-	uint64_t security2_alerts_output_count;
 
 	sem_t sem_wait;
 #ifdef HTTP_RECONSTRUCT
@@ -728,6 +794,10 @@ void process_interface(char * ifname, struct mmt_probe_struct * mmt_probe);
 void clean_up_security2();
 void * smp_thread_routine(void *arg);//TODO: Static removed
 int pcap_capture(struct mmt_probe_struct * mmt_probe);
+
+
+void init_kafka(char * hostname, int port);
+void send_msg_to_kafka(rd_kafka_topic_t *rkt, char *message);
 /** Luong NGUYEN: HTTP reconstruct */
 #ifdef HTTP_RECONSTRUCT
 /**

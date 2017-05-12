@@ -99,7 +99,8 @@ void security_event( int prop_id, char *verdict, char *type, char *cause, char *
 	message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
 	//printf("%s\n",message);
 	if (th == NULL) printf("Thread structure does not exists\n");
-    if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message, th);
-    if (probe_context->redis_enable == 1) send_message_to_redis ("security.report", message);
+	if (probe_context->output_to_file_enable && probe_context->security1_output_channel[0]) send_message_to_file_thread (message, th);
+	if (probe_context->redis_enable && probe_context->security1_output_channel[1]) send_message_to_redis ("security.report", message);
+	if (probe_context->kafka_enable && probe_context->security1_output_channel[2])send_msg_to_kafka(probe_context->topic_object->rkt_security, message);
 }
 //END HN

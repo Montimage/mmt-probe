@@ -16,11 +16,9 @@
 typedef struct sec_wrapper_struct{
 	uint64_t msg_count;
 
-	void *sec_handler;
+	mmt_sec_handler_t *sec_handler;
 
-	void (*sec_process)( const void *, message_t *);
-
-	message_element_t *proto_atts;
+	const proto_attribute_t **proto_atts;
 
 	uint32_t proto_atts_count;
 
