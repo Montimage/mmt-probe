@@ -31,6 +31,16 @@ else
 	CLDFLAGS := -O3
 endif
 
+# - - - - - - - - - - -
+# FOR DPDK ENVIRONMENT
+# - - - - - - - - - - - 
+
+ifdef DPDK
+RTE_SDK=/home/mmt/dpdk/
+RTE_TARGET ?= x86_64-native-linuxapp-gcc
+
+include $(RTE_SDK)/mk/rte.vars.mk
+
 # For HTTP reconstruction option
 ifdef HTTP_RECONSTRUCT
 LIBS     += -lhtmlstreamparser -lz
@@ -42,18 +52,6 @@ ifndef NDEBUG
 CLDFLAGS   += -DNDEBUG
 CFLAGS 	   += -DNDEBUG
 endif
-
-
-# - - - - - - - - - - -
-# FOR DPDK ENVIRONMENT
-# - - - - - - - - - - - 
-
-ifdef DPDK
-
-RTE_SDK = /home/mmt/dpdk
-RTE_TARGET ?= x86_64-native-linuxapp-gcc
-
-include $(RTE_SDK)/mk/rte.vars.mk
 
 #Name of executable file to generate
 #APP = probe
@@ -67,6 +65,7 @@ src/multisession_reporting.c src/security_msg_reporting.c src/condition_based_re
 src/send_msg_to_kafka.c
 
 #set of library
+
 LDLIBS   += $(LIBS)
 CFLAGS   += $(WERROR_CFLAGS) -I /opt/mmt/dpi/include -I /opt/mmt/security/include -I /usr/local/include/librdkafka \
  -Wall -Wno-unused-variable -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DDPDK
@@ -86,7 +85,17 @@ endif
 ifdef PCAP
 #name of executable file to generate
 #APP = probe
+# For HTTP reconstruction option
+ifdef HTTP_RECONSTRUCT
+LIBS     += -lhtmlstreamparser -lz
+CFLAGS   += -DHTTP_RECONSTRUCT
+endif
 
+# For showing message from debug(...)
+ifndef NDEBUG
+CLDFLAGS   += -DNDEBUG
+CFLAGS 	   += -DNDEBUG
+endif
 #set of library
 LIBS     += -lpcap -ldl
 CFLAGS   += -Wall -Wno-unused-variable -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DPCAP
