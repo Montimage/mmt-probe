@@ -94,7 +94,7 @@ endif
 # For showing message from debug(...)
 ifndef NDEBUG
 CLDFLAGS   += -DNDEBUG
-CFLAGS 	   += -DNDEBUG
+CFLAGS 	  += -DNDEBUG
 endif
 #set of library
 LIBS     += -lpcap -ldl
@@ -159,9 +159,17 @@ endif
 	@echo
 
 
-DEB_NAME = mmt-probe_$(VERSION)_$(GIT_VERSION)_`uname -s`_`uname -p`
+SYS_NAME    = $(shell uname -s)
+SYS_VERSION = $(shell uname -p)
+
+ifdef DPDK
+	DEB_NAME = mmt-probe_$(VERSION)_$(GIT_VERSION)_$(SYS_NAME)_$(SYS_VERSION)_dpdk
+else
+	DEB_NAME = mmt-probe_$(VERSION)_$(GIT_VERSION)_$(SYS_NAME)_$(SYS_VERSION)_pcap
+endif
 
 deb: create
+	echo $(DEB_NAME)
 	$(QUIET) $(MKDIR) $(DEB_NAME)/DEBIAN
 	$(QUIET) echo "Package: mmt-probe \
         \nVersion: $(VERSION) \
