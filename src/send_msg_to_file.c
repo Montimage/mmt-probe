@@ -145,6 +145,7 @@ static void *wait_to_do_something( void *arg ){
 			fflush( stdout );
 		}
 
+
 		if( probe_context->retain_files > 0 && probe_context->output_to_file_enable == 1){
 
 			//-1 as this will create a new .csv as below
