@@ -58,7 +58,7 @@ void send_message_to_redis (char *channel, char * message) {
 			reply = (redisReply *) thredis_command (thredis,"LPUSH %s %s", channel, message);
 
 		}else {
-			reply   = (redisReply *) thredis_command (thredis, "PUBLISH %s [%s]", channel, message);
+			reply   = (redisReply *) thredis_command (thredis, "PUBLISH %s %s", channel, message);
 		}
 		if(reply == NULL){
 			printf("Redis command error: can't allocate reply context\n");
