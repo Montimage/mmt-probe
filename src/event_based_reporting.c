@@ -24,7 +24,7 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
 	mmt_event_report_t * event_report   = p->event_reports; //(mmt_event_report_t *) user_args;
 
 	valid= snprintf(message, MAX_MESS,
-			"%u,%u,\"%s\",%lu.%lu,%u",
+			"%u,%u,\"%s\",%lu.%06lu,%u",
 			MMT_EVENT_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, ipacket->p_hdr->ts.tv_sec,ipacket->p_hdr->ts.tv_usec, event_report->id);
 	if(valid > 0) {
 		offset += valid;

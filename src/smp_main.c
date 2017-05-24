@@ -575,7 +575,7 @@ void *cpu_ram_usage_routine(void * args){
 			time_t present_time;
 			gettimeofday(&ts, NULL);
 
-			valid = snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu",
+			valid = snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu",
 					200, probe_context->probe_id_number,
 					probe_context->input_source, ts.tv_sec, ts.tv_usec);
 

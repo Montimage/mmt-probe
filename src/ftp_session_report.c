@@ -278,7 +278,7 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
 			ftp_data->file_download_finishtime_sec = ipacket->p_hdr->ts.tv_sec;
 			ftp_data->file_download_finishtime_usec = ipacket->p_hdr->ts.tv_usec;
 			snprintf(message, MAX_MESS,
-			         "%u,%u,\"%s\",%lu.%lu,%"PRIu64",%"PRIu32",\"%s\",\"%s\",%hu,%hu,%"PRIu8",%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%lu.%06lu,%lu.%06lu,%"PRIu64",%u",
+			         "%u,%u,\"%s\",%lu.%06lu,%"PRIu64",%"PRIu32",\"%s\",\"%s\",%hu,%hu,%"PRIu8",%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%lu.%06lu,%lu.%06lu,%"PRIu64",%u",
 					 MMT_FTP_RECONSTRUCTION_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, end_time.tv_sec, end_time.tv_usec, temp_session->session_id, temp_session->thread_number,
 			         ip_dst_str, ip_src_str,
 			         temp_session->serverport, temp_session->clientport,

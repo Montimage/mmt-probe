@@ -29,7 +29,7 @@ void get_security_multisession_report(const ipacket_t * ipacket,void * args){
 		if (probe_context->security_reports_multisession[i].enable == 0)
 			continue;
 		valid= snprintf(message, LEN,
-				"%u,%u,%lu.%lu",
+				"%u,%u,%lu.%06lu",
 				MMT_MULTI_SESSION_REPORT_FORMAT,probe_context->probe_id_number, current_time.tv_sec,current_time.tv_usec);
 		if(valid > 0) {
 			offset += valid;
