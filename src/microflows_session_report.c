@@ -70,7 +70,7 @@ void report_microflows_stats(microsessions_stats_t * stats, void *args) {
     //Format id, timestamp, App name, Nb of flows, DL Packet Count, UL Packet Count, DL Byte Count, UL Byte Count
     char message[MAX_MESS + 1];
     snprintf(message, MAX_MESS,
-            "%u,%u,\"%s\",%lu.%lu,%u,%u,%u,%u,%u,%u",
+            "%u,%u,\"%s\",%lu.%06lu,%u,%u,%u,%u,%u,%u",
 			MMT_MICRO_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, stats->end_time.tv_sec, stats->end_time.tv_usec,
             stats->application_id, stats->flows_nb, stats->dl_pcount, stats->ul_pcount, stats->dl_bcount, stats->ul_bcount);
 
