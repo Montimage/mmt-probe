@@ -69,7 +69,7 @@ void radius_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 
                     //format id, timestamp, msg code, IP address, MSISDN, Acct_session_id, Acct_status_type, IMSI, IMEI, GGSN IP, SGSN IP, SGSN-MCC-MNC, RAT type, Charging class, LAC id, Cell id
                     snprintf(message, MAX_MESS,
-                            "%u,%u,\"%s\",%lu.%lu,%i,\"%s\",\"%s\",%i,\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",%i,\"%s\",%i,%i",
+                            "%u,%u,\"%s\",%lu.%06lu,%i,\"%s\",\"%s\",%i,\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",%i,\"%s\",%i,%i",
                             MMT_RADIUS_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec,
                             (int) code, (framed_ip_address != NULL) ? f_ipv4 : "",
                                     (calling_station_id != NULL) ? &calling_station_id[4] : "",
@@ -116,7 +116,7 @@ void radius_code_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 
                 //format id, timestamp, msg code, IP address, MSISDN, Acct_session_id, Acct_status_type, IMSI, IMEI, GGSN IP, SGSN IP, SGSN-MCC-MNC, RAT type, Charging class, LAC id, Cell id
                 snprintf(message, MAX_MESS,
-                        "%u,%u,\"%s\",%lu.%lu,%i,\"%s\",\"%s\",%i,\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",%i,\"%s\",%i,%i",
+                        "%u,%u,\"%s\",%lu.%06lu,%i,\"%s\",\"%s\",%i,\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",%i,\"%s\",%i,%i",
                         MMT_RADIUS_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, ipacket->p_hdr->ts.tv_sec, ipacket->p_hdr->ts.tv_usec,
                         (int) code, (framed_ip_address != NULL) ? f_ipv4 : "",
                                 (calling_station_id != NULL) ? &calling_station_id[4] : "",
