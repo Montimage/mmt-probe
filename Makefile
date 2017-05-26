@@ -135,7 +135,7 @@ endif
 create: all
 	@echo "Installing probe on" $(INSTALL_DIR)
 #create dir
-	$(QUIET) $(MKDIR) $(INSTALL_DIR)/bin $(INSTALL_DIR)/conf \
+	$(QUIET) $(MKDIR) $(INSTALL_DIR)/bin \
 		$(INSTALL_DIR)/log/online \
 		$(INSTALL_DIR)/log/offline \
 		$(INSTALL_DIR)/result/report/offline \
@@ -153,8 +153,7 @@ endif
 #copy to bin
 	$(QUIET) $(CP) $(APP) $(INSTALL_DIR)/bin/probe
 
-	$(QUIET) $(CP) mmt_offline.conf $(INSTALL_DIR)/conf/offline.conf
-	$(QUIET) $(CP) mmt_online.conf  $(INSTALL_DIR)/conf/online.conf
+	$(QUIET) $(CP) mmt_online.conf  $(INSTALL_DIR)/mmt-probe.conf
 
 	@echo
 

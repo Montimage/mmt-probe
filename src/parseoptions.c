@@ -22,7 +22,7 @@ void usage(const char * prg_name) {
 	fprintf(stderr, "%s [<option>]\n", prg_name);
 	fprintf(stderr, "Option:\n");
 	fprintf(stderr, "\t-v               : Lists versions.\n");
-	fprintf(stderr, "\t-c <config file> : Gives the path to the config file (default: /etc/mmtprobe/mmt.conf).\n");
+	fprintf(stderr, "\t-c <config file> : Gives the path to the config file (default: /opt/mmt/probe/mmt-probe.conf).\n");
 	fprintf(stderr, "\t-t <trace file>  : Gives the trace file to analyse.\n");
 	fprintf(stderr, "\t-i <interface>   : Gives the interface name for live traffic analysis.\n");
 	fprintf(stderr, "\t-o <output file> : Gives the output file name. \n");
@@ -1033,7 +1033,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 	int opt, optcount = 0;
-	char * config_file = "/etc/mmtprobe/mmt.conf";
+	char * config_file = "/opt/mmt/probe/mmt-probe.conf";
 	char * input = NULL;
 	char * output = NULL;
 	char * output_dir = NULL;
