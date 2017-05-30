@@ -274,9 +274,7 @@ void cleanup_report_allocated_memory(){
 			free (mmt_probe.smp_threads->cache_message_list);
 			mmt_probe.smp_threads->cache_message_list = NULL;
 		}
-#ifdef PCAP
-		clean_up_security2(&mmt_probe);
-#endif
+
 		free (mmt_probe.smp_threads);
 		mmt_probe.smp_threads = NULL;
 	}
@@ -323,6 +321,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		//One thread for processing packets
 		//Cleanup the MMT handler
 #ifdef PCAP		
+		clean_up_security2(&mmt_probe);
 		if (cleanup_registered_handlers (mmt_probe.smp_threads) == 0){
 			fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",mmt_probe.smp_threads->thread_index);
 		}
@@ -333,6 +332,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		if (mmt_conf->enable_proto_without_session_stats == 1 || mmt_conf->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.smp_threads);
 		mmt_close_handler(mmt_probe.smp_threads->mmt_handler);
 #endif
+
 		if (mmt_conf->microf_enable == 1)report_all_protocols_microflows_stats((void *)mmt_probe.smp_threads);
 		if (mmt_conf->output_to_file_enable == 1)flush_messages_to_file_thread((void *)mmt_probe.smp_threads);
 		exit_timers();
@@ -432,12 +432,15 @@ void terminate_probe_processing(int wait_thread_terminate) {
 	}
 	cleanup_report_allocated_memory ();
 
+	if( mmt_conf->security2_enable )
+		close_security();
+
 
 	//printf("close_extraction_start\n");
 	close_extraction();
 	//printf("close_extraction_finish\n");
-	if( mmt_conf->security2_enable )
-		close_security();
+	//if( mmt_conf->security2_enable )
+	//	close_security();
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_E_END, "Closing MMT Extraction engine!");
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_P_END, "Closing MMT Probe!");
 	if(wait_thread_terminate)if (mmt_conf->log_output) fclose(mmt_conf->log_output);

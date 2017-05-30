@@ -30,7 +30,7 @@ int push, stop; /* flags for inter-thread communication */
 sec_wrapper_t * security2_single_thread = NULL;
 
 void clean_up_security2(mmt_probe_struct_t * mmt_probe){
-	if( mmt_probe->mmt_conf->security2_enable && mmt_probe->mmt_conf->thread_nb == 1){
+	if( mmt_probe->mmt_conf->security2_enable){
 		//get number of packets being processed by security
 		uint64_t msg_count  = security2_single_thread->msg_count;
 		//free security
