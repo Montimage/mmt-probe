@@ -16,7 +16,7 @@ endif
 
 #get git version abbrev
 GIT_VERSION := $(shell git log --format="%h" -n 1)
-VERSION     := 1.2.1
+VERSION     := 1.2.2
 
 
 #set of library
