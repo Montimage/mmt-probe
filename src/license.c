@@ -335,7 +335,7 @@ int license_expiry_check(int status){
 			license_message[ MAX_MESS ] = '\0';
 			if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
 			if (probe_context->redis_enable== 1 && status == 0)send_message_to_redis ("license.stat", license_message);
-			if (probe_context->kafka_enable == 1)send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
+			if (probe_context->kafka_enable == 1 && status == 0)send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
 
 		}
 	}else{
