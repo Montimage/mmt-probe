@@ -45,7 +45,7 @@ src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c s
 #include <rte_common.h>
 #endif
 
-static void terminate_probe_processing(int wait_thread_terminate);
+//static void terminate_probe_processing(int wait_thread_terminate);
 
 uint32_t get_2_power(uint32_t nb) {
 	uint32_t ret = -1;
@@ -628,6 +628,8 @@ int main(int argc, char **argv) {
 
 #ifdef PCAP
 	parseOptions(argc, argv, mmt_conf);
+//        dynamic_conf();
+
 #endif
 
 	mmt_conf->log_output = fopen(mmt_conf->log_file, "a");
@@ -642,7 +644,7 @@ int main(int argc, char **argv) {
 	signal(SIGSEGV, signal_handler);
 	signal(SIGABRT, signal_handler);
 
-	if (mmt_conf->sampled_report == 0) {
+	if (mmt_conf->sampled_report == 0 && mmt_conf->output_to_file_enable) {
 		int len = 0;
 		len = snprintf(single_file,MAX_FILE_NAME,"%s%s", mmt_conf->output_location, mmt_conf->data_out);
 		single_file[len] = '\0';
@@ -690,7 +692,21 @@ int main(int argc, char **argv) {
 
 	printf("[info] built %s %s\n", __DATE__, __TIME__);
 
+/*
+       sr_conn_ctx_t *connection = NULL;
+       sr_session_ctx_t *session = NULL;
+       sr_subscription_ctx_t *subscription = NULL;
+       mmt_init(&connection, &session);
+       read_mmt_config(session); 
+       mmt_cleanup(connection, session, subscription);
 
+        printf ("HERE1\n");
+        mmt_init(&connection, &session);
+        mmt_change_subscribe(session, &subscription);
+*/
+
+
+//        dynamic_conf();
 /*	for(i = 0; i < mmt_conf->security_reports_nb; i++) {
 		if (mmt_conf->security_reports[i].enable == 1){
 			mmt_conf->security_reports[i].event_id = malloc (mmt_conf->security_reports[i].event_name_nb * sizeof (uint32_t *));

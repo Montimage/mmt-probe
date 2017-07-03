@@ -20,7 +20,7 @@ VERSION     := 1.2.2
 
 
 #set of library
-LIBS     := -L/opt/mmt/dpi/lib -L/opt/mmt/security/lib -lmmt_core -lmmt_tcpip -lmmt_security -lmmt_security2 -lxml2 -lconfuse -lhiredis -lpthread -lrdkafka -lrt
+LIBS     := -L/opt/mmt/dpi/lib -L/opt/mmt/security/lib -lmmt_core -lmmt_tcpip -lmmt_security -lmmt_security2 -lxml2 -lconfuse -lhiredis -lpthread -lrdkafka -lrt -lsysrepo
 
 #for debuging
 ifdef DEBUG
@@ -62,7 +62,7 @@ src/event_based_reporting.c src/protocols_report.c src/ssl_session_report.c src/
 src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c src/parseoptions.c src/license.c src/dpdk_capture.c \
 src/lib/security.c src/lib/data_spsc_ring.c src/lib/lock_free_spsc_ring.c src/lib/packet_hash.c src/lib/system_info.c src/attributes_extraction.c \
 src/multisession_reporting.c src/security_msg_reporting.c src/condition_based_reporting.c  src/pcap_capture.c src/html_integration.c src/http_reconstruct.c \
-src/send_msg_to_kafka.c
+src/send_msg_to_kafka.c src/dynamic_conf.c
 
 #set of library
 

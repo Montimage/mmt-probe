@@ -11,6 +11,7 @@ extern "C" {
 
 #include <semaphore.h>
 #include "rdkafka.h"
+#include <stdatomic.h>
 
 #ifndef __USE_GNU
 #define __USE_GNU
@@ -300,7 +301,8 @@ typedef struct mmt_probe_context_struct {
     uint32_t short_session_timeout;
     uint32_t live_session_timeout;
 
-    uint32_t output_to_file_enable;
+    //uint32_t output_to_file_enable;
+    atomic_int output_to_file_enable;
     uint32_t redis_enable;
     uint32_t kafka_enable;
     //rd_kafka_topic_conf_t * topic_old;
@@ -888,7 +890,8 @@ void * close_http_content_processor(http_content_processor_t * sp);
  * @return         [description]
  */
 uint8_t is_http_packet(const ipacket_t * ipacket);
-
+void dynamic_conf();
+static void terminate_probe_processing(int wait_thread_terminate);
 #endif // End of HTTP_RECONSTRUCT
 /** END OF HTTP RECONSTRUCT */
 //prototypes

@@ -333,7 +333,7 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 			header.caplen = pkthdr.caplen;
 			header.len = pkthdr.len;
 			header.user_args = NULL;
-
+                        printf("output to file = %u\n",mmt_probe->mmt_conf->output_to_file_enable);
 			if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period ||
 					mmt_probe->smp_threads->pcap_current_packet_time - mmt_probe->smp_threads->pcap_last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
 				mmt_probe->smp_threads->report_counter++;
@@ -430,7 +430,7 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 	header.caplen = pkthdr->caplen;
 	header.len = pkthdr->len;
 	header.user_args = NULL;
-
+        //printf("output to file = %u\n",mmt_probe->mmt_conf->output_to_file_enable);
 	if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
 
 		mmt_probe->smp_threads->report_counter++;
@@ -440,10 +440,12 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 	}
 
 	if (!packet_process(mmt_probe->smp_threads->mmt_handler, &header, data)) {
-		fprintf(stderr, "MMT Extraction failure! Error while processing packet number %"PRIu64"", nb_packets_processed_by_mmt);
+		fprintf(stderr, "MMT Extraction failure! Error while processing packet number %"PRIu64"\n", nb_packets_processed_by_mmt);
 		nb_packets_dropped_by_mmt ++;
 	}
+
 	nb_packets_processed_by_mmt ++;
+	printf("nb_packet_processed = %lu\n ",nb_packets_processed_by_mmt);
 }
 
 /* This function is for online multi-thread mode.
@@ -685,9 +687,12 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 		//One thread for reading packets and processing them
 		//Initialize an MMT handler
 		mmt_probe->smp_threads->mmt_handler = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
+                printf("pcap_capture 1\n");
+
 		if (!mmt_probe->smp_threads->mmt_handler) { /* pcap error ? */
 			fprintf(stderr, "MMT handler init failed for the following reason: %s\n", mmt_errbuf);
 			mmt_log(mmt_probe->mmt_conf, MMT_L_ERROR, MMT_E_INIT_ERROR, "MMT Extraction handler initialization error! Exiting!");
+			printf("pcap_capture 2\n");
 			return EXIT_FAILURE;
 		}
 
@@ -702,6 +707,7 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 		mmt_probe->smp_threads->thread_index = 0;
 
 		pthread_spin_init(&mmt_probe->smp_threads->lock, 0);
+                printf("pcap_capture 3\n");
 
 		// customized packet and session handling functions are then registered
 		if(mmt_probe->mmt_conf->enable_session_report == 1) {
@@ -775,9 +781,10 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 	//Offline or Online processing
 
 	if (mmt_probe->mmt_conf->input_mode == OFFLINE_ANALYSIS) {
-		process_trace_file(mmt_probe->mmt_conf->input_source, mmt_probe); //Process single offline trace
+                		process_trace_file(mmt_probe->mmt_conf->input_source, mmt_probe); //Process single offline trace
 		//We don't close the files here because they will be used when the handler is closed to report still to timeout flows
 	}else if (mmt_probe->mmt_conf->input_mode == ONLINE_ANALYSIS) {
+		printf("pcap_capture 4\n");
 		process_interface(mmt_probe->mmt_conf->input_source, mmt_probe); //Process single offline trace
 		//We don't close the files here because they will be used when the handler is closed to report still to timeout flows
 	}

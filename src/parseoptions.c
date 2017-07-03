@@ -1099,13 +1099,14 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 		}
 	}
 
-	cfg_t *cfg = parse_conf(config_file);
+/*	cfg_t *cfg = parse_conf(config_file);
 	if(cfg == NULL) {
 		if(versions_only != 1) fprintf(stderr, "Configuration file not found: use -c <config file> or create default file /etc/mmtprobe/mmt.conf\n");
 		exit(0);
 	}
 	process_conf_result(cfg, mmt_conf);
-
+*/
+       dynamic_conf();
 	if (input) {
 		strncpy(mmt_conf->input_source, input, 256);
 	}
