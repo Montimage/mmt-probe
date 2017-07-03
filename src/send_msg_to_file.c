@@ -242,7 +242,7 @@ void flush_messages_to_file_thread( void *arg){
 		}
 		message[ valid] = '\0';
 
-		if (probe_context->output_to_file_enable && probe_context->cpu_mem_output_channel[0]) send_message_to_file_thread (message, (void *)th);
+		if (probe_context->output_to_file_enable) send_message_to_file_thread (message, (void *)th);
 	}
 
 	if( th->cache_count == 0 ){
