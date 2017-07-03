@@ -86,8 +86,10 @@ int license_expiry_check(int status){
 	char read_sum_license[20];
 	char license_message[MAX_MESS + 1];
 	char lg_msg[512];
-	char version_probe[15] = "v0.95-003fc92";
-	char version_sdk[15] = "v1.4-6e9fae9";
+	//char version_probe[15] = "v0.95-003fc92";
+	//char version_sdk[15] = "v1.4-6e9fae9";
+   const char * version_probe = VERSION "-" GIT_VERSION; //these version information are given by Makefile
+   const char *version_sdk    = mmt_version();
 	char ch;
 	char license_decrypt_key[300];
 	int i = 0;
