@@ -612,7 +612,8 @@ int main(int argc, char **argv) {
 
 	mmt_probe_context_t * mmt_conf = get_probe_context_config();
 	mmt_probe.mmt_conf = mmt_conf;
-
+        event_report_flag = malloc (sizeof(uint8_t));
+        config_updated = malloc (sizeof(uint8_t));
 #ifdef DPDK
 	/* Initialize the Environment Abstraction Layer (EAL). */
 	do_abort = 0;

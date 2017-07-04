@@ -432,7 +432,10 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 	header.user_args = NULL;
         //printf("output to file = %u\n",mmt_probe->mmt_conf->output_to_file_enable);
 	if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
-
+                if (atomic_load (config_updated) == 1){
+                   if (atomic_load (event_report_flag) == 0) event_reports_init ((void *) mmt_probe->smp_threads);
+                   atomic_store(config_updated, 0);
+                }
 		mmt_probe->smp_threads->report_counter++;
 		mmt_probe->smp_threads->last_stat_report_time = time(NULL);
 		if (mmt_probe->mmt_conf->enable_session_report == 1)process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
@@ -616,7 +619,6 @@ void *Reader(void *arg) {
 #ifndef RHEL3
 	pcap_close(handle);
 #endif /* RHEL3 */
-
 	stop = 1;
 	fflush(stderr);
 	pthread_exit(NULL);
@@ -733,6 +735,7 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 		//initialisation of multisession report
 
 		mmt_log(mmt_probe->mmt_conf, MMT_L_INFO, MMT_E_STARTED, "MMT Extraction engine! successfully initialized in a single threaded operation.");
+                atomic_store (config_updated, 0);
 	} else {
 		//Multiple threads for processing the packets
 		/*

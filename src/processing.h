@@ -58,7 +58,8 @@ time_t update_reporting_time;
 static int is_stop_timer;
 int do_abort;
 
-
+volatile uint8_t * event_report_flag;
+volatile uint8_t * config_updated;
 static struct mmt_probe_struct mmt_probe;
 
 enum os_id {
