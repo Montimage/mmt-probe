@@ -291,8 +291,10 @@ int parse_dot_proto_attribute(char * inputstring, mmt_event_attribute_t * protoa
 	} else {
 		strncpy(protoattr->proto, argv[0], 256);
 		strncpy(protoattr->attribute, argv[1], 256);
-		return 0;
+                printf("proto=%s, attr=%s\n",protoattr->proto, protoattr->attribute);	
+	        return 0;
 	}
+        printf("proto=%s, attr=%s\n",protoattr->proto, protoattr->attribute);
 }
 
 /** transforms "proto.attribute" into mmt_security_attribute_t

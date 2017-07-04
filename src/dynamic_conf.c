@@ -41,14 +41,14 @@ void read_mmt_config(sr_session_ctx_t *session)
         int rc = SR_ERR_OK;
         char * conf = malloc (sizeof(char)*50);
         mmt_probe_context_t * probe_context = get_probe_context_config();
-        rc = sr_get_item(session, "/mmt-probe:probe-cfg/input-source", &value);
+        rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/input-source", &value);
         if (SR_ERR_OK == rc) {
                strcpy(probe_context->input_source,value->data.string_val);
                 sr_free_val(value);
         }
        printf ("input-source = %s\n", probe_context->input_source);
 
-        rc = sr_get_item(session, "/mmt-probe:probe-cfg/input-mode", &value);
+        rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/input-mode", &value);
         if (SR_ERR_OK == rc) {
                 if (strcmp(value->data.string_val,"offline") == 0)
                 probe_context->input_mode = OFFLINE_ANALYSIS;
@@ -58,54 +58,143 @@ void read_mmt_config(sr_session_ctx_t *session)
         }
        printf ("input-mode = %u\n", probe_context->input_mode);
 
-        rc = sr_get_item(session, "/mmt-probe:probe-cfg/threads", &value);
+        rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/threads", &value);
         if (SR_ERR_OK == rc) {
                 probe_context->thread_nb =value->data.uint32_val;
                 sr_free_val(value);
         }
        printf ("thread_nd = %u\n", probe_context->thread_nb);
 
-        rc = sr_get_item(session, "/mmt-probe:probe-cfg/probe-identifier", &value);
+        rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/probe-identifier", &value);
         if (SR_ERR_OK == rc) {
                 probe_context->probe_id_number =value->data.uint32_val;
                 sr_free_val(value);
         }
        printf ("probe_id = %u\n", probe_context->probe_id_number);
 
-        rc = sr_get_item(session, "/mmt-probe:probe-cfg/license-path", &value);
+        rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/license-path", &value);
         if (SR_ERR_OK == rc) {
                 strcpy(probe_context->license_location, value->data.string_val);
                 sr_free_val(value);
         }
        printf ("license_file = %s\n", probe_context->license_location);
 
-        rc = sr_get_item(session, "/mmt-probe:probe-cfg/log-path", &value);
+        rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/log-path", &value);
         if (SR_ERR_OK == rc) {
                 strcpy(probe_context->log_file, value->data.string_val);
                 sr_free_val(value);
         }
        printf ("log_file = %s\n", probe_context->log_file);
 
-        rc = sr_get_item(session, "/mmt-probe:probe-cfg/stat-report-period", &value);
+        rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/stat-report-period", &value);
         if (SR_ERR_OK == rc) {
                 probe_context->stats_reporting_period = value->data.uint32_val;
                 sr_free_val(value);
         }
        printf ("stats_reporting_period = %u\n", probe_context->stats_reporting_period);
 
-        rc = sr_get_item(session, "/mmt-probe:probe-cfg/snap-len", &value);
+        rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/snap-len", &value);
         if (SR_ERR_OK == rc) {
                 probe_context->requested_snap_len = value->data.uint32_val;
                 sr_free_val(value);
         }
        printf ("snap_len = %u\n", probe_context->requested_snap_len);
         char condition[20];
-        rc = sr_get_item(session, "/mmt-probe:probe-cfg/event-based-reporting[name='event 1']/attributes[attr_nb='1']/attr", &value);
+        char message[1024];
+/*        int attr1=1;
+        int attr2=1;
+        snprintf(message,256,"/dynamic-mmt-probe:probe-cfg/event-based-reporting[event_id='%u']/attributes[attr_id='%u']/attr",attr1,attr2);
+        rc = sr_get_item(session,message, &value);
         if (SR_ERR_OK == rc) {
                 strcpy(condition,value->data.string_val);
                 sr_free_val(value);
         }
        printf ("condition = %s\n", condition);
+        char condition1[20];
+        rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/event-based-reporting[event_id='1']/attributes[attr_id='2']/attr", &value);
+        if (SR_ERR_OK == rc) {
+                strcpy(condition1,value->data.string_val);
+                sr_free_val(value);
+        }
+       printf ("condition1 = %s\n", condition1);*/
+////////////////////////
+        rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/number-of-events", &value);
+        if (SR_ERR_OK == rc) {
+                probe_context->event_reports_nb = value->data.uint32_val;
+                sr_free_val(value);
+        }
+       printf ("event_report_nb = %u\n", probe_context->event_reports_nb);
+           int j=0, k=0;
+           probe_context->event_reports = NULL;
+           mmt_event_report_t * temp_er;
+           int len = 0;
+           if (probe_context->event_reports_nb > 0) {
+               probe_context->event_reports = calloc(sizeof(mmt_event_report_t), probe_context->event_reports_nb);
+               for(j = 0; j < probe_context->event_reports_nb; j++) {
+                                temp_er = &probe_context->event_reports[j];                             
+                                k = j + 1;
+                                len =snprintf(message,256,"/dynamic-mmt-probe:probe-cfg/event-based-reporting[event_id='%u']/enable",k);
+                                message[len]='\0';
+                                rc = sr_get_item(session, message, &value);
+			        if (SR_ERR_OK == rc) {
+                		    temp_er->enable = value->data.uint32_val;
+                		   sr_free_val(value);
+        			}
+       				printf ("enable = %u\n", temp_er->enable);
+                                len=0;
+                                if (temp_er->enable == 1){
+                                   len= snprintf(message,256,"/dynamic-mmt-probe:probe-cfg/event-based-reporting[event_id='%u']/condition",k);		
+                                    message[len]='\0';
+                                    //printf("messgae=%s\n",message);
+		          	    rc = sr_get_item(session,message, &value);
+        			    if (SR_ERR_OK == rc) {
+                		       strcpy(condition,value->data.string_val);
+                		       sr_free_val(value);
+        			    }
+                                   printf ("condition = %s\n", condition);
+
+                                    if (parse_dot_proto_attribute(condition, &temp_er->event)) {
+                                        fprintf(stderr, "Error: invalid event_report event value '%s'\n", condition);
+                                        exit(0);
+                                    }
+                                   probe_context->event_based_reporting_enable = 1;
+                                   len = 0;
+                                   len =snprintf(message,256,"/dynamic-mmt-probe:probe-cfg/event-based-reporting[event_id='%u']/total_attr",k);
+                                   message[len]='\0';
+                                   rc = sr_get_item(session, message, &value);
+                                   if (SR_ERR_OK == rc) {
+                                       temp_er->attributes_nb = value->data.uint32_val;
+                                       sr_free_val(value);
+                                   }
+                                   printf ("attributes_nb = %u\n", temp_er->attributes_nb);
+
+                                   if(temp_er->attributes_nb > 0) { 
+                                       temp_er->attributes = calloc(sizeof(mmt_event_attribute_t), temp_er->attributes_nb);
+
+                                       for(i = 0; i < temp_er->attributes_nb; i++) {
+                                           len = 0;
+                                           int l = 0;
+                                           l= i + 1;
+                                           len = snprintf(message,256,"/dynamic-mmt-probe:probe-cfg/event-based-reporting[event_id='%u']/attributes[attr_id='%u']/attr",k,l);
+        			           message[len]= '\0';
+			                   rc = sr_get_item(session,message, &value);
+                                           if (SR_ERR_OK == rc) {
+                                               strcpy(condition,value->data.string_val);
+                                               sr_free_val(value);
+                                           }
+
+                                           if (parse_dot_proto_attribute(condition, &temp_er->attributes[i])) {
+                                               fprintf(stderr, "Error: invalid event_report attribute  '%s'\n", condition);
+                                               exit(0);
+                                           }
+                                       }
+                                  }
+                             }
+               }
+
+	   }
+
+//////////////////////////
 
 }
 int mmt_config_change_cb(sr_session_ctx_t *session, const char *module_name, sr_notif_event_t event, void *private_ctx)
@@ -150,7 +239,7 @@ static void mmt_change_subscribe(sr_session_ctx_t *session, sr_subscription_ctx_
 {
   int rc = SR_ERR_OK;
 
-  rc = sr_module_change_subscribe(session, "mmt-probe", mmt_config_change_cb, NULL, 0, SR_SUBSCR_DEFAULT, subscription);
+  rc = sr_module_change_subscribe(session, "dynamic-mmt-probe", mmt_config_change_cb, NULL, 0, SR_SUBSCR_DEFAULT, subscription);
   if (SR_ERR_OK != rc) {
           fprintf(stderr, "Error: %s\n", sr_strerror(rc));
   }
