@@ -157,6 +157,7 @@ typedef struct mmt_event_report_struct {
 	mmt_event_attribute_t event;
 	uint32_t attributes_nb;
 	mmt_event_attribute_t * attributes;
+        struct mmt_event_report_struct *next;
 } mmt_event_report_t;
 
 typedef struct mmt_condition_attribute_struct {
@@ -434,7 +435,7 @@ typedef struct mmt_probe_context_struct {
 	char security2_excluded_rules[1000];
 	//number of threads of security2 per one thread of probe
 	uint8_t security2_threads_count;
-
+        int probe_load_running;
 } mmt_probe_context_t;
 
 typedef struct microsessions_stats_struct {
