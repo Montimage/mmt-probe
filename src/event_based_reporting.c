@@ -95,7 +95,14 @@ int register_event_report_handle(void * args) {
 
 	}else{
 		fprintf(stderr,"[WARNING] Already registered register_attribute_handler (event_report): proto: %s ,attribute: %s (report: %i)\n",event_report->event.proto,event_report->event.attribute, event_report->id);
-
+               if (unregister_attribute_handler(th->mmt_handler, event_report->event.proto_id, event_report->event.attribute_id, event_report_handle)== 0){ 
+	       return 0;
+               }
+               if (!register_attribute_handler(th->mmt_handler, event_report->event.proto_id, event_report->event.attribute_id, event_report_handle, NULL, (void *) p)){
+                        fprintf(stderr,"[Error] Cannot registered register_attribute_handler (event_report): proto: %s ,attribute: %s (report: %i)\n",event_report->event.proto,event_report->event.attribute, event_report->id);
+                        return 0;
+                }
+                       printf ("Unregistered the registered attribute handler and register the new handler \n");       
 	}
 	for(j = 0; j < event_report->attributes_nb; j++) {
 		mmt_event_attribute_t * event_attribute = &event_report->attributes[j];
@@ -115,6 +122,15 @@ int register_event_report_handle(void * args) {
 			}
 		}else{
 			fprintf(stderr,"[WARNING] Already registered register_extraction_attribute (event_report): proto: %s ,attribute: %s (report: %i)\n",event_attribute->proto,event_attribute->attribute, event_report->id);
+                        if (unregister_extraction_attribute(th->mmt_handler, event_attribute->proto_id, event_attribute->attribute_id) == 0){
+                            return 0;
+                        }
+                        if (!register_extraction_attribute(th->mmt_handler, event_attribute->proto_id, event_attribute->attribute_id)){
+                                fprintf(stderr,"[Error] Cannot register_extraction_attribute (event_report): proto: %s ,attribute: %s (report: %i)\n",event_attribute->proto,event_attribute->attribute, event_report->id);
+                                return 0;
+                        }
+                            printf ("Unregistered the registered attribute and register the new attribute \n");
+
 		}
 	}
 	return 1;

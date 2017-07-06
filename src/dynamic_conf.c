@@ -93,6 +93,8 @@ void config_event_report (sr_session_ctx_t * session, sr_val_t * value){
                             fprintf(stderr, "Error: invalid event_report event value '%s'\n", condition);
                             exit(0);
                         }
+			event_reports->id = k;
+                        printf ("event_id = %u\n", event_reports->id);
                         probe_context->event_based_reporting_enable = 1;
                         len = 0;
                         len =snprintf(message,256,"/dynamic-mmt-probe:probe-cfg/event-based-reporting[event_id='%u']/total_attr",k);
@@ -104,7 +106,7 @@ void config_event_report (sr_session_ctx_t * session, sr_val_t * value){
 			   printf ("attributes_nb = %u\n", event_reports->attributes_nb);
 
                         }
-
+                    
                         if(event_reports->attributes_nb > 0) {
                         event_reports->attributes = calloc(sizeof(mmt_event_attribute_t), event_reports->attributes_nb);
 
@@ -126,7 +128,6 @@ void config_event_report (sr_session_ctx_t * session, sr_val_t * value){
                                 }
                             }
                         }
-                   // }
             
 		event_reports->next = probe_context->event_reports;
                 probe_context->event_reports = event_reports;	
@@ -221,12 +222,12 @@ int mmt_config_change_cb(sr_session_ctx_t *session, const char *module_name, sr_
 	read_mmt_config(session);
 
         /* get the path to our executable */
-        ret = readlink("/proc/self/exe", exe, sizeof(exe)-1);
+/*        ret = readlink("/proc/self/exe", exe, sizeof(exe)-1);
         if(ret == -1) {
                 fprintf(stderr, "Error: %s\n", strerror(errno));
                 return SR_ERR_INTERNAL;
         }
-        exe[ret] = 0;
+        exe[ret] = 0;*/
         printf("\n\n========== MMT-probe CONFIG HAS CHANGED_END ==========\n\n");
         return SR_ERR_OK;
 }
