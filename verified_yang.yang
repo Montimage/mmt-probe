@@ -27,6 +27,19 @@ module dynamic-mmt-probe {
       default 0;
       description "number of threads";
     }
+ 
+    leaf thread-queue {
+      type uint32;
+      default 1000;
+      description "number of packet queued for threads";
+    }
+
+    leaf thread-data {
+      type uint32;
+      default 0;
+      description "number of data queued for threads";
+    }
+
 
     leaf probe-identifier {
       type uint32;
@@ -58,6 +71,11 @@ module dynamic-mmt-probe {
       description "snap-len";
     }
 
+  }
+ 
+  container event {
+    description "event based report configuration";
+    
     leaf number-of-events {
       type uint32;
       default 0;
@@ -70,12 +88,34 @@ module dynamic-mmt-probe {
       leaf enable {type uint32; default 0;}
       leaf condition {type string;}
       leaf total_attr {type uint32; default 0;}
+      leaf nb-output-channel {type uint32; default 0;}
+
       list attributes {
         key attr_id;
         leaf attr_id {type string;}
         leaf attr {type string;}
       }
-    }
 
+      list output-channel {
+        key channel_id;
+        leaf channel_id {type string;}
+        leaf output {type string;}
+      }
+    }
   }
+
+  container file-output {
+    description "Reports are written to file when enabled";
+  
+    leaf enable {type uint32; default 0;}
+
+    leaf filename {type string; default "dataoutput.csv";}
+
+    leaf location {type string; default "/opt/mmt/probe/result/report/online/";}
+
+    leaf retain_files {type uint32; default 10;}
+
+    leaf sampled_report {type uint32; default 1;}   
+  }
+
 }
