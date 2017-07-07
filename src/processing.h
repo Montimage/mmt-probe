@@ -436,6 +436,7 @@ typedef struct mmt_probe_context_struct {
 	//number of threads of security2 per one thread of probe
 	uint8_t security2_threads_count;
         int probe_load_running;
+        //volatile uint8_t event_report_flag;
 } mmt_probe_context_t;
 
 typedef struct microsessions_stats_struct {
@@ -687,7 +688,8 @@ struct smp_thread {
 #ifdef HTTP_RECONSTRUCT
 	http_session_data_t * list_http_session_data;
 #endif	
-
+        volatile uint8_t  event_report_flag;
+        volatile uint8_t  config_updated;
 };
 
 typedef struct mmt_probe_struct {
@@ -736,7 +738,7 @@ void update_microflows_stats(microsessions_stats_t * stats, const mmt_session_t 
 void reset_microflows_stats(microsessions_stats_t * stats);
 void report_all_protocols_microflows_stats(void *args);
 int license_expiry_check(int status);
-void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf);
+void parseOptions(int argc, char ** argv, struct mmt_probe_struct * mmt_probe);
 void todo_at_start(char *file_path);
 void todo_at_end();
 void init_mmt_security(mmt_handler_t *mmt_handler, char * property_file, void *args);
@@ -892,7 +894,7 @@ void * close_http_content_processor(http_content_processor_t * sp);
  * @return         [description]
  */
 uint8_t is_http_packet(const ipacket_t * ipacket);
-void dynamic_conf();
+void dynamic_conf(struct mmt_probe_struct * mmt_probe);
 static void terminate_probe_processing(int wait_thread_terminate);
 #endif // End of HTTP_RECONSTRUCT
 /** END OF HTTP RECONSTRUCT */

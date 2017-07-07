@@ -632,7 +632,7 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef PCAP
-	parseOptions(argc, argv, mmt_conf);
+	parseOptions(argc, argv, &mmt_probe);
 //        dynamic_conf();
 
 #endif

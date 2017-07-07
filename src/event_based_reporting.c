@@ -22,8 +22,7 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
 	struct smp_thread *th = (struct smp_thread *) p->smp_thread;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	mmt_event_report_t * event_report   = p->event_reports; //(mmt_event_report_t *) user_args;
-        if (atomic_load (event_report_flag) == 0) {
-            printf("here in event report .....\n");
+        if (atomic_load (event_report_flag) == 1 || atomic_load(&th->event_report_flag)==1 ) {
             return;
         } 
 
@@ -63,7 +62,7 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
 	}
 	message[ offset ] = '\0';
 	//send_message_to_file ("event.report", message);
-	 printf ("message = %s\n", message);
+	printf ("message = %s\n", message);
 	if (probe_context->output_to_file_enable && probe_context->event_output_channel[0] ) send_message_to_file_thread (message, th);
 	if (probe_context->redis_enable && probe_context->event_output_channel[1] ) send_message_to_redis ("event.report", message);
 	if (probe_context->kafka_enable && probe_context->event_output_channel[2] ) send_msg_to_kafka(probe_context->topic_object->rkt_event, message);
@@ -106,7 +105,6 @@ int register_event_report_handle(void * args) {
 	}
 	for(j = 0; j < event_report->attributes_nb; j++) {
 		mmt_event_attribute_t * event_attribute = &event_report->attributes[j];
-        	printf ("initialization proto=%s, attr=%s", event_attribute->proto, event_attribute->attribute);
 
 		event_attribute->proto_id = get_protocol_id_by_name (event_attribute->proto);
 		if (event_attribute->proto_id == 0) return 0;
@@ -150,16 +148,12 @@ int unregister_event_report_handle(void * args) {
 
         event_report->event.attribute_id = get_attribute_id_by_protocol_and_attribute_names(event_report->event.proto, event_report->event.attribute);
         if (event_report->event.attribute_id == 0) return 0;
-        printf("here2\n");
         if (is_registered_attribute_handler(th->mmt_handler, event_report->event.proto_id, event_report->event.attribute_id, event_report_handle) != 0){
                if (unregister_attribute_handler(th->mmt_handler, event_report->event.proto_id, event_report->event.attribute_id, event_report_handle)== 0) return 0;
- 		printf ("uninitialization proto=%s, attr=%s\n", event_report->event.proto, event_report->event.attribute);
 
         }
-        printf ("here1\n");
         for(j = 0; j < event_report->attributes_nb; j++) {
                 mmt_event_attribute_t * event_attribute = &event_report->attributes[j];
-                printf ("uninitialization proto=%s, attr=%s\n", event_attribute->proto, event_attribute->attribute);
 
                 event_attribute->proto_id = get_protocol_id_by_name (event_attribute->proto);
                 if (event_attribute->proto_id == 0) return 0;
@@ -187,10 +181,8 @@ void event_reports_init(void * args) {
         if (current == NULL) printf ("ERROR Memory allocation : event_reports_init\n");
 
 	while(current != NULL) {
-                printf ("HERE_event_init\n");
 		th->event_reports = current;
 		if(th->event_reports->enable == 1){
-                       printf("here_inside\n");
 			p = malloc( sizeof( struct user_data ));
 			if (p == NULL){
 				printf ("Error: Memory allocation of user_data in event_reports_init \n");
@@ -205,7 +197,6 @@ void event_reports_init(void * args) {
 
 		} else {
 
-                       printf("here_insidei enable = 0\n");
                         p = malloc( sizeof( struct user_data ));
                         if (p == NULL){
                                 printf ("Error: Memory allocation of user_data in event_reports_init \n");
@@ -222,7 +213,11 @@ void event_reports_init(void * args) {
 		} 
             current = current->next;
 	}
-        if (probe_context->event_reports_nb > 0)atomic_store (event_report_flag, 1);
+        if (probe_context->event_reports_nb > 0){
+	    atomic_store (event_report_flag, 0);
+            atomic_store (&th->event_report_flag, 0);
+        }
+        
 }
 
 /* This function uninitialize event report.

@@ -167,7 +167,13 @@ void * smp_thread_routine(void *arg) {
 			th->pcap_last_stat_report_time = th->pcap_current_packet_time;
 			if (probe_context->enable_session_report == 1)process_session_timer_handler(th->mmt_handler);
 			if (probe_context->enable_proto_without_session_stats == 1 || probe_context->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, th);
-		}
+                        
+			if (atomic_load (&th->config_updated) == 1){
+                        if (atomic_load (&th->event_report_flag) == 1) event_reports_init ((void *) th); //if event report is changed then register
+                            atomic_store(&th->config_updated, 0); // update implemented in each thread
+                        }
+	
+	        }
 
 		//get number of packets being available
 		size = data_spsc_ring_pop_bulk( fifo, &tail );
@@ -197,6 +203,7 @@ void * smp_thread_routine(void *arg) {
 			else{
 				packet_process( mmt_handler, &pkt->header, pkt->data );
 				th->nb_packets ++;
+                                printf ("th_nb = %u, packet_id =%lu\n",th->thread_index, th->nb_packets);
 			}
 
 			//update new position of ring's tail

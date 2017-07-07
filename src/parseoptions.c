@@ -1033,7 +1033,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 }
 
 
-void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
+void parseOptions(int argc, char ** argv, struct mmt_probe_struct * mmt_probe) {
 	int opt, optcount = 0;
 	char * config_file = "/opt/mmt/probe/mmt-probe.conf";
 	char * input = NULL;
@@ -1108,41 +1108,41 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 	}
 	process_conf_result(cfg, mmt_conf);
 */
-       dynamic_conf();
+       dynamic_conf(mmt_probe);
 	if (input) {
-		strncpy(mmt_conf->input_source, input, 256);
+		strncpy(mmt_probe->mmt_conf->input_source, input, 256);
 	}
-	else if (strlen(mmt_conf->input_source) == 0){
+	else if (strlen(mmt_probe->mmt_conf->input_source) == 0){
 		if(versions_only != 1) printf("Error:Specify the input-source in the configuration file, for example, for offline analysis: trace file name and for online analysis: network interface\n");
 		exit(0);
 	}
 
 	if(output) {
-		strncpy(mmt_conf->data_out, output, 256);
+		strncpy(mmt_probe->mmt_conf->data_out, output, 256);
 	}
 
 	if(output_dir) {
-		strncpy(mmt_conf->dir_out, output_dir, 256);
+		strncpy(mmt_probe->mmt_conf->dir_out, output_dir, 256);
 	}
 
 	if(properties_file) {
-		strncpy(mmt_conf->properties_file, properties_file, 256);
+		strncpy(mmt_probe->mmt_conf->properties_file, properties_file, 256);
 	}
 
 	if(period) {
-		mmt_conf->stats_reporting_period = period;
+		mmt_probe->mmt_conf->stats_reporting_period = period;
 	}
 
 	if(!proto_stats) {
-		mmt_conf->enable_proto_without_session_stats = 0;
+		mmt_probe->mmt_conf->enable_proto_without_session_stats = 0;
 	}
 
 	if(probe_id_number) {
-		mmt_conf->probe_id_number = probe_id_number;
+		mmt_probe->mmt_conf->probe_id_number = probe_id_number;
 	}
 
 	if(!flow_stats) {
-		mmt_conf->enable_session_report = 0;
+		mmt_probe->mmt_conf->enable_session_report = 0;
 	}
 
 	return;
