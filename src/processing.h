@@ -156,6 +156,7 @@ typedef struct mmt_event_report_struct {
 	uint32_t id;
 	mmt_event_attribute_t event;
 	uint32_t attributes_nb;
+        uint32_t event_output_channel[3];
 	mmt_event_attribute_t * attributes;
         struct mmt_event_report_struct *next;
 } mmt_event_report_t;

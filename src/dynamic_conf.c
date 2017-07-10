@@ -70,6 +70,14 @@ void config_output_to_file (sr_session_ctx_t * session, sr_val_t * value, struct
         sr_free_val(value);
         printf ("sampled_report = %u\n", probe_context->sampled_report);
     }
+
+    rc = sr_get_item(session, "/dynamic-mmt-probe:file-output/file_output_period", &value);
+    if (SR_ERR_OK == rc) {
+        probe_context->sampled_report_period = value->data.uint32_val;
+        sr_free_val(value);
+        printf ("sampled_report_period = %u\n", probe_context->sampled_report_period);
+    }
+
     if (probe_context->sampled_report > 1){
         printf("Error: Sample_report inside the output section in the configuration file has a value either 1 or 0, 1 for sampled output and 0 for single output\n");
         exit(0);
@@ -137,7 +145,6 @@ void config_event_report (sr_session_ctx_t * session, sr_val_t * value, struct m
                 //if (event_reports->enable == 1){
                     len= snprintf(message,256,"/dynamic-mmt-probe:event/event-based-reporting[event_id='%u']/condition",k);
                     message[len]='\0';
-                    //printf("messgae=%s\n",message);
                     rc = sr_get_item(session,message, &value);
                         if (SR_ERR_OK == rc) {
                             strcpy(condition,value->data.string_val);
@@ -152,6 +159,41 @@ void config_event_report (sr_session_ctx_t * session, sr_val_t * value, struct m
 			event_reports->id = k;
                         printf ("event_id = %u\n", event_reports->id);
                         probe_context->event_based_reporting_enable = 1;
+			
+                        len =0;
+                        len = snprintf(message,256,"/dynamic-mmt-probe:event/event-based-reporting[event_id='%u']/output_to_file",k);
+                        message[len]= '\0';
+                      
+                        rc = sr_get_item(session,message, &value);
+                           if (SR_ERR_OK == rc) {
+                               event_reports->event_output_channel[0] = value->data.uint32_val;
+                               sr_free_val(value);
+                           }
+                        printf ("event_output_file = %u\n", event_reports->event_output_channel[0]); 
+                        len =0;
+                        len = snprintf(message,256,"/dynamic-mmt-probe:event/event-based-reporting[event_id='%u']/output_to_redis",k);
+                        message[len]= '\0';
+
+                        rc = sr_get_item(session,message, &value);
+                           if (SR_ERR_OK == rc) {
+                               event_reports->event_output_channel[1] = value->data.uint32_val;
+                               sr_free_val(value);
+                           }
+                        printf ("event_output_redis = %u\n", event_reports->event_output_channel[1]);
+                        len =0;
+                        len = snprintf(message,256,"/dynamic-mmt-probe:event/event-based-reporting[event_id='%u']/output_to_kafka",k);
+                        message[len]= '\0';
+                        rc = sr_get_item(session,message, &value);
+                           if (SR_ERR_OK == rc) {
+                               event_reports->event_output_channel[2] = value->data.uint32_val;
+                               sr_free_val(value);
+                           }
+                       printf ("event_output_kafka = %u\n", event_reports->event_output_channel[2]);
+		       if ((event_reports->event_output_channel[0] || event_reports->event_output_channel[1] || event_reports->event_output_channel[2]) == 0) {
+                           event_reports->event_output_channel[0] = 1;//default
+                           printf("By default event_reports output to file enabled\n");
+                       }
+
                         len = 0;
                         len =snprintf(message,256,"/dynamic-mmt-probe:event/event-based-reporting[event_id='%u']/total_attr",k);
                         message[len]='\0';
@@ -220,14 +262,14 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
         if (SR_ERR_OK == rc) {
                 probe_context->thread_nb =value->data.uint32_val;
                 sr_free_val(value);
-		printf ("thread_nd = %u\n", probe_context->thread_nb);
+		printf ("thread_nb = %u\n", probe_context->thread_nb);
         }
 
         rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/thread-queue", &value);
         if (SR_ERR_OK == rc) {
                 probe_context->thread_queue_plen =value->data.uint32_val;
                 sr_free_val(value);
-                printf ("thread_nd = %u\n", probe_context->thread_queue_plen);
+                printf ("thread_queue_len = %u\n", probe_context->thread_queue_plen);
                 if (probe_context->thread_queue_plen == 0) probe_context->thread_queue_plen = 1000;
 
         }
@@ -236,7 +278,7 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
         if (SR_ERR_OK == rc) {
                 probe_context->thread_queue_blen =value->data.uint32_val;
                 sr_free_val(value);
-                printf ("thread_nd = %u\n", probe_context->thread_queue_blen);
+                printf ("thread_queue_blen = %u\n", probe_context->thread_queue_blen);
                 if (probe_context->thread_queue_blen == 0) probe_context->thread_queue_blen = 0xFFFFFFFF;
         }
 
@@ -275,9 +317,17 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
                 sr_free_val(value);
 		 printf ("snap_len = %u\n", probe_context->requested_snap_len);
         }
-        probe_context->sampled_report_period = 5;      
+        rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/report-cache-size", &value);
+        if (SR_ERR_OK == rc) {
+                probe_context->report_cache_size_before_flushing = value->data.uint32_val;
+                sr_free_val(value);
+                 printf ("cache_size = %lu\n", probe_context->report_cache_size_before_flushing);
+        }
+
         config_event_report (session, value, mmt_probe);
-        config_output_to_file (session, value, mmt_probe); 
+        config_output_to_file (session, value, mmt_probe);
+        //config_output_to_redis (session, value, mmt_probe);
+        //config_output_to_kafka (session, value, mmt_probe); 
       ///////////config_updated///////////////////
       //  atomic_store (config_updated, 1);
         if (mmt_probe->mmt_conf->thread_nb == 1)atomic_store (config_updated, 1);
