@@ -8,7 +8,7 @@ extern "C" {
 #include "lib/data_spsc_ring.h"
 #include "mmt_core.h"
 #include "tcpip/mmt_tcpip_protocols.h"
-
+#include <sysrepo.h>
 #include <semaphore.h>
 #include "rdkafka.h"
 #include <stdatomic.h>
@@ -805,6 +805,8 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe);
 
 void init_kafka(char * hostname, int port);
 void send_msg_to_kafka(rd_kafka_topic_t *rkt, char *message);
+void config_output_to_redis(sr_session_ctx_t * session, sr_val_t * value, struct mmt_probe_struct * mmt_probe);
+void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_probe);
 /** Luong NGUYEN: HTTP reconstruct */
 #ifdef HTTP_RECONSTRUCT
 /**

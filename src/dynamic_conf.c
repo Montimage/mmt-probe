@@ -233,12 +233,51 @@ void config_event_report (sr_session_ctx_t * session, sr_val_t * value, struct m
            }
 
 }
+                /*************** redis  ********************/
+
+void config_output_to_redis(sr_session_ctx_t * session, sr_val_t * value, struct mmt_probe_struct * mmt_probe){
+    sr_val_t *values = NULL;
+    int rc = SR_ERR_OK;
+    char hostname[256 + 1];
+    int port = 0;
+        //char * conf = malloc (sizeof(char)*50);
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+    rc = sr_get_item(session, "/dynamic-mmt-probe:redis-output/enable", &value);
+    if (SR_ERR_OK == rc) {
+        probe_context->redis_enable = value->data.uint32_val;
+        sr_free_val(value);
+        printf ("redis-enable = %u\n", probe_context->redis_enable);
+
+    }
+
+    rc = sr_get_item(session, "/dynamic-mmt-probe:redis-output/hostname", &value);
+    if (SR_ERR_OK == rc) {
+        strcpy(hostname, value->data.string_val);
+        sr_free_val(value);
+        printf ("hostname = %s\n", hostname);
+    }
+        
+    rc = sr_get_item(session, "/dynamic-mmt-probe:redis-output/port", &value);
+    if (SR_ERR_OK == rc) {
+        port = value->data.uint32_val;
+        sr_free_val(value);
+        printf ("port = %u\n", port);
+    }
+
+    if (probe_context->redis_enable) {
+        init_redis(hostname, port);
+    }
+
+}
+                /*************** redis  ********************/
+
+
 void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_probe)
 {
         sr_val_t *value = NULL, *values = NULL;
         size_t values_cnt = 0, i = 0;
         int rc = SR_ERR_OK;
-        char * conf = malloc (sizeof(char)*50);
+        //char * conf = malloc (sizeof(char)*50);
         mmt_probe_context_t * probe_context = get_probe_context_config();
         rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/input-source", &value);
         if (SR_ERR_OK == rc) {
@@ -326,10 +365,11 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
 
         config_event_report (session, value, mmt_probe);
         config_output_to_file (session, value, mmt_probe);
-        //config_output_to_redis (session, value, mmt_probe);
-        //config_output_to_kafka (session, value, mmt_probe); 
-      ///////////config_updated///////////////////
-      //  atomic_store (config_updated, 1);
+    
+       config_output_to_redis (session, value, mmt_probe);
+       //config_output_to_kafka (session, value, mmt_probe); 
+       ///////////config_updated///////////////////
+       //  atomic_store (config_updated, 1);
         if (mmt_probe->mmt_conf->thread_nb == 1)atomic_store (config_updated, 1);
         else {
             if (mmt_probe->smp_threads != NULL){
