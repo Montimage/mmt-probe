@@ -210,7 +210,7 @@ typedef struct ip_port_struct {
 #define HSDS_START 1
 #define HSDS_TRANSFER 2
 #define HSDS_END 3
-
+#define MAX_NB_DATA_PACKETS 1024
 
 /**
  * HTTP content processing structure
@@ -232,6 +232,7 @@ typedef struct http_session_data_struct {
     char * content_type;
     uint64_t current_len;
     uint64_t total_len;
+    uint64_t data_packets[MAX_NB_DATA_PACKETS];
     uint8_t file_has_extension;
     struct http_session_data_struct *next;
 } http_session_data_t;
