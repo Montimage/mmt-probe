@@ -65,6 +65,7 @@ void http_write_data_to_file ( char * path, const char * content, size_t len) {
     snprintf(filename, MAX_FILE_NAME, "%s/%s", probe_context->http_reconstruct_output_location, path);
     filename[MAX_FILE_NAME-1] = '\0';
     // printf("[debug] Going to write to file: %s\n",filename);
+    // printf("%s\n",content);
     int fd = 0;
     if ( (fd = open ( filename , O_CREAT | O_WRONLY | O_APPEND | O_NOFOLLOW , S_IRWXU | S_IRWXG | S_IRWXO )) < 0 ){
         fprintf ( stderr , "\n[error] %d writting data to \"%s\": %s" , errno , filename , strerror( errno ) );
@@ -122,6 +123,11 @@ http_session_data_t * new_http_session_data() {
         new_http_data->file_has_extension = 0;
         new_http_data->current_len = 0;
         new_http_data->total_len = 0;
+        int i = 0;
+        for ( i = 0; i < MAX_NB_DATA_PACKETS; ++i)
+        {
+            new_http_data->data_packets[i] = 0;
+        }
     }
     return new_http_data;
 }
@@ -144,6 +150,11 @@ void free_http_session_data(http_session_data_t* http_data) {
         http_data->http_session_status = 0;
         http_data->total_len = 0;
         http_data->file_has_extension = 0;
+        int i = 0;
+        for ( i = 0; i < MAX_NB_DATA_PACKETS; ++i)
+        {
+            http_data->data_packets[i] = 0;
+        }
         free(http_data);
         http_data = NULL;
     }
@@ -165,7 +176,43 @@ void reset_http_session_data(http_session_data_t* http_data) {
         http_data->http_session_status = HSDS_START;
         http_data->total_len = 0;
         http_data->file_has_extension = 0;
+        int i = 0;
+        for ( i = 0; i < MAX_NB_DATA_PACKETS; ++i)
+        {
+            http_data->data_packets[i] = 0;
+        }
     }
+}
+
+/**
+ * Add a packet ID into the list of data_packets
+ * @param  http_data [description]
+ * @param  packet_id [description]
+ * @return           [description]
+ */
+int http_add_data_packet(http_session_data_t *  http_data, uint64_t packet_id){
+    int i = 0;
+    while(http_data->data_packets[i]!=0){
+        if(http_data->data_packets[i] == packet_id) return 0;
+        i++;
+    }
+    http_data->data_packets[i] = packet_id;
+    return 1;
+}
+
+/**
+ * Check if a packet is in a list of data_packets
+ * @param  http_data [description]
+ * @param  packet_id [description]
+ * @return           [description]
+ */
+int http_check_data_packet(http_session_data_t * http_data, uint64_t packet_id){
+    int i = 0;
+    while(http_data->data_packets[i]!=0){
+        if(http_data->data_packets[i] == packet_id) return 1;
+        i++;
+    }
+    return 0;
 }
 
 http_session_data_t * get_http_session_data_by_id(uint64_t session_id, http_session_data_t * current_http_data) {
@@ -352,7 +399,7 @@ void http_message_end_handle(const ipacket_t * ipacket, attribute_t * attribute,
  * and the interaction number in the session to take into account keep alive HTTP sessions
  */
 void http_data_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-    // debug("%lu: data_handle - 1\n", ipacket->packet_id);
+    // printf("%lu: data_handle - 1\n", ipacket->packet_id);
     mmt_session_t * session = get_session_from_packet(ipacket);
 
     char fname[128];
@@ -395,7 +442,9 @@ void http_data_handle(const ipacket_t * ipacket, attribute_t * attribute, void *
     }
 
     if(!sp || !sp->content_encoding){
+        // printf("%lu: data_handle - 2\n", ipacket->packet_id);
         http_write_data_to_file (http_session_data->filename, ((mmt_header_line_t *) attribute->data)->ptr, ((mmt_header_line_t *) attribute->data)->len);
+        http_add_data_packet(http_session_data,ipacket->packet_id);
     }
     
     // debug("%lu: data_handle - 8\n", ipacket->packet_id);
@@ -534,8 +583,12 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args) {
                         gzip_process(tcp_payload, *payload_len, gzp, sp, http_session_data->filename);
                     }
                 } else {
-                    http_session_data->current_len += *payload_len;
-                    http_write_data_to_file (http_session_data->filename, tcp_payload, *payload_len);
+                    if( http_check_data_packet(http_session_data,ipacket->packet_id) == 0){
+                        http_session_data->current_len += *payload_len;
+                        // printf("[debug] http_packet_handler 2 :%lu\n", ipacket->packet_id);
+                        http_write_data_to_file (http_session_data->filename, tcp_payload, *payload_len);
+                        http_add_data_packet(http_session_data,ipacket->packet_id);
+                    }
                 }
             }
         }
