@@ -93,6 +93,13 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_END()
 	};
 
+	cfg_opt_t dump_session_opts[] = {
+			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_STR("location", 0, CFGF_NONE),
+			CFG_STR_LIST("protocols", "{}", CFGF_NONE),
+			CFG_END()
+	};
+
 	cfg_opt_t security1_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
 			CFG_STR("results-dir", 0, CFGF_NONE),
@@ -193,6 +200,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_SEC("micro-flows", micro_flows_opts, CFGF_NONE),
 			CFG_SEC("session-timeout", session_timeout_opts, CFGF_NONE),
 			CFG_SEC("file-output", output_opts, CFGF_NONE),
+			CFG_SEC("dump-session", dump_session_opts, CFGF_NONE),
 			CFG_SEC("redis-output", redis_output_opts, CFGF_NONE),
 			CFG_SEC("kafka-output", redis_output_opts, CFGF_NONE),
 			CFG_SEC("data-output", data_output_opts, CFGF_NONE),
@@ -354,7 +362,12 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 	cfg_t *condition_opts;
 	cfg_t *security_report_opts;
 	cfg_t *security_report_multisession_opts;
-
+	// LN - initialize dumping structure
+	mmt_conf->mmt_dump.nb_protocols = 0;
+	int z = 0;
+	for(z = 0; z < 32; z++){
+		mmt_conf->mmt_dump.protocols[z] = -1;
+	}
 
 	if (cfg) {
 		//mmt_conf->enable_proto_stats = 1; //enabled by default
@@ -482,6 +495,36 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			}
 		}
 		/***************Output files ********************/
+
+		/*************** Dumping session ********************/
+
+
+		if (cfg_size(cfg, "dump-session")) {
+			cfg_t *dump_session = cfg_getnsec(cfg, "dump-session", 0);
+			if (dump_session->line != 0){
+				mmt_conf->mmt_dump.enable = (uint32_t) cfg_getint(dump_session, "enable");
+				strncpy(mmt_conf->mmt_dump.location, (char *) cfg_getstr(dump_session, "location"), 256);
+				char protocol[32];
+				int nb_protocols = cfg_size(dump_session, "protocols");
+				mmt_conf->mmt_dump.nb_protocols = nb_protocols;
+				for(j = 0; j < nb_protocols; j++) {
+					strncpy(protocol, (char *) cfg_getnstr(dump_session, "protocols", j),32);
+					int proto_len = strlen(protocol);
+					mmt_conf->mmt_dump.protocol_name[j] = (char *) malloc((proto_len+1)*sizeof(char));
+					strncpy(mmt_conf->mmt_dump.protocol_name[j],protocol,proto_len);
+					mmt_conf->mmt_dump.protocol_name[j][proto_len] = '\0';
+					if(strncmp(protocol,"unknown",7) == 0) {
+						mmt_conf->mmt_dump.protocols[j] = 0;
+					}else{
+						mmt_conf->mmt_dump.protocols[j] = get_protocol_id_by_name(protocol);	
+					}
+				}
+			}else{
+				printf("ERROR: Missing dump-session in the configuration file\n");
+				exit(0);
+			}
+		}
+		/*************** End of dumping session ********************/
 
 		/***************low bandwidth security report ********************/
 
