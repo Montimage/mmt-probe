@@ -8,6 +8,7 @@ extern "C" {
 #include "lib/data_spsc_ring.h"
 #include "mmt_core.h"
 #include "tcpip/mmt_tcpip_protocols.h"
+#include "lib/pcap_dump.h"
 
 #include <semaphore.h>
 #include "rdkafka.h"
@@ -262,6 +263,17 @@ typedef struct kafka_topic_object_struct{
 
 }kafka_topic_object_t;
 
+/**
+ * Structure contains information of dumping packet to files
+ */
+typedef struct mmt_dump_struct{
+	uint8_t enable; // 0 - disable, 1 - enable
+	char location[256]; // location of the output files
+	int protocols[32]; // List of protocols
+	int nb_protocols; // Number of dumping protocols
+	char * protocol_name[32];
+}mmt_dump_t;
+
 typedef struct mmt_probe_context_struct {
     uint32_t thread_nb;
     uint32_t thread_nb_2_power;
@@ -372,7 +384,9 @@ typedef struct mmt_probe_context_struct {
 	uint32_t security_reports_multisession_nb;
 	uint32_t enable_security_report_multisession;
 	uint32_t total_security_multisession_attribute_nb;
-
+	// LN - for dumping unkown session
+	mmt_dump_t mmt_dump;
+	// End of LN
 	/*
 	uint8_t multisession_file_output_enable;
 	uint8_t multisession_redis_output_enable;
