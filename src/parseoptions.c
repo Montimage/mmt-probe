@@ -498,7 +498,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 		/*************** Dumping session ********************/
 
-
+		mmt_conf->mmt_dump.enable = 0;
 		if (cfg_size(cfg, "dump-session")) {
 			cfg_t *dump_session = cfg_getnsec(cfg, "dump-session", 0);
 			if (dump_session->line != 0){
@@ -520,12 +520,11 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 						if(proto_id == 0){
 							printf("ERROR: In correct protocol name: %s\n",protocol);
 							exit (0);
+						}else{
+							mmt_conf->mmt_dump.protocols[j] = proto_id;	
 						}
 					}
 				}
-			}else{
-				printf("ERROR: Missing dump-session in the configuration file\n");
-				exit(0);
 			}
 		}
 		/*************** End of dumping session ********************/
