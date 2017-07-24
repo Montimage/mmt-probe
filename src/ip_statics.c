@@ -18,11 +18,31 @@
 
 /* This function is for reporting session reports */
 void print_ip_session_report (const mmt_session_t * session, void *user_args){
-	if (is_microflow(session)) {
+	
+       if (is_microflow(session)) {
 		return;
 	}
+        mmt_probe_context_t * probe_context = get_probe_context_config();
+
+        const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
+        int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
+        //if (probe_context->session_proto_id_include != -1){
+        //    if (probe_context->session_proto_id_include != proto_id) return;
+        //}
+       
+        int z = 0, proto_flag = 0;
+        for( z = 0; z < probe_context->session_report_proto.nb_protocols; z++){
+            if (probe_context->session_report_proto.protocols[z] == proto_id) {
+                proto_flag = 1;
+                break;
+            }
+
+        }         
+        if (proto_flag == 0 && probe_context->session_report_proto.nb_protocols != 0) {
+            return;
+        }
+
 	session_struct_t * temp_session = (session_struct_t *) get_user_session_context(session);
-	mmt_probe_context_t * probe_context = get_probe_context_config();
 	if (temp_session == NULL) {
 		return;
 	}
@@ -43,6 +63,10 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	// To  check whether the session activity occurs between the reporting time interval
 	if (TIMEVAL_2_USEC(mmt_time_diff(temp_session->session_attr->last_activity_time, get_session_last_activity_time(session))) == 0)return; // check the condition if in the last interval there was a protocol activity or not
 	//if (get_session_byte_count(session) - temp_session->session_attr->total_byte_count == 0)return;
+
+     //   const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
+       // int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
+  
 
 	// The report number is maintain to synchronize between the reporting time of the probe and MMT-operator report display time.
 	if (temp_session->report_counter == th->report_counter){
@@ -68,8 +92,9 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 		keep_direction = is_localv6_net(ip_src_str);//add more condition if any in is_localv6_net function
 
 	}
-	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
-	int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
+
+	//const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
+	//int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
 	temp_session->session_attr->last_activity_time = get_session_last_activity_time(session);
 	temp_session->session_attr->start_time = get_session_init_time(session);
 	proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(session), temp_session->path);

@@ -36,8 +36,8 @@ endif
 # - - - - - - - - - - - 
 
 ifdef DPDK
-RTE_SDK=/home/mmt/dpdk/
-RTE_TARGET ?= x86_64-native-linuxapp-gcc
+RTE_SDK=/home/server10gb/dpdk/
+RTE_TARGET ?= build
 
 include $(RTE_SDK)/mk/rte.vars.mk
 

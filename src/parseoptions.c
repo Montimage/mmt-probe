@@ -12,6 +12,8 @@
 #include "confuse.h"
 
 #include "lib/security.h"
+#include "tcpip/mmt_tcpip.h"
+
 
 //normally GIT_VERSION must be given by Makefile
 #ifndef GIT_VERSION
@@ -185,6 +187,7 @@ cfg_t * parse_conf(const char *filename) {
 	};
 	cfg_opt_t session_report_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
+                        CFG_STR_LIST("protocols", "{}", CFGF_NONE),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
 	};
@@ -206,7 +209,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_INT("stats-period", 5, CFGF_NONE),
 			CFG_INT("enable-proto-without-session-stat", 0, CFGF_NONE),
 			CFG_INT("enable-IP-fragmentation-report", 0, CFGF_NONE),
-			CFG_INT("enable-session-report", 0, CFGF_NONE),
+			//CFG_INT("enable-session-report", 0, CFGF_NONE),
 			CFG_INT("file-output-period", 5, CFGF_NONE),
 			CFG_INT("thread-nb", 1, CFGF_NONE),
 			CFG_INT("thread-queue", 0, CFGF_NONE),
@@ -354,6 +357,12 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 	cfg_t *condition_opts;
 	cfg_t *security_report_opts;
 	cfg_t *security_report_multisession_opts;
+        
+        mmt_conf->session_report_proto.nb_protocols = 0;
+	int z = 0;
+	for(z = 0; z < 32; z++){
+		mmt_conf->session_report_proto.protocols[z] = -1;
+	}
 
 
 	if (cfg) {
@@ -537,8 +546,33 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			cfg_t *session = cfg_getnsec(cfg, "session-report", 0);
 			if (session->line != 0){
 				char output_channel[10];
+                                char protocol [32];
 				mmt_conf->enable_session_report = (uint8_t) cfg_getint(session, "enable");
 				if (mmt_conf->enable_session_report){
+                                   // strcpy(mmt_conf ->session_proto_include, (char *) cfg_getstr(session, "proto"));
+                                   // printf ("proto=%s\n", mmt_conf->session_proto_include);
+                                    //int proto_id = get_protocol_id_by_name (proto);
+                                    //printf ("proto_id = %u\n", proto_id);
+                                    int nb_protocols = cfg_size(session, "protocols");
+				    mmt_conf->session_report_proto.nb_protocols = nb_protocols;
+				    for(j = 0; j < nb_protocols; j++) {
+					strncpy(protocol, (char *) cfg_getnstr(session, "protocols", j),32);
+					int session_proto_len = strlen(protocol);
+					mmt_conf->session_report_proto.protocol_name[j] = (char *) malloc((session_proto_len+1)*sizeof(char));
+					strncpy(mmt_conf->session_report_proto.protocol_name[j],protocol,session_proto_len);
+					mmt_conf->session_report_proto.protocol_name[j][session_proto_len] = '\0';
+					if(strncmp(protocol,"unknown",7) == 0) {
+						mmt_conf->session_report_proto.protocols[j] = 0;
+					}else{
+						int proto_id = get_protocol_id_by_name(protocol);
+						if(proto_id == 0){
+							printf("ERROR: In correct protocol name: %s\n",protocol);
+							exit (0);
+						}else{
+							mmt_conf->session_report_proto.protocols[j] = proto_id;	
+						}
+					}
+				    }     
 					j = 0;
 					int nb_output_channel = cfg_size(session, "output-channel");
 					for(j = 0; j < nb_output_channel; j++) {

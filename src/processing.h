@@ -261,6 +261,15 @@ typedef struct kafka_topic_object_struct{
 
 }kafka_topic_object_t;
 
+/**
+ * Structure contains information of session-report protocols
+ */
+typedef struct session_report_proto_struct{
+	int protocols[32]; // List of protocols
+	int nb_protocols; // Number of protocols
+	char * protocol_name[32];
+}session_report_proto_t;
+
 typedef struct mmt_probe_context_struct {
     uint32_t thread_nb;
     uint32_t thread_nb_2_power;
@@ -431,6 +440,9 @@ typedef struct mmt_probe_context_struct {
 	char security2_excluded_rules[1000];
 	//number of threads of security2 per one thread of probe
 	uint8_t security2_threads_count;
+        //char session_proto_include [20];
+        //int session_proto_id_include;
+        session_report_proto_t session_report_proto;
 
 } mmt_probe_context_t;
 
