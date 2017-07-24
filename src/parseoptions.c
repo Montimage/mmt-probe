@@ -516,7 +516,11 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					if(strncmp(protocol,"unknown",7) == 0) {
 						mmt_conf->mmt_dump.protocols[j] = 0;
 					}else{
-						mmt_conf->mmt_dump.protocols[j] = get_protocol_id_by_name(protocol);	
+						int proto_id = get_protocol_id_by_name(protocol);
+						if(proto_id == 0){
+							printf("ERROR: In correct protocol name: %s\n",protocol);
+							exit (0);
+						}
 					}
 				}
 			}else{
