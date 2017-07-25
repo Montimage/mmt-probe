@@ -8,6 +8,7 @@ extern "C" {
 #include "lib/data_spsc_ring.h"
 #include "mmt_core.h"
 #include "tcpip/mmt_tcpip_protocols.h"
+#include "lib/pcap_dump.h"
 
 #include <semaphore.h>
 #include "rdkafka.h"
@@ -210,7 +211,7 @@ typedef struct ip_port_struct {
 #define HSDS_START 1
 #define HSDS_TRANSFER 2
 #define HSDS_END 3
-
+#define MAX_NB_DATA_PACKETS 1024
 
 /**
  * HTTP content processing structure
@@ -226,14 +227,15 @@ typedef struct
 } http_content_processor_t;
 
 typedef struct http_session_data_struct {
-	uint64_t session_id;
-	uint64_t http_session_status;
-	char * filename;
-	char * content_type;
-	uint64_t current_len;
-	uint64_t total_len;
-	uint8_t file_has_extension;
-	struct http_session_data_struct *next;
+    uint64_t session_id;
+    uint64_t http_session_status;
+    char * filename;
+    char * content_type;
+    uint64_t current_len;
+    uint64_t total_len;
+    uint64_t data_packets[MAX_NB_DATA_PACKETS];
+    uint8_t file_has_extension;
+    struct http_session_data_struct *next;
 } http_session_data_t;
 
 // static http_session_data_t * list_http_session_data = NULL;
@@ -261,14 +263,25 @@ typedef struct kafka_topic_object_struct{
 
 }kafka_topic_object_t;
 
-/**
- * Structure contains information of session-report protocols
+
+ /* Structure contains information of session-report protocols
  */
 typedef struct session_report_proto_struct{
 	int protocols[32]; // List of protocols
 	int nb_protocols; // Number of protocols
 	char * protocol_name[32];
 }session_report_proto_t;
+
+ /* Structure contains information of dumping packet to files
+ */
+typedef struct mmt_dump_struct{
+	uint8_t enable; // 0 - disable, 1 - enable
+	char location[256]; // location of the output files
+	int protocols[32]; // List of protocols
+	int nb_protocols; // Number of dumping protocols
+	char * protocol_name[32];
+}mmt_dump_t;
+
 
 typedef struct mmt_probe_context_struct {
 	uint32_t thread_nb;
@@ -380,7 +393,9 @@ typedef struct mmt_probe_context_struct {
 	uint32_t security_reports_multisession_nb;
 	uint32_t enable_security_report_multisession;
 	uint32_t total_security_multisession_attribute_nb;
-
+	// LN - for dumping unkown session
+	mmt_dump_t mmt_dump;
+	// End of LN
 	/*
 	uint8_t multisession_file_output_enable;
 	uint8_t multisession_redis_output_enable;

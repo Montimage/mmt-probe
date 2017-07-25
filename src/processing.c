@@ -361,7 +361,38 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 	if (probe_context->enable_security_report_multisession == 1){
 		get_security_multisession_report(ipacket,args);
 	}
-
+	// LN - dumping unknown session
+	if (probe_context->mmt_dump.enable == 1){
+		uint64_t last_proto = ipacket->proto_hierarchy->proto_path[ipacket->proto_hierarchy->len-1];
+		int z = 0;
+		for( z = 0 ; z < probe_context->mmt_dump.nb_protocols; z++){
+			int current_proto_id = probe_context->mmt_dump.protocols[z];
+			int w = 0;
+			int found = 0;
+			for(w = ipacket->proto_hierarchy->len - 1; w > 1; w--){
+				if(ipacket->proto_hierarchy->proto_path[w] == current_proto_id){
+					found = 1;
+					char fileName[256];
+					if(ipacket->session == NULL){
+						sprintf(fileName,"%s/%s_non_session.pcap",probe_context->mmt_dump.location,probe_context->mmt_dump.protocol_name[z]);
+					}else{
+						sprintf(fileName,"%s/%s_session_%lu.pcap",probe_context->mmt_dump.location,probe_context->mmt_dump.protocol_name[z],get_session_id(ipacket->session));
+					}
+					printf("File name: %s\n",fileName);
+					int fd = pd_open(fileName);
+					if(fd){
+						pd_write(fd,(char*)ipacket->data,ipacket->p_hdr->caplen,ipacket->p_hdr->ts);
+						pd_close(fd);
+					}
+					break;	
+				}
+			}
+			if(found == 1){
+				break;
+			}
+		}
+	}
+	// End of LN
 	return 0;
 }
 /* This function registers the packet handler for each threads */

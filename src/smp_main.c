@@ -444,6 +444,13 @@ void terminate_probe_processing(int wait_thread_terminate) {
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_E_END, "Closing MMT Extraction engine!");
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_P_END, "Closing MMT Probe!");
 	if(wait_thread_terminate)if (mmt_conf->log_output) fclose(mmt_conf->log_output);
+	// LN - cleaning mmt_dump_structure
+	int z = 0;
+	for(z = 0; z < mmt_conf->mmt_dump.nb_protocols; z ++){
+		free(mmt_conf->mmt_dump.protocol_name[z]);
+		mmt_conf->mmt_dump.protocol_name[z] = NULL;
+	}
+	// End of LN
 }
 
 /* This signal handler ensures clean exits */
@@ -612,11 +619,13 @@ int main(int argc, char **argv) {
 
 	mmt_probe_context_t * mmt_conf = get_probe_context_config();
 	mmt_probe.mmt_conf = mmt_conf;
-        if (!init_extraction()) { // general ixE initialization
-            fprintf(stderr, "MMT extract init error\n");
-            mmt_log(mmt_conf, MMT_L_ERROR, MMT_E_INIT_ERROR, "MMT Extraction engine initialization error! Exiting!");
-            return EXIT_FAILURE;
-        }
+	
+	if (!init_extraction()) { // general ixE initialization
+		fprintf(stderr, "MMT extract init error\n");
+		mmt_log(mmt_conf, MMT_L_ERROR, MMT_E_INIT_ERROR, "MMT Extraction engine initialization error! Exiting!");
+		return EXIT_FAILURE;
+	}
+
 
 #ifdef DPDK
 	/* Initialize the Environment Abstraction Layer (EAL). */
@@ -676,13 +685,7 @@ int main(int argc, char **argv) {
 		//printf("CPU, RAM usage report enabled\n");
 		pthread_create(&mmt_conf->cpu_ram_usage_thr, NULL, cpu_ram_usage_routine, NULL);
 	}
-       /*
 
-	if (!init_extraction()) { // general ixE initialization
-		fprintf(stderr, "MMT extract init error\n");
-		mmt_log(mmt_conf, MMT_L_ERROR, MMT_E_INIT_ERROR, "MMT Extraction engine initialization error! Exiting!");
-		return EXIT_FAILURE;
-	}*/
 	//config security2
 	if( mmt_conf->security2_enable ){
 		//initialize security rules
