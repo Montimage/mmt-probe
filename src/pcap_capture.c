@@ -166,7 +166,7 @@ void * smp_thread_routine(void *arg) {
 			th->last_stat_report_time = time(NULL);
 			th->pcap_last_stat_report_time = th->pcap_current_packet_time;
 			if (probe_context->enable_session_report == 1)process_session_timer_handler(th->mmt_handler);
-			if (probe_context->enable_proto_without_session_stats == 1 || probe_context->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, th);
+			if (probe_context->enable_proto_without_session_stats == 1 || probe_context->enable_IP_fragmentation_report == 1 || probe_context->enable_all_proto_stats == 1)iterate_through_protocols(protocols_stats_iterator, th);
 		}
 
 		//get number of packets being available
@@ -340,7 +340,8 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 				mmt_probe->smp_threads->last_stat_report_time = time(NULL);
 				mmt_probe->smp_threads->pcap_last_stat_report_time = mmt_probe->smp_threads->pcap_current_packet_time;
 				if (mmt_probe->mmt_conf->enable_session_report == 1)process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
-				if (mmt_probe->mmt_conf->enable_proto_without_session_stats == 1 || mmt_probe->mmt_conf->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
+				if (mmt_probe->mmt_conf->enable_proto_without_session_stats == 1 || mmt_probe->mmt_conf->enable_IP_fragmentation_report == 1 || mmt_probe->mmt_conf->enable_all_proto_stats == 1)
+					iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
 			}
 
 

@@ -224,7 +224,7 @@ static int _worker_thread( void *args_ptr ){
 			if (mmt_conf->enable_session_report == 1)
 				process_session_timer_handler( th->mmt_handler );
 
-			if (mmt_conf->enable_proto_without_session_stats == 1 || mmt_conf->enable_IP_fragmentation_report == 1)
+			if (mmt_conf->enable_proto_without_session_stats == 1 || mmt_conf->enable_IP_fragmentation_report == 1 || mmt_conf->enable_all_proto_stats == 1)
 				iterate_through_protocols(protocols_stats_iterator, th);
 		}
 
