@@ -217,23 +217,23 @@ typedef struct ip_port_struct {
  */
 typedef struct 
 {
-  int status; //indicates if we can process data or not, not used but can be if we wish to limit processing to one direction client-> server or server->client
-  int interaction_count; //number of HTTP messages seen on the same session
-  int content_type; //set to 1 if the content type is html
-  int content_encoding; //set to 1 if the content encoding is gzip
-  void * pre_processor; //opaque pointer to the pre-processor (in this case gzip parser)
-  void * processor; //opaque pointer to the processor (in this case: html parse)
+	int status; //indicates if we can process data or not, not used but can be if we wish to limit processing to one direction client-> server or server->client
+	int interaction_count; //number of HTTP messages seen on the same session
+	int content_type; //set to 1 if the content type is html
+	int content_encoding; //set to 1 if the content encoding is gzip
+	void * pre_processor; //opaque pointer to the pre-processor (in this case gzip parser)
+	void * processor; //opaque pointer to the processor (in this case: html parse)
 } http_content_processor_t;
 
 typedef struct http_session_data_struct {
-    uint64_t session_id;
-    uint64_t http_session_status;
-    char * filename;
-    char * content_type;
-    uint64_t current_len;
-    uint64_t total_len;
-    uint8_t file_has_extension;
-    struct http_session_data_struct *next;
+	uint64_t session_id;
+	uint64_t http_session_status;
+	char * filename;
+	char * content_type;
+	uint64_t current_len;
+	uint64_t total_len;
+	uint8_t file_has_extension;
+	struct http_session_data_struct *next;
 } http_session_data_t;
 
 // static http_session_data_t * list_http_session_data = NULL;
@@ -241,9 +241,9 @@ typedef struct http_session_data_struct {
 #endif // End of HTTP_RECONSTRUCT
 
 typedef struct mmt_cpu_perf_struct {
-    uint8_t cpu_mem_usage_rep_freq; //frequency to send the report
-    long double cpu_usage_avg;
-    long double mem_usage_avg;
+	uint8_t cpu_mem_usage_rep_freq; //frequency to send the report
+	long double cpu_usage_avg;
+	long double mem_usage_avg;
 } mmt_cpu_perf_t;
 
 typedef struct kafka_topic_object_struct{
@@ -271,84 +271,84 @@ typedef struct session_report_proto_struct{
 }session_report_proto_t;
 
 typedef struct mmt_probe_context_struct {
-    uint32_t thread_nb;
-    uint32_t thread_nb_2_power;
-    uint32_t thread_queue_plen;
-    uint32_t thread_queue_blen;
-    uint32_t input_mode;
-    uint32_t probe_id_number;
-    uint64_t report_cache_size_before_flushing;
-    uint32_t requested_snap_len;
-    char input_source[256 + 1];
-    char log_file[256 + 1];
-    char data_out[256 + 1];
-    char dir_out[256 + 1];
-    char properties_file[256 + 1];
-    char radius_out[256 + 1];
-    char input_f_name[256 + 1];
-    char out_f_name[256 + 1];
-    char output_location[256 + 1];
-    char license_location[256 + 1];
-    char behaviour_output_location[256 + 1];
-    char ftp_reconstruct_output_location[256 + 1];
-    char dynamic_config_file[256 + 1];
+	uint32_t thread_nb;
+	uint32_t thread_nb_2_power;
+	uint32_t thread_queue_plen;
+	uint32_t thread_queue_blen;
+	uint32_t input_mode;
+	uint32_t probe_id_number;
+	uint64_t report_cache_size_before_flushing;
+	uint32_t requested_snap_len;
+	char input_source[256 + 1];
+	char log_file[256 + 1];
+	char data_out[256 + 1];
+	char dir_out[256 + 1];
+	char properties_file[256 + 1];
+	char radius_out[256 + 1];
+	char input_f_name[256 + 1];
+	char out_f_name[256 + 1];
+	char output_location[256 + 1];
+	char license_location[256 + 1];
+	char behaviour_output_location[256 + 1];
+	char ftp_reconstruct_output_location[256 + 1];
+	char dynamic_config_file[256 + 1];
 
-    uint32_t ftp_enable;
-    uint32_t web_enable;
-    uint32_t rtp_enable;
-    uint32_t ssl_enable;
-    uint32_t behaviour_enable;
-    uint32_t security_enable;
-    uint32_t event_based_reporting_enable;
-    uint32_t condition_based_reporting_enable;
-    uint32_t enable_security_report;
-    uint32_t ftp_reconstruct_enable;
-    uint32_t radius_enable;
-    uint32_t default_session_timeout;
-    uint32_t long_session_timeout;
-    uint32_t short_session_timeout;
-    uint32_t live_session_timeout;
+	uint32_t ftp_enable;
+	uint32_t web_enable;
+	uint32_t rtp_enable;
+	uint32_t ssl_enable;
+	uint32_t behaviour_enable;
+	uint32_t security_enable;
+	uint32_t event_based_reporting_enable;
+	uint32_t condition_based_reporting_enable;
+	uint32_t enable_security_report;
+	uint32_t ftp_reconstruct_enable;
+	uint32_t radius_enable;
+	uint32_t default_session_timeout;
+	uint32_t long_session_timeout;
+	uint32_t short_session_timeout;
+	uint32_t live_session_timeout;
 
-    uint32_t output_to_file_enable;
-    uint32_t redis_enable;
-    uint32_t kafka_enable;
-    //rd_kafka_topic_conf_t * topic_old;
+	uint32_t output_to_file_enable;
+	uint32_t redis_enable;
+	uint32_t kafka_enable;
+	//rd_kafka_topic_conf_t * topic_old;
 
-    kafka_topic_object_t * topic_object;
+	kafka_topic_object_t * topic_object;
 
-    char out_f_name_index[256 + 1];
-    FILE * data_out_file;
-    int combine_radius;
-    FILE * radius_out_file;
-    FILE * log_output;
-    uint32_t log_level;
+	char out_f_name_index[256 + 1];
+	FILE * data_out_file;
+	int combine_radius;
+	FILE * radius_out_file;
+	FILE * log_output;
+	uint32_t log_level;
 
-    uint32_t enable_proto_without_session_stats;
-    uint32_t enable_flow_stats;
-    uint32_t enable_IP_fragmentation_report;
+	uint32_t enable_proto_without_session_stats;
+	uint32_t enable_flow_stats;
+	uint32_t enable_IP_fragmentation_report;
 
-    uint32_t radius_starategy;
-    uint32_t radius_message_id;
-    uint32_t radius_condition_id;
+	uint32_t radius_starategy;
+	uint32_t radius_message_id;
+	uint32_t radius_condition_id;
 
-    uint32_t microf_enable;
-    uint32_t microf_pthreshold;
-    uint32_t microf_bthreshold;
-    uint32_t microf_report_pthreshold;
-    uint32_t microf_report_bthreshold;
-    uint32_t microf_report_fthreshold;
-    uint32_t user_agent_parsing_threshold;
-    uint32_t stats_reporting_period;
-    uint32_t sampled_report_period;
-    uint32_t sampled_report;
-    uint32_t event_reports_nb;
-    uint32_t condition_reports_nb;
-    uint32_t new_condition_reports_nb;
-    uint32_t new_event_reports_nb;
-    mmt_event_report_t * event_reports;
-    mmt_condition_report_t * condition_reports;
-    mmt_condition_report_t * register_new_condition_reports;
-    mmt_event_report_t * register_new_event_reports;
+	uint32_t microf_enable;
+	uint32_t microf_pthreshold;
+	uint32_t microf_bthreshold;
+	uint32_t microf_report_pthreshold;
+	uint32_t microf_report_bthreshold;
+	uint32_t microf_report_fthreshold;
+	uint32_t user_agent_parsing_threshold;
+	uint32_t stats_reporting_period;
+	uint32_t sampled_report_period;
+	uint32_t sampled_report;
+	uint32_t event_reports_nb;
+	uint32_t condition_reports_nb;
+	uint32_t new_condition_reports_nb;
+	uint32_t new_event_reports_nb;
+	mmt_event_report_t * event_reports;
+	mmt_condition_report_t * condition_reports;
+	mmt_condition_report_t * register_new_condition_reports;
+	mmt_event_report_t * register_new_event_reports;
 
 	uint32_t socket_enable;
 
@@ -368,9 +368,9 @@ typedef struct mmt_probe_context_struct {
 	uint8_t one_socket_server;
 	uint32_t retain_files;
 #ifdef HTTP_RECONSTRUCT
-    char http_reconstruct_output_location[256 + 1];
-    uint16_t http_reconstruct_id;
-    uint32_t http_reconstruct_enable;
+	char http_reconstruct_output_location[256 + 1];
+	uint16_t http_reconstruct_id;
+	uint32_t http_reconstruct_enable;
 #endif    // End of HTTP_RECONSTRUCT
 
 	uint32_t socket_domain;
@@ -415,8 +415,8 @@ typedef struct mmt_probe_context_struct {
 	bool security2_file_output_enable;
 	bool security2_redis_output_enable;
 	bool security2_kafka_output_enable;
-	*/
-    uint32_t enable_session_report;
+	 */
+	uint32_t enable_session_report;
 	uint8_t microf_output_channel[3];
 	uint8_t multisession_output_channel[3];
 	uint8_t security1_output_channel[3];
@@ -426,9 +426,7 @@ typedef struct mmt_probe_context_struct {
 	uint8_t ftp_reconstruct_output_channel[3];
 	uint8_t cpu_mem_output_channel[3];
 	uint8_t security2_output_channel[3];
-
-
-
+	uint8_t enable_all_proto_stats;
 
 	rd_kafka_t *kafka_producer_instance;         /* Producer instance handle */
 
@@ -440,9 +438,8 @@ typedef struct mmt_probe_context_struct {
 	char security2_excluded_rules[1000];
 	//number of threads of security2 per one thread of probe
 	uint8_t security2_threads_count;
-        //char session_proto_include [20];
-        //int session_proto_id_include;
-        session_report_proto_t session_report_proto;
+
+	session_report_proto_t session_report_proto;
 
 } mmt_probe_context_t;
 
@@ -531,14 +528,14 @@ typedef struct ssl_session_attr_struct {
 } ssl_session_attr_t;
 
 typedef struct session_struct {
-    uint8_t dtt_seen;
-    struct timeval dtt_start_time;
-    uint64_t data_transfer_time;
-    uint64_t rtt_at_handshake;
-    uint8_t proto;
-    uint8_t isClassified;
+	uint8_t dtt_seen;
+	struct timeval dtt_start_time;
+	uint64_t data_transfer_time;
+	uint64_t rtt_at_handshake;
+	uint8_t proto;
+	uint8_t isClassified;
 #ifdef HTTP_RECONSTRUCT
-    http_content_processor_t * http_content_processor;
+	http_content_processor_t * http_content_processor;
 #endif // End of HTTP_RECONSTRUCT   
 	uint16_t format_id;
 	uint16_t app_format_id;
@@ -886,8 +883,8 @@ http_session_data_t * get_http_session_data_by_id(uint64_t session_id, http_sess
  */
 inline static void * init_http_content_processor()
 {
-  http_content_processor_t * sp = (http_content_processor_t *) calloc( 1, sizeof( http_content_processor_t ) );
-  return (void *) sp;
+	http_content_processor_t * sp = (http_content_processor_t *) calloc( 1, sizeof( http_content_processor_t ) );
+	return (void *) sp;
 }
 
 void clean_http_session_data(uint64_t session_id,struct smp_thread * th);

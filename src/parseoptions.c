@@ -17,7 +17,7 @@
 
 //normally GIT_VERSION must be given by Makefile
 #ifndef GIT_VERSION
-	#define GIT_VERSION ""
+#define GIT_VERSION ""
 #endif
 
 void usage(const char * prg_name) {
@@ -187,7 +187,7 @@ cfg_t * parse_conf(const char *filename) {
 	};
 	cfg_opt_t session_report_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
-                        CFG_STR_LIST("protocols", "{}", CFGF_NONE),
+			CFG_STR_LIST("protocols", "{}", CFGF_NONE),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
 	};
@@ -208,6 +208,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_SEC("radius-output", radius_output_opts, CFGF_NONE),
 			CFG_INT("stats-period", 5, CFGF_NONE),
 			CFG_INT("enable-proto-without-session-stat", 0, CFGF_NONE),
+			CFG_INT("enable-all-proto-stat", 0, CFGF_NONE),
 			CFG_INT("enable-IP-fragmentation-report", 0, CFGF_NONE),
 			//CFG_INT("enable-session-report", 0, CFGF_NONE),
 			CFG_INT("file-output-period", 5, CFGF_NONE),
@@ -357,8 +358,8 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 	cfg_t *condition_opts;
 	cfg_t *security_report_opts;
 	cfg_t *security_report_multisession_opts;
-        
-        mmt_conf->session_report_proto.nb_protocols = 0;
+
+	mmt_conf->session_report_proto.nb_protocols = 0;
 	int z = 0;
 	for(z = 0; z < 32; z++){
 		mmt_conf->session_report_proto.protocols[z] = -1;
@@ -368,6 +369,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 	if (cfg) {
 		//mmt_conf->enable_proto_stats = 1; //enabled by default
 		mmt_conf->enable_proto_without_session_stats = (uint32_t) cfg_getint(cfg, "enable-proto-without-session-stat");
+		mmt_conf->enable_all_proto_stats = (uint8_t) cfg_getint(cfg, "enable-all-proto-stat");
 		mmt_conf->enable_IP_fragmentation_report = (uint32_t) cfg_getint(cfg, "enable-IP-fragmentation-report");
 		//mmt_conf->enable_flow_stats = 1;  //enabled by default
 		mmt_conf->stats_reporting_period = (uint32_t) cfg_getint(cfg, "stats-period");
@@ -434,9 +436,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					int nb_output_channel = cfg_size(microflows, "output-channel");
 					for(j = 0; j < nb_output_channel; j++) {
 						strncpy(output_channel, (char *) cfg_getnstr(microflows, "output-channel", j),10);
-                        if (strncmp(output_channel, "file", 4) == 0) mmt_conf->microf_output_channel[0] = 1;
-                        if (strncmp(output_channel, "redis", 5) == 0) mmt_conf->microf_output_channel[1] = 1;
-                        if (strncmp(output_channel, "kafka", 5) == 0) mmt_conf->microf_output_channel[2] = 1;
+						if (strncmp(output_channel, "file", 4) == 0) mmt_conf->microf_output_channel[0] = 1;
+						if (strncmp(output_channel, "redis", 5) == 0) mmt_conf->microf_output_channel[1] = 1;
+						if (strncmp(output_channel, "kafka", 5) == 0) mmt_conf->microf_output_channel[2] = 1;
 					}
 					if (nb_output_channel == 0)mmt_conf->microf_output_channel[0] = 1;
 				}
@@ -506,9 +508,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					int nb_output_channel = cfg_size(security, "output-channel");
 					for(j = 0; j < nb_output_channel; j++) {
 						strncpy(output_channel, (char *) cfg_getnstr(security, "output-channel", j),10);
-                        if (strncmp(output_channel, "file", 4) == 0) mmt_conf->security1_output_channel[0] = 1;
-                        if (strncmp(output_channel, "redis", 5) == 0) mmt_conf->security1_output_channel[1] = 1;
-                        if (strncmp(output_channel, "kafka", 5) == 0) mmt_conf->security1_output_channel[2] = 1;
+						if (strncmp(output_channel, "file", 4) == 0) mmt_conf->security1_output_channel[0] = 1;
+						if (strncmp(output_channel, "redis", 5) == 0) mmt_conf->security1_output_channel[1] = 1;
+						if (strncmp(output_channel, "kafka", 5) == 0) mmt_conf->security1_output_channel[2] = 1;
 					}
 					if (nb_output_channel == 0)mmt_conf->security1_output_channel[0] = 1;
 				}
@@ -546,33 +548,29 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			cfg_t *session = cfg_getnsec(cfg, "session-report", 0);
 			if (session->line != 0){
 				char output_channel[10];
-                                char protocol [32];
+				char protocol [32];
 				mmt_conf->enable_session_report = (uint8_t) cfg_getint(session, "enable");
 				if (mmt_conf->enable_session_report){
-                                   // strcpy(mmt_conf ->session_proto_include, (char *) cfg_getstr(session, "proto"));
-                                   // printf ("proto=%s\n", mmt_conf->session_proto_include);
-                                    //int proto_id = get_protocol_id_by_name (proto);
-                                    //printf ("proto_id = %u\n", proto_id);
-                                    int nb_protocols = cfg_size(session, "protocols");
-				    mmt_conf->session_report_proto.nb_protocols = nb_protocols;
-				    for(j = 0; j < nb_protocols; j++) {
-					strncpy(protocol, (char *) cfg_getnstr(session, "protocols", j),32);
-					int session_proto_len = strlen(protocol);
-					mmt_conf->session_report_proto.protocol_name[j] = (char *) malloc((session_proto_len+1)*sizeof(char));
-					strncpy(mmt_conf->session_report_proto.protocol_name[j],protocol,session_proto_len);
-					mmt_conf->session_report_proto.protocol_name[j][session_proto_len] = '\0';
-					if(strncmp(protocol,"unknown",7) == 0) {
-						mmt_conf->session_report_proto.protocols[j] = 0;
-					}else{
-						int proto_id = get_protocol_id_by_name(protocol);
-						if(proto_id == 0){
-							printf("ERROR: In correct protocol name: %s\n",protocol);
-							exit (0);
+					int nb_protocols = cfg_size(session, "protocols");
+					mmt_conf->session_report_proto.nb_protocols = nb_protocols;
+					for(j = 0; j < nb_protocols; j++) {
+						strncpy(protocol, (char *) cfg_getnstr(session, "protocols", j),32);
+						int session_proto_len = strlen(protocol);
+						mmt_conf->session_report_proto.protocol_name[j] = (char *) malloc((session_proto_len+1)*sizeof(char));
+						strncpy(mmt_conf->session_report_proto.protocol_name[j],protocol,session_proto_len);
+						mmt_conf->session_report_proto.protocol_name[j][session_proto_len] = '\0';
+						if(strncmp(protocol,"unknown",7) == 0) {
+							mmt_conf->session_report_proto.protocols[j] = 0;
 						}else{
-							mmt_conf->session_report_proto.protocols[j] = proto_id;	
+							int proto_id = get_protocol_id_by_name(protocol);
+							if(proto_id == 0){
+								printf("ERROR: In correct protocol name: %s\n",protocol);
+								exit (0);
+							}else{
+								mmt_conf->session_report_proto.protocols[j] = proto_id;
+							}
 						}
 					}
-				    }     
 					j = 0;
 					int nb_output_channel = cfg_size(session, "output-channel");
 					for(j = 0; j < nb_output_channel; j++) {
@@ -596,7 +594,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				mmt_conf->cpu_mem_usage_enabled = (uint8_t) cfg_getint(cpu_mem_usage, "enable");
 				if (mmt_conf->cpu_mem_usage_enabled == 1){
 					//mmt_conf->cpu_mem_output_channel = strncmp(output_channel,"file",4) == 0 ? 1: strncmp(output_channel,"redis",5) == 0
-						//	? 2 : strncmp(output_channel,"kafka",5) == 0 ? 3 : 1;
+					//	? 2 : strncmp(output_channel,"kafka",5) == 0 ? 3 : 1;
 					mmt_conf->cpu_reports = malloc (sizeof (mmt_cpu_perf_t));
 					if (mmt_conf->cpu_reports != NULL){
 						mmt_conf->cpu_reports->cpu_mem_usage_rep_freq = (uint8_t) cfg_getint(cpu_mem_usage, "frequency");
@@ -608,9 +606,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					int nb_output_channel = cfg_size(cpu_mem_usage, "output-channel");
 					for(j = 0; j < nb_output_channel; j++) {
 						strncpy(output_channel, (char *) cfg_getnstr(cpu_mem_usage, "output-channel", j),10);
-	                    if (strncmp(output_channel, "file", 4) == 0) mmt_conf->cpu_mem_output_channel[0] = 1;
-	                    if (strncmp(output_channel, "redis", 5) == 0) mmt_conf->cpu_mem_output_channel[1] = 1;
-	                    if (strncmp(output_channel, "kafka", 5) == 0) mmt_conf->cpu_mem_output_channel[2] = 1;
+						if (strncmp(output_channel, "file", 4) == 0) mmt_conf->cpu_mem_output_channel[0] = 1;
+						if (strncmp(output_channel, "redis", 5) == 0) mmt_conf->cpu_mem_output_channel[1] = 1;
+						if (strncmp(output_channel, "kafka", 5) == 0) mmt_conf->cpu_mem_output_channel[2] = 1;
 					}
 					if (nb_output_channel == 0)mmt_conf->cpu_mem_output_channel[0] = 1;
 				}
@@ -655,7 +653,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				}
 			}
 		}
-			/*************** reconstruct-ftp  ********************/
+		/*************** reconstruct-ftp  ********************/
 
 		/*************** redis  ********************/
 
@@ -1021,7 +1019,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 						}
 						if (temp_condn->enable == 0) mmt_conf->http_reconstruct_enable = 0;
 #else						
-					temp_condn->enable = 0;	
+						temp_condn->enable = 0;
 #endif // End of HTTP_RECONSTRUCT
 					}
 
