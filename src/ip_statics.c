@@ -104,6 +104,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	if (proto_path_1->len == 0){
 		temp_session->path_dl[0] = '\0';
 	}
+
 	// Data transfer time calculation
 	if (temp_session->dtt_seen == 1){
 		struct timeval t1;
@@ -115,6 +116,10 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 		temp_session->dtt_start_time.tv_usec = t1.tv_usec;
 	}
 	uint64_t active_session_count = get_active_session_count(th->mmt_handler);
+	uint64_t rtt_handshake_usec = 0;
+	if (probe_context->enable_RTT_at_handshake == 1) {
+		rtt_handshake_usec = (temp_session->rtt_at_handshake == 0)?TIMEVAL_2_USEC(get_session_rtt(session)):0;
+	}
 	if (keep_direction == 1){
 		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%"PRIu64",%u,\"%s\",\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%06lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u",
 				MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec, report_number,
@@ -135,7 +140,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 				ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,temp_session ->session_id,
 				temp_session->serverport, temp_session->clientport,
 				temp_session->thread_number,
-				(temp_session->rtt_at_handshake == 0)?TIMEVAL_2_USEC(get_session_rtt(session)):0,
+				rtt_handshake_usec,
 						temp_session->session_attr->rtt_min_usec[1],
 						temp_session->session_attr->rtt_min_usec[0],
 						temp_session->session_attr->rtt_max_usec[1],
@@ -164,7 +169,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 				ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,temp_session ->session_id,
 				temp_session->serverport, temp_session->clientport,
 				temp_session->thread_number,
-				(temp_session->rtt_at_handshake == 0)?TIMEVAL_2_USEC(get_session_rtt(session)):0,
+				rtt_handshake_usec,
 						temp_session->session_attr->rtt_min_usec[1],
 						temp_session->session_attr->rtt_min_usec[0],
 						temp_session->session_attr->rtt_max_usec[1],

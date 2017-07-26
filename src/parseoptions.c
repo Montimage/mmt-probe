@@ -218,6 +218,9 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_INT("enable-proto-without-session-stat", 0, CFGF_NONE),
 			CFG_INT("enable-all-proto-stat", 0, CFGF_NONE),
 			CFG_INT("enable-IP-fragmentation-report", 0, CFGF_NONE),
+			CFG_INT("enable-RTT", 0, CFGF_NONE),
+			CFG_INT("enable-RTT-handshake", 0, CFGF_NONE),
+			CFG_INT("enable-DTT", 0, CFGF_NONE),
 			//CFG_INT("enable-session-report", 0, CFGF_NONE),
 			CFG_INT("file-output-period", 5, CFGF_NONE),
 			CFG_INT("thread-nb", 1, CFGF_NONE),
@@ -385,6 +388,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 	if (cfg) {
 		//mmt_conf->enable_proto_stats = 1; //enabled by default
 		mmt_conf->enable_proto_without_session_stats = (uint32_t) cfg_getint(cfg, "enable-proto-without-session-stat");
+		mmt_conf->enable_DTT = (uint8_t) cfg_getint(cfg, "enable-DTT");
+		mmt_conf->enable_RTT = (uint8_t) cfg_getint(cfg, "enable-RTT");
+		mmt_conf->enable_RTT_at_handshake = (uint8_t) cfg_getint(cfg, "enable-RTT-handshake");
 		mmt_conf->enable_all_proto_stats = (uint8_t) cfg_getint(cfg, "enable-all-proto-stat");
 		mmt_conf->enable_IP_fragmentation_report = (uint32_t) cfg_getint(cfg, "enable-IP-fragmentation-report");
 		//mmt_conf->enable_flow_stats = 1;  //enabled by default

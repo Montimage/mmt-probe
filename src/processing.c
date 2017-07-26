@@ -334,7 +334,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 		}
 		th->pcap_current_packet_time = ipacket->p_hdr->ts.tv_sec;
 
-		if (temp_session != NULL) {
+		if (temp_session != NULL && probe_context->enable_DTT == 1) {
 			// only for packet based on TCP
 			if (temp_session->dtt_seen == 0){
 				//this will exclude all the protocols except TCP
@@ -378,7 +378,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 					}else{
 						sprintf(fileName,"%s/%s_session_%lu.pcap",probe_context->mmt_dump.location,probe_context->mmt_dump.protocol_name[z],get_session_id(ipacket->session));
 					}
-					printf("File name: %s\n",fileName);
+					//printf("File name: %s\n",fileName);
 					int fd = pd_open(fileName);
 					if(fd){
 						pd_write(fd,(char*)ipacket->data,ipacket->p_hdr->caplen,ipacket->p_hdr->ts);
@@ -440,7 +440,7 @@ void flowstruct_init(void * args) {
 
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
-	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, IP_RTT, ip_rtt_handler, NULL, (void *)args);
+	if (probe_context->enable_RTT == 1)i &= register_attribute_handler(th->mmt_handler, PROTO_IP, IP_RTT, ip_rtt_handler, NULL, (void *)args);
 	i &=register_attribute_handler(th->mmt_handler, PROTO_TCP,TCP_CONN_CLOSED, tcp_closed_handler, NULL, (void *)args);
 	/*if(probe_context->ftp_enable == 1){
 		register_ftp_attributes(th->mmt_handler);

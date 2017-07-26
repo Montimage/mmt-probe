@@ -396,41 +396,7 @@ typedef struct mmt_probe_context_struct {
 	// LN - for dumping unkown session
 	mmt_dump_t mmt_dump;
 	// End of LN
-	/*
-	uint8_t multisession_file_output_enable;
-	uint8_t multisession_redis_output_enable;
-	uint8_t multisession_kafka_output_enable;
 
-
-	uint8_t security1_file_output_enable;
-	uint8_t security1_redis_output_enable;
-	uint8_t security1_kafka_output_enable;
-
-	uint8_t cpu_mem_usage_file_output_enable;
-	uint8_t cpu_mem_usage_redis_output_enable;
-	uint8_t cpu_mem_usage_kafka_output_enable;
-
-	uint8_t ftp_reconstruct_file_output_enable;
-	uint8_t ftp_reconstruct_redis_output_enable;
-	uint8_t ftp_reconstruct_kafka_output_enable;
-
-	uint8_t radius_file_output_enable;
-	uint8_t radius_redis_output_enable;
-	uint8_t radius_kafka_output_enable;
-
-	uint8_t event_file_output_enable;
-	uint8_t event_redis_output_enable;
-	uint8_t event_kafka_output_enable;
-
-	uint8_t session_file_output_enable;
-	uint8_t session_redis_output_enable;
-	uint8_t session_kafka_output_enable;
-
-	//configuration of output, len = 0 to disable output
-	bool security2_file_output_enable;
-	bool security2_redis_output_enable;
-	bool security2_kafka_output_enable;
-	 */
 	uint32_t enable_session_report;
 	uint8_t microf_output_channel[3];
 	uint8_t multisession_output_channel[3];
@@ -442,6 +408,10 @@ typedef struct mmt_probe_context_struct {
 	uint8_t cpu_mem_output_channel[3];
 	uint8_t security2_output_channel[3];
 	uint8_t enable_all_proto_stats;
+	uint8_t enable_DTT;
+	uint8_t enable_RTT;
+	uint8_t enable_RTT_at_handshake;
+
 
 	rd_kafka_t *kafka_producer_instance;         /* Producer instance handle */
 
