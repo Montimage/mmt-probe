@@ -29,8 +29,7 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 		get_protocol_stats_path(th->mmt_handler, proto_stats, &proto_hierarchy);
 		char path[128];
 		proto_hierarchy_ids_to_str(&proto_hierarchy, path);
-		protocol_t * proto_struct = get_protocol_struct_by_id (proto_id);
-		//if (proto_struct->has_session == 0){
+		//protocol_t * proto_struct = get_protocol_struct_by_id (proto_id);
 		int i = 0;
 		//Count for fragmented and defragmented packets
 		if (probe_context->enable_IP_fragmentation_report == 1){

@@ -19,6 +19,10 @@
 /* This function is for reporting session reports */
 void print_ip_session_report (const mmt_session_t * session, void *user_args){
 
+	session_struct_t * temp_session = (session_struct_t *) get_user_session_context(session);
+	if (temp_session == NULL) {
+		return;
+	}
 	if (is_microflow(session)) {
 		return;
 	}
@@ -36,10 +40,6 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 
 	}
 	if (proto_flag == 0 && probe_context->session_report_proto.nb_protocols != 0) {
-		return;
-	}
-	session_struct_t * temp_session = (session_struct_t *) get_user_session_context(session);
-	if (temp_session == NULL) {
 		return;
 	}
 
@@ -89,7 +89,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(session), temp_session->path);
 
 	int sslindex;
-
+///ask huugia
 	const proto_hierarchy_t * proto_path_0 =  get_session_proto_path_direction(session,1);
 	proto_hierarchy_ids_to_str(get_session_proto_path_direction(session,1), temp_session->path_ul);
 
@@ -104,7 +104,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	if (proto_path_1->len == 0){
 		temp_session->path_dl[0] = '\0';
 	}
-
+////////
 	// Data transfer time calculation
 	if (temp_session->dtt_seen == 1){
 		struct timeval t1;
