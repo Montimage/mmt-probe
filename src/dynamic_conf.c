@@ -271,6 +271,107 @@ void config_output_to_redis(sr_session_ctx_t * session, sr_val_t * value, struct
 }
                 /*************** redis  ********************/
 
+                /*************** kafka  ********************/
+
+void config_output_to_kafka(sr_session_ctx_t * session, sr_val_t * value, struct mmt_probe_struct * mmt_probe){
+    sr_val_t *values = NULL;
+    int rc = SR_ERR_OK;
+    char hostname[256 + 1];
+    int port = 0;
+        //char * conf = malloc (sizeof(char)*50);
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+    rc = sr_get_item(session, "/dynamic-mmt-probe:kafka-output/enable", &value);
+    if (SR_ERR_OK == rc) {
+        probe_context->kafka_enable = value->data.uint32_val;
+        sr_free_val(value);
+        printf ("kafka-enable = %u\n", probe_context->kafka_enable);
+
+    }
+
+    rc = sr_get_item(session, "/dynamic-mmt-probe:kafka-output/hostname", &value);
+    if (SR_ERR_OK == rc) {
+        strcpy(hostname, value->data.string_val);
+        sr_free_val(value);
+        printf ("hostname = %s\n", hostname);
+    }
+
+    rc = sr_get_item(session, "/dynamic-mmt-probe:kafka-output/port", &value);
+    if (SR_ERR_OK == rc) {
+        port = value->data.uint32_val;
+        sr_free_val(value);
+        printf ("port = %u\n", port);
+    }
+
+    if (probe_context->kafka_enable) {
+        init_kafka(hostname, port);
+    }
+
+}
+                /*************** kafka  ********************/
+                /*************** session-report  ********************/
+
+void config_session_report(sr_session_ctx_t * session, sr_val_t * value, struct mmt_probe_struct * mmt_probe){
+    sr_val_t *values = NULL;
+    int rc = SR_ERR_OK, len = 0, m = 0;
+    char message[256 + 1];
+
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+    rc = sr_get_item(session, "/dynamic-mmt-probe:session-report/enable", &value);
+    if (SR_ERR_OK == rc) {
+        probe_context->enable_session_report = value->data.uint32_val;
+        sr_free_val(value);
+    }
+
+    printf ("\n session-report-enable = %u\n", probe_context->enable_session_report);
+
+  
+//////////////////config_updated/////////////////
+    if (probe_context->enable_session_report == 0) return;
+    if (mmt_probe->mmt_conf->thread_nb == 1) atomic_store (session_report_flag, 1);
+    else {
+        if (mmt_probe->smp_threads != NULL){
+            for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
+                 atomic_store (&mmt_probe->smp_threads[m].session_report_flag, 1);
+            }
+        }
+    }
+/////////////////////////
+
+    len = snprintf(message,256,"/dynamic-mmt-probe:session-report/output_to_file");
+    message[len]= '\0';
+
+    rc = sr_get_item(session,message, &value);
+        if (SR_ERR_OK == rc) {
+            probe_context->session_output_channel[0] = value->data.uint32_val;
+            sr_free_val(value);
+        }
+    printf ("session_output_file = %u\n", probe_context->session_output_channel[0]);
+
+    len =0;
+    len = snprintf(message,256,"/dynamic-mmt-probe:session-report/output_to_redis");
+    message[len]= '\0';
+    
+    rc = sr_get_item(session,message, &value);
+        if (SR_ERR_OK == rc) {
+            probe_context->session_output_channel[1] = value->data.uint32_val;
+            sr_free_val(value);
+        }
+    printf ("session_output_redis = %u\n", probe_context->session_output_channel[1]);
+
+    len =0;
+    len = snprintf(message,256,"/dynamic-mmt-probe:session-report/output_to_kafka");
+    message[len]= '\0';
+    
+    rc = sr_get_item(session,message, &value);
+        if (SR_ERR_OK == rc) {
+            probe_context->session_output_channel[2] = value->data.uint32_val;
+            sr_free_val(value);
+        }
+    printf ("session_output_kafka = %u\n", probe_context->session_output_channel[2]);
+
+}
+
+                /*************** session-report  ********************/
 
 void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_probe)
 {
@@ -364,10 +465,11 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
         }
 
         config_event_report (session, value, mmt_probe);
+        config_session_report (session, value,mmt_probe);
         config_output_to_file (session, value, mmt_probe);
     
-       config_output_to_redis (session, value, mmt_probe);
-       //config_output_to_kafka (session, value, mmt_probe); 
+        config_output_to_redis (session, value, mmt_probe);
+        config_output_to_kafka (session, value, mmt_probe);
        ///////////config_updated///////////////////
        //  atomic_store (config_updated, 1);
         if (mmt_probe->mmt_conf->thread_nb == 1)atomic_store (config_updated, 1);

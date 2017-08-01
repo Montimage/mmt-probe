@@ -59,6 +59,7 @@ static int is_stop_timer;
 int do_abort;
 
 volatile uint8_t * event_report_flag;
+volatile uint8_t * session_report_flag;
 volatile uint8_t * config_updated;
 static struct mmt_probe_struct mmt_probe;
 
@@ -690,6 +691,7 @@ struct smp_thread {
 	http_session_data_t * list_http_session_data;
 #endif	
         volatile uint8_t  event_report_flag;
+        volatile uint8_t  session_report_flag;
         volatile uint8_t  config_updated;
 };
 
@@ -807,6 +809,8 @@ void init_kafka(char * hostname, int port);
 void send_msg_to_kafka(rd_kafka_topic_t *rkt, char *message);
 void config_output_to_redis(sr_session_ctx_t * session, sr_val_t * value, struct mmt_probe_struct * mmt_probe);
 void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_probe);
+void flowstruct_uninit(void * handler);
+
 /** Luong NGUYEN: HTTP reconstruct */
 #ifdef HTTP_RECONSTRUCT
 /**

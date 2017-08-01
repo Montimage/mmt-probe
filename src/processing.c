@@ -182,11 +182,19 @@ inline mmt_probe_context_t * get_probe_context_config() {
  * */
 
 void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
+        printf ("flow_nb_handler_packet_id = %lu\n",ipacket->packet_id);       
+        struct smp_thread *th = (struct smp_thread *) user_args;
+        //if (th == NULL) return;
+        //if (atomic_load (session_report_flag) == 1 || atomic_load(&th->session_report_flag) == 1 ) {
+          //  return;
+        //}
+
+       
 
 	mmt_session_t * session = get_session_from_packet(ipacket);
 	if(session == NULL) return;
 
-	struct smp_thread *th = (struct smp_thread *) user_args;
+	//struct smp_thread *th = (struct smp_thread *) user_args;
 
 	if (attribute->data == NULL) {
 		return; //This should never happen! check it anyway
@@ -315,7 +323,7 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	    }
 	}
 #endif // End of HTTP_RECONSTRUCT	
-
+        printf ("set session\n");
 	set_user_session_context(session, temp_session);
 }
 
@@ -323,11 +331,12 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
  * It extracts packet information from a #ipacket for creating messages/reports.
  * */
 int packet_handler(const ipacket_t * ipacket, void * args) {
-
+        printf ("packet_id = %lu\n",ipacket->packet_id);
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	struct smp_thread *th = (struct smp_thread *) args;
 	if(probe_context->enable_session_report == 1){
 		session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
+        printf ("packet_id = %lu, session_id = %lu\n", ipacket->packet_id, get_session_id(ipacket->session));
 
 		if (th->pcap_current_packet_time == 0){
 			th->pcap_last_stat_report_time = ipacket->p_hdr->ts.tv_sec;
@@ -372,6 +381,50 @@ void proto_stats_init(void * arg) {
 
 void proto_stats_cleanup(void * handler) {
 	(void) unregister_packet_handler((mmt_handler_t *) handler, 1);
+}
+
+/* This function unregisters the attributes for a flow (session)
+ * */
+void flowstruct_uninit(void * args) {
+        struct smp_thread *th = (struct smp_thread *) args;
+        mmt_probe_context_t * probe_context = get_probe_context_config();
+
+        int i = 1;
+        if (is_registered_attribute(th->mmt_handler, PROTO_TCP, TCP_SRC_PORT) == 1) i &= unregister_extraction_attribute(th->mmt_handler, PROTO_TCP, TCP_SRC_PORT);
+        if (is_registered_attribute(th->mmt_handler, PROTO_TCP, TCP_DEST_PORT) == 1) i &= unregister_extraction_attribute(th->mmt_handler, PROTO_TCP, TCP_DEST_PORT);
+        if (is_registered_attribute(th->mmt_handler, PROTO_TCP, TCP_RTT) == 1) i &= unregister_extraction_attribute(th->mmt_handler, PROTO_TCP, TCP_RTT);
+        if (is_registered_attribute(th->mmt_handler, PROTO_TCP, UDP_SRC_PORT) == 1) i &= unregister_extraction_attribute(th->mmt_handler, PROTO_UDP, UDP_SRC_PORT);
+        if (is_registered_attribute(th->mmt_handler, PROTO_TCP, UDP_DEST_PORT) == 1) i &= unregister_extraction_attribute(th->mmt_handler, PROTO_UDP, UDP_DEST_PORT);
+
+        if (is_registered_attribute(th->mmt_handler, PROTO_ETHERNET, ETH_DST) == 1) i &= unregister_extraction_attribute(th->mmt_handler, PROTO_ETHERNET, ETH_DST);
+        if (is_registered_attribute(th->mmt_handler, PROTO_TCP, TCP_DEST_PORT) == 1) i &= unregister_extraction_attribute(th->mmt_handler, PROTO_ETHERNET, ETH_SRC);
+        if (is_registered_attribute(th->mmt_handler, PROTO_IP, IP_SRC) == 1) i &= unregister_extraction_attribute(th->mmt_handler, PROTO_IP, IP_SRC);
+        if (is_registered_attribute(th->mmt_handler, PROTO_IP, IP_DST) == 1) i &= unregister_extraction_attribute(th->mmt_handler, PROTO_IP, IP_DST);
+        if (is_registered_attribute(th->mmt_handler, PROTO_IP, IP_PROTO_ID) == 1) i &= unregister_extraction_attribute(th->mmt_handler, PROTO_IP, IP_PROTO_ID);
+        if (is_registered_attribute(th->mmt_handler, PROTO_IP, IP_SERVER_PORT) == 1) i &= unregister_extraction_attribute(th->mmt_handler, PROTO_IP, IP_SERVER_PORT);
+        if (is_registered_attribute(th->mmt_handler, PROTO_IP, IP_CLIENT_PORT) == 1) i &= unregister_extraction_attribute(th->mmt_handler, PROTO_IP, IP_CLIENT_PORT);
+
+        if (is_registered_attribute(th->mmt_handler, PROTO_IPV6, IP6_NEXT_PROTO) == 1) i &= unregister_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_NEXT_PROTO);
+        if (is_registered_attribute(th->mmt_handler,  PROTO_IPV6, IP6_SRC) == 1) i &= unregister_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_SRC);
+        if (is_registered_attribute(th->mmt_handler, PROTO_IPV6, IP6_DST) == 1) i &= unregister_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_DST);
+        if (is_registered_attribute(th->mmt_handler, PROTO_IPV6, IP6_SERVER_PORT) == 1) i &= unregister_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_SERVER_PORT);
+        if (is_registered_attribute(th->mmt_handler, PROTO_IPV6, IP6_CLIENT_PORT) == 1) i &= unregister_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_CLIENT_PORT);
+/*
+        if (probe_context->enable_IP_fragmentation_report == 1){
+                i &= unregister_extraction_attribute(th->mmt_handler, PROTO_IP, IP_FRAG_PACKET_COUNT);
+                i &= unregister_extraction_attribute(th->mmt_handler, PROTO_IP, IP_FRAG_DATA_VOLUME);
+                i &= unregister_extraction_attribute(th->mmt_handler, PROTO_IP, IP_DF_PACKET_COUNT);
+                i &= unregister_extraction_attribute(th->mmt_handler, PROTO_IP, IP_DF_DATA_VOLUME);
+        }
+*/
+        if (is_registered_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle) == 1) i &= unregister_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle);
+        if (is_registered_attribute_handler(th->mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle) == 1) i &= unregister_attribute_handler(th->mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle);
+        if (is_registered_attribute_handler(th->mmt_handler,  PROTO_IP, IP_RTT, ip_rtt_handler) == 1) i &= unregister_attribute_handler(th->mmt_handler, PROTO_IP, IP_RTT, ip_rtt_handler);
+        if (is_registered_attribute_handler(th->mmt_handler, PROTO_TCP,TCP_CONN_CLOSED, tcp_closed_handler) == 1) i &= unregister_attribute_handler(th->mmt_handler, PROTO_TCP,TCP_CONN_CLOSED, tcp_closed_handler);
+        if(!i) {
+                //TODO: we need a sound error handling mechanism! Anyway, we should never get here :)
+                fprintf(stderr, "Error while initializing MMT handlers and extractions!\n");
+        }
 }
 
 /* This function registers the required attributes for a flow (session)
