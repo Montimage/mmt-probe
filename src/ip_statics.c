@@ -18,17 +18,14 @@
 
 /* This function is for reporting session reports */
 void print_ip_session_report (const mmt_session_t * session, void *user_args){
-printf ("I am here\n");
 	if (is_microflow(session)) {
 		return;
 	}
-printf ("I am here 0\n");
 	session_struct_t * temp_session = (session_struct_t *) get_user_session_context(session);
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	if (temp_session == NULL) {
 		return;
 	}
-printf ("I am here 1\n");
 
 	char message[MAX_MESS + 1];
 	uint8_t *ea = 0;
@@ -46,7 +43,6 @@ printf ("I am here 1\n");
 	// To  check whether the session activity occurs between the reporting time interval
 	if (TIMEVAL_2_USEC(mmt_time_diff(temp_session->session_attr->last_activity_time, get_session_last_activity_time(session))) == 0)return; // check the condition if in the last interval there was a protocol activity or not
 	//if (get_session_byte_count(session) - temp_session->session_attr->total_byte_count == 0)return;
-printf ("I am here 2\n");
 
 	// The report number is maintain to synchronize between the reporting time of the probe and MMT-operator report display time.
 	if (temp_session->report_counter == th->report_counter){
@@ -179,8 +175,7 @@ printf ("I am here 2\n");
 	}
 	valid = strlen(message);
 	message[ valid ] = '\0'; // correct end of string in case of truncated message
-        
-        printf("session_report = %s \n", message);
+        printf("session=%s\n", message);       
 	if (probe_context->output_to_file_enable && probe_context->session_output_channel[0])send_message_to_file_thread (message, (void *)user_args);
 	if (probe_context->redis_enable && probe_context->session_output_channel[1])send_message_to_redis ("session.flow.report", message);
 	if (probe_context->kafka_enable && probe_context->session_output_channel[2])send_msg_to_kafka(probe_context->topic_object->rkt_session, message);

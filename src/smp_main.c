@@ -614,6 +614,8 @@ int main(int argc, char **argv) {
 	mmt_probe.mmt_conf = mmt_conf;
         event_report_flag = malloc (sizeof(uint8_t));
         config_updated = malloc (sizeof(uint8_t));
+        session_report_flag = malloc (sizeof(uint8_t));
+
 	////////////////dynamic_conf/////////
 	mmt_conf->event_reports = NULL;
 	////////////////////

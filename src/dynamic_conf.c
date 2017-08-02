@@ -327,7 +327,7 @@ void config_session_report(sr_session_ctx_t * session, sr_val_t * value, struct 
   
 //////////////////config_updated/////////////////
     if (probe_context->enable_session_report == 0) return;
-    if (mmt_probe->mmt_conf->thread_nb == 1) atomic_store (session_report_flag, 1);
+    if (probe_context->thread_nb == 1) atomic_store (session_report_flag, 1);
     else {
         if (mmt_probe->smp_threads != NULL){
             for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){

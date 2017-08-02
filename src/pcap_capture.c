@@ -173,14 +173,14 @@ void * smp_thread_routine(void *arg) {
                                 if (atomic_load (&th->session_report_flag) == 1 && probe_context->enable_session_report == 1){ 
                                     register_session_timer_handler(th->mmt_handler, print_ip_session_report, th);
                                     register_session_timeout_handler(th->mmt_handler, classification_expiry_session, th);
-                               //     flowstruct_uninit(th);
+                                    flowstruct_uninit(th);
                                     flowstruct_init(th); // initialize our event handler
                                     if (probe_context->condition_based_reporting_enable == 1)conditional_reports_init(th);// initialize our condition reports
                                     if (probe_context->radius_enable == 1)radius_ext_init(th); // initialize radius extraction and attribute event handler
                                     printf ("thread_id_smp = %u \n",th->thread_index);
                                    atomic_store (&th->session_report_flag, 0); 
                                }else {
-                               // flowstruct_uninit(th);
+                                    flowstruct_uninit(th);
                                }
 
                             atomic_store(&th->config_updated, 0); // update implemented in each thread
@@ -459,11 +459,15 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
                    if (atomic_load (session_report_flag) == 1 && mmt_probe->mmt_conf->enable_session_report == 1){
                        register_session_timer_handler(mmt_probe->smp_threads->mmt_handler, print_ip_session_report, (void *) mmt_probe->smp_threads);
                        register_session_timeout_handler(mmt_probe->smp_threads->mmt_handler, classification_expiry_session, (void *) mmt_probe->smp_threads);
+                       flowstruct_uninit((void *)mmt_probe->smp_threads); // initialize our event handler
+
                        flowstruct_init((void *)mmt_probe->smp_threads); // initialize our event handler
                        if(mmt_probe->mmt_conf->condition_based_reporting_enable == 1)conditional_reports_init((void *)mmt_probe->smp_threads);// initialize our conditional reports
                        if(mmt_probe->mmt_conf->radius_enable == 1)radius_ext_init((void *)mmt_probe->smp_threads); // initialize radius extraction and attribute event handler
 
                        atomic_store(session_report_flag, 0);
+                   }else{
+                       flowstruct_uninit((void *)mmt_probe->smp_threads); // initialize our event handler
                    }
 
                    atomic_store(config_updated, 0);

@@ -129,21 +129,22 @@ endif
 # - - - - - -
 
 
+FACE_ROOT_DIR=/tmp/probe/$(INSTALL_DIR)
 #
 # Install probe
 #
-create: all
-	@echo "Installing probe on" $(INSTALL_DIR)
+copy_files: all
 #create dir
-	$(QUIET) $(MKDIR) $(INSTALL_DIR)/bin \
-		$(INSTALL_DIR)/log/online \
-		$(INSTALL_DIR)/log/offline \
-		$(INSTALL_DIR)/result/report/offline \
-		$(INSTALL_DIR)/result/report/online \
-		$(INSTALL_DIR)/result/behaviour/online \
-		$(INSTALL_DIR)/result/behaviour/offline \
-		$(INSTALL_DIR)/result/security/online \
-		$(INSTALL_DIR)/result/security/offline
+	$(QUIET) $(RM) $(FACE_ROOT_DIR)
+	$(QUIET) $(MKDIR) $(FACE_ROOT_DIR)/bin \
+		$(FACE_ROOT_DIR)/log/online \
+		$(FACE_ROOT_DIR)/log/offline \
+		$(FACE_ROOT_DIR)/result/report/offline \
+		$(FACE_ROOT_DIR)/result/report/online \
+		$(FACE_ROOT_DIR)/result/behaviour/online \
+		$(FACE_ROOT_DIR)/result/behaviour/offline \
+		$(FACE_ROOT_DIR)/result/security/online \
+		$(FACE_ROOT_DIR)/result/security/offline
 
 #copy probe to existing dir from buit in DPDK
 ifdef DPDK
@@ -151,12 +152,16 @@ ifdef DPDK
 endif
 
 #copy to bin
-	$(QUIET) $(CP) $(APP) $(INSTALL_DIR)/bin/probe
+	$(QUIET) $(CP) $(APP)           $(FACE_ROOT_DIR)/bin/probe
 
-	$(QUIET) $(CP) mmt_online.conf  $(INSTALL_DIR)/mmt-probe.conf
+	$(QUIET) $(CP) mmt_online.conf  $(FACE_ROOT_DIR)/mmt-probe.conf
 
 	@echo
 
+
+create: copy_files
+	$(QUIET) $(MKDIR) $(INSTALL_DIR)
+	$(QUIET) $(CP) -r $(FACE_ROOT_DIR)/* $(INSTALL_DIR)
 
 SYS_NAME    = $(shell uname -s)
 SYS_VERSION = $(shell uname -p)
@@ -167,8 +172,9 @@ else
 	DEB_NAME = mmt-probe_$(VERSION)_$(GIT_VERSION)_$(SYS_NAME)_$(SYS_VERSION)_pcap
 endif
 
-deb: create
+deb: copy_files
 	echo $(DEB_NAME)
+	$(QUIET) $(RM) $(DEB_NAME)
 	$(QUIET) $(MKDIR) $(DEB_NAME)/DEBIAN
 	$(QUIET) echo "Package: mmt-probe \
         \nVersion: $(VERSION) \
@@ -189,7 +195,7 @@ deb: create
 	@echo "/opt/mmt/probe/lib" >> $(DEB_NAME)/etc/ld.so.conf.d/mmt-probe.conf
 	
 	$(QUIET) $(MKDIR) $(DEB_NAME)$(INSTALL_DIR)
-	$(QUIET) $(CP) -r $(INSTALL_DIR)/* $(DEB_NAME)$(INSTALL_DIR)
+	$(QUIET) $(CP) -r $(FACE_ROOT_DIR)/* $(DEB_NAME)$(INSTALL_DIR)
 	
 	$(QUIET) $(MKDIR) $(DEB_NAME)$(INSTALL_DIR)/lib
 	$(QUIET) $(CP) /usr/local/lib/libhiredis.so.*  $(DEB_NAME)$(INSTALL_DIR)/lib
@@ -198,7 +204,68 @@ deb: create
 	
 	$(QUIET) dpkg-deb -b $(DEB_NAME)
 	$(QUIET) $(RM) $(DEB_NAME)
-	$(QUIET) $(RM) -rf $(INSTALL_DIR)
+	$(QUIET) $(RM) $(FACE_ROOT_DIR)
+
+rpm: copy_files
+	$(QUIET) $(RM) $(DEB_NAME)
+	
+	$(QUIET) $(MKDIR) $(DEB_NAME)/usr/bin/
+	$(QUIET) ln -s /opt/mmt/probe/bin/probe $(DEB_NAME)/usr/bin/mmt-probe
+	
+	$(QUIET) $(MKDIR) $(DEB_NAME)/etc/ld.so.conf.d/
+	@echo "/opt/mmt/probe/lib" >> $(DEB_NAME)/etc/ld.so.conf.d/mmt-probe.conf
+	
+	$(QUIET) $(MKDIR) $(DEB_NAME)$(INSTALL_DIR)
+	$(QUIET) $(CP) -r $(FACE_ROOT_DIR)/* $(DEB_NAME)$(INSTALL_DIR)
+	
+	$(QUIET) $(MKDIR) $(DEB_NAME)$(INSTALL_DIR)/lib
+	$(QUIET) $(CP) /usr/local/lib/libhiredis.so.*  $(DEB_NAME)$(INSTALL_DIR)/lib
+	$(QUIET) $(CP) /usr/local/lib/librdkafka.so.*  $(DEB_NAME)$(INSTALL_DIR)/lib
+	$(QUIET) $(CP) /lib64/libconfuse.so.*  $(DEB_NAME)$(INSTALL_DIR)/lib/
+	
+	
+	$(QUIET) $(MKDIR) ./rpmbuild/{RPMS,BUILD}
+	
+	$(QUIET) echo -e\
+      "Summary:  MMT-Probe\
+      \nName: mmt-probe\
+      \nVersion: $(VERSION)\
+      \nRelease: $(GIT_VERSION)\
+      \nLicense: proprietary\
+      \nGroup: Development/Tools\
+      \nURL: http://montimage.com/\
+      \n\
+      \nRequires:  mmt-dpi >= 1.6.9, mmt-security >= 1.1.5\
+      \nBuildRoot: %{_topdir}/BUILD/%{name}-%{version}-%{release}\
+      \n\
+      \n%description\
+      \nMMT-Probe is a tool to analyze network traffic.\
+      \nBuild date: `date +"%Y-%m-%d %H:%M:%S"`\
+      \n\
+      \n%prep\
+      \nrm -rf %{buildroot}\
+      \nmkdir -p %{buildroot}\
+      \ncp -r %{_topdir}/../$(DEB_NAME)/* %{buildroot}/\
+      \n\
+      \n%clean\
+      \nrm -rf %{buildroot}\
+      \n\
+      \n%files\
+      \n%defattr(-,root,root,-)\
+      \n/opt/mmt/probe/*\
+      \n/usr/bin/mmt-probe\
+      \n/etc/ld.so.conf.d/mmt-probe.conf\
+      \n%post\
+      \nldconfig\
+   " > ./mmt-probe.spec
+	
+	$(QUIET) rpmbuild --quiet --rmspec --define "_topdir $(shell pwd)/rpmbuild" --define "_rpmfilename ../../$(DEB_NAME).rpm" -bb ./mmt-probe.spec
+	$(QUIET) $(RM) rpmbuild
+	@echo "[PACKAGE] $(DEB_NAME).rpm"
+	
+	$(QUIET) $(RM) $(DEB_NAME)
+	$(QUIET) $(RM) $(FACE_ROOT_DIR)
+
 
 keygen:
 	$(QUIET) $(CC) -o keygen $(CLDFLAGS)  key_generator.c

@@ -130,12 +130,12 @@ void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char * l
 #ifdef HTTP_RECONSTRUCT
 uint8_t is_http_packet(const ipacket_t * ipacket){
 	uint16_t http_index = get_protocol_index_by_id(ipacket, PROTO_HTTP);
-    // META->ETH->IP->TCP->HTTP
-    if(http_index < 4){
-        fprintf(stderr, "[error] %lu: PROTO_HTTP has index smaller than 4\n", ipacket->packet_id);
-        return 0;
-    }
-    return 1;
+	// META->ETH->IP->TCP->HTTP
+	if(http_index < 4){
+		fprintf(stderr, "[error] %lu: PROTO_HTTP has index smaller than 4\n", ipacket->packet_id);
+		return 0;
+	}
+	return 1;
 }
 
 #endif // End of HTTP_RECONSTRUCT
@@ -177,28 +177,11 @@ inline mmt_probe_context_t * get_probe_context_config() {
 	return & probe_context;
 }
 
-/* This function assigns the session ID to a new flow (session), maintains session informations in session_struct_t and
- * updates mmt_session_t context with new session informations (session_struct_t).
- * */
-
-void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-        printf ("flow_nb_handler_packet_id = %lu\n",ipacket->packet_id);       
-        struct smp_thread *th = (struct smp_thread *) user_args;
-        //if (th == NULL) return;
-        //if (atomic_load (session_report_flag) == 1 || atomic_load(&th->session_report_flag) == 1 ) {
-          //  return;
-        //}
-
-       
-
+void create_session (const ipacket_t * ipacket, void * user_args){
 	mmt_session_t * session = get_session_from_packet(ipacket);
 	if(session == NULL) return;
 
-	//struct smp_thread *th = (struct smp_thread *) user_args;
-
-	if (attribute->data == NULL) {
-		return; //This should never happen! check it anyway
-	}
+	struct smp_thread *th = (struct smp_thread *) user_args;
 
 	session_struct_t *temp_session = malloc(sizeof (session_struct_t));
 	if (temp_session == NULL) {
@@ -298,46 +281,54 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	if(probe_context.http_reconstruct_enable == 1){
 		if(is_http_packet(ipacket) == 1){
 			// printf("[debug] %lu: flow_nb_handle\n", ipacket->packet_id);
-		    // printf("[debug] %lu: new_session_handle - 2\n", ipacket->packet_id);
-		    http_content_processor_t * http_content_processor = init_http_content_processor();
+			// printf("[debug] %lu: new_session_handle - 2\n", ipacket->packet_id);
+			http_content_processor_t * http_content_processor = init_http_content_processor();
 
-		    if (http_content_processor == NULL) {
-		    	fprintf(stderr, "[error] %lu: Cannot create http_content_processor\n", ipacket->packet_id);
-		    	free(temp_session);
-		        return;
-		    }
-		    // printf("[debug] %lu: new_session_handle - 3\n", ipacket->packet_id);
-		    temp_session->http_content_processor = http_content_processor;
-		    // printf("[debug] %lu: new_session_handle - 4\n", ipacket->packet_id);
-		    http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(session), th->list_http_session_data);
-		    if (http_session_data == NULL) {
-		        http_session_data = new_http_session_data();
-		        if (http_session_data) {
-		            http_session_data->session_id = get_session_id(session);
-		            http_session_data->http_session_status = HSDS_START;
-		            add_http_session_data(http_session_data,th);
-		        } else {
-		            fprintf(stderr, "[error] Cannot create http session data for session %lu - packet: %lu\n", get_session_id(session), ipacket->packet_id);
-		        }
-		    }
-	    }
+			if (http_content_processor == NULL) {
+				fprintf(stderr, "[error] %lu: Cannot create http_content_processor\n", ipacket->packet_id);
+				free(temp_session);
+				return;
+			}
+			// printf("[debug] %lu: new_session_handle - 3\n", ipacket->packet_id);
+			temp_session->http_content_processor = http_content_processor;
+			// printf("[debug] %lu: new_session_handle - 4\n", ipacket->packet_id);
+			http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(session), th->list_http_session_data);
+			if (http_session_data == NULL) {
+				http_session_data = new_http_session_data();
+				if (http_session_data) {
+					http_session_data->session_id = get_session_id(session);
+					http_session_data->http_session_status = HSDS_START;
+					add_http_session_data(http_session_data,th);
+				} else {
+					fprintf(stderr, "[error] Cannot create http session data for session %lu - packet: %lu\n", get_session_id(session), ipacket->packet_id);
+				}
+			}
+		}
 	}
 #endif // End of HTTP_RECONSTRUCT	
         printf ("set session\n");
 	set_user_session_context(session, temp_session);
+}
+/* This function assigns the session ID to a new flow (session), maintains session informations in session_struct_t and
+ * updates mmt_session_t context with new session informations (session_struct_t).
+ * */
+
+void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
+	create_session (ipacket, (void *)user_args);
 }
 
 /* This function is called by mmt-dpi for each incoming packet.
  * It extracts packet information from a #ipacket for creating messages/reports.
  * */
 int packet_handler(const ipacket_t * ipacket, void * args) {
-        printf ("packet_id = %lu\n",ipacket->packet_id);
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	struct smp_thread *th = (struct smp_thread *) args;
 	if(probe_context->enable_session_report == 1){
 		session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
-        printf ("packet_id = %lu, session_id = %lu\n", ipacket->packet_id, get_session_id(ipacket->session));
 
+		if (ipacket->session != NULL && temp_session == NULL){
+			create_session (ipacket, (void *)args);
+		}
 		if (th->pcap_current_packet_time == 0){
 			th->pcap_last_stat_report_time = ipacket->p_hdr->ts.tv_sec;
 		}
@@ -596,7 +587,7 @@ mmt_dev_properties_t get_dev_properties_from_user_agent(char * user_agent, uint3
  * It provides the expired session information and frees the memory allocated.
  * */
 void classification_expiry_session(const mmt_session_t * expired_session, void * args) {
-//	debug("classification_expiry_session : %lu",get_session_id(expired_session));
+	//	debug("classification_expiry_session : %lu",get_session_id(expired_session));
 	session_struct_t * temp_session = get_user_session_context(expired_session);
 	struct smp_thread *th = (struct smp_thread *) args;
 	if (temp_session == NULL) {
@@ -604,11 +595,11 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 	}
 
 #ifdef HTTP_RECONSTRUCT
-    // printf("[debug] cleaning HTTP_RECONSTRUCT ... %lu \n",get_session_id(expired_session));
-    if (temp_session->http_content_processor != NULL) {
-    	close_http_content_processor(temp_session->http_content_processor);
-    }
-    clean_http_session_data(get_session_id(expired_session),th);
+	// printf("[debug] cleaning HTTP_RECONSTRUCT ... %lu \n",get_session_id(expired_session));
+	if (temp_session->http_content_processor != NULL) {
+		close_http_content_processor(temp_session->http_content_processor);
+	}
+	clean_http_session_data(get_session_id(expired_session),th);
 #endif	
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
