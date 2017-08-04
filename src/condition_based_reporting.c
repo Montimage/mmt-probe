@@ -89,6 +89,38 @@ void * get_handler_by_name(char * func_name){
 	return 0;
 }
 
+/* uninitilisation condition report  * */
+int unregister_conditional_report_handle(void * args, mmt_condition_report_t * condition_report) {
+        int j;
+        struct smp_thread *th = (struct smp_thread *) args;
+
+        for(j = 0; j < condition_report->attributes_nb; j++) {
+                uint32_t protocol_id;
+                uint32_t attribute_id;
+                mmt_condition_attribute_t * condition_attribute = &condition_report->attributes[j];
+                mmt_condition_attribute_t * handler_attribute = &condition_report->handlers[j];
+
+                protocol_id = get_protocol_id_by_name (condition_attribute->proto);
+                if (protocol_id == 0) return 0;
+
+                attribute_id = get_attribute_id_by_protocol_and_attribute_names(condition_attribute->proto,condition_attribute->attribute);
+                if (attribute_id == 0) return 0;
+
+                if (strcmp(handler_attribute->handler,"NULL") == 0){
+                        if (is_registered_attribute(th->mmt_handler, protocol_id, attribute_id) != 0){
+                                if(unregister_extraction_attribute(th->mmt_handler, protocol_id, attribute_id) == 0)return 0;
+                        }
+                }else{
+                        if (is_registered_attribute_handler(th->mmt_handler, protocol_id, attribute_id, get_handler_by_name (handler_attribute->handler)) != 0){
+                                if(unregister_attribute_handler(th->mmt_handler, protocol_id, attribute_id, get_handler_by_name (handler_attribute->handler)) == 0) return 0;
+                        }
+                }
+         printf ("unregistered app proto = %s, attribute = %s \n", condition_attribute->proto,condition_attribute->attribute);
+        }
+        return 1;
+}
+
+
 /* This function registers attributes and attribute handlers for different condition_reports (if enabled in a configuration file).
  * */
 int register_conditional_report_handle(void * args, mmt_condition_report_t * condition_report) {
@@ -132,6 +164,7 @@ int register_conditional_report_handle(void * args, mmt_condition_report_t * con
 				fprintf(stderr,"[WARNING] Already registered register_attribute_handler (condition_report): proto: %s ,attribute: %s, handler: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler,condition_report->id);
 			}
 		}
+         printf ("proto = %s, attribute = %s \n", condition_attribute->proto,condition_attribute->attribute);
 	}
 	return 1;
 }
@@ -141,13 +174,27 @@ int register_conditional_report_handle(void * args, mmt_condition_report_t * con
 void conditional_reports_init(void * args) {
 	int i;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
-
-	for(i = 0; i < probe_context->condition_reports_nb; i++) {
-		mmt_condition_report_t * condition_report = &probe_context->condition_reports[i];
-		if(register_conditional_report_handle(args, condition_report) == 0) {
-			fprintf(stderr, "Error while initializing condition report number %i!\n", condition_report->id);
+        struct smp_thread *th = (struct smp_thread *) args;
+        mmt_condition_report_t * current = probe_context->condition_reports;
+	while (current != NULL) {
+           if (current->enable == 1){
+		//mmt_condition_report_t * condition_report = &probe_context->condition_reports[i];
+		if(register_conditional_report_handle(args, current) == 0) {
+			fprintf(stderr, "Error while initializing condition report number %i!\n", current->id);
 			exit(1);
 		}
+           } else {
+                if(unregister_conditional_report_handle(args, current) == 0) {
+                        fprintf(stderr, "Error while uninitializing condition report number %i!\n", current->id);
+                        exit(1);
+                }
+        
+           }
+            current = current->next;
 	}
+    if (probe_context->condition_reports_nb > 0){
+       atomic_store(condition_report_flag, 0);
+       atomic_store(&th->condition_report_flag, 0);
+    }
 
 }

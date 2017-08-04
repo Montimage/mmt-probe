@@ -90,6 +90,7 @@ void config_output_to_file (sr_session_ctx_t * session, sr_val_t * value, struct
         }
      } 
 }
+/***********************event based report********************/
 void config_event_report (sr_session_ctx_t * session, sr_val_t * value, struct mmt_probe_struct * mmt_probe){
     mmt_probe_context_t * probe_context = get_probe_context_config();
     int rc = SR_ERR_OK;
@@ -233,7 +234,176 @@ void config_event_report (sr_session_ctx_t * session, sr_val_t * value, struct m
            }
 
 }
-                /*************** redis  ********************/
+/**************************************event based report****************************************/
+
+
+/******************************app based report **************************************/
+void config_condition_report (sr_session_ctx_t * session, sr_val_t * value, struct mmt_probe_struct * mmt_probe){
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+    int rc = SR_ERR_OK;
+    char condition[20];
+    char message[1024];
+    int m = 0;
+        rc = sr_get_item(session, "/dynamic-mmt-probe:session-app-report/number-of-app", &value);
+        if (SR_ERR_OK == rc) {
+                probe_context->condition_reports_nb = value->data.uint32_val;
+                sr_free_val(value);
+//               printf ("condition_report_nb = %u\n", probe_context->condition_reports_nb);
+        }
+               printf ("condition_report_nb = %u\n", probe_context->condition_reports_nb);
+
+//////////////////config_updated/////////////////
+        if (probe_context->condition_reports_nb == 0) return;
+        if (mmt_probe->mmt_conf->thread_nb == 1) atomic_store (condition_report_flag, 1);
+        else {
+            if (mmt_probe->smp_threads != NULL){
+                for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
+                     atomic_store (&mmt_probe->smp_threads[m].condition_report_flag, 1);
+                }
+            }
+        }
+/////////////////////////
+        int j=0, k=0, i= 0;
+       // probe_context->event_reports = NULL;
+        int len = 0;
+       mmt_condition_report_t * current = probe_context->condition_reports;
+       while ((current = probe_context->condition_reports) != NULL){
+          probe_context->condition_reports = probe_context->condition_reports->next;
+          free (current);
+          current  = NULL;
+       }
+        if (probe_context->condition_reports_nb > 0) {
+            for(j = 0; j < probe_context->condition_reports_nb; j++) {
+
+               mmt_condition_report_t * condition_reports = (mmt_condition_report_t *) malloc ( sizeof(mmt_condition_report_t));
+
+               if (condition_reports == NULL){
+               printf("Error Memory allocation: condition_reporting");
+               return;
+               }
+
+                k = j + 1;
+                len =snprintf(message,256,"/dynamic-mmt-probe:session-app-report/app-based-reporting[app_id='%u']/enable",k);
+                message[len]='\0';
+                rc = sr_get_item(session, message, &value);
+                if (SR_ERR_OK == rc) {
+                    condition_reports->enable = value->data.uint32_val;
+                    sr_free_val(value);
+                    printf ("app_enable = %u\n", condition_reports->enable);
+                }
+                len=0;
+                //if (event_reports->enable == 1){
+                    len= snprintf(message,256,"/dynamic-mmt-probe:session-app-report/app-based-reporting[app_id='%u']/condition",k);
+                    message[len]='\0';
+                    rc = sr_get_item(session,message, &value);
+                        if (SR_ERR_OK == rc) {
+                            strcpy(condition,value->data.string_val);
+                            sr_free_val(value);
+                            printf ("condition = %s\n", condition);
+                         }
+
+                        if (parse_condition_attribute(condition, &condition_reports->condition)) {
+                            fprintf(stderr, "Error: invalid condition_report condition value '%s'\n", condition);
+                            exit(0);
+                        }
+                        condition_reports->id = k;
+                        printf ("condition_id = %u\n", condition_reports->id);
+                        probe_context->condition_based_reporting_enable = 1;
+
+                       len=0;
+                       len= snprintf(message,256,"/dynamic-mmt-probe:session-app-report/app-based-reporting[app_id='%u']/location",k);
+                       message[len]='\0';
+                       rc = sr_get_item(session,message, &value);
+                       if (SR_ERR_OK == rc) {
+                           strcpy(condition_reports->condition.location,value->data.string_val);
+                           sr_free_val(value);
+                           printf ("location = %s\n",condition_reports->condition.location );
+                        }
+
+                        if(strcmp(condition_reports->condition.condition, "FTP") == 0){
+                            if (condition_reports->enable == 1) probe_context->ftp_enable = 1;
+                            if (condition_reports->enable == 0) probe_context->ftp_enable = 0;
+                        }
+                        if(strcmp(condition_reports->condition.condition, "WEB") == 0){
+                            if (condition_reports->enable == 1) probe_context->web_enable = 1;
+                            if (condition_reports->enable == 0) probe_context->web_enable = 0;
+                        }
+                        if(strcmp(condition_reports->condition.condition, "RTP") == 0){
+                            if (condition_reports->enable == 1) probe_context->rtp_enable = 1;
+                            if (condition_reports->enable == 0) probe_context->rtp_enable = 0;
+                        }
+                        if(strcmp(condition_reports->condition.condition, "SSL") == 0){
+                           if (condition_reports->enable == 1) probe_context->ssl_enable = 1;
+                           if (condition_reports->enable == 0) probe_context->ssl_enable = 0;
+                        }
+                        if(strcmp(condition_reports->condition.condition, "HTTP-RECONSTRUCT") == 0){
+#ifdef HTTP_RECONSTRUCT                                         
+                           if (condition_reports->enable == 1) {
+                               strncpy(mmt_conf->http_reconstruct_output_location, condition_reports->condition.location, 256);
+                               mmt_conf->http_reconstruct_enable = 1;
+                               // printf("[debug] Enable http reconstruction\n");
+                           }
+                        if (condition_reports->enable == 0) mmt_conf->http_reconstruct_enable = 0;
+#else
+                        condition_reports->enable = 0;//check with luong
+#endif // End of HTTP_RECONSTRUCT
+                       }
+
+
+                        len = 0;
+                        len =snprintf(message,256,"/dynamic-mmt-probe:session-app-report/app-based-reporting[app_id='%u']/total_attr",k);
+                        message[len]='\0';
+                        rc = sr_get_item(session, message, &value);
+                        if (SR_ERR_OK == rc) {
+                           condition_reports->attributes_nb = value->data.uint32_val;
+                           sr_free_val(value);
+                           printf ("app_attributes_nb = %u\n", condition_reports->attributes_nb);
+
+                        }
+
+                        if(condition_reports->attributes_nb > 0) {
+                            condition_reports->attributes = calloc(sizeof(mmt_condition_attribute_t), condition_reports->attributes_nb);
+                            condition_reports->handlers = calloc(sizeof(mmt_condition_attribute_t), condition_reports->attributes_nb);
+                            for(i = 0; i < condition_reports->attributes_nb; i++) {
+                                len = 0;
+                                int l = 0;
+                                l= i + 1;
+                                len = snprintf(message,256,"/dynamic-mmt-probe:session-app-report/app-based-reporting[app_id='%u']/attributes[attr_id='%u']/attr",k,l);
+                                message[len]= '\0';
+                                rc = sr_get_item(session,message, &value);
+                                if (SR_ERR_OK == rc) {
+                                    strcpy(condition,value->data.string_val);
+                                    sr_free_val(value);
+                                }
+
+                                if (condition_parse_dot_proto_attribute(condition, &condition_reports->attributes[i])) {
+                                    fprintf(stderr, "Error: invalid condition_report attribute  '%s'\n", condition);
+                                    exit(0);
+                                }
+                                len = 0;
+                                len = snprintf(message,256,"/dynamic-mmt-probe:session-app-report/app-based-reporting[app_id='%u']/attributes[attr_id='%u']/attr_handler",k,l);
+                                message[len]= '\0';
+                                rc = sr_get_item(session,message, &value);
+                                if (SR_ERR_OK == rc) {
+                                    strcpy(condition,value->data.string_val);
+                                    sr_free_val(value);
+                                }
+                                printf("here\n");
+                                if (parse_handlers_attribute(condition, &condition_reports->handlers[i])) {
+                                    fprintf(stderr, "Error: invalid condition_report attribute handler  '%s'\n", condition);
+                                    exit(0);
+                                }
+
+                            }
+                        }
+
+                condition_reports->next = probe_context->condition_reports;
+                probe_context->condition_reports = condition_reports;
+               }
+           }
+
+}
+/******************** app based report*******************/                                                                                                                                                               /*************** redis  ********************/
 
 void config_output_to_redis(sr_session_ctx_t * session, sr_val_t * value, struct mmt_probe_struct * mmt_probe){
     sr_val_t *values = NULL;
@@ -312,21 +482,21 @@ void config_output_to_kafka(sr_session_ctx_t * session, sr_val_t * value, struct
 
 void config_session_report(sr_session_ctx_t * session, sr_val_t * value, struct mmt_probe_struct * mmt_probe){
     sr_val_t *values = NULL;
-    int rc = SR_ERR_OK, len = 0, m = 0;
+    int rc = SR_ERR_OK, len = 0, m = 0,enable_session_report = 0;
     char message[256 + 1];
 
     mmt_probe_context_t * probe_context = get_probe_context_config();
     rc = sr_get_item(session, "/dynamic-mmt-probe:session-report/enable", &value);
     if (SR_ERR_OK == rc) {
-        probe_context->enable_session_report = value->data.uint32_val;
+        enable_session_report = value->data.uint32_val;
         sr_free_val(value);
     }
 
-    printf ("\n session-report-enable = %u\n", probe_context->enable_session_report);
+    printf ("\n session-report-enable = %u\n", enable_session_report);
 
   
 //////////////////config_updated/////////////////
-    if (probe_context->enable_session_report == 0) return;
+    if (enable_session_report == 0) return;
     if (probe_context->thread_nb == 1) atomic_store (session_report_flag, 1);
     else {
         if (mmt_probe->smp_threads != NULL){
@@ -335,6 +505,7 @@ void config_session_report(sr_session_ctx_t * session, sr_val_t * value, struct 
             }
         }
     }
+    probe_context->enable_session_report = enable_session_report;
 /////////////////////////
 
     len = snprintf(message,256,"/dynamic-mmt-probe:session-report/output_to_file");
@@ -463,13 +634,26 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
                 sr_free_val(value);
                  printf ("cache_size = %lu\n", probe_context->report_cache_size_before_flushing);
         }
-
+        rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/enable-proto-without-session-stat", &value);
+        if (SR_ERR_OK == rc) {
+                probe_context->enable_proto_without_session_stats = value->data.uint32_val;
+                sr_free_val(value);
+                 printf ("enable_proto_without_session_stat = %lu\n", probe_context->enable_proto_without_session_stats);
+        }
+        rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/enable-IP-fragmentation_report", &value);
+        if (SR_ERR_OK == rc) {
+                probe_context->enable_IP_fragmentation_report = value->data.uint32_val;
+                sr_free_val(value);
+                printf ("enable-IP-fragmentation_report = %lu\n", probe_context->enable_IP_fragmentation_report);
+        }
         config_event_report (session, value, mmt_probe);
         config_session_report (session, value,mmt_probe);
         config_output_to_file (session, value, mmt_probe);
     
         config_output_to_redis (session, value, mmt_probe);
         config_output_to_kafka (session, value, mmt_probe);
+        config_condition_report (session, value, mmt_probe);
+
        ///////////config_updated///////////////////
        //  atomic_store (config_updated, 1);
         if (mmt_probe->mmt_conf->thread_nb == 1)atomic_store (config_updated, 1);

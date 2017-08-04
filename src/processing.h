@@ -59,6 +59,7 @@ static int is_stop_timer;
 int do_abort;
 
 volatile uint8_t * event_report_flag;
+volatile uint8_t * condition_report_flag;
 volatile uint8_t * session_report_flag;
 volatile uint8_t * config_updated;
 static struct mmt_probe_struct mmt_probe;
@@ -178,6 +179,8 @@ typedef struct mmt_condition_report_struct {
 	uint32_t handlers_nb;
 	mmt_condition_attribute_t * attributes;
 	mmt_condition_attribute_t * handlers;
+        struct mmt_condition_report_struct *next;
+
 } mmt_condition_report_t;
 
 typedef struct mmt_security_attribute_struct {
@@ -692,6 +695,8 @@ struct smp_thread {
 	http_session_data_t * list_http_session_data;
 #endif	
         volatile uint8_t  event_report_flag;
+        volatile uint8_t  condition_report_flag;
+
         volatile uint8_t  session_report_flag;
         volatile uint8_t  config_updated;
 };

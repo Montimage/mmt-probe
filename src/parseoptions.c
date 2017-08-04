@@ -264,6 +264,7 @@ int condition_parse_dot_proto_attribute(char * inputstring, mmt_condition_attrib
 	} else {
 		strncpy(protoattr->proto, argv[0], 256);
 		strncpy(protoattr->attribute, argv[1], 256);
+                printf ("proto=%s, attr=%s\n",protoattr->proto, protoattr->attribute);
 		return 0;
 	}
 }
@@ -345,6 +346,7 @@ int parse_location_attribute(char * inputstring, mmt_condition_attribute_t * con
 int parse_handlers_attribute(char * inputstring, mmt_condition_attribute_t * handlersattr) {
 	if(inputstring != NULL){
 		strncpy(handlersattr->handler, inputstring, 256);
+                printf("handler=%s\n", handlersattr->handler);
 		return 0;
 	}
 	return 1;
