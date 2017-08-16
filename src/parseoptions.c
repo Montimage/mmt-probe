@@ -1109,7 +1109,8 @@ void parseOptions(int argc, char ** argv, struct mmt_probe_struct * mmt_probe) {
 		exit(0);
 	}
 	process_conf_result(cfg, mmt_conf);
-*/
+*/  
+
        dynamic_conf(mmt_probe);
 	if (input) {
 		strncpy(mmt_probe->mmt_conf->input_source, input, 256);

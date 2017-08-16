@@ -615,6 +615,7 @@ int main(int argc, char **argv) {
         event_report_flag = malloc (sizeof(uint8_t));
         config_updated = malloc (sizeof(uint8_t));
         session_report_flag = malloc (sizeof(uint8_t));
+        security2_report_flag = malloc (sizeof(uint8_t));
         condition_report_flag = malloc (sizeof(uint8_t));
 
 	////////////////dynamic_conf/////////
@@ -689,11 +690,11 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 	//config security2
-	if( mmt_conf->security2_enable ){
+//	if( mmt_conf->security2_enable ){
 		//initialize security rules
 		if( init_security() != 0 )
 			return 1;
-	}
+//	}*/
 	printf("[info] Versions: Probe v%s (%s), DPI v%s, Security v0.9b \n",
 			VERSION, GIT_VERSION, //these version information are given by Makefile
 			mmt_version());

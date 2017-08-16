@@ -46,7 +46,7 @@ static inline message_t* _get_packet_info( const ipacket_t *pkt, const proto_att
  */
 static int _packet_handler( const ipacket_t *ipacket, void *args ) {
 	sec_wrapper_t *wrapper = (sec_wrapper_t *)args;
-
+        if (wrapper == NULL) return 0;
 	message_t *msg = _get_packet_info( ipacket, wrapper->proto_atts, wrapper->proto_atts_count );
 
 	//if there is no interested information
@@ -125,7 +125,7 @@ void security_print_verdict(
 	if ( mmt_conf->kafka_enable && mmt_conf->security2_output_channel[2])
 		send_msg_to_kafka( mmt_conf->topic_object->rkt_security, message );
 
-	//	printf("%s", message );
+	printf("%s", message );
 }
 
 /**
@@ -148,7 +148,7 @@ sec_wrapper_t* register_security( mmt_handler_t *dpi_handler, size_t threads_cou
 	int i;
 	char att_registed[10000], *att_registed_ptr = att_registed;
 
-
+        ret->mmt_handler = dpi_handler;
 	ret->threads_count = threads_count;
 	ret->msg_count     = 0;
 
@@ -183,7 +183,7 @@ sec_wrapper_t* register_security( mmt_handler_t *dpi_handler, size_t threads_cou
 	}
 
 	//Register a packet handler, it will be called for every processed packet
-	register_packet_handler( dpi_handler, 10, _packet_handler, ret );
+	register_packet_handler( ret->mmt_handler, 10, _packet_handler, ret );
 
 	return ret;
 }
@@ -203,6 +203,7 @@ size_t unregister_security( sec_wrapper_t* ret ){
 	alerts_count = mmt_sec_unregister( ret->sec_handler );
 
 	ret->sec_handler = NULL;
+        unregister_packet_handler (ret->mmt_handler, 10);
 	mmt_mem_free( ret );
 
 	return alerts_count;

@@ -39,7 +39,47 @@ void clean_up_security2(mmt_probe_struct_t * mmt_probe){
 		printf ("[mmt-probe-1]{%3d,%9"PRIu64",%9"PRIu64",%7zu}\n",mmt_probe->smp_threads->thread_index, nb_packets_processed_by_mmt, msg_count, alerts_count );
 	}
 }
+sec_wrapper_t * init_security2(void * arg, sec_wrapper_t * security2, long avail_processors){
+    struct smp_thread *th = (struct smp_thread *) arg;
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+    int i = 0;
+    
+    th->security2_lcore_id = (probe_context->thread_nb + 1) + th->thread_index * probe_context->security2_threads_count;
 
+    if ((th->security2_lcore_id + probe_context->security2_threads_count) > get_number_of_online_processors()){
+
+        th->security2_lcore_id = th->thread_index % avail_processors + 1;
+    }
+
+                //lcore_id on which security2 will run
+    uint32_t *sec_cores_mask = malloc( sizeof( uint32_t ) * probe_context->security2_threads_count );
+
+    int k = 1;
+    for( i=0; i < probe_context->security2_threads_count; i++ ){
+        if (th->security2_lcore_id + i >= get_number_of_online_processors()){
+            th->security2_lcore_id = k++;
+            if (k == get_number_of_online_processors()) k = 1;
+            sec_cores_mask[ i ] = th->security2_lcore_id;
+        }else {
+            sec_cores_mask[ i ] = th->security2_lcore_id + i;
+        }
+    }
+
+                //th->security2_alerts_output_count = 0;
+    security2 = register_security( th->mmt_handler,
+        probe_context->security2_threads_count,
+        sec_cores_mask, probe_context->security2_rules_mask,
+        th->thread_index == 0,//false, //true,
+        //this callback will be called from one or many different threads (depending on #security2_threads_count)
+        //print verdict only if output to file or redis or kafka is enable
+        ( probe_context->output_to_file_enable && probe_context->security2_output_channel[0] )
+        || ( probe_context->redis_enable &&  probe_context->security2_output_channel[1] )
+        || ( probe_context->kafka_enable &&  probe_context->security2_output_channel[2] ) ? security_print_verdict : NULL,th
+        );
+
+   free( sec_cores_mask );
+   return security2;
+}
 #ifdef PCAP
  /*This function initializes/registers different handlers, functions and reports for each thread and
  * provides packet for processing in mmt-dpi.
@@ -54,6 +94,8 @@ void * smp_thread_routine(void *arg) {
 	uint32_t tail;
 	long avail_processors;
 	int size;
+        uint64_t msg_count = 0;
+        size_t alerts_count = 0;
 	sec_wrapper_t * security2 = NULL;
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -116,41 +158,7 @@ void * smp_thread_routine(void *arg) {
 
 	//security2
 	if( probe_context->security2_enable ){
-
-		th->security2_lcore_id = (probe_context->thread_nb + 1) + th->thread_index * probe_context->security2_threads_count;
-
-		if ((th->security2_lcore_id + probe_context->security2_threads_count) > get_number_of_online_processors()){
-
-			th->security2_lcore_id = th->thread_index % avail_processors + 1;
-		}
-
-		//lcore_id on which security2 will run
-		uint32_t *sec_cores_mask = malloc( sizeof( uint32_t ) * probe_context->security2_threads_count );
-
-		int k = 1;
-		for( i=0; i < probe_context->security2_threads_count; i++ ){
-			if (th->security2_lcore_id + i >= get_number_of_online_processors()){
-				th->security2_lcore_id = k++;
-				if (k == get_number_of_online_processors()) k = 1;
-				sec_cores_mask[ i ] = th->security2_lcore_id;
-			}else {
-				sec_cores_mask[ i ] = th->security2_lcore_id + i;
-			}
-		}
-
-		//th->security2_alerts_output_count = 0;
-		security2 = register_security( th->mmt_handler,
-				probe_context->security2_threads_count,
-				sec_cores_mask, probe_context->security2_rules_mask,
-				th->thread_index == 0,//false, //true,
-				//this callback will be called from one or many different threads (depending on #security2_threads_count)
-				//print verdict only if output to file or redis is enable
-				( probe_context->output_to_file_enable && probe_context->security2_output_channel[0] )
-				|| ( probe_context->redis_enable &&  probe_context->security2_output_channel[1] )
-				|| ( probe_context->kafka_enable &&  probe_context->security2_output_channel[2] ) ? security_print_verdict : NULL,th
-		);
-
-		free( sec_cores_mask );
+            init_security2(th, security2, avail_processors);
 	}
 
 
@@ -184,6 +192,28 @@ void * smp_thread_routine(void *arg) {
                                }else {
                                     flowstruct_uninit(th);
                                     atomic_store (&th->session_report_flag, 0);
+                               }
+                               if (atomic_load (&th->security2_report_flag) == 1 && probe_context->security2_enable == 1){
+
+                                   if (security2 != NULL){
+                                       msg_count  = security2->msg_count;
+                                       //free security
+                                       alerts_count = unregister_security( security2 );
+
+                                       printf ("[mmt-probe-1]{%3d,%9"PRIu64",%9"PRIu64",%7zu}\n",th->thread_index, th->nb_packets, msg_count, alerts_count );
+                                   }
+                                   security2 = init_security2(th, security2, avail_processors);
+                                   atomic_store (&th->security2_report_flag, 0);
+                               }else {
+                                   //get number of packets being processed by security
+                                   if (security2 != NULL){ 
+                                       msg_count  = security2->msg_count;
+                                       //free security
+                                       alerts_count = unregister_security( security2 );
+
+                                       printf ("[mmt-probe-1]{%3d,%9"PRIu64",%9"PRIu64",%7zu}\n",th->thread_index, th->nb_packets, msg_count, alerts_count );
+                                   }
+                                   atomic_store (&th->security2_report_flag, 0);
                                }
 
                             atomic_store(&th->config_updated, 0); // update implemented in each thread
@@ -234,9 +264,9 @@ void * smp_thread_routine(void *arg) {
 	if(th->mmt_handler != NULL){
 		if( probe_context->security2_enable ){
 			//get number of packets being processed by security
-			uint64_t msg_count  = security2->msg_count;
+			msg_count  = security2->msg_count;
 			//free security
-			size_t alerts_count = unregister_security( security2 );
+			alerts_count = unregister_security( security2 );
 
 			printf ("[mmt-probe-1]{%3d,%9"PRIu64",%9"PRIu64",%7zu}\n",th->thread_index, th->nb_packets, msg_count, alerts_count );
 		}else

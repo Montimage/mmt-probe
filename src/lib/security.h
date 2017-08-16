@@ -22,6 +22,8 @@ typedef struct sec_wrapper_struct{
 
 	uint32_t proto_atts_count;
 
+        mmt_handler_t * mmt_handler;
+
 	int threads_count;
 }sec_wrapper_t;
 

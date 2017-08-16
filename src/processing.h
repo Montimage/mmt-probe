@@ -63,6 +63,7 @@ volatile uint8_t * condition_report_flag;
 volatile uint8_t * session_report_flag;
 volatile uint8_t * config_updated;
 static struct mmt_probe_struct mmt_probe;
+volatile uint8_t * security2_report_flag;
 
 enum os_id {
 	OS_UKN, //Unknown
@@ -698,6 +699,7 @@ struct smp_thread {
         volatile uint8_t  condition_report_flag;
 
         volatile uint8_t  session_report_flag;
+        volatile uint8_t  security2_report_flag;
         volatile uint8_t  config_updated;
 };
 

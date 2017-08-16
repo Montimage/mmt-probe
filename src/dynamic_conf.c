@@ -368,7 +368,7 @@ void config_condition_report (sr_session_ctx_t * session, sr_val_t * value, stru
                                 len = 0;
                                 int l = 0;
                                 l= i + 1;
-                                len = snprintf(message,256,"/dynamic-mmt-probe:session-app-report/app-based-reporting[app_id='%u']/attributes[attr_id='%u']/attr",k,l);
+                                len = snprintf(message,256,"/dynamic-mmt-probe:session-app-report/app-based-reporting[app_id='%u']/app_attributes[attr_id='%u']/attr",k,l);
                                 message[len]= '\0';
                                 rc = sr_get_item(session,message, &value);
                                 if (SR_ERR_OK == rc) {
@@ -381,7 +381,7 @@ void config_condition_report (sr_session_ctx_t * session, sr_val_t * value, stru
                                     exit(0);
                                 }
                                 len = 0;
-                                len = snprintf(message,256,"/dynamic-mmt-probe:session-app-report/app-based-reporting[app_id='%u']/attributes[attr_id='%u']/attr_handler",k,l);
+                                len = snprintf(message,256,"/dynamic-mmt-probe:session-app-report/app-based-reporting[app_id='%u']/app_attributes[attr_id='%u']/attr_handler",k,l);
                                 message[len]= '\0';
                                 rc = sr_get_item(session,message, &value);
                                 if (SR_ERR_OK == rc) {
@@ -543,6 +543,98 @@ void config_session_report(sr_session_ctx_t * session, sr_val_t * value, struct 
 }
 
                 /*************** session-report  ********************/
+                /*************** security-report  ********************/
+
+void config_security2_report(sr_session_ctx_t * session, sr_val_t * value, struct mmt_probe_struct * mmt_probe){
+    sr_val_t *values = NULL;
+    int rc = SR_ERR_OK, len = 0, m = 0,enable_security2_report = 0;
+    char message[256 + 1];
+
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+    rc = sr_get_item(session, "/dynamic-mmt-probe:security2-report/enable", &value);
+    if (SR_ERR_OK == rc) {
+        enable_security2_report = value->data.uint32_val;
+        sr_free_val(value);
+    }
+
+    printf ("\n security2-report-enable = %u\n", enable_security2_report);
+
+
+//////////////////config_updated/////////////////
+    if (enable_security2_report == 0) return;
+    if (probe_context->thread_nb == 1) atomic_store (security2_report_flag, 1);
+    else {
+        if (mmt_probe->smp_threads != NULL){
+            for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
+                 atomic_store (&mmt_probe->smp_threads[m].security2_report_flag, 1);
+            }
+        }
+    }
+    probe_context->security2_enable = enable_security2_report;
+    rc = sr_get_item(session, "/dynamic-mmt-probe:security2-report/thread_count", &value);
+    if (SR_ERR_OK == rc) {
+        probe_context->security2_threads_count = value->data.uint32_val;
+        sr_free_val(value);
+        printf ("thread_count = %u\n", probe_context->security2_threads_count);
+    }
+
+    rc = sr_get_item(session, "/dynamic-mmt-probe:security2-report/rule_mask", &value);
+    if (SR_ERR_OK == rc) {
+        strcpy(probe_context->security2_rules_mask, value->data.string_val);
+        sr_free_val(value);
+        printf ("rule-mask = %s\n", probe_context->security2_rules_mask);
+    }
+
+    rc = sr_get_item(session, "/dynamic-mmt-probe:security2-report/excluded_rules", &value);
+    if (SR_ERR_OK == rc) {
+        strcpy(probe_context->security2_excluded_rules, value->data.string_val);
+        sr_free_val(value);
+        printf ("exclude-rules = %s\n", probe_context->security2_excluded_rules);
+    }
+
+
+    len = snprintf(message,256,"/dynamic-mmt-probe:security2-report/output_to_file");
+    message[len]= '\0';
+
+    rc = sr_get_item(session,message, &value);
+        if (SR_ERR_OK == rc) {
+            probe_context->security2_output_channel[0] = value->data.uint32_val;
+            sr_free_val(value);
+        }
+    printf ("security_output_file = %u\n", probe_context->security2_output_channel[0]);
+
+    len =0;
+    len = snprintf(message,256,"/dynamic-mmt-probe:security2-report/output_to_redis");
+    message[len]= '\0';
+
+    rc = sr_get_item(session,message, &value);
+        if (SR_ERR_OK == rc) {
+            probe_context->security2_output_channel[1] = value->data.uint32_val;
+            sr_free_val(value);
+        }
+    printf ("security2_output_redis = %u\n", probe_context->security2_output_channel[1]);
+
+    len =0;
+    len = snprintf(message,256,"/dynamic-mmt-probe:security2-report/output_to_kafka");
+    message[len]= '\0';
+
+    rc = sr_get_item(session,message, &value);
+        if (SR_ERR_OK == rc) {
+            probe_context->security2_output_channel[2] = value->data.uint32_val;
+            sr_free_val(value);
+        }
+    printf ("security2_output_kafka = %u\n", probe_context->security2_output_channel[2]);
+
+////////////////////////////////////////////
+ //close_security(); 
+ //if (init_security() != 0) return 1;
+
+/////////////////////////
+
+
+}
+
+/****************************security-report**********************************/
 
 void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_probe)
 {
@@ -638,16 +730,18 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
         if (SR_ERR_OK == rc) {
                 probe_context->enable_proto_without_session_stats = value->data.uint32_val;
                 sr_free_val(value);
-                 printf ("enable_proto_without_session_stat = %lu\n", probe_context->enable_proto_without_session_stats);
+                 printf ("enable_proto_without_session_stat = %u\n", probe_context->enable_proto_without_session_stats);
         }
         rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/enable-IP-fragmentation_report", &value);
         if (SR_ERR_OK == rc) {
                 probe_context->enable_IP_fragmentation_report = value->data.uint32_val;
                 sr_free_val(value);
-                printf ("enable-IP-fragmentation_report = %lu\n", probe_context->enable_IP_fragmentation_report);
+                printf ("enable-IP-fragmentation_report = %u\n", probe_context->enable_IP_fragmentation_report);
         }
         config_event_report (session, value, mmt_probe);
         config_session_report (session, value,mmt_probe);
+        config_security2_report (session, value,mmt_probe);
+
         config_output_to_file (session, value, mmt_probe);
     
         config_output_to_redis (session, value, mmt_probe);
@@ -676,10 +770,24 @@ int mmt_config_change_cb(sr_session_ctx_t *session, const char *module_name, sr_
         (void)private_ctx;
         char exe[1024] = { 0, };
         int ret = 0, i = 0;
-        mmt_probe_context_t * probe_context = get_probe_context_config();
+//        mmt_probe_context_t * probe_context = get_probe_context_config();
 
         struct mmt_probe_struct * mmt_probe = (struct mmt_probe_struct *) private_ctx;      
-	printf("\n\n========== MMT-probe CONFIG HAS CHANGED_START ==========\n\n");
+    if (mmt_probe->mmt_conf->thread_nb == 1){
+       if(atomic_load (config_updated) == 1) return SR_ERR_OK;
+    }
+        else {
+            if (mmt_probe->smp_threads != NULL){
+                for (i = 0; i< mmt_probe->mmt_conf->thread_nb; i++){
+                     if (atomic_load (&mmt_probe->smp_threads[i].config_updated) == 1)return SR_ERR_OK;
+                     printf ("here_config....\n");
+                }
+            }
+        }
+
+
+
+        printf("\n\n========== MMT-probe CONFIG HAS CHANGED_START ==========\n\n");
 	read_mmt_config(session, mmt_probe);
 
         printf("\n\n========== MMT-probe CONFIG HAS CHANGED_END ==========\n\n");
@@ -688,8 +796,7 @@ int mmt_config_change_cb(sr_session_ctx_t *session, const char *module_name, sr_
 
 static void mmt_change_subscribe(sr_session_ctx_t *session, sr_subscription_ctx_t **subscription, struct mmt_probe_struct * mmt_probe)
 {
-  int rc = SR_ERR_OK;
-
+  int rc = SR_ERR_OK, i = 0;
   rc = sr_module_change_subscribe(session, "dynamic-mmt-probe", mmt_config_change_cb, mmt_probe, 0, SR_SUBSCR_DEFAULT, subscription);
   if (SR_ERR_OK != rc) {
           fprintf(stderr, "Error: %s\n", sr_strerror(rc));
