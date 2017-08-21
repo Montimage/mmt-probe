@@ -77,8 +77,40 @@ module dynamic-mmt-probe {
       description "cache size for writing report";
     }
 
+    leaf enable-proto-without-session-stat {
+      type uint32;
+      default 0;
+      description "enable statistics of protocol without session";
+    }
+
+    leaf enable-IP-fragmentation-report {
+      type uint32;
+      default 0;
+      description "enable ip frag report";
+    }
+
+
   }
  
+  container session-report {
+    description "session based report configuration";
+    leaf enable {type uint32; default 0;}
+    leaf output_to_file {type uint32; default 0;}
+    leaf output_to_redis {type uint32; default 0;}
+    leaf output_to_kafka {type uint32; default 0;}
+  }
+
+  container security2-report {
+    description "security2 report configuration";
+    leaf enable {type uint32; default 0;}
+    leaf thread_count {type uint32; default 0;}
+    leaf rule_mask {type string;}
+    leaf excluded_rules {type string;}
+    leaf output_to_file {type uint32; default 0;}
+    leaf output_to_redis {type uint32; default 0;}
+    leaf output_to_kafka {type uint32; default 0;}
+  }
+
   container event {
     description "event based report configuration";
     
@@ -93,7 +125,6 @@ module dynamic-mmt-probe {
       leaf event_id {type string;}
       leaf enable {type uint32; default 0;}
       leaf condition {type string;}
-      leaf total_attr {type uint32; default 0;}
       leaf output_to_file {type uint32; default 0;}
       leaf output_to_redis {type uint32; default 0;}
       leaf output_to_kafka {type uint32; default 0;}
@@ -105,6 +136,30 @@ module dynamic-mmt-probe {
 
     }
   }
+
+  container session-app-report {
+    description "Session based application report configuration";
+
+    leaf number-of-app {
+      type uint32;
+      default 0;
+      description "number of app based reporting";
+    }
+
+    list app-based-reporting {
+      key app_id;
+      leaf app_id {type string;}
+      leaf enable {type uint32; default 0;}
+      leaf condition {type string;}
+      list app_attributes {
+        key app_attr_id;
+        leaf app_attr_id {type string;}
+        leaf app_attr {type string;}
+        leaf app_attr_handler {type string;}
+      }
+    }
+  }
+
 
   container file-output {
     description "Reports are written to file when enabled";
@@ -130,6 +185,16 @@ module dynamic-mmt-probe {
     leaf hostname {type string; default "localhost";}
 
     leaf port {type uint32; default 6379;}
+  }
+
+  container kafka-output {
+    description "Reports are written to kafka when enabled";
+
+    leaf enable {type uint32; default 0;}
+
+    leaf hostname {type string; default "localhost";}
+
+    leaf port {type uint32; default 9092;}
   }
 
 }

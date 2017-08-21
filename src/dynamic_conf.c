@@ -94,6 +94,7 @@ void config_output_to_file (sr_session_ctx_t * session, sr_val_t * value, struct
 void config_event_report (sr_session_ctx_t * session, sr_val_t * value, struct mmt_probe_struct * mmt_probe){
     mmt_probe_context_t * probe_context = get_probe_context_config();
     int rc = SR_ERR_OK;
+    size_t values_cnt = 0;
     char condition[20];
     char message[1024];
     int m = 0;
@@ -103,6 +104,7 @@ void config_event_report (sr_session_ctx_t * session, sr_val_t * value, struct m
                 sr_free_val(value);
                printf ("event_report_nb = %u\n", probe_context->event_reports_nb);
         }
+
 //////////////////config_updated/////////////////
         if (probe_context->event_reports_nb == 0) return;
         if (mmt_probe->mmt_conf->thread_nb == 1) atomic_store (event_report_flag, 1); 
@@ -195,7 +197,7 @@ void config_event_report (sr_session_ctx_t * session, sr_val_t * value, struct m
                            printf("By default event_reports output to file enabled\n");
                        }
 
-                        len = 0;
+/*                        len = 0;
                         len =snprintf(message,256,"/dynamic-mmt-probe:event/event-based-reporting[event_id='%u']/total_attr",k);
                         message[len]='\0';
                         rc = sr_get_item(session, message, &value);
@@ -205,6 +207,18 @@ void config_event_report (sr_session_ctx_t * session, sr_val_t * value, struct m
 			   printf ("attributes_nb = %u\n", event_reports->attributes_nb);
 
                         }
+*/
+                        len = 0;
+                        len =snprintf(message,256,"/dynamic-mmt-probe:event/event-based-reporting[event_id='%u']/attributes",k);
+                        message[len]='\0';
+                        rc = sr_get_items(session, message, &value, &values_cnt);
+                        if (SR_ERR_OK == rc) {
+                           event_reports->attributes_nb = values_cnt;
+                           sr_free_val(value);
+                           printf ("attributes_nb = %u\n", event_reports->attributes_nb);
+
+                        }
+
                     
                         if(event_reports->attributes_nb > 0) {
                         event_reports->attributes = calloc(sizeof(mmt_event_attribute_t), event_reports->attributes_nb);
@@ -243,6 +257,7 @@ void config_condition_report (sr_session_ctx_t * session, sr_val_t * value, stru
     int rc = SR_ERR_OK;
     char condition[20];
     char message[1024];
+    size_t values_cnt = 0;
     int m = 0;
         rc = sr_get_item(session, "/dynamic-mmt-probe:session-app-report/number-of-app", &value);
         if (SR_ERR_OK == rc) {
@@ -283,16 +298,15 @@ void config_condition_report (sr_session_ctx_t * session, sr_val_t * value, stru
                }
 
                 k = j + 1;
-                len =snprintf(message,256,"/dynamic-mmt-probe:session-app-report/app-based-reporting[app_id='%u']/enable",k);
+        	len =snprintf(message,256,"/dynamic-mmt-probe:ession-app-report/app-based-reporting[app_id='%u']/enable",k);
                 message[len]='\0';
-                rc = sr_get_item(session, message, &value);
+                rc = sr_get_item(session,message,&value);
                 if (SR_ERR_OK == rc) {
                     condition_reports->enable = value->data.uint32_val;
                     sr_free_val(value);
                     printf ("app_enable = %u\n", condition_reports->enable);
                 }
                 len=0;
-                //if (event_reports->enable == 1){
                     len= snprintf(message,256,"/dynamic-mmt-probe:session-app-report/app-based-reporting[app_id='%u']/condition",k);
                     message[len]='\0';
                     rc = sr_get_item(session,message, &value);
@@ -350,7 +364,7 @@ void config_condition_report (sr_session_ctx_t * session, sr_val_t * value, stru
                        }
 
 
-                        len = 0;
+/*                        len = 0;
                         len =snprintf(message,256,"/dynamic-mmt-probe:session-app-report/app-based-reporting[app_id='%u']/total_attr",k);
                         message[len]='\0';
                         rc = sr_get_item(session, message, &value);
@@ -360,6 +374,20 @@ void config_condition_report (sr_session_ctx_t * session, sr_val_t * value, stru
                            printf ("app_attributes_nb = %u\n", condition_reports->attributes_nb);
 
                         }
+*/
+                        len = 0;
+                        len =snprintf(message,256,"/dynamic-mmt-probe:session-app-report/app-based-reporting[app_id='%u']/app_attributes",k);
+                        message[len]='\0';
+                        rc = sr_get_items(session, message, &value, &values_cnt);
+                        if (SR_ERR_OK == rc) {
+                           condition_reports->attributes_nb = values_cnt;
+                           sr_free_val(value);
+                           printf ("attributes_nb = %u\n", condition_reports->attributes_nb);
+
+                        }
+
+
+
 
                         if(condition_reports->attributes_nb > 0) {
                             condition_reports->attributes = calloc(sizeof(mmt_condition_attribute_t), condition_reports->attributes_nb);
@@ -368,7 +396,7 @@ void config_condition_report (sr_session_ctx_t * session, sr_val_t * value, stru
                                 len = 0;
                                 int l = 0;
                                 l= i + 1;
-                                len = snprintf(message,256,"/dynamic-mmt-probe:session-app-report/app-based-reporting[app_id='%u']/app_attributes[attr_id='%u']/attr",k,l);
+                                len = snprintf(message,256,"/dynamic-mmt-probe:session-app-report/app-based-reporting[app_id='%u']/app_attributes[app_attr_id='%u']/app_attr",k,l);
                                 message[len]= '\0';
                                 rc = sr_get_item(session,message, &value);
                                 if (SR_ERR_OK == rc) {
@@ -381,7 +409,7 @@ void config_condition_report (sr_session_ctx_t * session, sr_val_t * value, stru
                                     exit(0);
                                 }
                                 len = 0;
-                                len = snprintf(message,256,"/dynamic-mmt-probe:session-app-report/app-based-reporting[app_id='%u']/app_attributes[attr_id='%u']/attr_handler",k,l);
+                                len = snprintf(message,256,"/dynamic-mmt-probe:session-app-report/app-based-reporting[app_id='%u']/app_attributes[app_attr_id='%u']/app_attr_handler",k,l);
                                 message[len]= '\0';
                                 rc = sr_get_item(session,message, &value);
                                 if (SR_ERR_OK == rc) {
@@ -489,6 +517,7 @@ void config_session_report(sr_session_ctx_t * session, sr_val_t * value, struct 
     rc = sr_get_item(session, "/dynamic-mmt-probe:session-report/enable", &value);
     if (SR_ERR_OK == rc) {
         enable_session_report = value->data.uint32_val;
+	probe_context->enable_session_report = enable_session_report;//make this variable atomic
         sr_free_val(value);
     }
 
@@ -505,7 +534,7 @@ void config_session_report(sr_session_ctx_t * session, sr_val_t * value, struct 
             }
         }
     }
-    probe_context->enable_session_report = enable_session_report;
+    //probe_context->enable_session_report = enable_session_report;
 /////////////////////////
 
     len = snprintf(message,256,"/dynamic-mmt-probe:session-report/output_to_file");
@@ -730,7 +759,7 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
         if (SR_ERR_OK == rc) {
                 probe_context->enable_proto_without_session_stats = value->data.uint32_val;
                 sr_free_val(value);
-                 printf ("enable_proto_without_session_stat = %u\n", probe_context->enable_proto_without_session_stats);
+                printf ("enable_proto_without_session_stat = %u\n", probe_context->enable_proto_without_session_stats);
         }
         rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/enable-IP-fragmentation_report", &value);
         if (SR_ERR_OK == rc) {

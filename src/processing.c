@@ -306,7 +306,7 @@ void create_session (const ipacket_t * ipacket, void * user_args){
 		}
 	}
 #endif // End of HTTP_RECONSTRUCT	
-        printf ("set session\n");
+    //    printf ("set session\n");
 	set_user_session_context(session, temp_session);
 }
 /* This function assigns the session ID to a new flow (session), maintains session informations in session_struct_t and

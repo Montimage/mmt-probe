@@ -181,8 +181,8 @@ void * smp_thread_routine(void *arg) {
                                 if (atomic_load (&th->condition_report_flag) == 1)conditional_reports_init(th);// initialize our condition reports
 
                                 if (atomic_load (&th->session_report_flag) == 1 && probe_context->enable_session_report == 1){ 
-                                    register_session_timer_handler(th->mmt_handler, print_ip_session_report, th);
-                                    register_session_timeout_handler(th->mmt_handler, classification_expiry_session, th);
+                                    register_session_timer_handler(th->mmt_handler, print_ip_session_report, th);//Todo luong unregister
+                                    register_session_timeout_handler(th->mmt_handler, classification_expiry_session, th);//TODO: Luong unregister
                                     flowstruct_uninit(th);
                                     flowstruct_init(th); // initialize our event handler
                                     if (probe_context->condition_based_reporting_enable == 1)conditional_reports_init(th);// initialize our condition reports
@@ -199,6 +199,8 @@ void * smp_thread_routine(void *arg) {
                                        msg_count  = security2->msg_count;
                                        //free security
                                        alerts_count = unregister_security( security2 );
+                                       //free(security2);
+                                       security2 = NULL;
 
                                        printf ("[mmt-probe-1]{%3d,%9"PRIu64",%9"PRIu64",%7zu}\n",th->thread_index, th->nb_packets, msg_count, alerts_count );
                                    }
@@ -212,6 +214,8 @@ void * smp_thread_routine(void *arg) {
                                        alerts_count = unregister_security( security2 );
 
                                        printf ("[mmt-probe-1]{%3d,%9"PRIu64",%9"PRIu64",%7zu}\n",th->thread_index, th->nb_packets, msg_count, alerts_count );
+                                       //free (security2);
+                                       security2 = NULL;
                                    }
                                    atomic_store (&th->security2_report_flag, 0);
                                }
@@ -251,7 +255,7 @@ void * smp_thread_routine(void *arg) {
 			else{
 				packet_process( mmt_handler, &pkt->header, pkt->data );
 				th->nb_packets ++;
-                                printf ("th_nb = %u, packet_id =%lu\n",th->thread_index, th->nb_packets);
+                                //printf ("th_nb = %u, packet_id =%lu\n",th->thread_index, th->nb_packets);
 			}
 
 			//update new position of ring's tail
