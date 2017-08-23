@@ -503,12 +503,12 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 		if (cfg_size(cfg, "session-timeout")) {
 			cfg_t *disable_proto = cfg_getnsec(cfg, "disable-proto-analysis", 0);
 			if (disable_proto->line != 0){
-				mmt_conf->disable_http_analysis = (uint32_t) cfg_getint(disable_proto, "disable-http-analysis");
-				mmt_conf->disable_ftp_analysis = (uint32_t) cfg_getint(disable_proto, "disable-ftp-analysis");
-				mmt_conf->disable_ndn_analysis = (uint32_t) cfg_getint(disable_proto, "disable-ndn-analysis");
-				mmt_conf->disable_ndn_http_analysis = (uint32_t) cfg_getint(disable_proto, "disable-ndn-http-analysis");
-				mmt_conf->disable_radius_analysis = (uint32_t) cfg_getint(disable_proto, "disable-radius-analysis");
-				mmt_conf->disable_rtp_analysis = (uint32_t) cfg_getint(disable_proto, "disable-rtp-analysis");
+				mmt_conf->disable_http_analysis = (uint8_t) cfg_getint(disable_proto, "disable-http-analysis");
+				mmt_conf->disable_ftp_analysis = (uint8_t) cfg_getint(disable_proto, "disable-ftp-analysis");
+				mmt_conf->disable_ndn_analysis = (uint8_t) cfg_getint(disable_proto, "disable-ndn-analysis");
+				mmt_conf->disable_ndn_http_analysis = (uint8_t) cfg_getint(disable_proto, "disable-ndn-http-analysis");
+				mmt_conf->disable_radius_analysis = (uint8_t) cfg_getint(disable_proto, "disable-radius-analysis");
+				mmt_conf->disable_rtp_analysis = (uint8_t) cfg_getint(disable_proto, "disable-rtp-analysis");
 
 			}
 		}
