@@ -71,6 +71,17 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_END()
 	};
 
+	cfg_opt_t disable_protocol_analysis_opts[] = {
+			CFG_INT("disable-http-analysis", 0, CFGF_NONE),
+			CFG_INT("disable-ftp-analysis", 0, CFGF_NONE),
+			CFG_INT("disable-ndn-analysis", 0, CFGF_NONE),
+			CFG_INT("disable-ndn-http-analysis", 0, CFGF_NONE),
+			CFG_INT("disable-radius-analysis", 0, CFGF_NONE),
+			CFG_INT("disable-rtp-analysis", 0, CFGF_NONE),
+			CFG_END()
+	};
+
+
 	cfg_opt_t redis_output_opts[] = {
 			CFG_STR("hostname", "localhost", CFGF_NONE),
 			CFG_INT("port", 6379, CFGF_NONE),
@@ -240,6 +251,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_INT("num-of-report-per-msg", 1, CFGF_NONE),
 			CFG_SEC("security-report-multisession", security_report_multisession_opts, CFGF_TITLE | CFGF_MULTI),
 			CFG_SEC("session-report", session_report_opts, CFGF_TITLE | CFGF_MULTI),
+			CFG_SEC("disable-proto-analysis", disable_protocol_analysis_opts, CFGF_NONE),
 
 			CFG_END()
 	};
@@ -485,6 +497,23 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 		}
 
 		/***************Session timeout ********************/
+
+		/***************disable proto analysis ********************/
+
+		if (cfg_size(cfg, "session-timeout")) {
+			cfg_t *disable_proto = cfg_getnsec(cfg, "disable-proto-analysis", 0);
+			if (disable_proto->line != 0){
+				mmt_conf->disable_http_analysis = (uint32_t) cfg_getint(disable_proto, "disable-http-analysis");
+				mmt_conf->disable_ftp_analysis = (uint32_t) cfg_getint(disable_proto, "disable-ftp-analysis");
+				mmt_conf->disable_ndn_analysis = (uint32_t) cfg_getint(disable_proto, "disable-ndn-analysis");
+				mmt_conf->disable_ndn_http_analysis = (uint32_t) cfg_getint(disable_proto, "disable-ndn-http-analysis");
+				mmt_conf->disable_radius_analysis = (uint32_t) cfg_getint(disable_proto, "disable-radius-analysis");
+				mmt_conf->disable_rtp_analysis = (uint32_t) cfg_getint(disable_proto, "disable-rtp-analysis");
+
+			}
+		}
+
+		/***************disable proto analysis ********************/
 
 		/***************Output files ********************/
 

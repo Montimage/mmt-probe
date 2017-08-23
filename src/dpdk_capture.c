@@ -159,6 +159,13 @@ static int _worker_thread( void *args_ptr ){
 	set_short_session_timed_out(   th->mmt_handler, mmt_conf->short_session_timeout);
 	set_live_session_timed_out(    th->mmt_handler, mmt_conf->live_session_timeout);
 
+	if(mmt_conf->disable_http_analysis == 1) disable_protocol_analysis(th->mmt_handler,get_protocol_id_by_name("http"));
+	if(mmt_conf->disable_ftp_analysis == 1) disable_protocol_analysis(th->mmt_handler,get_protocol_id_by_name("ftp"));
+	if(mmt_conf->disable_ndn_analysis == 1) disable_protocol_analysis(th->mmt_handler,get_protocol_id_by_name("ndn"));
+	if(mmt_conf->disable_ndn_http_analysis == 1) disable_protocol_analysis(th->mmt_handler,get_protocol_id_by_name("ndn_http"));
+	if(mmt_conf->disable_radius_analysis == 1) disable_protocol_analysis(th->mmt_handler,get_protocol_id_by_name("radius"));
+	if(mmt_conf->disable_rtp_analysis == 1) disable_protocol_analysis(th->mmt_handler,get_protocol_id_by_name("rtp"));
+
 	if (mmt_conf->event_based_reporting_enable == 1)
 		event_reports_init(th); // initialize our event reports
 	if (mmt_conf->enable_security_report == 0 && mmt_conf->enable_security_report_multisession == 0)

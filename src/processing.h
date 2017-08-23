@@ -426,6 +426,12 @@ typedef struct mmt_probe_context_struct {
 
 	session_report_proto_t session_report_proto;
 
+	uint8_t disable_http_analysis;
+	uint8_t disable_ftp_analysis;
+	uint8_t disable_ndn_analysis;
+	uint8_t disable_ndn_http_analysis;
+	uint8_t disable_radius_analysis;
+	uint8_t disable_rtp_analysis;
 } mmt_probe_context_t;
 
 typedef struct microsessions_stats_struct {
