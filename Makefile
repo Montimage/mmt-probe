@@ -144,7 +144,8 @@ copy_files: all
 		$(FACE_ROOT_DIR)/result/behaviour/online \
 		$(FACE_ROOT_DIR)/result/behaviour/offline \
 		$(FACE_ROOT_DIR)/result/security/online \
-		$(FACE_ROOT_DIR)/result/security/offline
+		$(FACE_ROOT_DIR)/result/security/offline \
+                $(FACE_ROOT_DIR)/pcaps
 
 #copy probe to existing dir from buit in DPDK
 ifdef DPDK
