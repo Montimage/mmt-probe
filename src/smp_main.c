@@ -335,6 +335,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 
 		if (mmt_conf->microf_enable == 1)report_all_protocols_microflows_stats((void *)mmt_probe.smp_threads);
 		if (mmt_conf->output_to_file_enable == 1)flush_messages_to_file_thread((void *)mmt_probe.smp_threads);
+		if (mmt_probe.smp_threads->fd != -1)close (mmt_probe.smp_threads->fd);
 		exit_timers();
 	} else {
 		if (wait_thread_terminate) {
@@ -364,6 +365,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 				//if (mmt_probe.smp_threads->report_counter == 0)mmt_probe.smp_threads->report_counter++;
 				//if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[i]);
 				if (mmt_conf->output_to_file_enable == 1)flush_messages_to_file_thread(&mmt_probe.smp_threads[i]);
+				if (mmt_probe.smp_threads[i].fd != -1)close (mmt_probe.smp_threads[i].fd);
 			}
 			exit_timers();
 

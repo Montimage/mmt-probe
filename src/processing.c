@@ -326,6 +326,9 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	struct smp_thread *th = (struct smp_thread *) args;
+	int valid = 0;
+	char file_name_str [MAX_FILE_NAME+1] = {0};
+
 	if(probe_context->enable_session_report == 1){
 		session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
 
@@ -372,17 +375,20 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 			for(w = ipacket->proto_hierarchy->len - 1; w > 1; w--){
 				if(ipacket->proto_hierarchy->proto_path[w] == current_proto_id){
 					found = 1;
-					char fileName[256];
-					if(ipacket->session == NULL){
-						sprintf(fileName,"%s/%s_non_session.pcap",probe_context->mmt_dump.location,probe_context->mmt_dump.protocol_name[z]);
-					}else{
-						sprintf(fileName,"%s/%s_session_%lu.pcap",probe_context->mmt_dump.location,probe_context->mmt_dump.protocol_name[z],get_session_id(ipacket->session));
+					if (th->pcap_current_packet_time - th->last_pcap_dump_time >= probe_context->mmt_dump.time){
+						if (th->last_pcap_dump_time != 0)pd_close(th->fd);
+						valid = snprintf(file_name_str, MAX_FILE_NAME, "%s%lu_thread_%d.pcap", probe_context->mmt_dump.location, th->pcap_current_packet_time, th->thread_index);
+						file_name_str[valid] = '\0';
+
+						th->fd = pd_open(file_name_str);
+						if (th->fd == -1){
+							fprintf ( stderr , "\n packet_handler Error: %d creation of dump_file \"%s\" failed: %s\n" , errno , file_name_str , strerror( errno ) );
+							//exit(1);
+						}
+						th->last_pcap_dump_time = th->pcap_current_packet_time;
 					}
-					//printf("File name: %s\n",fileName);
-					int fd = pd_open(fileName);
-					if(fd){
-						pd_write(fd,(char*)ipacket->data,ipacket->p_hdr->caplen,ipacket->p_hdr->ts);
-						pd_close(fd);
+					if(th->fd){
+						pd_write(th->fd,(char*)ipacket->data,ipacket->p_hdr->caplen,ipacket->p_hdr->ts);
 					}
 					break;	
 				}

@@ -110,6 +110,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_INT("enable", 0, CFGF_NONE),
 			CFG_STR("location", 0, CFGF_NONE),
 			CFG_STR_LIST("protocols", "{}", CFGF_NONE),
+            CFG_INT("time", 3600, CFGF_NONE),
 			CFG_END()
 	};
 
@@ -556,6 +557,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				char protocol[32];
 				int nb_protocols = cfg_size(dump_session, "protocols");
 				mmt_conf->mmt_dump.nb_protocols = nb_protocols;
+                //mmt_conf->mmt_dump.retain_files = (int) cfg_getint(dump_session, "retain-files");
+				mmt_conf->mmt_dump.time = (int) cfg_getint(dump_session, "time");
+				if (mmt_conf->mmt_dump.time == 0) mmt_conf->mmt_dump.time = 3600;
 				for(j = 0; j < nb_protocols; j++) {
 					strncpy(protocol, (char *) cfg_getnstr(dump_session, "protocols", j),32);
 					int proto_len = strlen(protocol);

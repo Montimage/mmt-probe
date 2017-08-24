@@ -68,6 +68,55 @@ int remove_old_sampled_files(const char *folder, size_t retains){
 
 	return to_remove;
 }
+/*
+static int load_filter_pcap( const struct dirent *entry ){
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+
+	//must end by .pcap,
+	char *ext = strstr( entry->d_name, ".pcap" );
+	if( ext == NULL ) return 0;
+	return (strlen( ext ));
+}
+*/
+/**
+ * Remove old pcap files in #folder
+ * Sample file name in format: protocolname_sessionid.pcap
+ */
+/*
+int remove_old_dumped_pcap_files(const char *folder, size_t retains){
+	struct dirent **entries, *entry;
+	char file_name[256];
+	int i, n, ret, to_remove;
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+
+	n = scandir( folder, &entries, load_filter_pcap, alphasort );
+	if( n < 0 ) {
+		mmt_log(probe_context, MMT_L_ERROR, MMT_P_TERMINATION, "Cannot scan output_dir!");
+		exit( 1 );
+	}
+
+	to_remove = n - retains;
+	//printf("total file %d, retains: %zu, to remove %d\n", n, retains, to_remove );
+	if( to_remove < 0 ) to_remove = 0;
+
+	for( i = 0 ; i < to_remove ; ++i ) {
+		entry = entries[i];
+		ret = snprintf( file_name, 255, "%s/%s", folder, entry->d_name );
+		file_name[ ret ] = '\0';
+
+		ret = unlink( file_name );
+		if( ret ){
+			mmt_log(probe_context, MMT_L_WARNING, MMT_P_STATUS, "Cannot delete old dumped pcap files!");
+		}
+	}
+
+	for( i = 0; i < n; i++ )
+		free( entries[ i ] );
+	free( entries );
+
+	return to_remove;
+}
+*/
 
 /* This function exits a timer thread */
 void exit_timers(){
@@ -138,11 +187,9 @@ static void *wait_to_do_something( void *arg ){
 			return NULL;
 		}
 
-		//"missed" should always be >= 1, but just to be sure, check it is not 0 anyway
-
 		if (expirations > 1) {
-			printf("missed %lu", expirations - 1);
-			fflush( stdout );
+			sprintf(lg_msg, "Timer Missed %lu", expirations - 1);
+			mmt_log(probe->mmt_conf, MMT_L_INFO, MMT_P_STATUS, lg_msg);
 		}
 
 
@@ -157,6 +204,17 @@ static void *wait_to_do_something( void *arg ){
 			sprintf(lg_msg, "Removed %d sampled files", ret_val);
 			mmt_log(probe->mmt_conf, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
 		}
+		/*if(  probe_context->mmt_dump.retain_files > 0 && probe_context->mmt_dump.enable == 1){
+
+			//-1 as this will create a new .pcap as below
+			//=> if we need to retain only 2 files
+			// =>  at this moment we retain only 1 file
+			// and a new file will be created after this function
+			ret_val = remove_old_dumped_pcap_files( probe_context->mmt_dump.location, probe_context->mmt_dump.retain_files - 1 );
+
+			sprintf(lg_msg, "Removed %d dumped pcap files", ret_val);
+			mmt_log(probe->mmt_conf, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
+		}*/
 		for (i = 0; i < probe_context->thread_nb; i++){
 			//printf("thread number_wait_to_do_something = %d \n",probe->smp_threads[i].thread_number);
 			p_data->user_data = (void *) &probe->smp_threads[i];

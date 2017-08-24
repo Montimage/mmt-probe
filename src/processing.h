@@ -279,6 +279,8 @@ typedef struct mmt_dump_struct{
 	char location[256]; // location of the output files
 	int protocols[32]; // List of protocols
 	int nb_protocols; // Number of dumping protocols
+	//int retain_files;
+	int time;
 	char * protocol_name[32];
 }mmt_dump_t;
 
@@ -683,6 +685,9 @@ struct smp_thread {
 #ifdef HTTP_RECONSTRUCT
 	http_session_data_t * list_http_session_data;
 #endif	
+
+	int fd;
+	time_t last_pcap_dump_time;
 
 };
 
