@@ -213,10 +213,8 @@ static int _worker_thread( void *args_ptr ){
 
 	input_port = atoi( mmt_conf->input_source );
 	pkt_header.user_args = NULL;
-
 	/* Run until the application is quit or killed. */
 	while ( likely( !do_abort )) {
-
 		//printf ("do_abort = %u\n",do_abort);
 		gettimeofday(&time_now, NULL); //TODO: change time add to nanosec
 		//		clock_gettime( CLOCK_REALTIME_COARSE, &time_now );
@@ -234,13 +232,14 @@ static int _worker_thread( void *args_ptr ){
 			if (mmt_conf->enable_proto_without_session_stats == 1 || mmt_conf->enable_IP_fragmentation_report == 1 || mmt_conf->enable_all_proto_stats == 1)
 				iterate_through_protocols(protocols_stats_iterator, th);
 		}
-
+                
 		// Get burst of RX packets, from first port
 		nb_rx = rte_eth_rx_burst( input_port, th->thread_index, bufs, BURST_SIZE );
 
-		if( nb_rx == 0 ){
+//		if( nb_rx == 0 ){
 //			nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
-		}else{
+//		}else{
+		if( nb_rx != 0 ){
 			pkt_header.ts = time_now;
 
 			for (i = 0; likely(i < nb_rx); i++){
