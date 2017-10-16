@@ -164,9 +164,8 @@ static void *wait_to_do_something( void *arg ){
 			//=> if we need to retain only 2 files
 			// =>  at this moment we retain only 1 file
 			// and a new file will be created after this function
-			if (probe_context->behaviour_enable ==1 && probe_context->behaviour_retain_files > 0)
-				ret_val = remove_old_sampled_files( probe_context->behaviour_output_location, probe_context->behaviour_retain_files - 1 );
 
+			ret_val = remove_old_sampled_files( probe_context->behaviour_output_location, probe_context->behaviour_retain_files - 1 );
 
 			sprintf(lg_msg, "Removed %d behaviour sampled files", ret_val);
 			mmt_log(probe->mmt_conf, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
