@@ -359,6 +359,8 @@ typedef struct mmt_probe_context_struct {
 	uint32_t nb_of_report_per_msg;
 	uint8_t one_socket_server;
 	uint32_t retain_files;
+	uint32_t behaviour_retain_files;
+
 #ifdef HTTP_RECONSTRUCT
     char http_reconstruct_output_location[256 + 1];
     uint16_t http_reconstruct_id;

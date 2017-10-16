@@ -22,6 +22,7 @@ static int load_filter( const struct dirent *entry ){
 	if( ext == NULL ) return 0;
 	return (strlen( ext ) == strlen( probe_context->data_out ));
 }
+
 /**
  * Remove old sampled files in #folder
  * Sample file name in format: xxxxxxxxxx_abc.csv and its semaphore in format: xxxxxxxxxx_abc.csv.sem
@@ -157,6 +158,20 @@ static void *wait_to_do_something( void *arg ){
 			sprintf(lg_msg, "Removed %d sampled files", ret_val);
 			mmt_log(probe->mmt_conf, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
 		}
+		if( probe_context->behaviour_enable ==1 && probe_context->behaviour_retain_files > 0){
+
+			//-1 as this will create a new .csv as below
+			//=> if we need to retain only 2 files
+			// =>  at this moment we retain only 1 file
+			// and a new file will be created after this function
+			if (probe_context->behaviour_enable ==1 && probe_context->behaviour_retain_files > 0)
+				ret_val = remove_old_sampled_files( probe_context->behaviour_output_location, probe_context->behaviour_retain_files - 1 );
+
+
+			sprintf(lg_msg, "Removed %d behaviour sampled files", ret_val);
+			mmt_log(probe->mmt_conf, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
+		}
+
 		for (i = 0; i < probe_context->thread_nb; i++){
 			//printf("thread number_wait_to_do_something = %d \n",probe->smp_threads[i].thread_number);
 			p_data->user_data = (void *) &probe->smp_threads[i];

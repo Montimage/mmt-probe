@@ -120,6 +120,7 @@ cfg_t * parse_conf(const char *filename) {
 	cfg_opt_t behaviour_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
 			CFG_STR("location", 0, CFGF_NONE),
+			CFG_INT("retain-files", 0, CFGF_NONE),
 			CFG_END()
 	};
 
@@ -595,6 +596,14 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					printf("Error: The directory for the main output and the behaviour output cannot be same, please specify different directory location.\n");
 					exit(0);
 				}
+				mmt_conf->behaviour_retain_files = (int) cfg_getint(behaviour, "retain-files");
+				if (mmt_conf->behaviour_enable == 1){
+					if (mmt_conf->behaviour_retain_files < (mmt_conf->thread_nb + 1) && mmt_conf->behaviour_retain_files != 0 && mmt_conf->sampled_report == 1){
+						printf("Error: Number of retain files inside in the configuration file section behaviour, should be always greater than (thread_nb + 1) \n");
+						exit (0);
+					}
+				}
+
 			}
 		}
 
