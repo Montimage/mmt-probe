@@ -307,7 +307,7 @@ void cleanup_report_allocated_memory(){
  * to free the allocated memory, close extraction, , cancels threads, flush the reports etc
  * */
 void terminate_probe_processing(int wait_thread_terminate) {
-	char lg_msg[1024];
+        char lg_msg[1024];
 	mmt_probe_context_t * mmt_conf = mmt_probe.mmt_conf;
 	int i, j = 0, l = 0;
 
@@ -337,7 +337,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		if (mmt_conf->output_to_file_enable == 1)flush_messages_to_file_thread((void *)mmt_probe.smp_threads);
 		exit_timers();
 	} else {
-		if (wait_thread_terminate) {
+		if (wait_thread_terminate == 1) {
 			/* Add a dummy packet at each thread packet list tail */
 #ifdef PCAP
 
@@ -349,11 +349,10 @@ void terminate_probe_processing(int wait_thread_terminate) {
 				pthread_spin_unlock(&mmt_probe.smp_threads[i].lock);
 			}
 #endif
-
 		}
 
 		/* wait for all threads to complete */
-		if (wait_thread_terminate) {
+		if (wait_thread_terminate == 1) {
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
 #ifdef PCAP
 
@@ -364,16 +363,18 @@ void terminate_probe_processing(int wait_thread_terminate) {
 				//if (mmt_probe.smp_threads->report_counter == 0)mmt_probe.smp_threads->report_counter++;
 				//if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[i]);
 				if (mmt_conf->output_to_file_enable == 1)flush_messages_to_file_thread(&mmt_probe.smp_threads[i]);
+
 			}
 			exit_timers();
 
-		} else {
+		} else if (wait_thread_terminate == 0){
 			//We might have catched a SEGV or ABORT signal.
 			//We have seen the threads in deadlock situations.
 			//Wait 30 seconds then cancel the threads
 			//Once cancelled, join should give "THREAD_CANCELLED" retval
 #ifdef PCAP
-			sleep(30);
+			//sleep(30);
+                        atomic_store (do_abort,1);
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
 
 
@@ -383,6 +384,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 					exit(1);
 				}
 			}
+
 #endif
 #ifdef PCAP
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
@@ -413,7 +415,6 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		}
 
 	}
-
 	// cancel the thread used by cpu_mem_usage
 	if (mmt_conf->cpu_mem_usage_enabled == 1){
 		int c;
@@ -443,7 +444,8 @@ void terminate_probe_processing(int wait_thread_terminate) {
 	//	close_security();
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_E_END, "Closing MMT Extraction engine!");
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_P_END, "Closing MMT Probe!");
-	if(wait_thread_terminate)if (mmt_conf->log_output) fclose(mmt_conf->log_output);
+	if(wait_thread_terminate == 1)if (mmt_conf->log_output) fclose(mmt_conf->log_output);
+
 }
 
 /* This signal handler ensures clean exits */
@@ -453,20 +455,31 @@ void signal_handler(int type) {
 	int j,k,l;
 	int retval = 0;
 	char lg_msg[1024];
+        int childpid;
 	fprintf(stderr, "\n reception of signal %d\n", type);
 	fflush( stderr );
 #ifdef PCAP
 	cleanup( 0, &mmt_probe );
 #endif
 
+
 	if (i == 1) {
 # ifdef PCAP
-		do_abort = 1;
+		//do_abort = 1;
+                atomic_store (do_abort,1);
+                printf ("start terminating \n");
 		terminate_probe_processing(0);
+                printf ("terminate finish \n");
+/*              if (mmt_probe.mmt_conf->load_enable == 1){
+                    execl("/opt/dev/mmt-probe/probe", "probe","load_running", NULL);
+                    mmt_probe.mmt_conf->load_enable == 0;
+                }*/
+
 #endif
 
 #ifdef DPDK
-		do_abort = 1;
+		atomic_store (do_abort, 1);
+                do_abort = 1;
 		return;
 #endif
 	} else {
@@ -617,6 +630,14 @@ int main(int argc, char **argv) {
         session_report_flag = malloc (sizeof(uint8_t));
         security2_report_flag = malloc (sizeof(uint8_t));
         condition_report_flag = malloc (sizeof(uint8_t));
+        behaviour_flag = malloc (sizeof(uint8_t));
+        ftp_reconstruct_flag = malloc (sizeof(uint8_t));
+        micro_flows_flag = malloc (sizeof(uint8_t));
+
+        do_abort = malloc (sizeof(uint8_t));
+
+       atomic_store(do_abort,0);
+
 
 	////////////////dynamic_conf/////////
 	mmt_conf->event_reports = NULL;
@@ -624,7 +645,7 @@ int main(int argc, char **argv) {
 
 #ifdef DPDK
 	/* Initialize the Environment Abstraction Layer (EAL). */
-	do_abort = 0;
+	//do_abort = 0;
 	int ret = rte_eal_init(argc, argv);
 
 	if (ret < 0)
@@ -636,9 +657,14 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef PCAP
+/*        if (argv[1] != NULL){
+            printf("argv = %s\n",argv[1]);
+            sleep (2);
+            if (strcmp(argv[1],"load_running")==0) mmt_conf->probe_load_running = 1;
+        }
+*/
 	parseOptions(argc, argv, &mmt_probe);
 //        dynamic_conf();
-
 #endif
 
 	mmt_conf->log_output = fopen(mmt_conf->log_file, "a");
@@ -647,6 +673,7 @@ int main(int argc, char **argv) {
 		printf ("Error: log file creation failed \n");
 	}
 
+                
 	sigfillset(&signal_set);
 	signal(SIGINT, signal_handler);
 	signal(SIGTERM, signal_handler);
@@ -674,7 +701,8 @@ int main(int argc, char **argv) {
 	//if (license_expiry_check(0) == 1){
 	//exit(0);
 	//}
-
+mmt_conf->pid = getpid();
+printf ("main process_id = %d",mmt_conf->pid);
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_P_INIT, "MMT Probe started!");
 
 	//Add the module for printing cpu_mem_usage here
@@ -690,11 +718,11 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 	//config security2
-//	if( mmt_conf->security2_enable ){
+	if( mmt_conf->security2_enable ){
 		//initialize security rules
 		if( init_security() != 0 )
 			return 1;
-//	}*/
+	}
 	printf("[info] Versions: Probe v%s (%s), DPI v%s, Security v0.9b \n",
 			VERSION, GIT_VERSION, //these version information are given by Makefile
 			mmt_version());
@@ -743,9 +771,11 @@ int main(int argc, char **argv) {
 	start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
 	dpdk_capture(argc, argv, &mmt_probe );
 #endif
-	terminate_probe_processing(1);
+        printf("Process Terminated successfully\n");
 
-	//	printf("Process Terminated successfully\n");
+        terminate_probe_processing(1);
+
+	printf("Process Terminated successfully\n");
 	return EXIT_SUCCESS;
 }
 

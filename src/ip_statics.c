@@ -175,7 +175,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	}
 	valid = strlen(message);
 	message[ valid ] = '\0'; // correct end of string in case of truncated message
-        printf("session=%s\n", message);       
+        //printf("session=%s\n", message);       
 	if (probe_context->output_to_file_enable && probe_context->session_output_channel[0])send_message_to_file_thread (message, (void *)user_args);
 	if (probe_context->redis_enable && probe_context->session_output_channel[1])send_message_to_redis ("session.flow.report", message);
 	if (probe_context->kafka_enable && probe_context->session_output_channel[2])send_msg_to_kafka(probe_context->topic_object->rkt_session, message);

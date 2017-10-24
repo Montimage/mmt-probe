@@ -100,6 +100,9 @@ int unregister_conditional_report_handle(void * args, mmt_condition_report_t * c
                 mmt_condition_attribute_t * condition_attribute = &condition_report->attributes[j];
                 mmt_condition_attribute_t * handler_attribute = &condition_report->handlers[j];
 
+                if (strcmp(condition_attribute->proto, "NULL") == 0) continue;
+                if (strcmp(handler_attribute->attribute,"NULL") == 0) continue;
+
                 protocol_id = get_protocol_id_by_name (condition_attribute->proto);
                 if (protocol_id == 0) return 0;
 
@@ -115,7 +118,6 @@ int unregister_conditional_report_handle(void * args, mmt_condition_report_t * c
                                 if(unregister_attribute_handler(th->mmt_handler, protocol_id, attribute_id, get_handler_by_name (handler_attribute->handler)) == 0) return 0;
                         }
                 }
-         printf ("unregistered app proto = %s, attribute = %s \n", condition_attribute->proto,condition_attribute->attribute);
         }
         return 1;
 }
@@ -132,7 +134,9 @@ int register_conditional_report_handle(void * args, mmt_condition_report_t * con
 		uint32_t attribute_id;
 		mmt_condition_attribute_t * condition_attribute = &condition_report->attributes[j];
 		mmt_condition_attribute_t * handler_attribute = &condition_report->handlers[j];
-
+               
+                if (strcmp(condition_attribute->proto, "NULL") == 0) continue;
+                if (strcmp(handler_attribute->attribute,"NULL") == 0) continue;
 		protocol_id = get_protocol_id_by_name (condition_attribute->proto);
 		if (protocol_id == 0) return 0;
 
@@ -164,7 +168,6 @@ int register_conditional_report_handle(void * args, mmt_condition_report_t * con
 				fprintf(stderr,"[WARNING] Already registered register_attribute_handler (condition_report): proto: %s ,attribute: %s, handler: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler,condition_report->id);
 			}
 		}
-         printf ("proto = %s, attribute = %s \n", condition_attribute->proto,condition_attribute->attribute);
 	}
 	return 1;
 }

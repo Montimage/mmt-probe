@@ -125,7 +125,7 @@ void security_print_verdict(
 	if ( mmt_conf->kafka_enable && mmt_conf->security2_output_channel[2])
 		send_msg_to_kafka( mmt_conf->topic_object->rkt_security, message );
 
-	printf("%s", message );
+	//printf("%s", message );
 }
 
 /**

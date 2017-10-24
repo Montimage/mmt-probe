@@ -18,6 +18,7 @@ extern "C" {
 #endif
 #include <sys/socket.h>
 #include <unistd.h>
+#include<pcap.h>
 #define ONLINE_ANALYSIS 0x1
 #define OFFLINE_ANALYSIS 0x2
 #define MMT_RADIUS_REPORT_ALL 0x0
@@ -56,15 +57,18 @@ pthread_mutex_t mutex_lock;
 pthread_spinlock_t spin_lock;
 time_t update_reporting_time;
 static int is_stop_timer;
-int do_abort;
-
+//int do_abort;
+//pcap_t *handle = 0;
 volatile uint8_t * event_report_flag;
 volatile uint8_t * condition_report_flag;
 volatile uint8_t * session_report_flag;
 volatile uint8_t * config_updated;
 static struct mmt_probe_struct mmt_probe;
 volatile uint8_t * security2_report_flag;
-
+volatile uint8_t * do_abort;
+volatile uint8_t * behaviour_flag;
+volatile uint8_t * ftp_reconstruct_flag;
+volatile uint8_t * micro_flows_flag;
 enum os_id {
 	OS_UKN, //Unknown
 	OS_WIN, //Windows
@@ -383,41 +387,6 @@ typedef struct mmt_probe_context_struct {
 	uint32_t enable_security_report_multisession;
 	uint32_t total_security_multisession_attribute_nb;
 
-	/*
-	uint8_t multisession_file_output_enable;
-	uint8_t multisession_redis_output_enable;
-	uint8_t multisession_kafka_output_enable;
-
-
-	uint8_t security1_file_output_enable;
-	uint8_t security1_redis_output_enable;
-	uint8_t security1_kafka_output_enable;
-
-	uint8_t cpu_mem_usage_file_output_enable;
-	uint8_t cpu_mem_usage_redis_output_enable;
-	uint8_t cpu_mem_usage_kafka_output_enable;
-
-	uint8_t ftp_reconstruct_file_output_enable;
-	uint8_t ftp_reconstruct_redis_output_enable;
-	uint8_t ftp_reconstruct_kafka_output_enable;
-
-	uint8_t radius_file_output_enable;
-	uint8_t radius_redis_output_enable;
-	uint8_t radius_kafka_output_enable;
-
-	uint8_t event_file_output_enable;
-	uint8_t event_redis_output_enable;
-	uint8_t event_kafka_output_enable;
-
-	uint8_t session_file_output_enable;
-	uint8_t session_redis_output_enable;
-	uint8_t session_kafka_output_enable;
-
-	//configuration of output, len = 0 to disable output
-	bool security2_file_output_enable;
-	bool security2_redis_output_enable;
-	bool security2_kafka_output_enable;
-	*/
     uint32_t enable_session_report;
 	uint8_t microf_output_channel[3];
 	uint8_t multisession_output_channel[3];
@@ -443,7 +412,12 @@ typedef struct mmt_probe_context_struct {
 	//number of threads of security2 per one thread of probe
 	uint8_t security2_threads_count;
         int probe_load_running;
+        int pid;
         //volatile uint8_t event_report_flag;
+        sr_conn_ctx_t *connection;
+        sr_session_ctx_t *session;
+        sr_subscription_ctx_t *subscription;
+        int load_enable;
 } mmt_probe_context_t;
 
 typedef struct microsessions_stats_struct {
@@ -700,7 +674,10 @@ struct smp_thread {
 
         volatile uint8_t  session_report_flag;
         volatile uint8_t  security2_report_flag;
+        volatile uint8_t behaviour_flag;
+        volatile uint8_t ftp_reconstruct_flag;
         volatile uint8_t  config_updated;
+        volatile uint8_t micro_flows_flag;
 };
 
 typedef struct mmt_probe_struct {

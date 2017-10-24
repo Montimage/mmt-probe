@@ -6,7 +6,9 @@
 #include <sysrepo.h>
 #include<errno.h>
 #include "processing.h"
-
+#include <signal.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 static void mmt_cleanup(sr_conn_ctx_t *connection, sr_session_ctx_t *session, sr_subscription_ctx_t *subscription)
 {
         sr_unsubscribe(session, subscription);
@@ -54,7 +56,6 @@ void config_output_to_file (sr_session_ctx_t * session, sr_val_t * value, struct
         strcpy(probe_context->output_location,value->data.string_val);
         sr_free_val(value);
         printf ("file output location = %s\n", probe_context->output_location);
-
     }
 
     rc = sr_get_item(session, "/dynamic-mmt-probe:file-output/retain_files", &value);
@@ -246,7 +247,6 @@ void config_event_report (sr_session_ctx_t * session, sr_val_t * value, struct m
                 probe_context->event_reports = event_reports;	
                }
            }
-
 }
 /**************************************event based report****************************************/
 
@@ -298,7 +298,7 @@ void config_condition_report (sr_session_ctx_t * session, sr_val_t * value, stru
                }
 
                 k = j + 1;
-        	len =snprintf(message,256,"/dynamic-mmt-probe:ession-app-report/app-based-reporting[app_id='%u']/enable",k);
+        	len =snprintf(message,256,"/dynamic-mmt-probe:session-app-report/app-based-reporting[app_id='%u']/enable",k);
                 message[len]='\0';
                 rc = sr_get_item(session,message,&value);
                 if (SR_ERR_OK == rc) {
@@ -385,9 +385,6 @@ void config_condition_report (sr_session_ctx_t * session, sr_val_t * value, stru
                            printf ("attributes_nb = %u\n", condition_reports->attributes_nb);
 
                         }
-
-
-
 
                         if(condition_reports->attributes_nb > 0) {
                             condition_reports->attributes = calloc(sizeof(mmt_condition_attribute_t), condition_reports->attributes_nb);
@@ -662,6 +659,216 @@ void config_security2_report(sr_session_ctx_t * session, sr_val_t * value, struc
 
 
 }
+                     /*************** behaviour  ********************/
+
+void config_behaviour(sr_session_ctx_t * session, sr_val_t * value, struct mmt_probe_struct * mmt_probe){
+    sr_val_t *values = NULL;
+    int rc = SR_ERR_OK;
+    char location[256 + 1];
+    int behaviour_enable = 0, m = 0;
+    
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+    rc = sr_get_item(session, "/dynamic-mmt-probe:behaviour/enable", &value);
+    if (SR_ERR_OK == rc) {
+        behaviour_enable = value->data.uint32_val;
+        sr_free_val(value);
+        printf ("behaviour-enable = %u\n", probe_context->behaviour_enable);
+
+    }
+
+    if (behaviour_enable == 0)return;
+    if (probe_context->thread_nb == 1) atomic_store (behaviour_flag, 1);
+    else { 
+        if (mmt_probe->smp_threads != NULL){
+            for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
+                 atomic_store (&mmt_probe->smp_threads[m].behaviour_flag, 1);
+            }
+        }
+    }
+
+    rc = sr_get_item(session, "/dynamic-mmt-probe:behaviour/location", &value);
+    if (SR_ERR_OK == rc) {
+        strcpy(probe_context->behaviour_output_location, "/opt/mmt/");
+        sr_free_val(value);
+        printf ("behaviour_output_location = %s\n", value->data.string_val);
+    }
+    if(strcmp(probe_context->output_location,probe_context->behaviour_output_location)==0){
+        printf("Error: The directory for the main output and the behaviour output cannot be same, please specify different directory location.\n");
+        exit(0);
+    }
+    probe_context->behaviour_enable = behaviour_enable;
+
+}
+                /*************** behaviour  ********************/
+
+                     /************** ftp-recontruct  ********************/
+
+void config_ftp_reconstruct(sr_session_ctx_t * session, sr_val_t * value, struct mmt_probe_struct * mmt_probe){
+    sr_val_t *values = NULL;
+    int rc = SR_ERR_OK, len = 0, ftp_reconstruct = 0, m = 0;
+    char location[256 + 1];
+    char message[256 + 1];
+    
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+    printf ("inside ftp_reconstruct\n");
+    rc = sr_get_item(session, "/dynamic-mmt-probe:ftp-reconstruct/enable", &value);
+    if (SR_ERR_OK == rc) {
+        ftp_reconstruct = value->data.uint32_val;
+        sr_free_val(value);
+        printf ("ftp_reconstruct_enable = %u\n", ftp_reconstruct);
+
+    }
+    if (ftp_reconstruct == 0)return;
+    if (probe_context->thread_nb == 1) atomic_store (ftp_reconstruct_flag, 1);
+    else {
+        if (mmt_probe->smp_threads != NULL){
+            for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
+                 atomic_store (&mmt_probe->smp_threads[m].ftp_reconstruct_flag, 1);
+            }
+        }
+    }
+
+
+    rc = sr_get_item(session, "/dynamic-mmt-probe:ftp-reconstruct/location", &value);
+    if (SR_ERR_OK == rc) {
+        strcpy(probe_context->ftp_reconstruct_output_location, value->data.string_val);
+        sr_free_val(value);
+        printf ("ftp-reconstruct_output_location = %s\n", probe_context->ftp_reconstruct_output_location);
+    }
+    
+    len = snprintf(message,256,"/dynamic-mmt-probe:ftp-reconstruct/output_to_file");
+    message[len]= '\0';
+
+    rc = sr_get_item(session,message, &value);
+        if (SR_ERR_OK == rc) {
+            probe_context->ftp_reconstruct_output_channel[0] = value->data.uint32_val;
+            sr_free_val(value);
+        }
+    printf ("ftp_reconstruct_output_file = %u\n", probe_context->ftp_reconstruct_output_channel[0]);
+
+    len =0;
+    len = snprintf(message,256,"/dynamic-mmt-probe:ftp-reconstruct/output_to_redis");
+    message[len]= '\0';
+
+    rc = sr_get_item(session,message, &value);
+        if (SR_ERR_OK == rc) {
+            probe_context->ftp_reconstruct_output_channel[1] = value->data.uint32_val;
+            sr_free_val(value);
+        }
+    printf ("ftp_reconstruct_output_redis = %u\n", probe_context->ftp_reconstruct_output_channel[1]);
+
+    len =0;
+    len = snprintf(message,256,"/dynamic-mmt-probe:ftp-reconstruct/output_to_kafka");
+    message[len]= '\0';
+
+    rc = sr_get_item(session,message, &value);
+        if (SR_ERR_OK == rc) {
+            probe_context->ftp_reconstruct_output_channel[2] = value->data.uint32_val;
+            sr_free_val(value);
+        }
+    printf ("ftp_reconstruct_output_kafka = %u\n", probe_context->ftp_reconstruct_output_channel[2]);
+
+
+}
+                /*************** ftp-reconstruct  ********************/
+                /*************** micro-flows  ********************/
+
+void config_micro_flows(sr_session_ctx_t * session, sr_val_t * value, struct mmt_probe_struct * mmt_probe){
+    sr_val_t *values = NULL;
+    int rc = SR_ERR_OK, len = 0, micro_flows = 0, m = 0;
+    char message[256 + 1];
+
+    mmt_probe_context_t * probe_context = get_probe_context_config();
+    printf ("inside micro_flows\n");
+    rc = sr_get_item(session, "/dynamic-mmt-probe:micro-flows/enable", &value);
+    if (SR_ERR_OK == rc) {
+        micro_flows = value->data.uint32_val;
+        sr_free_val(value);
+        printf ("micro_flows_enable = %u\n", micro_flows);
+
+    }
+    if (micro_flows == 0)return;
+    if (probe_context->thread_nb == 1) atomic_store (micro_flows_flag, 1);
+    else {
+        if (mmt_probe->smp_threads != NULL){
+            for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
+                 atomic_store (&mmt_probe->smp_threads[m].micro_flows_flag, 1);
+            }
+        }
+    }
+
+    rc = sr_get_item(session, "/dynamic-mmt-probe:micro-flows/include_packet_count", &value);
+    if (SR_ERR_OK == rc) {
+        probe_context->microf_pthreshold = value->data.uint32_val;
+        sr_free_val(value);
+        printf ("microflow include packet count = %u\n", probe_context->microf_pthreshold);
+    }
+
+    rc = sr_get_item(session, "/dynamic-mmt-probe:micro-flows/include_byte_count", &value);
+    if (SR_ERR_OK == rc) {
+        probe_context->microf_bthreshold = value->data.uint32_val;
+        sr_free_val(value);
+        printf ("microflow include byte count = %u\n", probe_context->microf_bthreshold);
+    }
+
+    rc = sr_get_item(session, "/dynamic-mmt-probe:micro-flows/report_packet_count", &value);
+    if (SR_ERR_OK == rc) {
+        probe_context->microf_report_pthreshold = value->data.uint32_val;
+        sr_free_val(value);
+        printf ("microflow report packet count = %u\n", probe_context->microf_report_pthreshold);
+    }
+
+    rc = sr_get_item(session, "/dynamic-mmt-probe:micro-flows/report_byte_count", &value);
+    if (SR_ERR_OK == rc) {
+        probe_context->microf_report_bthreshold = value->data.uint32_val;
+        sr_free_val(value);
+        printf ("microflow report byte count = %u\n", probe_context->microf_report_bthreshold);
+    }
+
+    rc = sr_get_item(session, "/dynamic-mmt-probe:micro-flows/report_flow_count", &value);
+    if (SR_ERR_OK == rc) {
+        probe_context->microf_report_fthreshold = value->data.uint32_val;
+        sr_free_val(value);
+        printf ("microflow report flow count = %u\n", probe_context->microf_report_fthreshold);
+    }
+
+
+    len = snprintf(message,256,"/dynamic-mmt-probe:micro-flows/output_to_file");
+    message[len]= '\0';
+
+    rc = sr_get_item(session,message, &value);
+        if (SR_ERR_OK == rc) {
+            probe_context->microf_output_channel[0] = value->data.uint32_val;
+            sr_free_val(value);
+        }
+    printf ("microf_output_file = %u\n", probe_context->microf_output_channel[0]);
+
+    len =0;
+    len = snprintf(message,256,"/dynamic-mmt-probe:micro-flows/output_to_redis");
+    message[len]= '\0';
+
+    rc = sr_get_item(session,message, &value);
+        if (SR_ERR_OK == rc) {
+            probe_context->microf_output_channel[1] = value->data.uint32_val;
+            sr_free_val(value);
+        }
+    printf ("microf_output_redis = %u\n", probe_context->microf_output_channel[1]);
+
+    len =0;
+    len = snprintf(message,256,"/dynamic-mmt-probe:micro-flows/output_to_kafka");
+    message[len]= '\0';
+
+    rc = sr_get_item(session,message, &value);
+        if (SR_ERR_OK == rc) {
+            probe_context->microf_output_channel[2] = value->data.uint32_val;
+            sr_free_val(value);
+        }
+    printf ("microf_output_kafka = %u\n", probe_context->microf_output_channel[2]);
+
+
+}
+
+/*************** micro-flows  ********************/
 
 /****************************security-report**********************************/
 
@@ -691,11 +898,16 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
         }
 
         rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/threads", &value);
-        if (SR_ERR_OK == rc) {
+            printf ("thread_nb = %u\n", value->data.uint32_val);
+
+        if (SR_ERR_OK == rc && probe_context->thread_nb == 0) {
                 probe_context->thread_nb =value->data.uint32_val;
                 sr_free_val(value);
 		printf ("thread_nb = %u\n", probe_context->thread_nb);
         }
+
+        
+           if(value != NULL) sr_free_val(value);
 
         rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/thread-queue", &value);
         if (SR_ERR_OK == rc) {
@@ -767,9 +979,24 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
                 sr_free_val(value);
                 printf ("enable-IP-fragmentation_report = %u\n", probe_context->enable_IP_fragmentation_report);
         }
+/*        rc = sr_get_item(session, "/dynamic-mmt-probe:operation/restart", &value);
+        if (SR_ERR_OK == rc) {
+                if (value->data.uint32_val == 1) kill (probe_context->pid, SIGINT);
+                sr_free_val(value);
+        }
+        rc = sr_get_item(session, "/dynamic-mmt-probe:operation/stop", &value);
+        if (SR_ERR_OK == rc) {
+                if (value->data.uint32_val == 1) kill (probe_context->pid, SIGKILL);
+                sr_free_val(value);
+        }
+*/
         config_event_report (session, value, mmt_probe);
         config_session_report (session, value,mmt_probe);
         config_security2_report (session, value,mmt_probe);
+        config_behaviour (session, value,mmt_probe);
+        config_ftp_reconstruct (session, value,mmt_probe);
+        config_micro_flows (session, value,mmt_probe);
+
 
         config_output_to_file (session, value, mmt_probe);
     
@@ -789,8 +1016,19 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
             }
         }
 /////////////////////////
-
+        rc = sr_get_item(session, "/dynamic-mmt-probe:probe-operation/operation", &value);
+        if (SR_ERR_OK == rc) {
+               if (strcmp(value->data.string_val,"restart") == 0){
+                /*  printf("operation = %s\n",value->data.string_val);
+                  probe_context->load_enable =1;
+                  kill (probe_context->pid, SIGINT);*/
+               }
+               else if (strcmp(value->data.string_val,"stop") == 0) kill (probe_context->pid, SIGTERM);
+                sr_free_val(value);
+        }
+        //if(value->data.string_val != NULL)printf("operation = %s\n",value->data.string_val);
 }
+
 int mmt_config_change_cb(sr_session_ctx_t *session, const char *module_name, sr_notif_event_t event, void *private_ctx)
 {
         (void)session;
@@ -802,7 +1040,10 @@ int mmt_config_change_cb(sr_session_ctx_t *session, const char *module_name, sr_
 //        mmt_probe_context_t * probe_context = get_probe_context_config();
 
         struct mmt_probe_struct * mmt_probe = (struct mmt_probe_struct *) private_ctx;      
-    if (mmt_probe->mmt_conf->thread_nb == 1){
+   //if (mmt_probe->mmt_conf->load_enable == 1) return SR_ERR_OK;
+ 
+
+   if (mmt_probe->mmt_conf->thread_nb == 1){
        if(atomic_load (config_updated) == 1) return SR_ERR_OK;
     }
         else {
@@ -825,8 +1066,10 @@ int mmt_config_change_cb(sr_session_ctx_t *session, const char *module_name, sr_
 
 static void mmt_change_subscribe(sr_session_ctx_t *session, sr_subscription_ctx_t **subscription, struct mmt_probe_struct * mmt_probe)
 {
+mmt_probe_context_t * probe_context = get_probe_context_config();
   int rc = SR_ERR_OK, i = 0;
   rc = sr_module_change_subscribe(session, "dynamic-mmt-probe", mmt_config_change_cb, mmt_probe, 0, SR_SUBSCR_DEFAULT, subscription);
+
   if (SR_ERR_OK != rc) {
           fprintf(stderr, "Error: %s\n", sr_strerror(rc));
   }
@@ -834,18 +1077,24 @@ static void mmt_change_subscribe(sr_session_ctx_t *session, sr_subscription_ctx_
 
 void dynamic_conf (struct mmt_probe_struct * mmt_probe){
         mmt_probe_context_t * probe_context = get_probe_context_config();
-
-	sr_conn_ctx_t *connection = NULL;
-        sr_session_ctx_t *session = NULL;
-        sr_subscription_ctx_t *subscription = NULL;
+        long i, max_fd = sysconf(_SC_OPEN_MAX);
+        int rc = SR_ERR_OK;
         probe_context->probe_load_running = 0;
-        mmt_init(&connection, &session);
-        read_mmt_config(session,mmt_probe); /* read supported config from mmt datastore */
-        mmt_cleanup(connection, session, subscription);
+        
+        mmt_init(&probe_context->connection, &probe_context->session);
 
-        probe_context->probe_load_running = 1; 
-        mmt_init(&connection, &session);
-	mmt_change_subscribe(session, &subscription, mmt_probe);
-//       sysrepo_cleanup(connection,session,subscription);
+        rc = sr_set_item_str(probe_context->session, "/dynamic-mmt-probe:probe-operation/operation", "Nobody",0);
+        if (SR_ERR_OK != rc) {
+            fprintf(stderr, "Error: %s\n", sr_strerror(rc));    
+        }
+
+        read_mmt_config(probe_context->session,mmt_probe);
+        mmt_cleanup(probe_context->connection, probe_context->session, probe_context->subscription);
+
+        probe_context->probe_load_running = 1;
+        //probe_context->load_enable = 0;
+        mmt_init(&probe_context->connection, &probe_context->session);
+        mmt_change_subscribe(probe_context->session, &probe_context->subscription, mmt_probe);
+
 }
 
