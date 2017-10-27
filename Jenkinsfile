@@ -2,7 +2,7 @@ pipeline {
     agent {
         docker {
             image 'ubuntu'
-            args '-u root:sudo -v $HOME/workspace/mmt-probe:/mmt-probe -v $HOME/workspace/mmt-sdk:/mmt-sdk && -v $HOME/workspace/mmt-security:/mmt-security'
+            args '-u root:sudo -v $HOME/workspace/mmt-probe:/mmt-probe -v $HOME/workspace/mmt-security:/mmt-security -v $HOME/workspace/mmt-sdk:/mmt-sdk'
         }
     }
     stages {
@@ -16,7 +16,7 @@ pipeline {
                 sh 'add-apt-repository -y ppa:ubuntu-toolchain-r/test'
                 sh 'apt-get update -y'
                 sh 'apt-get install -y gcc-4.9 g++-4.9 cpp-4.9'
-                sh 'cd /usr/bin && rm gcc g++ cpp && ln -s gcc-4.9 gcc && ln -s g++-4.9 g++ && ln -s cpp-4.9 cpp && gcc -v'                
+                sh 'cd /usr/bin && rm gcc g++ cpp && ln -s gcc-4.9 gcc && ln -s g++-4.9 g++ && ln -s cpp-4.9 cpp && gcc -v'
             }
         }
 
@@ -51,26 +51,10 @@ pipeline {
             }
         }
 
-        stage("compile_mmt_probe") {
+        stage("compile") {
             steps {
                 bitbucketStatusNotify(buildState: 'INPROGRESS')
                 sh 'cd /mmt-probe/ && make PCAP=1'
-            }
-        }
-
-        stage("test_mmt_probe") {
-            steps {
-                bitbucketStatusNotify(buildState: 'INPROGRESS')
-                sh 'Test PROBE'
-                // sh 'cd /mmt-probe/ && make test PCAP=1'
-            }
-        }
-
-        stage("create_deb_mmt_probe") {
-            steps {
-                bitbucketStatusNotify(buildState: 'INPROGRESS')
-                sh 'Create a installation file for mmt-probe'
-                // sh 'cd /mmt-probe/ && make test PCAP=1'
             }
         }
     }
