@@ -335,6 +335,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 
 		if (mmt_conf->microf_enable == 1)report_all_protocols_microflows_stats((void *)mmt_probe.smp_threads);
 		if (mmt_conf->output_to_file_enable == 1)flush_messages_to_file_thread((void *)mmt_probe.smp_threads);
+		if (mmt_probe.smp_threads->fd != -1)close (mmt_probe.smp_threads->fd);
 		exit_timers();
 	} else {
 		if (wait_thread_terminate) {
@@ -364,6 +365,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 				//if (mmt_probe.smp_threads->report_counter == 0)mmt_probe.smp_threads->report_counter++;
 				//if (mmt_conf->enable_proto_without_session_stats == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[i]);
 				if (mmt_conf->output_to_file_enable == 1)flush_messages_to_file_thread(&mmt_probe.smp_threads[i]);
+				if (mmt_probe.smp_threads[i].fd != -1)close (mmt_probe.smp_threads[i].fd);
 			}
 			exit_timers();
 
@@ -444,6 +446,13 @@ void terminate_probe_processing(int wait_thread_terminate) {
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_E_END, "Closing MMT Extraction engine!");
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_P_END, "Closing MMT Probe!");
 	if(wait_thread_terminate)if (mmt_conf->log_output) fclose(mmt_conf->log_output);
+	// LN - cleaning mmt_dump_structure
+	int z = 0;
+	for(z = 0; z < mmt_conf->mmt_dump.nb_protocols; z ++){
+		free(mmt_conf->mmt_dump.protocol_name[z]);
+		mmt_conf->mmt_dump.protocol_name[z] = NULL;
+	}
+	// End of LN
 }
 
 /* This signal handler ensures clean exits */
@@ -612,6 +621,13 @@ int main(int argc, char **argv) {
 
 	mmt_probe_context_t * mmt_conf = get_probe_context_config();
 	mmt_probe.mmt_conf = mmt_conf;
+	
+	if (!init_extraction()) { // general ixE initialization
+		fprintf(stderr, "MMT extract init error\n");
+		mmt_log(mmt_conf, MMT_L_ERROR, MMT_E_INIT_ERROR, "MMT Extraction engine initialization error! Exiting!");
+		return EXIT_FAILURE;
+	}
+
 
 #ifdef DPDK
 	/* Initialize the Environment Abstraction Layer (EAL). */
@@ -672,12 +688,6 @@ int main(int argc, char **argv) {
 		pthread_create(&mmt_conf->cpu_ram_usage_thr, NULL, cpu_ram_usage_routine, NULL);
 	}
 
-
-	if (!init_extraction()) { // general ixE initialization
-		fprintf(stderr, "MMT extract init error\n");
-		mmt_log(mmt_conf, MMT_L_ERROR, MMT_E_INIT_ERROR, "MMT Extraction engine initialization error! Exiting!");
-		return EXIT_FAILURE;
-	}
 	//config security2
 	if( mmt_conf->security2_enable ){
 		//initialize security rules
@@ -689,8 +699,15 @@ int main(int argc, char **argv) {
 			mmt_version());
 
 	printf("[info] built %s %s\n", __DATE__, __TIME__);
+/*        if (strlen(mmt_conf->session_proto_include) == 0) {
+            mmt_conf ->session_proto_id_include = -1;
+            printf ("proto_include = %d\n", mmt_conf->session_proto_id_include);
 
-
+        } else {
+            mmt_conf->session_proto_id_include = get_protocol_id_by_name (mmt_conf->session_proto_include);
+            if (mmt_conf->session_proto_id_include == -1) printf ("Error, the proto field in session-report is not correct \n");
+            printf ("proto_include = %d\n", mmt_conf->session_proto_id_include);
+       }*/
 /*	for(i = 0; i < mmt_conf->security_reports_nb; i++) {
 		if (mmt_conf->security_reports[i].enable == 1){
 			mmt_conf->security_reports[i].event_id = malloc (mmt_conf->security_reports[i].event_name_nb * sizeof (uint32_t *));

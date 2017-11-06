@@ -326,6 +326,9 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	struct smp_thread *th = (struct smp_thread *) args;
+	int valid = 0;
+	char file_name_str [MAX_FILE_NAME+1] = {0};
+
 	if(probe_context->enable_session_report == 1){
 		session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
 
@@ -334,7 +337,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 		}
 		th->pcap_current_packet_time = ipacket->p_hdr->ts.tv_sec;
 
-		if (temp_session != NULL) {
+		if (temp_session != NULL && probe_context->enable_DTT == 1) {
 			// only for packet based on TCP
 			if (temp_session->dtt_seen == 0){
 				//this will exclude all the protocols except TCP
@@ -361,7 +364,41 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 	if (probe_context->enable_security_report_multisession == 1){
 		get_security_multisession_report(ipacket,args);
 	}
+	// LN - dumping unknown session
+	if (probe_context->mmt_dump.enable == 1){
+		uint64_t last_proto = ipacket->proto_hierarchy->proto_path[ipacket->proto_hierarchy->len-1];
+		int z = 0;
+		for( z = 0 ; z < probe_context->mmt_dump.nb_protocols; z++){
+			int current_proto_id = probe_context->mmt_dump.protocols[z];
+			int w = 0;
+			int found = 0;
+			for(w = ipacket->proto_hierarchy->len - 1; w > 1; w--){
+				if(ipacket->proto_hierarchy->proto_path[w] == current_proto_id){
+					found = 1;
+					if (th->pcap_current_packet_time - th->last_pcap_dump_time >= probe_context->mmt_dump.time){
+						if (th->last_pcap_dump_time != 0)pd_close(th->fd);
+						valid = snprintf(file_name_str, MAX_FILE_NAME, "%s%lu_thread_%d.pcap", probe_context->mmt_dump.location, th->pcap_current_packet_time, th->thread_index);
+						file_name_str[valid] = '\0';
 
+						th->fd = pd_open(file_name_str);
+						if (th->fd == -1){
+							fprintf ( stderr , "\n packet_handler Error: %d creation of dump_file \"%s\" failed: %s\n" , errno , file_name_str , strerror( errno ) );
+							//exit(1);
+						}
+						th->last_pcap_dump_time = th->pcap_current_packet_time;
+					}
+					if(th->fd){
+						pd_write(th->fd,(char*)ipacket->data,ipacket->p_hdr->caplen,ipacket->p_hdr->ts);
+					}
+					break;	
+				}
+			}
+			if(found == 1){
+				break;
+			}
+		}
+	}
+	// End of LN
 	return 0;
 }
 /* This function registers the packet handler for each threads */
@@ -409,7 +446,7 @@ void flowstruct_init(void * args) {
 
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
-	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, IP_RTT, ip_rtt_handler, NULL, (void *)args);
+	if (probe_context->enable_RTT == 1)i &= register_attribute_handler(th->mmt_handler, PROTO_IP, IP_RTT, ip_rtt_handler, NULL, (void *)args);
 	i &=register_attribute_handler(th->mmt_handler, PROTO_TCP,TCP_CONN_CLOSED, tcp_closed_handler, NULL, (void *)args);
 	/*if(probe_context->ftp_enable == 1){
 		register_ftp_attributes(th->mmt_handler);

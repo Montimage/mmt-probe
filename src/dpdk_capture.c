@@ -159,6 +159,13 @@ static int _worker_thread( void *args_ptr ){
 	set_short_session_timed_out(   th->mmt_handler, mmt_conf->short_session_timeout);
 	set_live_session_timed_out(    th->mmt_handler, mmt_conf->live_session_timeout);
 
+	if(mmt_conf->disable_http_analysis == 1) disable_protocol_analysis(th->mmt_handler,get_protocol_id_by_name("http"));
+	if(mmt_conf->disable_ftp_analysis == 1) disable_protocol_analysis(th->mmt_handler,get_protocol_id_by_name("ftp"));
+	if(mmt_conf->disable_ndn_analysis == 1) disable_protocol_analysis(th->mmt_handler,get_protocol_id_by_name("ndn"));
+	if(mmt_conf->disable_ndn_http_analysis == 1) disable_protocol_analysis(th->mmt_handler,get_protocol_id_by_name("ndn_http"));
+	if(mmt_conf->disable_radius_analysis == 1) disable_protocol_analysis(th->mmt_handler,get_protocol_id_by_name("radius"));
+	if(mmt_conf->disable_rtp_analysis == 1) disable_protocol_analysis(th->mmt_handler,get_protocol_id_by_name("rtp"));
+
 	if (mmt_conf->event_based_reporting_enable == 1)
 		event_reports_init(th); // initialize our event reports
 	if (mmt_conf->enable_security_report == 0 && mmt_conf->enable_security_report_multisession == 0)
@@ -206,10 +213,8 @@ static int _worker_thread( void *args_ptr ){
 
 	input_port = atoi( mmt_conf->input_source );
 	pkt_header.user_args = NULL;
-
 	/* Run until the application is quit or killed. */
 	while ( likely( !do_abort )) {
-
 		//printf ("do_abort = %u\n",do_abort);
 		gettimeofday(&time_now, NULL); //TODO: change time add to nanosec
 		//		clock_gettime( CLOCK_REALTIME_COARSE, &time_now );
@@ -224,16 +229,17 @@ static int _worker_thread( void *args_ptr ){
 			if (mmt_conf->enable_session_report == 1)
 				process_session_timer_handler( th->mmt_handler );
 
-			if (mmt_conf->enable_proto_without_session_stats == 1 || mmt_conf->enable_IP_fragmentation_report == 1)
+			if (mmt_conf->enable_proto_without_session_stats == 1 || mmt_conf->enable_IP_fragmentation_report == 1 || mmt_conf->enable_all_proto_stats == 1)
 				iterate_through_protocols(protocols_stats_iterator, th);
 		}
-
+                
 		// Get burst of RX packets, from first port
 		nb_rx = rte_eth_rx_burst( input_port, th->thread_index, bufs, BURST_SIZE );
 
-		if( nb_rx == 0 ){
+//		if( nb_rx == 0 ){
 //			nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
-		}else{
+//		}else{
+		if( nb_rx != 0 ){
 			pkt_header.ts = time_now;
 
 			for (i = 0; likely(i < nb_rx); i++){

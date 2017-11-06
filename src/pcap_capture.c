@@ -105,6 +105,13 @@ void * smp_thread_routine(void *arg) {
 	set_short_session_timed_out(th->mmt_handler, probe_context->short_session_timeout);
 	set_live_session_timed_out(th->mmt_handler, probe_context->live_session_timeout);
 
+	if(probe_context->disable_http_analysis == 1) disable_protocol_analysis(th->mmt_handler,get_protocol_id_by_name("http"));
+	if(probe_context->disable_ftp_analysis == 1) disable_protocol_analysis(th->mmt_handler,get_protocol_id_by_name("ftp"));
+	if(probe_context->disable_ndn_analysis == 1) disable_protocol_analysis(th->mmt_handler,get_protocol_id_by_name("ndn"));
+	if(probe_context->disable_ndn_http_analysis == 1) disable_protocol_analysis(th->mmt_handler,get_protocol_id_by_name("ndn_http"));
+	if(probe_context->disable_radius_analysis == 1) disable_protocol_analysis(th->mmt_handler,get_protocol_id_by_name("radius"));
+	if(probe_context->disable_rtp_analysis == 1) disable_protocol_analysis(th->mmt_handler,get_protocol_id_by_name("rtp"));
+
 	if (probe_context->event_based_reporting_enable == 1)event_reports_init(th); // initialize our event reports
 	if (probe_context->enable_security_report == 0 && probe_context->enable_security_report_multisession == 0)proto_stats_init(th);//initialise this before security_reports_init
 	if (probe_context->enable_security_report == 1)security_reports_init(th);
@@ -166,7 +173,7 @@ void * smp_thread_routine(void *arg) {
 			th->last_stat_report_time = time(NULL);
 			th->pcap_last_stat_report_time = th->pcap_current_packet_time;
 			if (probe_context->enable_session_report == 1)process_session_timer_handler(th->mmt_handler);
-			if (probe_context->enable_proto_without_session_stats == 1 || probe_context->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, th);
+			if (probe_context->enable_proto_without_session_stats == 1 || probe_context->enable_IP_fragmentation_report == 1 || probe_context->enable_all_proto_stats == 1)iterate_through_protocols(protocols_stats_iterator, th);
 		}
 
 		//get number of packets being available
@@ -340,7 +347,8 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 				mmt_probe->smp_threads->last_stat_report_time = time(NULL);
 				mmt_probe->smp_threads->pcap_last_stat_report_time = mmt_probe->smp_threads->pcap_current_packet_time;
 				if (mmt_probe->mmt_conf->enable_session_report == 1)process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
-				if (mmt_probe->mmt_conf->enable_proto_without_session_stats == 1 || mmt_probe->mmt_conf->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
+				if (mmt_probe->mmt_conf->enable_proto_without_session_stats == 1 || mmt_probe->mmt_conf->enable_IP_fragmentation_report == 1 || mmt_probe->mmt_conf->enable_all_proto_stats == 1)
+					iterate_through_protocols(protocols_stats_iterator, (void *)mmt_probe->smp_threads);
 			}
 
 
@@ -715,6 +723,13 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 		set_long_session_timed_out(mmt_probe->smp_threads->mmt_handler, mmt_probe->mmt_conf->long_session_timeout);
 		set_short_session_timed_out(mmt_probe->smp_threads->mmt_handler, mmt_probe->mmt_conf->short_session_timeout);
 		set_live_session_timed_out(mmt_probe->smp_threads->mmt_handler, mmt_probe->mmt_conf->live_session_timeout);
+
+		if(mmt_probe->mmt_conf->disable_http_analysis == 1)disable_protocol_analysis(mmt_probe->smp_threads->mmt_handler,get_protocol_id_by_name("http"));
+		if(mmt_probe->mmt_conf->disable_ftp_analysis == 1)disable_protocol_analysis(mmt_probe->smp_threads->mmt_handler,get_protocol_id_by_name("ftp"));
+		if(mmt_probe->mmt_conf->disable_ndn_analysis == 1)disable_protocol_analysis(mmt_probe->smp_threads->mmt_handler,get_protocol_id_by_name("ndn"));
+		if(mmt_probe->mmt_conf->disable_ndn_http_analysis == 1)disable_protocol_analysis(mmt_probe->smp_threads->mmt_handler,get_protocol_id_by_name("ndn_http"));
+		if(mmt_probe->mmt_conf->disable_radius_analysis == 1)disable_protocol_analysis(mmt_probe->smp_threads->mmt_handler,get_protocol_id_by_name("radius"));
+		if(mmt_probe->mmt_conf->disable_rtp_analysis == 1)disable_protocol_analysis(mmt_probe->smp_threads->mmt_handler,get_protocol_id_by_name("rtp"));
 
 		if(mmt_probe->mmt_conf->event_based_reporting_enable == 1)event_reports_init((void *)mmt_probe->smp_threads); // initialize our event reports
 		if (mmt_probe->mmt_conf->enable_security_report == 1)security_reports_init((void *)mmt_probe->smp_threads);// should be defined before proto_stats_init
