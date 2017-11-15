@@ -307,7 +307,7 @@ void cleanup_report_allocated_memory(){
  * to free the allocated memory, close extraction, , cancels threads, flush the reports etc
  * */
 void terminate_probe_processing(int wait_thread_terminate) {
-        char lg_msg[1024];
+	char lg_msg[1024];
 	mmt_probe_context_t * mmt_conf = mmt_probe.mmt_conf;
 	int i, j = 0, l = 0;
 
@@ -374,7 +374,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			//Once cancelled, join should give "THREAD_CANCELLED" retval
 #ifdef PCAP
 			//sleep(30);
-                        atomic_store (do_abort,1);
+			atomic_store (do_abort,1);
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
 
 
@@ -455,7 +455,7 @@ void signal_handler(int type) {
 	int j,k,l;
 	int retval = 0;
 	char lg_msg[1024];
-        int childpid;
+	int childpid;
 	fprintf(stderr, "\n reception of signal %d\n", type);
 	fflush( stderr );
 #ifdef PCAP
@@ -466,11 +466,11 @@ void signal_handler(int type) {
 	if (i == 1) {
 # ifdef PCAP
 		//do_abort = 1;
-                atomic_store (do_abort,1);
-                printf ("start terminating \n");
+		atomic_store (do_abort,1);
+		printf ("start terminating \n");
 		terminate_probe_processing(0);
-                printf ("terminate finish \n");
-/*              if (mmt_probe.mmt_conf->load_enable == 1){
+		printf ("terminate finish \n");
+		/*              if (mmt_probe.mmt_conf->load_enable == 1){
                     execl("/opt/dev/mmt-probe/probe", "probe","load_running", NULL);
                     mmt_probe.mmt_conf->load_enable == 0;
                 }*/
@@ -479,7 +479,7 @@ void signal_handler(int type) {
 
 #ifdef DPDK
 		atomic_store (do_abort, 1);
-                do_abort = 1;
+		do_abort = 1;
 		return;
 #endif
 	} else {
@@ -625,18 +625,18 @@ int main(int argc, char **argv) {
 
 	mmt_probe_context_t * mmt_conf = get_probe_context_config();
 	mmt_probe.mmt_conf = mmt_conf;
-        event_report_flag = malloc (sizeof(uint8_t));
-        config_updated = malloc (sizeof(uint8_t));
-        session_report_flag = malloc (sizeof(uint8_t));
-        security2_report_flag = malloc (sizeof(uint8_t));
-        condition_report_flag = malloc (sizeof(uint8_t));
-        behaviour_flag = malloc (sizeof(uint8_t));
-        ftp_reconstruct_flag = malloc (sizeof(uint8_t));
-        micro_flows_flag = malloc (sizeof(uint8_t));
+	event_report_flag = malloc (sizeof(uint8_t));
+	config_updated = malloc (sizeof(uint8_t));
+	session_report_flag = malloc (sizeof(uint8_t));
+	security2_report_flag = malloc (sizeof(uint8_t));
+	condition_report_flag = malloc (sizeof(uint8_t));
+	behaviour_flag = malloc (sizeof(uint8_t));
+	ftp_reconstruct_flag = malloc (sizeof(uint8_t));
+	micro_flows_flag = malloc (sizeof(uint8_t));
 
-        do_abort = malloc (sizeof(uint8_t));
+	do_abort = malloc (sizeof(uint8_t));
 
-       atomic_store(do_abort,0);
+	atomic_store(do_abort,0);
 
 
 	////////////////dynamic_conf/////////
@@ -657,14 +657,14 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef PCAP
-/*        if (argv[1] != NULL){
+	/*        if (argv[1] != NULL){
             printf("argv = %s\n",argv[1]);
             sleep (2);
             if (strcmp(argv[1],"load_running")==0) mmt_conf->probe_load_running = 1;
         }
-*/
+	 */
 	parseOptions(argc, argv, &mmt_probe);
-//        dynamic_conf();
+	//        dynamic_conf();
 #endif
 
 	mmt_conf->log_output = fopen(mmt_conf->log_file, "a");
@@ -673,7 +673,7 @@ int main(int argc, char **argv) {
 		printf ("Error: log file creation failed \n");
 	}
 
-                
+
 	sigfillset(&signal_set);
 	signal(SIGINT, signal_handler);
 	signal(SIGTERM, signal_handler);
@@ -701,8 +701,8 @@ int main(int argc, char **argv) {
 	//if (license_expiry_check(0) == 1){
 	//exit(0);
 	//}
-mmt_conf->pid = getpid();
-printf ("main process_id = %d",mmt_conf->pid);
+	mmt_conf->pid = getpid();
+	printf ("main process_id = %d",mmt_conf->pid);
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_P_INIT, "MMT Probe started!");
 
 	//Add the module for printing cpu_mem_usage here
@@ -718,19 +718,19 @@ printf ("main process_id = %d",mmt_conf->pid);
 		return EXIT_FAILURE;
 	}
 	//config security2
-//	if( mmt_conf->security2_enable ){
-		//initialize security rules
-                strcpy(mmt_conf->security2_excluded_rules, "20-50");
-		if( init_security() != 0 )
-			return 1;
-//	}
+	//	if( mmt_conf->security2_enable ){
+	//initialize security rules
+	strcpy(mmt_conf->security2_excluded_rules, "20-50");
+	if( init_security() != 0 )
+		return 1;
+	//	}
 	printf("[info] Versions: Probe v%s (%s), DPI v%s, Security v0.9b \n",
 			VERSION, GIT_VERSION, //these version information are given by Makefile
 			mmt_version());
 
 	printf("[info] built %s %s\n", __DATE__, __TIME__);
 
-/*
+	/*
        sr_conn_ctx_t *connection = NULL;
        sr_session_ctx_t *session = NULL;
        sr_subscription_ctx_t *subscription = NULL;
@@ -741,11 +741,11 @@ printf ("main process_id = %d",mmt_conf->pid);
         printf ("HERE1\n");
         mmt_init(&connection, &session);
         mmt_change_subscribe(session, &subscription);
-*/
+	 */
 
 
-//        dynamic_conf();
-/*	for(i = 0; i < mmt_conf->security_reports_nb; i++) {
+	//        dynamic_conf();
+	/*	for(i = 0; i < mmt_conf->security_reports_nb; i++) {
 		if (mmt_conf->security_reports[i].enable == 1){
 			mmt_conf->security_reports[i].event_id = malloc (mmt_conf->security_reports[i].event_name_nb * sizeof (uint32_t *));
 			if (strcmp(mmt_conf->security_reports[i].event_name[0],"null") != 0){
@@ -772,9 +772,9 @@ printf ("main process_id = %d",mmt_conf->pid);
 	start_timer( mmt_probe.mmt_conf->sampled_report_period, flush_messages_to_file_thread, (void *) &mmt_probe);
 	dpdk_capture(argc, argv, &mmt_probe );
 #endif
-        printf("Process Terminated successfully\n");
+	printf("Process Terminated successfully\n");
 
-        terminate_probe_processing(1);
+	terminate_probe_processing(1);
 
 	printf("Process Terminated successfully\n");
 	return EXIT_SUCCESS;

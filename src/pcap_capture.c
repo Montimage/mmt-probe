@@ -39,49 +39,114 @@ void clean_up_security2(mmt_probe_struct_t * mmt_probe){
 		printf ("[mmt-probe-1]{%3d,%9"PRIu64",%9"PRIu64",%7zu}\n",mmt_probe->smp_threads->thread_index, nb_packets_processed_by_mmt, msg_count, alerts_count );
 	}
 }
+
 sec_wrapper_t * init_security2(void * arg, sec_wrapper_t * security2, long avail_processors){
-    struct smp_thread *th = (struct smp_thread *) arg;
-    mmt_probe_context_t * probe_context = get_probe_context_config();
-    int i = 0;
-    
-    th->security2_lcore_id = (probe_context->thread_nb + 1) + th->thread_index * probe_context->security2_threads_count;
+	struct smp_thread *th = (struct smp_thread *) arg;
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+	int i = 0;
 
-    if ((th->security2_lcore_id + probe_context->security2_threads_count) > get_number_of_online_processors()){
+	th->security2_lcore_id = (probe_context->thread_nb + 1) + th->thread_index * probe_context->security2_threads_count;
 
-        th->security2_lcore_id = th->thread_index % avail_processors + 1;
-    }
+	if ((th->security2_lcore_id + probe_context->security2_threads_count) > get_number_of_online_processors()){
 
-                //lcore_id on which security2 will run
-    uint32_t *sec_cores_mask = malloc( sizeof( uint32_t ) * probe_context->security2_threads_count );
+		th->security2_lcore_id = th->thread_index % avail_processors + 1;
+	}
 
-    int k = 1;
-    for( i=0; i < probe_context->security2_threads_count; i++ ){
-        if (th->security2_lcore_id + i >= get_number_of_online_processors()){
-            th->security2_lcore_id = k++;
-            if (k == get_number_of_online_processors()) k = 1;
-            sec_cores_mask[ i ] = th->security2_lcore_id;
-        }else {
-            sec_cores_mask[ i ] = th->security2_lcore_id + i;
-        }
-    }
+	//lcore_id on which security2 will run
+	uint32_t *sec_cores_mask = malloc( sizeof( uint32_t ) * probe_context->security2_threads_count );
 
-                //th->security2_alerts_output_count = 0;
-    security2 = register_security( th->mmt_handler,
-        probe_context->security2_threads_count,
-        sec_cores_mask, probe_context->security2_rules_mask,
-        th->thread_index == 0,//false, //true,
-        //this callback will be called from one or many different threads (depending on #security2_threads_count)
-        //print verdict only if output to file or redis or kafka is enable
-        ( probe_context->output_to_file_enable && probe_context->security2_output_channel[0] )
-        || ( probe_context->redis_enable &&  probe_context->security2_output_channel[1] )
-        || ( probe_context->kafka_enable &&  probe_context->security2_output_channel[2] ) ? security_print_verdict : NULL,th
-        );
+	int k = 1;
+	for( i=0; i < probe_context->security2_threads_count; i++ ){
+		if (th->security2_lcore_id + i >= get_number_of_online_processors()){
+			th->security2_lcore_id = k++;
+			if (k == get_number_of_online_processors()) k = 1;
+			sec_cores_mask[ i ] = th->security2_lcore_id;
+		}else {
+			sec_cores_mask[ i ] = th->security2_lcore_id + i;
+		}
+	}
 
-   free( sec_cores_mask );
-   return security2;
+	//th->security2_alerts_output_count = 0;
+	security2 = register_security( th->mmt_handler,
+			probe_context->security2_threads_count,
+			sec_cores_mask, probe_context->security2_rules_mask,
+			th->thread_index == 0,//false, //true,
+			//this callback will be called from one or many different threads (depending on #security2_threads_count)
+			//print verdict only if output to file or redis or kafka is enable
+			( probe_context->output_to_file_enable && probe_context->security2_output_channel[0] )
+			|| ( probe_context->redis_enable &&  probe_context->security2_output_channel[1] )
+			|| ( probe_context->kafka_enable &&  probe_context->security2_output_channel[2] ) ? security_print_verdict : NULL,th
+	);
+
+	free( sec_cores_mask );
+	return security2;
 }
-#ifdef PCAP
- /*This function initializes/registers different handlers, functions and reports for each thread and
+
+void update_runtime_conf(void * arg){
+
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+
+	if (atomic_load (&th->event_report_flag) == 1) event_reports_init ((void *) th); //if event report is changed then register
+	if (atomic_load (&th->condition_report_flag) == 1)conditional_reports_init(th);// initialize our condition reports
+	if (probe_context->enable_proto_without_session_stats == 1 || probe_context->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, th);
+	if (atomic_load (&th->session_report_flag) == 1 && probe_context->enable_session_report == 1){
+		register_session_timer_handler(th->mmt_handler, print_ip_session_report, th);//Todo luong unregister
+		register_session_timeout_handler(th->mmt_handler, classification_expiry_session, th);//TODO: Luong unregister
+		flowstruct_uninit(th);
+		flowstruct_init(th); // initialize our event handler
+		if (probe_context->condition_based_reporting_enable == 1)conditional_reports_init(th);// initialize our condition reports
+		if (probe_context->radius_enable == 1)radius_ext_init(th); // initialize radius extraction and attribute event handler
+		//                printf ("thread_id_in_the_smp_loop = %u \n",th->thread_index);
+		atomic_store (&th->session_report_flag, 0);
+	}else {
+		flowstruct_uninit(th);
+		atomic_store (&th->session_report_flag, 0);
+	}
+	if (atomic_load (&th->security2_report_flag) == 1 && probe_context->security2_enable == 1){
+
+		if (security2 == NULL){ security2 = init_security2(th, security2, avail_processors);
+		printf("thread_id_smp=%u\n", th->thread_index);
+		}
+		if (probe_context->security2_add_rules_enable && th->thread_index == 1){
+
+			size_t new_rules =  mmt_sec_add_rules(probe_context->security2_add_rules);
+			printf("new_rules= %zu \n", new_rules);
+
+			size_t proto_atts_count, l;
+			proto_attribute_t const*const* proto_atts;
+			proto_atts_count = mmt_sec_get_unique_protocol_attributes(& proto_atts);
+			printf ("number of unique attr = %zu\n", proto_atts_count );
+
+			for (l = 0; l < proto_atts_count; l++){
+				printf ("attributes: %s.%s (%d.%d) \n",proto_atts[l]->proto, proto_atts[l]->att, proto_atts[l]->proto_id, proto_atts[l]->att_id);
+			}
+		}
+		if (probe_context->security2_count_rule_remove != 0 && th->thread_index == 1){
+
+			size_t count = mmt_sec_remove_rules(probe_context->security2_count_rule_remove, probe_context->remove_rules_array);
+			printf ("remove %zu rule", count);
+		}
+
+		atomic_store (&th->security2_report_flag, 0);
+	}else {
+		//get number of packets being processed by security
+		if (security2 != NULL){
+			msg_count  = security2->msg_count;
+			//free security
+			alerts_count = unregister_security( security2 );
+
+			printf ("[mmt-probe-1]{%3d,%9"PRIu64",%9"PRIu64",%7zu}\n",th->thread_index, th->nb_packets, msg_count, alerts_count );
+			//free (security2);
+			security2 = NULL;
+		}
+		atomic_store (&th->security2_report_flag, 0);
+	}
+
+	atomic_store(&th->config_updated, 0); // update implemented in each thread
+
+}
+//#ifdef PCAP
+/*This function initializes/registers different handlers, functions and reports for each thread and
  * provides packet for processing in mmt-dpi.
  **/
 void * smp_thread_routine(void *arg) {
@@ -94,8 +159,8 @@ void * smp_thread_routine(void *arg) {
 	uint32_t tail;
 	long avail_processors;
 	int size;
-        uint64_t msg_count = 0;
-        size_t alerts_count = 0;
+	uint64_t msg_count = 0;
+	size_t alerts_count = 0;
 	sec_wrapper_t * security2 = NULL;
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -140,7 +205,7 @@ void * smp_thread_routine(void *arg) {
 		flowstruct_init(th); // initialize our event handler
 		if (probe_context->condition_based_reporting_enable == 1)conditional_reports_init(th);// initialize our condition reports
 		if (probe_context->radius_enable == 1)radius_ext_init(th); // initialize radius extraction and attribute event handler
-                atomic_store (&th->session_report_flag, 0);
+		atomic_store (&th->session_report_flag, 0);
 	}
 	set_default_session_timed_out(th->mmt_handler, probe_context->default_session_timeout);
 	set_long_session_timed_out(th->mmt_handler, probe_context->long_session_timeout);
@@ -155,14 +220,10 @@ void * smp_thread_routine(void *arg) {
 #endif // End of HTTP_RECONSTRUCT
 	if (probe_context->enable_security_report_multisession == 1)security_reports_multisession_init(th);// should be defined before proto_stats_init
 
-      // printf ("th_id = %u, process_id = %d\n", th->thread_index, getpid());
 	//security2
 	if( probe_context->security2_enable ){
-            init_security2(th, security2, avail_processors);
+		init_security2(th, security2, avail_processors);
 	}
-        
-//       size_t new_rules =  mmt_sec_add_rules(probe_context->security2_excluded_rules);
-  //     printf("new_rules=%zu\n",new_rules);
 
 	th->nb_packets = 0;
 	data_spsc_ring_t *fifo     = &th->fifo;
@@ -175,75 +236,17 @@ void * smp_thread_routine(void *arg) {
 			th->report_counter++;
 			th->last_stat_report_time = time(NULL);
 			th->pcap_last_stat_report_time = th->pcap_current_packet_time;
-		//	if (probe_context->enable_proto_without_session_stats == 1 || probe_context->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, th);
-                        
-			    if (atomic_load (&th->config_updated) == 1){
-                                if (atomic_load (&th->event_report_flag) == 1) event_reports_init ((void *) th); //if event report is changed then register
-                                if (atomic_load (&th->condition_report_flag) == 1)conditional_reports_init(th);// initialize our condition reports
-                                 if (probe_context->enable_proto_without_session_stats == 1 || probe_context->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, th);
-                                if (atomic_load (&th->session_report_flag) == 1 && probe_context->enable_session_report == 1){ 
-                                    register_session_timer_handler(th->mmt_handler, print_ip_session_report, th);//Todo luong unregister
-                                    register_session_timeout_handler(th->mmt_handler, classification_expiry_session, th);//TODO: Luong unregister
-                                    flowstruct_uninit(th);
-                                    flowstruct_init(th); // initialize our event handler
-                                    if (probe_context->condition_based_reporting_enable == 1)conditional_reports_init(th);// initialize our condition reports
-                                    if (probe_context->radius_enable == 1)radius_ext_init(th); // initialize radius extraction and attribute event handler
-                    //                printf ("thread_id_in_the_smp_loop = %u \n",th->thread_index);
-                                   atomic_store (&th->session_report_flag, 0); 
-                               }else {
-                                    flowstruct_uninit(th);
-                                    atomic_store (&th->session_report_flag, 0);
-                               }
-                               if (atomic_load (&th->security2_report_flag) == 1 && probe_context->security2_enable == 1){
 
-                                   if (security2 == NULL){ security2 = init_security2(th, security2, avail_processors);
-                                        printf("thread_id_smp=%u\n", th->thread_index);
-                                    }
-                                   if (probe_context->security2_add_rules_enable && th->thread_index == 1){
+			if (atomic_load (&th->config_updated) == 1){
+				update_runtime_conf(th);
+			}
+			if (atomic_load (&th->behaviour_flag) == 1) probe_context->behaviour_enable = 1;
+			if (atomic_load (&th->ftp_reconstruct_flag) == 1) probe_context->ftp_reconstruct_enable = 1;
 
-                                       size_t new_rules =  mmt_sec_add_rules(probe_context->security2_add_rules);
-                                       printf("new_rules= %zu \n", new_rules);
+			if (probe_context->enable_session_report == 1 )process_session_timer_handler(th->mmt_handler);
+			if (probe_context->enable_proto_without_session_stats == 1 || probe_context->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, th);
 
-                                       size_t proto_atts_count, l;
-                                       proto_attribute_t const*const* proto_atts;
-                                       proto_atts_count = mmt_sec_get_unique_protocol_attributes(& proto_atts);
-                                       printf ("number of unique attr = %zu\n", proto_atts_count );
-
-                                       for (l = 0; l < proto_atts_count; l++){
-                                           printf ("attributes: %s.%s (%d.%d) \n",proto_atts[l]->proto, proto_atts[l]->att, proto_atts[l]->proto_id, proto_atts[l]->att_id);
-                                       }
-                                   }
-                                   if (probe_context->security2_count_rule_remove != 0 && th->thread_index == 1){
-
-                                       size_t count = mmt_sec_remove_rules(probe_context->security2_count_rule_remove, probe_context->remove_rules_array);
-                                       printf ("remove %zu rule", count);
-                                   }
-                                   
-                                   atomic_store (&th->security2_report_flag, 0);
-                               }else {
-                                   //get number of packets being processed by security
-                                   if (security2 != NULL){ 
-                                       msg_count  = security2->msg_count;
-                                       //free security
-                                       alerts_count = unregister_security( security2 );
-
-                                       printf ("[mmt-probe-1]{%3d,%9"PRIu64",%9"PRIu64",%7zu}\n",th->thread_index, th->nb_packets, msg_count, alerts_count );
-                                       //free (security2);
-                                       security2 = NULL;
-                                   }
-                                   atomic_store (&th->security2_report_flag, 0);
-                               }
-//                            if (probe_context->load_enable == 1) system ("./restart_probe.sh");
-
-                            atomic_store(&th->config_updated, 0); // update implemented in each thread
-                      }
-                      if (atomic_load (&th->behaviour_flag) == 1) probe_context->behaviour_enable = 1;
-                      if (atomic_load (&th->ftp_reconstruct_flag) == 1) probe_context->ftp_reconstruct_enable = 1;
-
-                      if (probe_context->enable_session_report == 1 )process_session_timer_handler(th->mmt_handler);
-                      if (probe_context->enable_proto_without_session_stats == 1 || probe_context->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, th);
-	
-	        }
+		}
 
 		//get number of packets being available
 		size = data_spsc_ring_pop_bulk( fifo, &tail );
@@ -273,7 +276,7 @@ void * smp_thread_routine(void *arg) {
 			else{
 				packet_process( mmt_handler, &pkt->header, pkt->data );
 				th->nb_packets ++;
-                                //printf ("th_nb = %u, packet_id =%lu\n",th->thread_index, th->nb_packets);
+				//printf ("th_nb = %u, packet_id =%lu\n",th->thread_index, th->nb_packets);
 			}
 
 			//update new position of ring's tail
@@ -308,11 +311,11 @@ void * smp_thread_routine(void *arg) {
 	}
 
 	sprintf(lg_msg, "Thread %i ended (%"PRIu64" packets)", th->thread_index, th->nb_packets);
-        //printf("ThreadXXXX %i ended (%"PRIu64" packets)\n", th->thread_index, th->nb_packets);
+	//printf("ThreadXXXX %i ended (%"PRIu64" packets)\n", th->thread_index, th->nb_packets);
 	mmt_log(probe_context, MMT_L_INFO, MMT_T_END, lg_msg);
 	//fprintf(stdout, "Thread %i ended (%u packets)\n", th->thread_number, nb_pkts);
- //       sem_post(&th->sem_wait);
-        pthread_exit(NULL);
+	//       sem_post(&th->sem_wait);
+	pthread_exit(NULL);
 	return NULL;
 }
 
@@ -412,7 +415,7 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 			header.caplen = pkthdr.caplen;
 			header.len = pkthdr.len;
 			header.user_args = NULL;
-                        //printf("output to file = %u\n",mmt_probe->mmt_conf->output_to_file_enable);
+			//printf("output to file = %u\n",mmt_probe->mmt_conf->output_to_file_enable);
 			if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period ||
 					mmt_probe->smp_threads->pcap_current_packet_time - mmt_probe->smp_threads->pcap_last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
 				mmt_probe->smp_threads->report_counter++;
@@ -511,33 +514,33 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 	header.user_args = NULL;
 
 
-     //printf("output to file = %u\n",mmt_probe->mmt_conf->output_to_file_enable);
+	//printf("output to file = %u\n",mmt_probe->mmt_conf->output_to_file_enable);
 	if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
-                if (atomic_load (config_updated) == 1){
-                   if (atomic_load (event_report_flag) == 1) event_reports_init ((void *) mmt_probe->smp_threads);
-                   if (atomic_load (condition_report_flag) == 1)conditional_reports_init((void *) mmt_probe->smp_threads);// initialize our condition reports
+		if (atomic_load (config_updated) == 1){
+			if (atomic_load (event_report_flag) == 1) event_reports_init ((void *) mmt_probe->smp_threads);
+			if (atomic_load (condition_report_flag) == 1)conditional_reports_init((void *) mmt_probe->smp_threads);// initialize our condition reports
 
-                   if (atomic_load (session_report_flag) == 1 && mmt_probe->mmt_conf->enable_session_report == 1){
-                       register_session_timer_handler(mmt_probe->smp_threads->mmt_handler, print_ip_session_report, (void *) mmt_probe->smp_threads);
-                       register_session_timeout_handler(mmt_probe->smp_threads->mmt_handler, classification_expiry_session, (void *) mmt_probe->smp_threads);
-                       flowstruct_uninit((void *)mmt_probe->smp_threads); // initialize our event handler
+			if (atomic_load (session_report_flag) == 1 && mmt_probe->mmt_conf->enable_session_report == 1){
+				register_session_timer_handler(mmt_probe->smp_threads->mmt_handler, print_ip_session_report, (void *) mmt_probe->smp_threads);
+				register_session_timeout_handler(mmt_probe->smp_threads->mmt_handler, classification_expiry_session, (void *) mmt_probe->smp_threads);
+				flowstruct_uninit((void *)mmt_probe->smp_threads); // initialize our event handler
 
-                       flowstruct_init((void *)mmt_probe->smp_threads); // initialize our event handler
-                       if(mmt_probe->mmt_conf->condition_based_reporting_enable == 1)conditional_reports_init((void *)mmt_probe->smp_threads);// initialize our conditional reports
-                       if(mmt_probe->mmt_conf->radius_enable == 1)radius_ext_init((void *)mmt_probe->smp_threads); // initialize radius extraction and attribute event handler
+				flowstruct_init((void *)mmt_probe->smp_threads); // initialize our event handler
+				if(mmt_probe->mmt_conf->condition_based_reporting_enable == 1)conditional_reports_init((void *)mmt_probe->smp_threads);// initialize our conditional reports
+				if(mmt_probe->mmt_conf->radius_enable == 1)radius_ext_init((void *)mmt_probe->smp_threads); // initialize radius extraction and attribute event handler
 
-                       atomic_store(session_report_flag, 0);
-                   }else{
-                       flowstruct_uninit((void *)mmt_probe->smp_threads); // initialize our event handler
-                       atomic_store(session_report_flag, 0);
+				atomic_store(session_report_flag, 0);
+			}else{
+				flowstruct_uninit((void *)mmt_probe->smp_threads); // initialize our event handler
+				atomic_store(session_report_flag, 0);
 
-                   }
-                   if (atomic_load (behaviour_flag) == 1) mmt_probe->mmt_conf->behaviour_enable = 1;
-                   if (atomic_load (ftp_reconstruct_flag) == 1) mmt_probe->mmt_conf->ftp_reconstruct_enable = 1;
+			}
+			if (atomic_load (behaviour_flag) == 1) mmt_probe->mmt_conf->behaviour_enable = 1;
+			if (atomic_load (ftp_reconstruct_flag) == 1) mmt_probe->mmt_conf->ftp_reconstruct_enable = 1;
 
 
-                   atomic_store(config_updated, 0);
-               }
+			atomic_store(config_updated, 0);
+		}
 		mmt_probe->smp_threads->report_counter++;
 		mmt_probe->smp_threads->last_stat_report_time = time(NULL);
 		if (mmt_probe->mmt_conf->enable_session_report == 1)process_session_timer_handler(mmt_probe->smp_threads->mmt_handler);
@@ -550,7 +553,7 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 	}
 
 	nb_packets_processed_by_mmt ++;
-//	printf("nb_packet_processed = %lu\n ",nb_packets_processed_by_mmt);
+	//	printf("nb_packet_processed = %lu\n ",nb_packets_processed_by_mmt);
 }
 
 /* This function is for online multi-thread mode.
@@ -692,22 +695,22 @@ void *Reader(void *arg) {
 						mmt_probe->smp_threads );
 
 		free( sec_cores_mask );
-       char newrule[20] = "(1:6,7,16,26)";
-       size_t new_rules =  mmt_sec_add_rules(newrule);
-       printf("new_rules=%zu\n",new_rules);
+		char newrule[20] = "(1:6,7,16,26)";
+		size_t new_rules =  mmt_sec_add_rules(newrule);
+		printf("new_rules=%zu\n",new_rules);
 
-       size_t proto_atts_count, l;
-       proto_attribute_t const*const* proto_atts;
-       proto_atts_count = mmt_sec_get_unique_protocol_attributes(& proto_atts);
-       printf ("number of unique attr = %zu\n", proto_atts_count );
+		size_t proto_atts_count, l;
+		proto_attribute_t const*const* proto_atts;
+		proto_atts_count = mmt_sec_get_unique_protocol_attributes(& proto_atts);
+		printf ("number of unique attr = %zu\n", proto_atts_count );
 
-       for (l = 0; l < proto_atts_count; l++){
-           printf ("attributes: %s.%s (%d.%d) \n",proto_atts[l]->proto, proto_atts[l]->att, proto_atts[l]->proto_id, proto_atts[l]->att_id);
-       }
-       
-       uint32_t rm_rules_arr[]= {1,2,3,4};
-       size_t count = mmt_sec_remove_rules (4, rm_rules_arr);
-       printf("removed rules = %zu\n", count);
+		for (l = 0; l < proto_atts_count; l++){
+			printf ("attributes: %s.%s (%d.%d) \n",proto_atts[l]->proto, proto_atts[l]->att, proto_atts[l]->proto_id, proto_atts[l]->att_id);
+		}
+
+		uint32_t rm_rules_arr[]= {1,2,3,4};
+		size_t count = mmt_sec_remove_rules (4, rm_rules_arr);
+		printf("removed rules = %zu\n", count);
 
 	}
 	//security2
@@ -761,7 +764,7 @@ void cleanup(int signo, mmt_probe_struct_t * mmt_probe) {
 			(void) fprintf(stderr, "pcap_stats: %s\n", pcap_geterr(handle));
 		} else got_stats = 1;
 
-	/*	if (ignored > 0) {
+		/*	if (ignored > 0) {
 			fprintf(stderr, "%d packets ignored (too small to decapsulate)\n", ignored);
 		}
 		if (got_stats) {
@@ -781,8 +784,8 @@ void cleanup(int signo, mmt_probe_struct_t * mmt_probe) {
 #ifdef RHEL3
 		pcap_close(handle);
 #endif /* RHEL3 */
-fprintf (stderr,"finished cleanup \n");
-fflush (stderr);
+		fprintf (stderr,"finished cleanup \n");
+		fflush (stderr);
 	}
 }
 
@@ -818,10 +821,10 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 		}
 
 
-//    while (mmt_probe->mmt_conf->event_reports != NULL){
-  //      printf ("enable___pcap...................\n");
-    //    mmt_probe->mmt_conf->event_reports = mmt_probe->mmt_conf->event_reports->next;
-    //}
+		//    while (mmt_probe->mmt_conf->event_reports != NULL){
+		//      printf ("enable___pcap...................\n");
+		//    mmt_probe->mmt_conf->event_reports = mmt_probe->mmt_conf->event_reports->next;
+		//}
 
 
 
@@ -846,7 +849,7 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 			flowstruct_init((void *)mmt_probe->smp_threads); // initialize our event handler
 			if(mmt_probe->mmt_conf->condition_based_reporting_enable == 1)conditional_reports_init((void *)mmt_probe->smp_threads);// initialize our conditional reports
 			if(mmt_probe->mmt_conf->radius_enable == 1)radius_ext_init((void *)mmt_probe->smp_threads); // initialize radius extraction and attribute event handler
-                        atomic_store (session_report_flag, 0);
+			atomic_store (session_report_flag, 0);
 		}
 		set_default_session_timed_out(mmt_probe->smp_threads->mmt_handler, mmt_probe->mmt_conf->default_session_timeout);
 		set_long_session_timed_out(mmt_probe->smp_threads->mmt_handler, mmt_probe->mmt_conf->long_session_timeout);
@@ -864,7 +867,7 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 		//initialisation of multisession report
 
 		mmt_log(mmt_probe->mmt_conf, MMT_L_INFO, MMT_E_STARTED, "MMT Extraction engine! successfully initialized in a single threaded operation.");
-                atomic_store (config_updated, 0);
+		atomic_store (config_updated, 0);
 	} else {
 		//Multiple threads for processing the packets
 		/*
@@ -897,7 +900,7 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 					data_spsc_ring_free( &mmt_probe->smp_threads[j].fifo );
 				exit( 0 );
 			}
-                        sem_init (&mmt_probe->smp_threads[i].sem_wait, 0, 0);
+			sem_init (&mmt_probe->smp_threads[i].sem_wait, 0, 0);
 			pthread_create(&mmt_probe->smp_threads[i].handle, NULL,
 					smp_thread_routine, &mmt_probe->smp_threads[i]);
 
@@ -913,15 +916,15 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 	//Offline or Online processing
 
 	if (mmt_probe->mmt_conf->input_mode == OFFLINE_ANALYSIS) {
-                		process_trace_file(mmt_probe->mmt_conf->input_source, mmt_probe); //Process single offline trace
+		process_trace_file(mmt_probe->mmt_conf->input_source, mmt_probe); //Process single offline trace
 		//We don't close the files here because they will be used when the handler is closed to report still to timeout flows
 	}else if (mmt_probe->mmt_conf->input_mode == ONLINE_ANALYSIS) {
-           //     cleanup( 0, mmt_probe );
+		//     cleanup( 0, mmt_probe );
 		process_interface(mmt_probe->mmt_conf->input_source, mmt_probe); //Process single offline trace
 		//We don't close the files here because they will be used when the handler is closed to report still to timeout flows
 	}
 	return 0;
 }
-#endif
+//#endif
 
 
