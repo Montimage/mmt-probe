@@ -409,6 +409,12 @@ typedef struct mmt_probe_context_struct {
 
 	char security2_rules_mask[1000];
 	char security2_excluded_rules[1000];
+        char security2_add_rules[1000];
+        char security2_remove_rules[1000];
+        int security2_count_rule_remove;
+        int remove_rules_array[1000];
+        int security2_add_rules_enable;
+        int security2_remove_rules_enable;
 	//number of threads of security2 per one thread of probe
 	uint8_t security2_threads_count;
         int probe_load_running;

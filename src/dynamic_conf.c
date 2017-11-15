@@ -9,6 +9,8 @@
 #include <signal.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <string.h>
+
 static void mmt_cleanup(sr_conn_ctx_t *connection, sr_session_ctx_t *session, sr_subscription_ctx_t *subscription)
 {
         sr_unsubscribe(session, subscription);
@@ -610,7 +612,8 @@ void config_security2_report(sr_session_ctx_t * session, sr_val_t * value, struc
         sr_free_val(value);
         printf ("rule-mask = %s\n", probe_context->security2_rules_mask);
     }
-
+   // strcpy(probe_context->security2_excluded_rules, "1-1000");
+    printf ("exclude-rules = %s\n", probe_context->security2_excluded_rules);
     rc = sr_get_item(session, "/dynamic-mmt-probe:security2-report/excluded_rules", &value);
     if (SR_ERR_OK == rc) {
         strcpy(probe_context->security2_excluded_rules, value->data.string_val);
@@ -618,6 +621,41 @@ void config_security2_report(sr_session_ctx_t * session, sr_val_t * value, struc
         printf ("exclude-rules = %s\n", probe_context->security2_excluded_rules);
     }
 
+    probe_context->security2_add_rules_enable = 0;
+    rc= sr_get_item(session, "/dynamic-mmt-probe:security2-report/add_rules", &value);
+    if (SR_ERR_OK == rc) {
+        strcpy(probe_context->security2_add_rules, value->data.string_val);
+        sr_free_val(value);
+        printf ("add-rules = %s\n", probe_context->security2_add_rules);
+        probe_context->security2_add_rules_enable = 1;
+    }
+
+    rc = sr_get_item(session, "/dynamic-mmt-probe:security2-report/count_removed_rules", &value);
+    if (SR_ERR_OK == rc) {
+        probe_context->security2_count_rule_remove = value->data.uint32_val;
+        sr_free_val(value);
+        printf ("count remove rules = %u\n", probe_context->security2_count_rule_remove);
+    }
+
+    if (probe_context->security2_count_rule_remove != 0){
+        rc = sr_get_item(session, "/dynamic-mmt-probe:security2-report/remove_rules", &value);
+        if (SR_ERR_OK == rc) {
+            strcpy(probe_context->security2_remove_rules, value->data.string_val);
+            sr_free_val(value);
+            printf ("remove-rules = %s\n", probe_context->security2_remove_rules);
+
+           const char s[2]= ",";
+           char * token;
+           int i = 0;
+           token = strtok(probe_context->security2_remove_rules, s);
+           while (token != NULL){
+               probe_context->remove_rules_array[i] = atoi(token);
+               printf ("%d\n", probe_context->remove_rules_array[i]);
+               token = strtok(NULL,s);
+               i++;
+           }
+        }
+    }
 
     len = snprintf(message,256,"/dynamic-mmt-probe:security2-report/output_to_file");
     message[len]= '\0';

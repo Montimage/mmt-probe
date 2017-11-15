@@ -160,7 +160,9 @@ void * smp_thread_routine(void *arg) {
 	if( probe_context->security2_enable ){
             init_security2(th, security2, avail_processors);
 	}
-
+        
+//       size_t new_rules =  mmt_sec_add_rules(probe_context->security2_excluded_rules);
+  //     printf("new_rules=%zu\n",new_rules);
 
 	th->nb_packets = 0;
 	data_spsc_ring_t *fifo     = &th->fifo;
@@ -194,16 +196,29 @@ void * smp_thread_routine(void *arg) {
                                }
                                if (atomic_load (&th->security2_report_flag) == 1 && probe_context->security2_enable == 1){
 
-                                   if (security2 != NULL){
-                                       msg_count  = security2->msg_count;
-                                       //free security
-                                       alerts_count = unregister_security( security2 );
-                                       //free(security2);
-                                       security2 = NULL;
+                                   if (security2 == NULL){ security2 = init_security2(th, security2, avail_processors);
+                                        printf("thread_id_smp=%u\n", th->thread_index);
+                                    }
+                                   if (probe_context->security2_add_rules_enable && th->thread_index == 1){
 
-                                       //printf ("[mmt-probe-1]{%3d,%9"PRIu64",%9"PRIu64",%7zu}\n",th->thread_index, th->nb_packets, msg_count, alerts_count );
+                                       size_t new_rules =  mmt_sec_add_rules(probe_context->security2_add_rules);
+                                       printf("new_rules= %zu \n", new_rules);
+
+                                       size_t proto_atts_count, l;
+                                       proto_attribute_t const*const* proto_atts;
+                                       proto_atts_count = mmt_sec_get_unique_protocol_attributes(& proto_atts);
+                                       printf ("number of unique attr = %zu\n", proto_atts_count );
+
+                                       for (l = 0; l < proto_atts_count; l++){
+                                           printf ("attributes: %s.%s (%d.%d) \n",proto_atts[l]->proto, proto_atts[l]->att, proto_atts[l]->proto_id, proto_atts[l]->att_id);
+                                       }
                                    }
-                                   security2 = init_security2(th, security2, avail_processors);
+                                   if (probe_context->security2_count_rule_remove != 0 && th->thread_index == 1){
+
+                                       size_t count = mmt_sec_remove_rules(probe_context->security2_count_rule_remove, probe_context->remove_rules_array);
+                                       printf ("remove %zu rule", count);
+                                   }
+                                   
                                    atomic_store (&th->security2_report_flag, 0);
                                }else {
                                    //get number of packets being processed by security
@@ -494,7 +509,9 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 	header.caplen = pkthdr->caplen;
 	header.len = pkthdr->len;
 	header.user_args = NULL;
-        //printf("output to file = %u\n",mmt_probe->mmt_conf->output_to_file_enable);
+
+
+     //printf("output to file = %u\n",mmt_probe->mmt_conf->output_to_file_enable);
 	if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
                 if (atomic_load (config_updated) == 1){
                    if (atomic_load (event_report_flag) == 1) event_reports_init ((void *) mmt_probe->smp_threads);
@@ -675,6 +692,23 @@ void *Reader(void *arg) {
 						mmt_probe->smp_threads );
 
 		free( sec_cores_mask );
+       char newrule[20] = "(1:6,7,16,26)";
+       size_t new_rules =  mmt_sec_add_rules(newrule);
+       printf("new_rules=%zu\n",new_rules);
+
+       size_t proto_atts_count, l;
+       proto_attribute_t const*const* proto_atts;
+       proto_atts_count = mmt_sec_get_unique_protocol_attributes(& proto_atts);
+       printf ("number of unique attr = %zu\n", proto_atts_count );
+
+       for (l = 0; l < proto_atts_count; l++){
+           printf ("attributes: %s.%s (%d.%d) \n",proto_atts[l]->proto, proto_atts[l]->att, proto_atts[l]->proto_id, proto_atts[l]->att_id);
+       }
+       
+       uint32_t rm_rules_arr[]= {1,2,3,4};
+       size_t count = mmt_sec_remove_rules (4, rm_rules_arr);
+       printf("removed rules = %zu\n", count);
+
 	}
 	//security2
 

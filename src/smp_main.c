@@ -718,11 +718,12 @@ printf ("main process_id = %d",mmt_conf->pid);
 		return EXIT_FAILURE;
 	}
 	//config security2
-	if( mmt_conf->security2_enable ){
+//	if( mmt_conf->security2_enable ){
 		//initialize security rules
+                strcpy(mmt_conf->security2_excluded_rules, "20-50");
 		if( init_security() != 0 )
 			return 1;
-	}
+//	}
 	printf("[info] Versions: Probe v%s (%s), DPI v%s, Security v0.9b \n",
 			VERSION, GIT_VERSION, //these version information are given by Makefile
 			mmt_version());
