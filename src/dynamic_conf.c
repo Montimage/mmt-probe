@@ -605,7 +605,7 @@ void config_security2_report(sr_session_ctx_t * session, sr_val_t * value, struc
 		printf ("add-rules = %s\n", probe_context->security2_add_rules);
 		probe_context->security2_add_rules_enable = 1;
 	}
-
+        probe_context->security2_remove_rules_enable = 0;
 	rc = sr_get_item(session, "/dynamic-mmt-probe:security2-report/count_removed_rules", &value);
 	if (SR_ERR_OK == rc) {
 		probe_context->security2_count_rule_remove = value->data.uint32_val;
@@ -628,6 +628,7 @@ void config_security2_report(sr_session_ctx_t * session, sr_val_t * value, struc
 			token = strtok(NULL,s);
 			i++;
 		}
+                probe_context->security2_remove_rules_enable = 1;
 	}
 
 	len = snprintf(message,256,"/dynamic-mmt-probe:security2-report/output_to_file");

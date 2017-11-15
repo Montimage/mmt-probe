@@ -82,9 +82,13 @@ sec_wrapper_t * init_security2(void * arg, sec_wrapper_t * security2, long avail
 	return security2;
 }
 
-void update_runtime_conf(void * arg){
+sec_wrapper_t * update_runtime_conf(void * arg, sec_wrapper_t * security2, long avail_processors){
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
+        struct smp_thread *th = (struct smp_thread *) arg;
+        uint64_t msg_count = 0;
+        size_t alerts_count = 0;
+        size_t count; 
 
 	if (atomic_load (&th->event_report_flag) == 1) event_reports_init ((void *) th); //if event report is changed then register
 	if (atomic_load (&th->condition_report_flag) == 1)conditional_reports_init(th);// initialize our condition reports
@@ -107,24 +111,25 @@ void update_runtime_conf(void * arg){
 		if (security2 == NULL){ security2 = init_security2(th, security2, avail_processors);
 		printf("thread_id_smp=%u\n", th->thread_index);
 		}
-		if (probe_context->security2_add_rules_enable && th->thread_index == 1){
+		if (probe_context->security2_add_rules_enable  && th->thread_index == 1){
 
 			size_t new_rules =  mmt_sec_add_rules(probe_context->security2_add_rules);
-			printf("new_rules= %zu \n", new_rules);
+			printf("new_rules123= %zu \n", new_rules);
+                        if (new_rules != 0){
+			    size_t proto_atts_count, l;
+			    proto_attribute_t const*const* proto_atts;
+			    proto_atts_count = mmt_sec_get_unique_protocol_attributes(& proto_atts);
+			    printf ("number of unique attr = %zu\n", proto_atts_count );
 
-			size_t proto_atts_count, l;
-			proto_attribute_t const*const* proto_atts;
-			proto_atts_count = mmt_sec_get_unique_protocol_attributes(& proto_atts);
-			printf ("number of unique attr = %zu\n", proto_atts_count );
-
-			for (l = 0; l < proto_atts_count; l++){
+			    for (l = 0; l < proto_atts_count; l++){
 				printf ("attributes: %s.%s (%d.%d) \n",proto_atts[l]->proto, proto_atts[l]->att, proto_atts[l]->proto_id, proto_atts[l]->att_id);
-			}
+			    }
+                        }
 		}
-		if (probe_context->security2_count_rule_remove != 0 && th->thread_index == 1){
+		if (probe_context->security2_remove_rules_enable  && probe_context->security2_count_rule_remove != 0 && th->thread_index == 1){
 
-			size_t count = mmt_sec_remove_rules(probe_context->security2_count_rule_remove, probe_context->remove_rules_array);
-			printf ("remove %zu rule", count);
+			count = mmt_sec_remove_rules(probe_context->security2_count_rule_remove, probe_context->remove_rules_array);
+			printf ("removed %zu rules", count);
 		}
 
 		atomic_store (&th->security2_report_flag, 0);
@@ -143,7 +148,7 @@ void update_runtime_conf(void * arg){
 	}
 
 	atomic_store(&th->config_updated, 0); // update implemented in each thread
-
+    return security2;
 }
 //#ifdef PCAP
 /*This function initializes/registers different handlers, functions and reports for each thread and
@@ -238,7 +243,7 @@ void * smp_thread_routine(void *arg) {
 			th->pcap_last_stat_report_time = th->pcap_current_packet_time;
 
 			if (atomic_load (&th->config_updated) == 1){
-				update_runtime_conf(th);
+				security2 = update_runtime_conf(th, security2, avail_processors);
 			}
 			if (atomic_load (&th->behaviour_flag) == 1) probe_context->behaviour_enable = 1;
 			if (atomic_load (&th->ftp_reconstruct_flag) == 1) probe_context->ftp_reconstruct_enable = 1;
@@ -276,7 +281,7 @@ void * smp_thread_routine(void *arg) {
 			else{
 				packet_process( mmt_handler, &pkt->header, pkt->data );
 				th->nb_packets ++;
-				//printf ("th_nb = %u, packet_id =%lu\n",th->thread_index, th->nb_packets);
+				printf ("th_nb = %u, packet_id =%lu\n",th->thread_index, th->nb_packets);
 			}
 
 			//update new position of ring's tail
