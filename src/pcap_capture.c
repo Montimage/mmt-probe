@@ -30,6 +30,7 @@ int push, stop; /* flags for inter-thread communication */
 sec_wrapper_t * security2_single_thread = NULL;
 
 void clean_up_security2(mmt_probe_struct_t * mmt_probe){
+        printf("here_sec3-----end\n");
 	if( mmt_probe->mmt_conf->security2_enable){
 		//get number of packets being processed by security
 		uint64_t msg_count  = security2_single_thread->msg_count;
@@ -45,7 +46,8 @@ sec_wrapper_t * init_security2(void * arg, sec_wrapper_t * security2, long avail
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	int i = 0;
 
-	th->security2_lcore_id = (probe_context->thread_nb + 1) + th->thread_index * probe_context->security2_threads_count;
+	if (probe_context->thread_nb == 1 )th->security2_lcore_id = (probe_context->thread_nb) + th->thread_index * probe_context->security2_threads_count;
+            else  th->security2_lcore_id = (probe_context->thread_nb + 1) + th->thread_index * probe_context->security2_threads_count;
 
 	if ((th->security2_lcore_id + probe_context->security2_threads_count) > get_number_of_online_processors()){
 
@@ -111,7 +113,7 @@ sec_wrapper_t * update_runtime_conf(void * arg, sec_wrapper_t * security2, long 
 		if (security2 == NULL){ security2 = init_security2(th, security2, avail_processors);
 		printf("thread_id_smp=%u\n", th->thread_index);
 		}
-		if (probe_context->security2_add_rules_enable  && th->thread_index == 1){
+		if (probe_context->security2_add_rules_enable  && th->thread_index == 0){
 
 			size_t new_rules =  mmt_sec_add_rules(probe_context->security2_add_rules);
 			printf("new_rules123= %zu \n", new_rules);
@@ -126,7 +128,7 @@ sec_wrapper_t * update_runtime_conf(void * arg, sec_wrapper_t * security2, long 
 			    }
                         }
 		}
-		if (probe_context->security2_remove_rules_enable  && probe_context->security2_count_rule_remove != 0 && th->thread_index == 1){
+		if (probe_context->security2_remove_rules_enable  && probe_context->security2_count_rule_remove != 0 && th->thread_index == 0){
 
 			count = mmt_sec_remove_rules(probe_context->security2_count_rule_remove, probe_context->remove_rules_array);
 			printf ("removed %zu rules", count);
@@ -367,6 +369,7 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 
 		//security2
 
+
 		if( mmt_probe->mmt_conf->security2_enable ){
 			mmt_probe->smp_threads->security2_lcore_id = (mmt_probe->mmt_conf->thread_nb) + mmt_probe->smp_threads->thread_index * mmt_probe->mmt_conf->security2_threads_count;
 
@@ -517,12 +520,15 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 	header.caplen = pkthdr->caplen;
 	header.len = pkthdr->len;
 	header.user_args = NULL;
+        //sec_wrapper_t * security2 = NULL;
 
 
 	//printf("output to file = %u\n",mmt_probe->mmt_conf->output_to_file_enable);
 	if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
-		if (atomic_load (config_updated) == 1){
-			if (atomic_load (event_report_flag) == 1) event_reports_init ((void *) mmt_probe->smp_threads);
+		if (atomic_load (&mmt_probe->smp_threads->config_updated) == 1){
+                    security2_single_thread =  update_runtime_conf(mmt_probe->smp_threads, security2_single_thread, mmt_probe->mmt_conf->avail_processors);
+
+/*			if (atomic_load (event_report_flag) == 1) event_reports_init ((void *) mmt_probe->smp_threads);
 			if (atomic_load (condition_report_flag) == 1)conditional_reports_init((void *) mmt_probe->smp_threads);// initialize our condition reports
 
 			if (atomic_load (session_report_flag) == 1 && mmt_probe->mmt_conf->enable_session_report == 1){
@@ -544,7 +550,7 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 			if (atomic_load (ftp_reconstruct_flag) == 1) mmt_probe->mmt_conf->ftp_reconstruct_enable = 1;
 
 
-			atomic_store(config_updated, 0);
+			atomic_store(config_updated, 0);*/
 		}
 		mmt_probe->smp_threads->report_counter++;
 		mmt_probe->smp_threads->last_stat_report_time = time(NULL);
@@ -558,13 +564,12 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 	}
 
 	nb_packets_processed_by_mmt ++;
-	//	printf("nb_packet_processed = %lu\n ",nb_packets_processed_by_mmt);
+	printf("nb_packet_processed = %lu\n ",nb_packets_processed_by_mmt);
 }
 
 /* This function is for online multi-thread mode.
  * It  dispatches the packet to one of the thread queues for processing.
- * */
-void got_packet_multi_thread(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *data) {
+ * */void got_packet_multi_thread(u_char *args, const struct pcap_pkthdr *pkthdr, const u_char *data) {
 	struct smp_thread *th;
 	uint32_t p_hash = 0;
 	void *pdata;
@@ -608,9 +613,9 @@ void *Reader(void *arg) {
 	//int num_packets = 1000000; /* number of packets to capture */
 	int i = 0;
 
-	long avail_processors;
+	//long avail_processors;
 
-	avail_processors = get_number_of_online_processors();
+	mmt_probe->mmt_conf->avail_processors = get_number_of_online_processors();
 
 	(void) move_the_current_thread_to_a_core(0, -15);
 
@@ -671,7 +676,7 @@ void *Reader(void *arg) {
 		mmt_probe->smp_threads->security2_lcore_id = (mmt_probe->mmt_conf->thread_nb) + mmt_probe->smp_threads->thread_index * mmt_probe->mmt_conf->security2_threads_count;
 
 		if ((mmt_probe->smp_threads->security2_lcore_id + mmt_probe->mmt_conf->security2_threads_count) > get_number_of_online_processors()){
-			mmt_probe->smp_threads->security2_lcore_id = mmt_probe->smp_threads->thread_index % avail_processors + 1;
+			mmt_probe->smp_threads->security2_lcore_id = mmt_probe->smp_threads->thread_index % mmt_probe->mmt_conf->avail_processors + 1;
 		}
 
 		//lcore_id on which security2 will run
@@ -700,22 +705,6 @@ void *Reader(void *arg) {
 						mmt_probe->smp_threads );
 
 		free( sec_cores_mask );
-		char newrule[20] = "(1:6,7,16,26)";
-		size_t new_rules =  mmt_sec_add_rules(newrule);
-		printf("new_rules=%zu\n",new_rules);
-
-		size_t proto_atts_count, l;
-		proto_attribute_t const*const* proto_atts;
-		proto_atts_count = mmt_sec_get_unique_protocol_attributes(& proto_atts);
-		printf ("number of unique attr = %zu\n", proto_atts_count );
-
-		for (l = 0; l < proto_atts_count; l++){
-			printf ("attributes: %s.%s (%d.%d) \n",proto_atts[l]->proto, proto_atts[l]->att, proto_atts[l]->proto_id, proto_atts[l]->att_id);
-		}
-
-		uint32_t rm_rules_arr[]= {1,2,3,4};
-		size_t count = mmt_sec_remove_rules (4, rm_rules_arr);
-		printf("removed rules = %zu\n", count);
 
 	}
 	//security2

@@ -424,6 +424,7 @@ typedef struct mmt_probe_context_struct {
         sr_session_ctx_t *session;
         sr_subscription_ctx_t *subscription;
         int load_enable;
+        long avail_processors;
 } mmt_probe_context_t;
 
 typedef struct microsessions_stats_struct {

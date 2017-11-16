@@ -567,14 +567,14 @@ void config_security2_report(sr_session_ctx_t * session, sr_val_t * value, struc
 
 	//////////////////config_updated/////////////////
 	if (enable_security2_report == 0) return;
-	if (probe_context->thread_nb == 1) atomic_store (security2_report_flag, 1);
-	else {
+	//if (probe_context->thread_nb == 1) atomic_store (security2_report_flag, 1);
+	//else {
 		if (mmt_probe->smp_threads != NULL){
 			for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
 				atomic_store (&mmt_probe->smp_threads[m].security2_report_flag, 1);
 			}
 		}
-	}
+	//}
 	probe_context->security2_enable = enable_security2_report;
 	rc = sr_get_item(session, "/dynamic-mmt-probe:security2-report/thread_count", &value);
 	if (SR_ERR_OK == rc) {
@@ -996,7 +996,8 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
                 sr_free_val(value);
         }
 	 */
-	config_event_report (session, value, mmt_probe);
+        config_security2_report (session, value,mmt_probe);
+/*	config_event_report (session, value, mmt_probe);
 	config_session_report (session, value,mmt_probe);
 	config_security2_report (session, value,mmt_probe);
 	config_behaviour (session, value,mmt_probe);
@@ -1011,7 +1012,6 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
 	config_condition_report (session, value, mmt_probe);
 
 	///////////config_updated///////////////////
-	//  atomic_store (config_updated, 1);
 	if (mmt_probe->mmt_conf->thread_nb == 1)atomic_store (config_updated, 1);
 	else {
 		if (mmt_probe->smp_threads != NULL){
@@ -1020,7 +1020,16 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
 				printf ("here_config....\n");
 			}
 		}
-	}
+	}*/
+
+        if (mmt_probe->smp_threads != NULL){
+            for (i = 0; i< mmt_probe->mmt_conf->thread_nb; i++){
+                atomic_store (&mmt_probe->smp_threads[i].config_updated, 1);
+                printf ("here_config....\n");
+            }
+        }
+
+
 	/////////////////////////
 	rc = sr_get_item(session, "/dynamic-mmt-probe:probe-operation/operation", &value);
 	if (SR_ERR_OK == rc) {
@@ -1049,7 +1058,7 @@ int mmt_config_change_cb(sr_session_ctx_t *session, const char *module_name, sr_
 	//if (mmt_probe->mmt_conf->load_enable == 1) return SR_ERR_OK;
 
 
-	if (mmt_probe->mmt_conf->thread_nb == 1){
+/*	if (mmt_probe->mmt_conf->thread_nb == 1){
 		if(atomic_load (config_updated) == 1) return SR_ERR_OK;
 	}
 	else {
@@ -1060,7 +1069,13 @@ int mmt_config_change_cb(sr_session_ctx_t *session, const char *module_name, sr_
 			}
 		}
 	}
-
+*/
+        if (mmt_probe->smp_threads != NULL){
+            for (i = 0; i< mmt_probe->mmt_conf->thread_nb; i++){
+                if (atomic_load (&mmt_probe->smp_threads[i].config_updated) == 1) return SR_ERR_OK;
+                printf ("here_config....\n");
+            }
+        }
 
 
 	printf("\n\n========== MMT-probe CONFIG HAS CHANGED_START ==========\n\n");
