@@ -102,7 +102,6 @@ sec_wrapper_t * update_runtime_conf(void * arg, sec_wrapper_t * security2, long 
 		flowstruct_init(th); // initialize our event handler
 		if (probe_context->condition_based_reporting_enable == 1)conditional_reports_init(th);// initialize our condition reports
 		if (probe_context->radius_enable == 1)radius_ext_init(th); // initialize radius extraction and attribute event handler
-		//                printf ("thread_id_in_the_smp_loop = %u \n",th->thread_index);
 		atomic_store (&th->session_report_flag, 0);
 	}else {
 		flowstruct_uninit(th);
@@ -527,30 +526,6 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 	if(time(NULL)- mmt_probe->smp_threads->last_stat_report_time >= mmt_probe->mmt_conf->stats_reporting_period){
 		if (atomic_load (&mmt_probe->smp_threads->config_updated) == 1){
                     security2_single_thread =  update_runtime_conf(mmt_probe->smp_threads, security2_single_thread, mmt_probe->mmt_conf->avail_processors);
-
-/*			if (atomic_load (event_report_flag) == 1) event_reports_init ((void *) mmt_probe->smp_threads);
-			if (atomic_load (condition_report_flag) == 1)conditional_reports_init((void *) mmt_probe->smp_threads);// initialize our condition reports
-
-			if (atomic_load (session_report_flag) == 1 && mmt_probe->mmt_conf->enable_session_report == 1){
-				register_session_timer_handler(mmt_probe->smp_threads->mmt_handler, print_ip_session_report, (void *) mmt_probe->smp_threads);
-				register_session_timeout_handler(mmt_probe->smp_threads->mmt_handler, classification_expiry_session, (void *) mmt_probe->smp_threads);
-				flowstruct_uninit((void *)mmt_probe->smp_threads); // initialize our event handler
-
-				flowstruct_init((void *)mmt_probe->smp_threads); // initialize our event handler
-				if(mmt_probe->mmt_conf->condition_based_reporting_enable == 1)conditional_reports_init((void *)mmt_probe->smp_threads);// initialize our conditional reports
-				if(mmt_probe->mmt_conf->radius_enable == 1)radius_ext_init((void *)mmt_probe->smp_threads); // initialize radius extraction and attribute event handler
-
-				atomic_store(session_report_flag, 0);
-			}else{
-				flowstruct_uninit((void *)mmt_probe->smp_threads); // initialize our event handler
-				atomic_store(session_report_flag, 0);
-
-			}
-			if (atomic_load (behaviour_flag) == 1) mmt_probe->mmt_conf->behaviour_enable = 1;
-			if (atomic_load (ftp_reconstruct_flag) == 1) mmt_probe->mmt_conf->ftp_reconstruct_enable = 1;
-
-
-			atomic_store(config_updated, 0);*/
 		}
 		mmt_probe->smp_threads->report_counter++;
 		mmt_probe->smp_threads->last_stat_report_time = time(NULL);
@@ -813,15 +788,6 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 			mmt_log(mmt_probe->mmt_conf, MMT_L_ERROR, MMT_E_INIT_ERROR, "MMT Extraction handler initialization error! Exiting!");
 			return EXIT_FAILURE;
 		}
-
-
-		//    while (mmt_probe->mmt_conf->event_reports != NULL){
-		//      printf ("enable___pcap...................\n");
-		//    mmt_probe->mmt_conf->event_reports = mmt_probe->mmt_conf->event_reports->next;
-		//}
-
-
-
 
 
 		//mmt_probe->iprobe.instance_id = 0;

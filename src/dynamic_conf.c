@@ -988,8 +988,7 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
                 sr_free_val(value);
         }
 	 */
-	config_security2_report (session, value,mmt_probe);
-	/*	config_event_report (session, value, mmt_probe);
+	config_event_report (session, value, mmt_probe);
 	config_session_report (session, value,mmt_probe);
 	config_security2_report (session, value,mmt_probe);
 	config_behaviour (session, value,mmt_probe);
@@ -1004,7 +1003,7 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
 	config_condition_report (session, value, mmt_probe);
 
 	///////////config_updated///////////////////
-	 */
+	
 
 	if (mmt_probe->smp_threads != NULL){
 		for (i = 0; i< mmt_probe->mmt_conf->thread_nb; i++){
