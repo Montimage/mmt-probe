@@ -22,7 +22,7 @@ void event_report_handle(const ipacket_t * ipacket, attribute_t * attribute, voi
 	struct smp_thread *th = (struct smp_thread *) p->smp_thread;
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	mmt_event_report_t * event_report   = p->event_reports; //(mmt_event_report_t *) user_args;
-        if (atomic_load (event_report_flag) == 1 || atomic_load(&th->event_report_flag)==1 ) {
+        if (atomic_load(&th->event_report_flag)==1 ) {
             return;
         } 
 
@@ -214,7 +214,6 @@ void event_reports_init(void * args) {
             current = current->next;
 	}
         if (probe_context->event_reports_nb > 0){
-	    atomic_store (event_report_flag, 0);
             atomic_store (&th->event_report_flag, 0);
         }
         

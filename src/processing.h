@@ -59,16 +59,18 @@ time_t update_reporting_time;
 static int is_stop_timer;
 //int do_abort;
 //pcap_t *handle = 0;
-volatile uint8_t * event_report_flag;
-volatile uint8_t * condition_report_flag;
-volatile uint8_t * session_report_flag;
-volatile uint8_t * config_updated;
+
 static struct mmt_probe_struct mmt_probe;
-volatile uint8_t * security2_report_flag;
+/*
 volatile uint8_t * do_abort;
 volatile uint8_t * behaviour_flag;
 volatile uint8_t * ftp_reconstruct_flag;
 volatile uint8_t * micro_flows_flag;
+volatile uint8_t * event_report_flag;
+volatile uint8_t * condition_report_flag;
+volatile uint8_t * session_report_flag;
+volatile uint8_t * config_updated;
+volatile uint8_t * security2_report_flag;*/
 enum os_id {
 	OS_UKN, //Unknown
 	OS_WIN, //Windows

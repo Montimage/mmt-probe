@@ -196,7 +196,6 @@ void conditional_reports_init(void * args) {
             current = current->next;
 	}
     if (probe_context->condition_reports_nb > 0){
-       atomic_store(condition_report_flag, 0);
        atomic_store(&th->condition_report_flag, 0);
     }
 

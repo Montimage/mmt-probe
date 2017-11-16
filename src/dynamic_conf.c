@@ -109,12 +109,9 @@ void config_event_report (sr_session_ctx_t * session, sr_val_t * value, struct m
 
 	//////////////////config_updated/////////////////
 	if (probe_context->event_reports_nb == 0) return;
-	if (mmt_probe->mmt_conf->thread_nb == 1) atomic_store (event_report_flag, 1);
-	else {
-		if (mmt_probe->smp_threads != NULL){
-			for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
-				atomic_store (&mmt_probe->smp_threads[m].event_report_flag, 1);
-			}
+	if (mmt_probe->smp_threads != NULL){
+		for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
+			atomic_store (&mmt_probe->smp_threads[m].event_report_flag, 1);
 		}
 	}
 	/////////////////////////
@@ -258,14 +255,13 @@ void config_condition_report (sr_session_ctx_t * session, sr_val_t * value, stru
 
 	//////////////////config_updated/////////////////
 	if (probe_context->condition_reports_nb == 0) return;
-	if (mmt_probe->mmt_conf->thread_nb == 1) atomic_store (condition_report_flag, 1);
-	else {
-		if (mmt_probe->smp_threads != NULL){
-			for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
-				atomic_store (&mmt_probe->smp_threads[m].condition_report_flag, 1);
-			}
+
+	if (mmt_probe->smp_threads != NULL){
+		for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
+			atomic_store (&mmt_probe->smp_threads[m].condition_report_flag, 1);
 		}
 	}
+
 	/////////////////////////
 	int j=0, k=0, i= 0;
 	// probe_context->event_reports = NULL;
@@ -500,14 +496,13 @@ void config_session_report(sr_session_ctx_t * session, sr_val_t * value, struct 
 
 	//////////////////config_updated/////////////////
 	if (enable_session_report == 0) return;
-	if (probe_context->thread_nb == 1) atomic_store (session_report_flag, 1);
-	else {
-		if (mmt_probe->smp_threads != NULL){
-			for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
-				atomic_store (&mmt_probe->smp_threads[m].session_report_flag, 1);
-			}
+
+	if (mmt_probe->smp_threads != NULL){
+		for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
+			atomic_store (&mmt_probe->smp_threads[m].session_report_flag, 1);
 		}
 	}
+
 	/////////////////////////
 
 	len = snprintf(message,256,"/dynamic-mmt-probe:session-report/output_to_file");
@@ -567,14 +562,14 @@ void config_security2_report(sr_session_ctx_t * session, sr_val_t * value, struc
 
 	//////////////////config_updated/////////////////
 	if (enable_security2_report == 0) return;
-	//if (probe_context->thread_nb == 1) atomic_store (security2_report_flag, 1);
-	//else {
-		if (mmt_probe->smp_threads != NULL){
-			for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
-				atomic_store (&mmt_probe->smp_threads[m].security2_report_flag, 1);
-			}
+
+	if (mmt_probe->smp_threads != NULL){
+		for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
+			atomic_store (&mmt_probe->smp_threads[m].security2_report_flag, 1);
 		}
-	//}
+	}
+
+	///////////
 	probe_context->security2_enable = enable_security2_report;
 	rc = sr_get_item(session, "/dynamic-mmt-probe:security2-report/thread_count", &value);
 	if (SR_ERR_OK == rc) {
@@ -683,14 +678,13 @@ void config_behaviour(sr_session_ctx_t * session, sr_val_t * value, struct mmt_p
 	}
 
 	if (behaviour_enable == 0)return;
-	if (probe_context->thread_nb == 1) atomic_store (behaviour_flag, 1);
-	else {
-		if (mmt_probe->smp_threads != NULL){
-			for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
-				atomic_store (&mmt_probe->smp_threads[m].behaviour_flag, 1);
-			}
+	////////////config///////////
+	if (mmt_probe->smp_threads != NULL){
+		for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
+			atomic_store (&mmt_probe->smp_threads[m].behaviour_flag, 1);
 		}
 	}
+	//////////config////////////
 
 	rc = sr_get_item(session, "/dynamic-mmt-probe:behaviour/location", &value);
 	if (SR_ERR_OK == rc) {
@@ -725,14 +719,13 @@ void config_ftp_reconstruct(sr_session_ctx_t * session, sr_val_t * value, struct
 
 	}
 	if (ftp_reconstruct == 0)return;
-	if (probe_context->thread_nb == 1) atomic_store (ftp_reconstruct_flag, 1);
-	else {
-		if (mmt_probe->smp_threads != NULL){
-			for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
-				atomic_store (&mmt_probe->smp_threads[m].ftp_reconstruct_flag, 1);
-			}
+	////////config//////
+	if (mmt_probe->smp_threads != NULL){
+		for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
+			atomic_store (&mmt_probe->smp_threads[m].ftp_reconstruct_flag, 1);
 		}
 	}
+	////////config/////////
 
 
 	rc = sr_get_item(session, "/dynamic-mmt-probe:ftp-reconstruct/location", &value);
@@ -794,14 +787,13 @@ void config_micro_flows(sr_session_ctx_t * session, sr_val_t * value, struct mmt
 
 	}
 	if (micro_flows == 0)return;
-	if (probe_context->thread_nb == 1) atomic_store (micro_flows_flag, 1);
-	else {
-		if (mmt_probe->smp_threads != NULL){
-			for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
-				atomic_store (&mmt_probe->smp_threads[m].micro_flows_flag, 1);
-			}
+	//////config//////
+	if (mmt_probe->smp_threads != NULL){
+		for (m = 0; m < mmt_probe->mmt_conf->thread_nb; m++){
+			atomic_store (&mmt_probe->smp_threads[m].micro_flows_flag, 1);
 		}
 	}
+	/////config/////
 
 	rc = sr_get_item(session, "/dynamic-mmt-probe:micro-flows/include_packet_count", &value);
 	if (SR_ERR_OK == rc) {
@@ -996,8 +988,8 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
                 sr_free_val(value);
         }
 	 */
-        config_security2_report (session, value,mmt_probe);
-/*	config_event_report (session, value, mmt_probe);
+	config_security2_report (session, value,mmt_probe);
+	/*	config_event_report (session, value, mmt_probe);
 	config_session_report (session, value,mmt_probe);
 	config_security2_report (session, value,mmt_probe);
 	config_behaviour (session, value,mmt_probe);
@@ -1012,22 +1004,14 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
 	config_condition_report (session, value, mmt_probe);
 
 	///////////config_updated///////////////////
-	if (mmt_probe->mmt_conf->thread_nb == 1)atomic_store (config_updated, 1);
-	else {
-		if (mmt_probe->smp_threads != NULL){
-			for (i = 0; i< mmt_probe->mmt_conf->thread_nb; i++){
-				atomic_store (&mmt_probe->smp_threads[i].config_updated, 1);
-				printf ("here_config....\n");
-			}
-		}
-	}*/
+	 */
 
-        if (mmt_probe->smp_threads != NULL){
-            for (i = 0; i< mmt_probe->mmt_conf->thread_nb; i++){
-                atomic_store (&mmt_probe->smp_threads[i].config_updated, 1);
-                printf ("here_config....\n");
-            }
-        }
+	if (mmt_probe->smp_threads != NULL){
+		for (i = 0; i< mmt_probe->mmt_conf->thread_nb; i++){
+			atomic_store (&mmt_probe->smp_threads[i].config_updated, 1);
+			printf ("here_config....\n");
+		}
+	}
 
 
 	/////////////////////////
@@ -1055,21 +1039,7 @@ int mmt_config_change_cb(sr_session_ctx_t *session, const char *module_name, sr_
 	//        mmt_probe_context_t * probe_context = get_probe_context_config();
 
 	struct mmt_probe_struct * mmt_probe = (struct mmt_probe_struct *) private_ctx;
-	//if (mmt_probe->mmt_conf->load_enable == 1) return SR_ERR_OK;
 
-
-/*	if (mmt_probe->mmt_conf->thread_nb == 1){
-		if(atomic_load (config_updated) == 1) return SR_ERR_OK;
-	}
-	else {
-		if (mmt_probe->smp_threads != NULL){
-			for (i = 0; i< mmt_probe->mmt_conf->thread_nb; i++){
-				if (atomic_load (&mmt_probe->smp_threads[i].config_updated) == 1)return SR_ERR_OK;
-				printf ("here_config....\n");
-			}
-		}
-	}
-*/
         if (mmt_probe->smp_threads != NULL){
             for (i = 0; i< mmt_probe->mmt_conf->thread_nb; i++){
                 if (atomic_load (&mmt_probe->smp_threads[i].config_updated) == 1) return SR_ERR_OK;

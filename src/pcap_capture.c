@@ -843,7 +843,7 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 			flowstruct_init((void *)mmt_probe->smp_threads); // initialize our event handler
 			if(mmt_probe->mmt_conf->condition_based_reporting_enable == 1)conditional_reports_init((void *)mmt_probe->smp_threads);// initialize our conditional reports
 			if(mmt_probe->mmt_conf->radius_enable == 1)radius_ext_init((void *)mmt_probe->smp_threads); // initialize radius extraction and attribute event handler
-			atomic_store (session_report_flag, 0);
+			atomic_store (&mmt_probe->smp_threads->session_report_flag, 0);
 		}
 		set_default_session_timed_out(mmt_probe->smp_threads->mmt_handler, mmt_probe->mmt_conf->default_session_timeout);
 		set_long_session_timed_out(mmt_probe->smp_threads->mmt_handler, mmt_probe->mmt_conf->long_session_timeout);
@@ -861,7 +861,7 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 		//initialisation of multisession report
 
 		mmt_log(mmt_probe->mmt_conf, MMT_L_INFO, MMT_E_STARTED, "MMT Extraction engine! successfully initialized in a single threaded operation.");
-		atomic_store (config_updated, 0);
+		atomic_store (&mmt_probe->smp_threads->config_updated, 0);
 	} else {
 		//Multiple threads for processing the packets
 		/*
