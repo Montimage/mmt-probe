@@ -50,6 +50,7 @@ void init_redis (char * hostname, int port) {
 void send_message_to_redis (char *channel, char * message) {
 	// Publish to redis if it is enabled
 	mmt_probe_context_t * probe_context = get_probe_context_config();
+         printf("message=%s\n",message);
 	if (redis != NULL) {
 		// Publish an event
 		redisReply *reply;

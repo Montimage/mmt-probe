@@ -733,7 +733,7 @@ void cleanup(int signo, mmt_probe_struct_t * mmt_probe) {
 			(void) fprintf(stderr, "pcap_stats: %s\n", pcap_geterr(handle));
 		} else got_stats = 1;
 
-		/*	if (ignored > 0) {
+		if (ignored > 0) {
 			fprintf(stderr, "%d packets ignored (too small to decapsulate)\n", ignored);
 		}
 		if (got_stats) {
@@ -749,7 +749,7 @@ void cleanup(int signo, mmt_probe_struct_t * mmt_probe) {
 			for (i = 0; i < mmt_conf->thread_nb; i++)
 				(void) fprintf( stderr, "- thread %2d processed %12"PRIu64" packets, dropped %12"PRIu64"\n",
 						mmt_probe->smp_threads[i].thread_index, mmt_probe->smp_threads[i].nb_packets, mmt_probe->smp_threads[i].nb_dropped_packets );
-//		fflush(stderr);*/
+		fflush(stderr);
 #ifdef RHEL3
 		pcap_close(handle);
 #endif /* RHEL3 */

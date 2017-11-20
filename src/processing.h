@@ -61,16 +61,7 @@ static int is_stop_timer;
 //pcap_t *handle = 0;
 
 static struct mmt_probe_struct mmt_probe;
-/*
 volatile uint8_t * do_abort;
-volatile uint8_t * behaviour_flag;
-volatile uint8_t * ftp_reconstruct_flag;
-volatile uint8_t * micro_flows_flag;
-volatile uint8_t * event_report_flag;
-volatile uint8_t * condition_report_flag;
-volatile uint8_t * session_report_flag;
-volatile uint8_t * config_updated;
-volatile uint8_t * security2_report_flag;*/
 enum os_id {
 	OS_UKN, //Unknown
 	OS_WIN, //Windows
@@ -414,7 +405,7 @@ typedef struct mmt_probe_context_struct {
         char security2_add_rules[1000];
         char security2_remove_rules[1000];
         int security2_count_rule_remove;
-        int remove_rules_array[1000];
+        uint32_t remove_rules_array[1000];
         int security2_add_rules_enable;
         int security2_remove_rules_enable;
 	//number of threads of security2 per one thread of probe
