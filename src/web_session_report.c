@@ -110,7 +110,13 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 		}
 		if (temp_session->session_attr == NULL) {
 			temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
-			memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+			if (temp_session->session_attr != NULL){
+				memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+			}else {
+				mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session->session_attr context");
+				fprintf(stderr, "Out of memory error when creating temp_session->session_attr data structure!\n");
+				return;
+			}
 		}
 		if (probe_context->web_enable == 1){
 			if (((web_session_attr_t *) temp_session->app_data)->touched == 0){
@@ -298,7 +304,13 @@ void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void
 			if (((web_session_attr_t *) temp_session->app_data)->state_http_request_response != 0)((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;
 			if (temp_session->session_attr == NULL) {
 				temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
-				memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+				if (temp_session->session_attr != NULL) {
+					memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+				} else {
+					mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session->session_attr context");
+					fprintf(stderr, "Out of memory error when creating temp_session->session_attr data structure!\n");
+					return;
+				}
 			}
 			temp_session->session_attr->last_activity_time.tv_sec =0;
 			temp_session->session_attr->last_activity_time.tv_usec =0;

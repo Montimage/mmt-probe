@@ -133,31 +133,36 @@ void * smp_thread_routine(void *arg) {
 
 		//lcore_id on which security2 will run
 		uint32_t *sec_cores_mask = malloc( sizeof( uint32_t ) * probe_context->security2_threads_count );
-
-		int k = 1;
-		for( i=0; i < probe_context->security2_threads_count; i++ ){
-			if (th->security2_lcore_id + i >= get_number_of_online_processors()){
-				th->security2_lcore_id = k++;
-				if (k == get_number_of_online_processors()) k = 1;
-				sec_cores_mask[ i ] = th->security2_lcore_id;
-			}else {
-				sec_cores_mask[ i ] = th->security2_lcore_id + i;
+		if (sec_cores_mask != NULL){
+			int k = 1;
+			for( i=0; i < probe_context->security2_threads_count; i++ ){
+				if (th->security2_lcore_id + i >= get_number_of_online_processors()){
+					th->security2_lcore_id = k++;
+					if (k == get_number_of_online_processors()) k = 1;
+					sec_cores_mask[ i ] = th->security2_lcore_id;
+				}else {
+					sec_cores_mask[ i ] = th->security2_lcore_id + i;
+				}
 			}
+
+			//th->security2_alerts_output_count = 0;
+			security2 = register_security( th->mmt_handler,
+					probe_context->security2_threads_count,
+					sec_cores_mask, probe_context->security2_rules_mask,
+					th->thread_index == 0,//false, //true,
+					//this callback will be called from one or many different threads (depending on #security2_threads_count)
+					//print verdict only if output to file or redis is enable
+					( probe_context->output_to_file_enable && probe_context->security2_output_channel[0] )
+					|| ( probe_context->redis_enable &&  probe_context->security2_output_channel[1] )
+					|| ( probe_context->kafka_enable &&  probe_context->security2_output_channel[2] ) ? security_print_verdict : NULL,th
+			);
+
+			free( sec_cores_mask );
+		} else {
+			mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating sec_cores_mask context");
+			fprintf(stderr, "Out of memory error when creating sec_cores_mask data structure!\n");
+			exit(0);
 		}
-
-		//th->security2_alerts_output_count = 0;
-		security2 = register_security( th->mmt_handler,
-				probe_context->security2_threads_count,
-				sec_cores_mask, probe_context->security2_rules_mask,
-				th->thread_index == 0,//false, //true,
-				//this callback will be called from one or many different threads (depending on #security2_threads_count)
-				//print verdict only if output to file or redis is enable
-				( probe_context->output_to_file_enable && probe_context->security2_output_channel[0] )
-				|| ( probe_context->redis_enable &&  probe_context->security2_output_channel[1] )
-				|| ( probe_context->kafka_enable &&  probe_context->security2_output_channel[2] ) ? security_print_verdict : NULL,th
-		);
-
-		free( sec_cores_mask );
 	}
 
 
@@ -296,30 +301,36 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 
 			//lcore_id on which security2 will run
 			uint32_t *sec_cores_mask = malloc( sizeof( uint32_t ) * mmt_probe->mmt_conf->security2_threads_count );
-			int k = 1;
-			for( i=0; i < mmt_probe->mmt_conf->security2_threads_count; i++ ){
-				if (mmt_probe->smp_threads->security2_lcore_id + i >= get_number_of_online_processors()){
-					mmt_probe->smp_threads->security2_lcore_id = k++;
-					if (k == get_number_of_online_processors()) k = 1;
-					sec_cores_mask[ i ] = mmt_probe->smp_threads->security2_lcore_id;
-				}else {
-					sec_cores_mask[ i ] = mmt_probe->smp_threads->security2_lcore_id + i;
+			if (sec_cores_mask != NULL){
+				int k = 1;
+				for( i=0; i < mmt_probe->mmt_conf->security2_threads_count; i++ ){
+					if (mmt_probe->smp_threads->security2_lcore_id + i >= get_number_of_online_processors()){
+						mmt_probe->smp_threads->security2_lcore_id = k++;
+						if (k == get_number_of_online_processors()) k = 1;
+						sec_cores_mask[ i ] = mmt_probe->smp_threads->security2_lcore_id;
+					}else {
+						sec_cores_mask[ i ] = mmt_probe->smp_threads->security2_lcore_id + i;
+					}
 				}
+
+				//mmt_probe->smp_threads->security2_alerts_output_count = 0;
+				security2_single_thread = register_security( mmt_probe->smp_threads->mmt_handler,
+						mmt_probe->mmt_conf->security2_threads_count,
+						sec_cores_mask, mmt_probe->mmt_conf->security2_rules_mask,
+						mmt_probe->smp_threads->thread_index == 0,//false, //true,
+						//this callback will be called from one or many different threads (depending on #security2_threads_count)
+						//print verdict only if output to file or redis is enable
+						( mmt_probe->mmt_conf->output_to_file_enable && mmt_probe->mmt_conf->security2_output_channel[0] )
+						|| ( mmt_probe->mmt_conf->redis_enable &&  mmt_probe->mmt_conf->security2_output_channel[1] )
+						|| ( mmt_probe->mmt_conf->kafka_enable &&  mmt_probe->mmt_conf->security2_output_channel[2] ) ? security_print_verdict : NULL,
+								mmt_probe->smp_threads );
+
+				free( sec_cores_mask );
+			}else {
+				mmt_log(mmt_probe->mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating sec_cores_mask context");
+				fprintf(stderr, "Out of memory error when creating sec_cores_mask data structure!\n");
+				exit(0);
 			}
-
-			//mmt_probe->smp_threads->security2_alerts_output_count = 0;
-			security2_single_thread = register_security( mmt_probe->smp_threads->mmt_handler,
-					mmt_probe->mmt_conf->security2_threads_count,
-					sec_cores_mask, mmt_probe->mmt_conf->security2_rules_mask,
-					mmt_probe->smp_threads->thread_index == 0,//false, //true,
-					//this callback will be called from one or many different threads (depending on #security2_threads_count)
-					//print verdict only if output to file or redis is enable
-					( mmt_probe->mmt_conf->output_to_file_enable && mmt_probe->mmt_conf->security2_output_channel[0] )
-					|| ( mmt_probe->mmt_conf->redis_enable &&  mmt_probe->mmt_conf->security2_output_channel[1] )
-					|| ( mmt_probe->mmt_conf->kafka_enable &&  mmt_probe->mmt_conf->security2_output_channel[2] ) ? security_print_verdict : NULL,
-							mmt_probe->smp_threads );
-
-			free( sec_cores_mask );
 		}
 
 		//security2
@@ -367,7 +378,7 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 		pcap = pcap_open_offline(filename, errbuf); // open offline trace
 
 		if (!pcap) { /* pcap error ?*/
-			sprintf(lg_msg, "Error while opening pcap file: %s --- error msg: %s", filename, errbuf);
+			sprintf(lg_msg, "Error while opening EXIT_FAILUREpcap file: %s --- error msg: %s", filename, errbuf);
 			printf("Error: Verify the name and the location of the trace file to be analysed \n ");
 			mmt_log(mmt_probe->mmt_conf, MMT_L_ERROR, MMT_P_TRACE_ERROR, lg_msg);
 			return;
@@ -569,30 +580,36 @@ void *Reader(void *arg) {
 
 		//lcore_id on which security2 will run
 		uint32_t *sec_cores_mask = malloc( sizeof( uint32_t ) * mmt_probe->mmt_conf->security2_threads_count );
-		int k = 1;
-		for( i=0; i < mmt_probe->mmt_conf->security2_threads_count; i++ ){
-			if (mmt_probe->smp_threads->security2_lcore_id + i >= get_number_of_online_processors()){
-				mmt_probe->smp_threads->security2_lcore_id = k++;
-				if (k == get_number_of_online_processors()) k = 1;
-				sec_cores_mask[ i ] = mmt_probe->smp_threads->security2_lcore_id;
-			}else {
-				sec_cores_mask[ i ] = mmt_probe->smp_threads->security2_lcore_id + i;
+		if (sec_cores_mask != NULL){
+			int k = 1;
+			for( i=0; i < mmt_probe->mmt_conf->security2_threads_count; i++ ){
+				if (mmt_probe->smp_threads->security2_lcore_id + i >= get_number_of_online_processors()){
+					mmt_probe->smp_threads->security2_lcore_id = k++;
+					if (k == get_number_of_online_processors()) k = 1;
+					sec_cores_mask[ i ] = mmt_probe->smp_threads->security2_lcore_id;
+				}else {
+					sec_cores_mask[ i ] = mmt_probe->smp_threads->security2_lcore_id + i;
+				}
 			}
+
+			//mmt_probe->smp_threads->security2_alerts_output_count = 0;
+			security2_single_thread = register_security( mmt_probe->smp_threads->mmt_handler,
+					mmt_probe->mmt_conf->security2_threads_count,
+					sec_cores_mask, mmt_probe->mmt_conf->security2_rules_mask,
+					mmt_probe->smp_threads->thread_index == 0,//false, //true,
+					//this callback will be called from one or many different threads (depending on #security2_threads_count)
+					//print verdict only if output to file or redis or kafka is enable
+					( mmt_probe->mmt_conf->output_to_file_enable && mmt_probe->mmt_conf->security2_output_channel[0] )
+					|| ( mmt_probe->mmt_conf->redis_enable &&  mmt_probe->mmt_conf->security2_output_channel[1] )
+					|| ( mmt_probe->mmt_conf->kafka_enable &&  mmt_probe->mmt_conf->security2_output_channel[2] ) ? security_print_verdict : NULL,
+							mmt_probe->smp_threads );
+
+			free( sec_cores_mask );
+		}else {
+			mmt_log(mmt_probe->mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating sec_cores_mask context");
+			fprintf(stderr, "Out of memory error when creating sec_cores_mask data structure!\n");
+			exit(0);
 		}
-
-		//mmt_probe->smp_threads->security2_alerts_output_count = 0;
-		security2_single_thread = register_security( mmt_probe->smp_threads->mmt_handler,
-				mmt_probe->mmt_conf->security2_threads_count,
-				sec_cores_mask, mmt_probe->mmt_conf->security2_rules_mask,
-				mmt_probe->smp_threads->thread_index == 0,//false, //true,
-				//this callback will be called from one or many different threads (depending on #security2_threads_count)
-				//print verdict only if output to file or redis or kafka is enable
-				( mmt_probe->mmt_conf->output_to_file_enable && mmt_probe->mmt_conf->security2_output_channel[0] )
-				|| ( mmt_probe->mmt_conf->redis_enable &&  mmt_probe->mmt_conf->security2_output_channel[1] )
-				|| ( mmt_probe->mmt_conf->kafka_enable &&  mmt_probe->mmt_conf->security2_output_channel[2] ) ? security_print_verdict : NULL,
-						mmt_probe->smp_threads );
-
-		free( sec_cores_mask );
 	}
 	//security2
 
@@ -684,6 +701,11 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 	if (mmt_probe->mmt_conf->thread_nb == 1) {
 		mmt_log(mmt_probe->mmt_conf, MMT_L_INFO, MMT_E_INIT, "Initializating MMT Extraction engine! Single threaded operation.");
 		mmt_probe->smp_threads = (struct smp_thread *) calloc(mmt_probe->mmt_conf->thread_nb,sizeof (struct smp_thread));
+		if (mmt_probe->smp_threads == NULL){
+			mmt_log(mmt_probe->mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating mmt_probe->smp_threads context");
+			fprintf(stderr, "Out of memory error when creating mmt_probe->smp_threads data structure!\n");
+			return EXIT_FAILURE;
+		}
 		mmt_probe->smp_threads->last_stat_report_time = time(0);
 		mmt_probe->smp_threads->pcap_last_stat_report_time = 0;
 		mmt_probe->smp_threads->pcap_current_packet_time = 0;

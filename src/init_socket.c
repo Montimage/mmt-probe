@@ -59,6 +59,11 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 	/*Internet socket*/
 	if (mmt_conf->socket_domain == 1|| mmt_conf->socket_domain == 2){
 		th->sockfd_internet = calloc(sizeof(uint32_t), mmt_conf->server_ip_nb);
+		if (th->sockfd_internet == NULL){
+			mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating th->sockfd_internet context");
+			fprintf(stderr, "Out of memory error when creating th->sockfd_internet data structure!\n");
+			exit(0);
+		}
 
 		for (i = 0; i < mmt_conf->server_ip_nb; i++){
 			th->sockfd_internet[i] = socket(AF_INET, SOCK_STREAM, 0);
@@ -72,7 +77,7 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 			server = gethostbyname(mmt_conf->server_adresses[i].server_ip_address);
 			if (server == NULL) {
 				fprintf(stderr,"ERROR, no such host\n");
-				//exit(0);
+				exit(0);
 			}
 			bzero((char *) &in_serv_addr, sizeof(in_serv_addr));
 			in_serv_addr.sin_family = AF_INET;

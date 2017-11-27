@@ -565,6 +565,11 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					strncpy(protocol, (char *) cfg_getnstr(dump_session, "protocols", j),32);
 					int proto_len = strlen(protocol);
 					mmt_conf->mmt_dump.protocol_name[j] = (char *) malloc((proto_len+1)*sizeof(char));
+					if (mmt_conf->mmt_dump.protocol_name[j] == NULL){
+						mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating mmt_conf->mmt_dump.protocol_name context");
+						fprintf(stderr, "Out of memory error when creating mmt_conf->mmt_dump.protocol_name data structure!\n");
+						exit(0);
+					}
 					strncpy(mmt_conf->mmt_dump.protocol_name[j],protocol,proto_len);
 					mmt_conf->mmt_dump.protocol_name[j][proto_len] = '\0';
 					if(strncmp(protocol,"unknown",7) == 0) {
@@ -646,6 +651,12 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 						strncpy(protocol, (char *) cfg_getnstr(session, "protocols", j),32);
 						int session_proto_len = strlen(protocol);
 						mmt_conf->session_report_proto.protocol_name[j] = (char *) malloc((session_proto_len+1)*sizeof(char));
+						if (mmt_conf->session_report_proto.protocol_name[j] == NULL){
+							mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating mmt_conf->session_report_proto.protocol_name context");
+							fprintf(stderr, "Out of memory error when creating mmt_conf->session_report_proto.protocol_name_name data structure!\n");
+							exit(0);
+						}
+
 						strncpy(mmt_conf->session_report_proto.protocol_name[j],protocol,session_proto_len);
 						mmt_conf->session_report_proto.protocol_name[j][session_proto_len] = '\0';
 						if(strncmp(protocol,"unknown",7) == 0) {
@@ -778,9 +789,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				if (mmt_conf->kafka_enable == 1){
 					int port = (uint32_t) cfg_getint(kafka_output, "port");
 					strncpy(hostname, (char *) cfg_getstr(kafka_output, "hostname"), 256);
-					if (mmt_conf->kafka_enable) {
-						init_kafka(hostname, port);
-					}
+					init_kafka(hostname, port);
 				}
 			}
 		}
@@ -884,9 +893,20 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					mmt_conf->server_port_nb = nb_port_address;
 					if (mmt_conf->one_socket_server == 1){
 						mmt_conf->server_adresses = calloc(sizeof(ip_port_t), nb_server_address);
+						if (mmt_conf->server_adresses == NULL){
+							mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating mmt_conf->server_adresses context");
+							fprintf(stderr, "Out of memory error when creating mmt_conf->server_adresses data structure!\n");
+							exit(0);
+						}
+
 						for(j = 0; j < nb_server_address; j++) {
 							strncpy(mmt_conf->server_adresses[j].server_ip_address, (char *) cfg_getnstr(socket, "server-address", j),18);
 							mmt_conf->server_adresses[j].server_portnb = malloc(sizeof(uint32_t)*1);
+							if (mmt_conf->server_adresses[j].server_portnb == NULL){
+								mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating mmt_conf->server_adresses[j].server_portnb context");
+								fprintf(stderr, "Out of memory error when creating mmt_conf->server_adresses[j].server_portnb data structure!\n");
+								exit(0);
+							}
 							mmt_conf->server_adresses[j].server_portnb[0] = atoi(cfg_getnstr(socket, "port", 0));
 						}
 					}else if (mmt_conf->one_socket_server == 0){
@@ -927,6 +947,11 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			for(j = 0; j < security_reports_nb; j++) {
 				security_report_opts = cfg_getnsec(cfg, "security-report", j);
 				temp_sr = &mmt_conf->security_reports[j];
+				if (temp_sr == NULL){
+					mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_sr context");
+					fprintf(stderr, "Out of memory error when creating temp_sr data structure!\n");
+					exit(0);
+				}
 				temp_sr->enable = (uint32_t) cfg_getint(security_report_opts, "enable");
 
 				if (temp_sr->enable == 1){
@@ -953,6 +978,11 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					temp_sr->attributes_nb = security_attributes_nb;
 					if(security_attributes_nb > 0) {
 						temp_sr->attributes = calloc(sizeof(mmt_security_attribute_t), security_attributes_nb);
+						if (temp_sr->attributes == NULL){
+							mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_sr->attributes context");
+							fprintf(stderr, "Out of memory error when creating temp_sr->attributes data structure!\n");
+							exit(0);
+						}
 						for(i = 0; i < security_attributes_nb; i++) {
 							mmt_conf->total_security_attribute_nb += 1;
 							if (parse_security_dot_proto_attribute(cfg_getnstr(security_report_opts, "attributes", i), &temp_sr->attributes[i])) {
@@ -981,6 +1011,11 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			for(j = 0; j < security_reports_multisession_nb; j++) {
 				security_report_multisession_opts = cfg_getnsec(cfg, "security-report-multisession", j);
 				temp_msr = &mmt_conf->security_reports_multisession[j];
+				if (temp_msr == NULL){
+					mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_msr context");
+					fprintf(stderr, "Out of memory error when creating temp_msr data structure!\n");
+					exit(0);
+				}
 				temp_msr->enable = (uint32_t) cfg_getint(security_report_multisession_opts, "enable");
 
 				if (temp_msr->enable == 1){
@@ -998,6 +1033,12 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					temp_msr->attributes_nb = security_attributes_multisession_nb;
 					if(security_attributes_multisession_nb > 0) {
 						temp_msr->attributes = calloc(sizeof(mmt_security_attribute_t), security_attributes_multisession_nb);
+						if (temp_msr->attributes == NULL){
+							mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_msr->attributes context");
+							fprintf(stderr, "Out of memory error when creating temp_msr->attributes data structure!\n");
+							exit(0);
+						}
+
 						for(i = 0; i < security_attributes_multisession_nb; i++) {
 							mmt_conf->total_security_multisession_attribute_nb += 1;
 							if (parse_security_dot_proto_attribute(cfg_getnstr(security_report_multisession_opts, "attributes", i), &temp_msr->attributes[i])) {
@@ -1027,6 +1068,11 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				event_opts = cfg_getnsec(cfg, "event_report", j);
 				//mmt_conf->event_based_reporting_enable = (uint32_t) cfg_getint(event_opts, "enable");
 				temp_er = & mmt_conf->event_reports[j];
+				if (temp_er == NULL){
+					mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_er context");
+					fprintf(stderr, "Out of memory error when creating temp_er data structure!\n");
+					exit(0);
+				}
 				temp_er->enable = (uint32_t) cfg_getint(event_opts, "enable");
 
 				if (temp_er->enable == 1){
@@ -1050,6 +1096,11 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					temp_er->attributes_nb = event_attributes_nb;
 					if(event_attributes_nb > 0) {
 						temp_er->attributes = calloc(sizeof(mmt_event_attribute_t), event_attributes_nb);
+						if (temp_er->attributes == NULL){
+							mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_er->attributes context");
+							fprintf(stderr, "Out of memory error when creating temp_er->attributes data structure!\n");
+							exit(0);
+						}
 
 						for(i = 0; i < event_attributes_nb; i++) {
 							if (parse_dot_proto_attribute(cfg_getnstr(event_opts, "attributes", i), &temp_er->attributes[i])) {
@@ -1079,6 +1130,12 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 			for(j = 0; j < condition_reports_nb; j++) {
 				condition_opts = cfg_getnsec(cfg, "condition_report", j);
 				temp_condn = & mmt_conf->condition_reports[j];
+				if (temp_condn == NULL){
+					mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_condn context");
+					fprintf(stderr, "Out of memory error when creating temp_condn data structure!\n");
+					exit(0);
+				}
+
 				temp_condn->enable = (uint32_t)cfg_getint(condition_opts, "enable");
 				if (temp_condn->enable == 1){
 					if (parse_condition_attribute((char *) cfg_getstr(condition_opts, "condition"), &temp_condn->condition)) {
@@ -1091,22 +1148,18 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 						strncpy(temp_condn->condition.location, file_location, 256);
 					}
 
-					if(strcmp(temp_condn->condition.condition, "FTP") == 0){
-						if (temp_condn->enable == 1) mmt_conf->ftp_enable = 1;
-						if (temp_condn->enable == 0) mmt_conf->ftp_enable = 0;
-					}
-					if(strcmp(temp_condn->condition.condition, "WEB") == 0){
-						if (temp_condn->enable == 1) mmt_conf->web_enable = 1;
-						if (temp_condn->enable == 0) mmt_conf->web_enable = 0;
-					}
-					if(strcmp(temp_condn->condition.condition, "RTP") == 0){
-						if (temp_condn->enable == 1) mmt_conf->rtp_enable = 1;
-						if (temp_condn->enable == 0) mmt_conf->rtp_enable = 0;
-					}
-					if(strcmp(temp_condn->condition.condition, "SSL") == 0){
-						if (temp_condn->enable == 1) mmt_conf->ssl_enable = 1;
-						if (temp_condn->enable == 0) mmt_conf->ssl_enable = 0;
-					}
+					if(strcmp(temp_condn->condition.condition, "FTP") == 0) mmt_conf->ftp_enable = 1;
+					else mmt_conf->ftp_enable = 0;
+
+					if(strcmp(temp_condn->condition.condition, "WEB") == 0) mmt_conf->web_enable = 1;
+					else mmt_conf->web_enable = 0;
+
+					if(strcmp(temp_condn->condition.condition, "RTP") == 0) mmt_conf->rtp_enable = 1;
+					else mmt_conf->rtp_enable = 0;
+
+					if(strcmp(temp_condn->condition.condition, "SSL") == 0) mmt_conf->ssl_enable = 1;
+					else mmt_conf->ssl_enable = 0;
+
 					if(strcmp(temp_condn->condition.condition, "HTTP-RECONSTRUCT") == 0){
 #ifdef HTTP_RECONSTRUCT						
 						if (temp_condn->enable == 1) {
@@ -1126,7 +1179,11 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 						if(condition_attributes_nb > 0) {
 							temp_condn->attributes = calloc(sizeof(mmt_condition_attribute_t), condition_attributes_nb);
-
+							if (temp_condn->attributes == NULL){
+								mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_condn->attributes context");
+								fprintf(stderr, "Out of memory error when creating temp_condn->attributes data structure!\n");
+								exit(0);
+							}
 							for(i = 0; i < condition_attributes_nb; i++) {
 								if (condition_parse_dot_proto_attribute(cfg_getnstr(condition_opts, "attributes", i), &temp_condn->attributes[i])) {
 									fprintf(stderr, "Error: invalid condition_report attribute value '%s'\n", (char *) cfg_getnstr(condition_opts, "attributes", i));
@@ -1139,7 +1196,11 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 						if(condition_handlers_nb > 0) {
 							temp_condn->handlers = calloc(sizeof(mmt_condition_attribute_t), condition_handlers_nb);
-
+							if (temp_condn->handlers == NULL){
+								mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_condn->handlers context");
+								fprintf(stderr, "Out of memory error when creating temp_condn->handlers data structure!\n");
+								exit(0);
+							}
 							for(i = 0; i < condition_handlers_nb; i++) {
 								if (parse_handlers_attribute((char *) cfg_getnstr(condition_opts, "handlers", i), &temp_condn->handlers[i])) {
 									fprintf(stderr, "Error: invalid condition_report handler attribute value '%s'\n", (char *) cfg_getnstr(condition_opts, "handlers", i));

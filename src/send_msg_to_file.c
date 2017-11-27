@@ -189,7 +189,7 @@ static void *wait_to_do_something( void *arg ){
 		}
 
 		if (expirations > 1) {
-			sprintf(lg_msg, "Timer Missed %lu", expirations - 1);
+			sprintf(lg_msg, "Timer Missed %"PRIu64"", expirations - 1);
 			mmt_log(probe->mmt_conf, MMT_L_INFO, MMT_P_STATUS, lg_msg);
 		}
 
@@ -221,8 +221,10 @@ static void *wait_to_do_something( void *arg ){
 
 		for (i = 0; i < probe_context->thread_nb; i++){
 			//printf("thread number_wait_to_do_something = %d \n",probe->smp_threads[i].thread_number);
-			p_data->user_data = (void *) &probe->smp_threads[i];
-			(* p_data->callback)( p_data->user_data );
+			if (p_data != NULL){
+				p_data->user_data = (void *) &probe->smp_threads[i];
+				if (p_data->user_data != NULL)(* p_data->callback)( p_data->user_data );
+			}
 
 		}
 

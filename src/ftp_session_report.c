@@ -83,7 +83,7 @@ void ftp_session_connection_type_handle(const ipacket_t * ipacket, attribute_t *
 			temp_session->app_format_id = MMT_FTP_REPORT_FORMAT;
 			temp_session->app_data = (void *) ftp_data;
 		} else {
-			fprintf(stderr, "[FTP_REPORT: %lu] Out of memory error when creating FTP data report!\n", ipacket->packet_id);
+			fprintf(stderr, "[FTP_REPORT: %"PRIu64"] Out of memory error when creating FTP data report!\n", ipacket->packet_id);
 			return;
 		}
 	} else {

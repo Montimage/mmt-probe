@@ -53,7 +53,13 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 
 	if (temp_session->session_attr == NULL) {
 		temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
-		memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+		if (temp_session->session_attr != NULL){
+			memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+		}else {
+			mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session->session_attr context");
+			fprintf(stderr, "Out of memory error when creating temp_session->session_attr data structure!\n");
+			exit(0);
+		}
 	}
 
 	// To  check whether the session activity occurs between the reporting time interval
@@ -239,7 +245,13 @@ void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	}
 	if (temp_session->session_attr == NULL) {
 		temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
-		memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+		if (temp_session->session_attr != NULL){
+			memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+		}else {
+			mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session->session_attr context");
+			fprintf(stderr, "Out of memory error when creating temp_session->session_attr data structure!\n");
+			exit(0);
+		}
 	}
 	uint8_t * proto_id = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_PROTO_ID);
 

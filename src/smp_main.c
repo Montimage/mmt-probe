@@ -127,28 +127,34 @@ void cleanup_report_allocated_memory(){
 		mmt_conf->condition_reports[i].handlers = NULL;
 	}
 	for (i = 0; i < mmt_conf->event_reports_nb; i++){
-		free (mmt_conf->event_reports[i].attributes);
-		mmt_conf->event_reports[i].attributes = NULL;
+		if (mmt_conf->event_reports != NULL){
+			free (mmt_conf->event_reports[i].attributes);
+			mmt_conf->event_reports[i].attributes = NULL;
+		}
 	}
 	if (mmt_conf->condition_reports != NULL){
 		free (mmt_conf->condition_reports);
 		mmt_conf->condition_reports = NULL;
 	}
 	if (mmt_conf->event_reports != NULL) {
-		free (mmt_conf->event_reports);
-		mmt_conf->event_reports = NULL;
+		if (mmt_conf->event_reports != NULL){
+			free (mmt_conf->event_reports);
+			mmt_conf->event_reports = NULL;
+		}
 	}
 	for (i=0; i < mmt_conf->security_reports_nb; i++){
-		free (mmt_conf->security_reports[i].attributes);
-		mmt_conf->security_reports[i].attributes = NULL;
-		for (l = 0; l < mmt_conf->security_reports[i].event_name_nb; l++ ){
-			free (mmt_conf->security_reports[i].event_name[l]);
-			mmt_conf->security_reports[i].event_name[l] = NULL;
+		if (mmt_conf->security_reports != NULL){
+			free (mmt_conf->security_reports[i].attributes);
+			mmt_conf->security_reports[i].attributes = NULL;
+			for (l = 0; l < mmt_conf->security_reports[i].event_name_nb; l++ ){
+				free (mmt_conf->security_reports[i].event_name[l]);
+				mmt_conf->security_reports[i].event_name[l] = NULL;
+			}
+			free (mmt_conf->security_reports[i].event_name);
+			mmt_conf->security_reports[i].event_name = NULL;
+			free (mmt_conf->security_reports[i].event_id);
+			mmt_conf->security_reports[i].event_id = NULL;
 		}
-		free (mmt_conf->security_reports[i].event_name);
-		mmt_conf->security_reports[i].event_name = NULL;
-		free (mmt_conf->security_reports[i].event_id);
-		mmt_conf->security_reports[i].event_id = NULL;
 	}
 	if (mmt_conf->security_reports != NULL) {
 		free (mmt_conf->security_reports);
@@ -181,7 +187,14 @@ void cleanup_report_allocated_memory(){
 
 							mmt_probe.smp_threads[i].report[j].grouped_msg.msg_hdr.msg_iov    = mmt_probe.smp_threads[i].report[j].msg;
 							mmt_probe.smp_threads[i].report[j].grouped_msg.msg_hdr.msg_iovlen = mmt_probe.smp_threads[i].report[j].security_report_counter;
-							if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_internet[j], &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
+							if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2){
+								if (mmt_probe.smp_threads[i].sockfd_internet != NULL){
+									retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_internet[j], &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
+								}else {
+									fprintf(stderr, "mmt_probe.smp_threads[i].sockfd_internet is NULL!\n");
+									exit(0);
+								}
+							}
 							if (mmt_probe.mmt_conf->socket_domain == 0 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_unix, &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
 							if (retval == -1)
 								perror("sendmmsg()");
@@ -235,7 +248,12 @@ void cleanup_report_allocated_memory(){
 
 						mmt_probe.smp_threads->report[j].grouped_msg.msg_hdr.msg_iov    = mmt_probe.smp_threads->report[j].msg;
 						mmt_probe.smp_threads->report[j].grouped_msg.msg_hdr.msg_iovlen = mmt_probe.smp_threads->report[j].security_report_counter;
-						if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_internet[j], &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
+						if (mmt_probe.smp_threads->sockfd_internet != NULL){
+							if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_internet[j], &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
+						}else {
+							fprintf(stderr, "mmt_probe.smp_threads[i].sockfd_internet is NULL!\n");
+							exit(0);
+						}
 						if (mmt_probe.mmt_conf->socket_domain == 0 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_unix, &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
 						//printf ("retval = %u, len = %u\n",retval,mmt_probe.smp_threads->report[j].grouped_msg.msg_hdr.msg_iovlen);
 						if (retval == -1)
@@ -390,7 +408,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 			for (i = 0; i < mmt_conf->thread_nb; i++) {
 				//pthread_join(mmt_probe.smp_threads[i].handle, NULL);
 				if (mmt_probe.smp_threads[i].mmt_handler != NULL) {
-					printf ("thread_id = %u, packet = %lu \n",mmt_probe.smp_threads[i].thread_index, mmt_probe.smp_threads[i].nb_packets );
+					printf ("thread_id = %u, packet = %"PRIu64" \n",mmt_probe.smp_threads[i].thread_index, mmt_probe.smp_threads[i].nb_packets );
 
 					//flowstruct_cleanup(mmt_probe.smp_threads[i].mmt_handler); // cleanup our event handler
 					if (cleanup_registered_handlers (&mmt_probe.smp_threads[i]) == 0){
@@ -582,7 +600,6 @@ void *cpu_ram_usage_routine(void * args){
 		probe_context->cpu_reports->mem_usage_avg = (t2[6]+t1[6])*100/(2*t1[4]);
 
 		if (probe_context->redis_enable == 1 || probe_context->kafka_enable == 1) {
-			valid = 0;
 			//Print this report every 5 second
 			time_t present_time;
 			gettimeofday(&ts, NULL);
