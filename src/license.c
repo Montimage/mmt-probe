@@ -88,9 +88,9 @@ int license_expiry_check(int status){
 	char lg_msg[512];
 	//char version_probe[15] = "v0.95-003fc92";
 	//char version_sdk[15] = "v1.4-6e9fae9";
-   const char * version_probe = VERSION "-" GIT_VERSION; //these version information are given by Makefile
-   const char *version_sdk    = mmt_version();
-	char ch;
+	const char * version_probe = VERSION "-" GIT_VERSION; //these version information are given by Makefile
+	const char *version_sdk    = mmt_version();
+	int ch;
 	char license_decrypt_key[300];
 	int i = 0;
 
@@ -138,7 +138,6 @@ int license_expiry_check(int status){
 		}
 	}
 	license_decrypt_key [i] = '\0';
-
 	int length = strlen (license_decrypt_key);
 
 	if (length < 11){
@@ -195,8 +194,14 @@ int license_expiry_check(int status){
 
 	}
 	read_mac_address=malloc(sizeof(char)* (mac_length+1));
-	strncpy(read_mac_address, &license_decrypt_key[11], mac_length);
-	read_mac_address[mac_length]='\0';
+	if (read_mac_address != NULL){
+		strncpy(read_mac_address, &license_decrypt_key[11], mac_length);
+		read_mac_address[mac_length]='\0';
+	}else {
+		mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating read_mac_address");
+		fprintf(stderr, "Out of memory error when creating read_mac_address!\n");
+		return 1;
+	}
 
 	if (length - 11 - mac_length <= 0){
 		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d", MMT_LICENSE_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, MMT_LICENSE_MODIFIED);
@@ -215,6 +220,11 @@ int license_expiry_check(int status){
 				"\t**************************************\n\n");
 		mmt_log(probe_context, MMT_L_INFO, MMT_LICENSE, lg_msg);
 		return_ok = 1;
+
+		if(read_mac_address != NULL) {
+			free(read_mac_address);
+			read_mac_address = NULL;
+		}
 		return return_ok;
 
 	}
@@ -238,24 +248,29 @@ int license_expiry_check(int status){
 
 	char * mac_address;
 	mac_address = malloc(sizeof(char) * no_of_mac * 13);
-
-	int j = 0;
-	int offset_mac_read = 0;
-	int offset_mac_write = 0;
-	for (j = 1; j <= no_of_mac; j++){
-		strncpy(&mac_address[offset_mac_write], &read_mac_address[offset_mac_read], 12);
-		if (j != no_of_mac){
-			mac_address[12 + offset_mac_write] = ',';
-			offset_mac_write += 13;
-			offset_mac_read += 12;
-		}else{
-			offset_mac_write += 12;
-			offset_mac_read += 12;
+	if (mac_address != NULL){
+		int j = 0;
+		int offset_mac_read = 0;
+		int offset_mac_write = 0;
+		for (j = 1; j <= no_of_mac; j++){
+			strncpy(&mac_address[offset_mac_write], &read_mac_address[offset_mac_read], 12);
+			if (j != no_of_mac){
+				mac_address[12 + offset_mac_write] = ',';
+				offset_mac_write += 13;
+				offset_mac_read += 12;
+			}else{
+				offset_mac_write += 12;
+				offset_mac_read += 12;
+			}
 		}
+		mac_address[offset_mac_write] = '\0';
+	}else {
+		mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating mac_address context");
+		fprintf(stderr, "Out of memory error when creating mac_address context!\n");
+		return 1;
 	}
-	mac_address[offset_mac_write] = '\0';
 
-	if(license_key != NULL) fclose (license_key);
+	fclose (license_key);
 
 	//calculate difference in seconds between two dates
 	expiry_time = * localtime(&now);
