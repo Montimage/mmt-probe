@@ -19,6 +19,10 @@ extern "C" {
 #include <sys/socket.h>
 #include <unistd.h>
 #include<pcap.h>
+
+//dynamic_conf
+//#include "mmt_utils.h"
+
 #define ONLINE_ANALYSIS 0x1
 #define OFFLINE_ANALYSIS 0x2
 #define MMT_RADIUS_REPORT_ALL 0x0
@@ -887,6 +891,7 @@ void * close_http_content_processor(http_content_processor_t * sp);
  */
 uint8_t is_http_packet(const ipacket_t * ipacket);
 void dynamic_conf(struct mmt_probe_struct * mmt_probe);
+size_t get_rules_id_list_in_mask(const char * rule_mask, uint32_t ** rules_set);
 static void terminate_probe_processing(int wait_thread_terminate);
 #endif // End of HTTP_RECONSTRUCT
 /** END OF HTTP RECONSTRUCT */

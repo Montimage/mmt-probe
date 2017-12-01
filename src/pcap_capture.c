@@ -115,7 +115,7 @@ sec_wrapper_t * update_runtime_conf(void * arg, sec_wrapper_t * security2, long 
 		if (probe_context->security2_add_rules_enable  && th->thread_index == 0){
 
 			size_t new_rules =  mmt_sec_add_rules(probe_context->security2_add_rules);
-			printf("new_rules123= %zu \n", new_rules);
+			printf("new_rules123= %zu (123%s) \n", new_rules, probe_context->security2_add_rules);
                         if (new_rules != 0){
 			    size_t proto_atts_count, l;
 			    proto_attribute_t const*const* proto_atts;

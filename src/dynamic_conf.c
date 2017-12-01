@@ -9,7 +9,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
-
 static void mmt_cleanup(sr_conn_ctx_t *connection, sr_session_ctx_t *session, sr_subscription_ctx_t *subscription)
 {
 	sr_unsubscribe(session, subscription);
@@ -584,15 +583,16 @@ void config_security2_report(sr_session_ctx_t * session, sr_val_t * value, struc
 		sr_free_val(value);
 		printf ("rule-mask = %s\n", probe_context->security2_rules_mask);
 	}
-	printf ("exclude-rules = %s\n", probe_context->security2_excluded_rules);
-	rc = sr_get_item(session, "/dynamic-mmt-probe:security2-report/excluded_rules", &value);
+	
+        /*rc = sr_get_item(session, "/dynamic-mmt-probe:security2-report/excluded_rules", &value);
 	if (SR_ERR_OK == rc) {
 		strcpy(probe_context->security2_excluded_rules, value->data.string_val);
 		sr_free_val(value);
 		printf ("exclude-rules = %s\n", probe_context->security2_excluded_rules);
-	}
+	}*/
 
 	probe_context->security2_add_rules_enable = 0;
+
 	rc= sr_get_item(session, "/dynamic-mmt-probe:security2-report/add_rules", &value);
 	if (SR_ERR_OK == rc) {
 		strcpy(probe_context->security2_add_rules, value->data.string_val);
@@ -600,6 +600,7 @@ void config_security2_report(sr_session_ctx_t * session, sr_val_t * value, struc
 		printf ("add-rules = %s\n", probe_context->security2_add_rules);
 		probe_context->security2_add_rules_enable = 1;
 	}
+
         probe_context->security2_remove_rules_enable = 0;
 	rc = sr_get_item(session, "/dynamic-mmt-probe:security2-report/count_removed_rules", &value);
 	if (SR_ERR_OK == rc) {
@@ -623,6 +624,9 @@ void config_security2_report(sr_session_ctx_t * session, sr_val_t * value, struc
 			token = strtok(NULL,s);
 			i++;
 		}
+               /*
+               size_t size = get_rules_id_list_in_mask(probe_context->security2_remove_rules, probe_context->remove_rules_array );
+               for (i=0; i< size; i++)printf("rule_id = %u", probe_context->remove_rules_array);*/
                 probe_context->security2_remove_rules_enable = 1;
 	}
 
@@ -971,12 +975,12 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
 		sr_free_val(value);
 		printf ("enable_proto_without_session_stat = %u\n", probe_context->enable_proto_without_session_stats);
 	}
-	rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/enable-IP-fragmentation_report", &value);
+/*	rc = sr_get_item(session, "/dynamic-mmt-probe:probe-cfg/enable-IP-fragmentation_report", &value);
 	if (SR_ERR_OK == rc) {
 		probe_context->enable_IP_fragmentation_report = value->data.uint32_val;
 		sr_free_val(value);
 		printf ("enable-IP-fragmentation_report = %u\n", probe_context->enable_IP_fragmentation_report);
-	}
+	}*/
 	/*        rc = sr_get_item(session, "/dynamic-mmt-probe:operation/restart", &value);
         if (SR_ERR_OK == rc) {
                 if (value->data.uint32_val == 1) kill (probe_context->pid, SIGINT);
