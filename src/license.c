@@ -138,6 +138,8 @@ int license_expiry_check(int status){
 		}
 	}
 	license_decrypt_key [i] = '\0';
+
+	fclose (license_key);
 	int length = strlen (license_decrypt_key);
 
 	if (length < 11){
@@ -267,8 +269,6 @@ int license_expiry_check(int status){
 		fprintf(stderr, "Out of memory error when creating mac_address context!\n");
 		return 1;
 	}
-
-	fclose (license_key);
 
 	//calculate difference in seconds between two dates
 	expiry_time = * localtime(&now);
