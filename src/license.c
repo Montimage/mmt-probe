@@ -221,10 +221,8 @@ int license_expiry_check(int status){
 		mmt_log(probe_context, MMT_L_INFO, MMT_LICENSE, lg_msg);
 		return_ok = 1;
 
-		if(read_mac_address != NULL) {
-			free(read_mac_address);
-			read_mac_address = NULL;
-		}
+		free(read_mac_address);
+		read_mac_address = NULL;
 		return return_ok;
 
 	}
@@ -374,9 +372,9 @@ int license_expiry_check(int status){
 		return_ok = 1;
 	}
 
-	if(mac_address) free(mac_address);
+	free(mac_address);
 	mac_address = NULL;
-	if(read_mac_address) free(read_mac_address);
+	free(read_mac_address);
 	read_mac_address = NULL;
 	return return_ok;
 }

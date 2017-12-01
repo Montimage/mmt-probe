@@ -36,8 +36,8 @@ void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, 
 			((ssl_session_attr_t *) temp_session->app_data)->hostname[max] = '\0';
 		}
 	}else {
-		mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session context");
-		fprintf(stderr, "Out of memory error when creating temp_session data structure!\n");
+		mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session inside ssl_server_name_handle()");
+		fprintf(stderr, "Out of memory error when creating temp_session inside ssl_server_name_handle()!\n");
 		exit(0);
 	}
 	temp_session->contentclass = get_content_class_by_content_flags(get_session_content_flags(ipacket->session));

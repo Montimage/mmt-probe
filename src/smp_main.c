@@ -136,12 +136,12 @@ void cleanup_report_allocated_memory(){
 		free (mmt_conf->condition_reports);
 		mmt_conf->condition_reports = NULL;
 	}
-	if (mmt_conf->event_reports != NULL) {
-		if (mmt_conf->event_reports != NULL){
-			free (mmt_conf->event_reports);
-			mmt_conf->event_reports = NULL;
-		}
+
+	if (mmt_conf->event_reports != NULL){
+		free (mmt_conf->event_reports);
+		mmt_conf->event_reports = NULL;
 	}
+
 	for (i=0; i < mmt_conf->security_reports_nb; i++){
 		if (mmt_conf->security_reports != NULL){
 			free (mmt_conf->security_reports[i].attributes);
@@ -191,7 +191,7 @@ void cleanup_report_allocated_memory(){
 								if (mmt_probe.smp_threads[i].sockfd_internet != NULL){
 									retval = sendmmsg(mmt_probe.smp_threads[i].sockfd_internet[j], &mmt_probe.smp_threads[i].report[j].grouped_msg, 1, 0);
 								}else {
-									fprintf(stderr, "mmt_probe.smp_threads[i].sockfd_internet is NULL!\n");
+									fprintf(stderr, "mmt_probe.smp_threads[i].sockfd_internet is NULL inside cleanup_report_allocated_memory()!\n");
 									exit(0);
 								}
 							}
@@ -251,7 +251,7 @@ void cleanup_report_allocated_memory(){
 						if (mmt_probe.smp_threads->sockfd_internet != NULL){
 							if (mmt_probe.mmt_conf->socket_domain == 1 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_internet[j], &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);
 						}else {
-							fprintf(stderr, "mmt_probe.smp_threads[i].sockfd_internet is NULL!\n");
+							fprintf(stderr, "mmt_probe.smp_threads[i].sockfd_internet is NULL inside cleanup_report_allocated_memory()!\n");
 							exit(0);
 						}
 						if (mmt_probe.mmt_conf->socket_domain == 0 || mmt_probe.mmt_conf->socket_domain == 2)retval = sendmmsg(mmt_probe.smp_threads->sockfd_unix, &mmt_probe.smp_threads->report[j].grouped_msg, 1, 0);

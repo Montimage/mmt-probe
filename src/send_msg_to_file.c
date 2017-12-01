@@ -247,6 +247,12 @@ int start_timer( uint32_t period, void *callback, void *user_data){
 	int ret;
 	pthread_user_data_t *data = malloc( sizeof( pthread_user_data_t ));
 	//pthread_t pthread;
+
+	if (data == NULL){
+		mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating pthread_user_data_t in start_timer context");
+		fprintf(stderr, "Out of memory error when creating pthread_user_data_t in start_timer!\n");
+		exit(0);
+	}
 	data->period   = period;
 	data->callback = callback;
 	data->user_data = user_data;

@@ -159,8 +159,8 @@ void * smp_thread_routine(void *arg) {
 
 			free( sec_cores_mask );
 		} else {
-			mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating sec_cores_mask context");
-			fprintf(stderr, "Out of memory error when creating sec_cores_mask data structure!\n");
+			mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating sec_cores_mask inside smp_thread_routine()");
+			fprintf(stderr, "Out of memory error when creating sec_cores_mask inside smp_thread_routine()!\n");
 			exit(0);
 		}
 	}
@@ -327,8 +327,8 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 
 				free( sec_cores_mask );
 			}else {
-				mmt_log(mmt_probe->mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating sec_cores_mask context");
-				fprintf(stderr, "Out of memory error when creating sec_cores_mask data structure!\n");
+				mmt_log(mmt_probe->mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating sec_cores_mask inside process_trace_file(");
+				fprintf(stderr, "Out of memory error when creating sec_cores_mask data inside process_trace_file(!\n");
 				exit(0);
 			}
 		}
@@ -606,8 +606,8 @@ void *Reader(void *arg) {
 
 			free( sec_cores_mask );
 		}else {
-			mmt_log(mmt_probe->mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating sec_cores_mask context");
-			fprintf(stderr, "Out of memory error when creating sec_cores_mask data structure!\n");
+			mmt_log(mmt_probe->mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating sec_cores_mask inside Reader()");
+			fprintf(stderr, "Out of memory error when creating sec_cores_mask inside Reader()!\n");
 			exit(0);
 		}
 	}
@@ -772,6 +772,11 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 		sprintf(lg_msg, "Initializating MMT Extraction engine! Multi threaded operation (%i threads)", mmt_probe->mmt_conf->thread_nb);
 		mmt_log(mmt_probe->mmt_conf, MMT_L_INFO, MMT_E_INIT, lg_msg);
 		mmt_probe->smp_threads = (struct smp_thread *) calloc(mmt_probe->mmt_conf->thread_nb, sizeof (struct smp_thread));
+		if (mmt_probe->smp_threads == NULL){
+			mmt_log(mmt_probe->mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating mmt_probe->smp_threads in pcap_capture context");
+			fprintf(stderr, "Out of memory error when creating  mmt_probe->smp_threads in pcap_capture!\n");
+			exit(0);
+		}
 		/* run threads */
 		for (i = 0; i < mmt_probe->mmt_conf->thread_nb; i++) {
 			init_list_head((struct list_entry *) &mmt_probe->smp_threads[i].pkt_head);

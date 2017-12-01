@@ -103,7 +103,7 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 				temp_session->app_data = (void *) http_data;
 				((web_session_attr_t *) temp_session->app_data)->touched = 0;
 			} else {
-				mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating HTTP reporting context");
+				mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating HTTP reporting inside http_method_handle()");
 				//fprintf(stderr, "Out of memory error when creating HTTP specific data structure!\n");
 				return;
 			}
@@ -113,8 +113,8 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 			if (temp_session->session_attr != NULL){
 				memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
 			}else {
-				mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session->session_attr context");
-				fprintf(stderr, "Out of memory error when creating temp_session->session_attr data structure!\n");
+				mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session->session_attr inside http_method_handle()");
+				fprintf(stderr, "Out of memory error when creating temp_session->session_attr inside http_method_handle()!\n");
 				return;
 			}
 		}
@@ -307,8 +307,8 @@ void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void
 				if (temp_session->session_attr != NULL) {
 					memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
 				} else {
-					mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session->session_attr context");
-					fprintf(stderr, "Out of memory error when creating temp_session->session_attr data structure!\n");
+					mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session->session_attr inside tcp_closed_handler()");
+					fprintf(stderr, "Out of memory error when creating temp_session->session_attr inside tcp_closed_handler()!\n");
 					return;
 				}
 			}

@@ -72,5 +72,4 @@ int pd_open(const char * path) {
 
 void pd_close(int fd) {
     close(fd);
-    fd = -1;
 }

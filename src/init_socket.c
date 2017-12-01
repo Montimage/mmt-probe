@@ -60,8 +60,8 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args){
 	if (mmt_conf->socket_domain == 1|| mmt_conf->socket_domain == 2){
 		th->sockfd_internet = calloc(sizeof(uint32_t), mmt_conf->server_ip_nb);
 		if (th->sockfd_internet == NULL){
-			mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating th->sockfd_internet context");
-			fprintf(stderr, "Out of memory error when creating th->sockfd_internet data structure!\n");
+			mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating th->sockfd_internet in create_socket()");
+			fprintf(stderr, "Out of memory error when creating th->sockfd_internet in create_socket()!\n");
 			exit(0);
 		}
 

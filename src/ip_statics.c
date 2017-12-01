@@ -56,8 +56,8 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 		if (temp_session->session_attr != NULL){
 			memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
 		}else {
-			mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session->session_attr context");
-			fprintf(stderr, "Out of memory error when creating temp_session->session_attr data structure!\n");
+			mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session->session_attr inside print_ip_session_report ()");
+			fprintf(stderr, "Out of memory error when creating temp_session->session_attr inside print_ip_session_report()!\n");
 			exit(0);
 		}
 	}
@@ -248,8 +248,8 @@ void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		if (temp_session->session_attr != NULL){
 			memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
 		}else {
-			mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session->session_attr context");
-			fprintf(stderr, "Out of memory error when creating temp_session->session_attr data structure!\n");
+			mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session->session_attr inside ip_rtt_handler()");
+			fprintf(stderr, "Out of memory error when creating temp_session->session_attr inside ip_rtt_handler()!\n");
 			exit(0);
 		}
 	}

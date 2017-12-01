@@ -621,8 +621,8 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 				if (temp_session->session_attr != NULL){
 					memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
 				}else {
-					mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session->session_attr context");
-					fprintf(stderr, "Out of memory error when creating temp_session->session_attr data structure!\n");
+					mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session->session_attr inside classification_expiry_session()");
+					fprintf(stderr, "Out of memory error when creating temp_session->session_attr inside classification_expiry_session()!\n");
 					exit(0);
 				}
 			}

@@ -566,8 +566,8 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					int proto_len = strlen(protocol);
 					mmt_conf->mmt_dump.protocol_name[j] = (char *) malloc((proto_len+1)*sizeof(char));
 					if (mmt_conf->mmt_dump.protocol_name[j] == NULL){
-						mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating mmt_conf->mmt_dump.protocol_name context");
-						fprintf(stderr, "Out of memory error when creating mmt_conf->mmt_dump.protocol_name data structure!\n");
+						mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating mmt_conf->mmt_dump.protocol_name inside process_conf_result()");
+						fprintf(stderr, "Out of memory error when creating mmt_conf->mmt_dump.protocol_name inside process_conf_result()!\n");
 						exit(0);
 					}
 					strncpy(mmt_conf->mmt_dump.protocol_name[j],protocol,proto_len);
@@ -652,8 +652,8 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 						int session_proto_len = strlen(protocol);
 						mmt_conf->session_report_proto.protocol_name[j] = (char *) malloc((session_proto_len+1)*sizeof(char));
 						if (mmt_conf->session_report_proto.protocol_name[j] == NULL){
-							mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating mmt_conf->session_report_proto.protocol_name context");
-							fprintf(stderr, "Out of memory error when creating mmt_conf->session_report_proto.protocol_name_name data structure!\n");
+							mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating mmt_conf->session_report_proto.protocol_name inside process_conf_result()");
+							fprintf(stderr, "Out of memory error when creating mmt_conf->session_report_proto.protocol_name inside process_conf_result()!\n");
 							exit(0);
 						}
 
@@ -880,7 +880,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					mmt_conf->one_socket_server = (uint8_t) cfg_getint(socket, "one-socket-server");
 					if(nb_port_address > 0) {
 						if (nb_port_address != mmt_conf->thread_nb && mmt_conf->one_socket_server < 1){
-							printf("Error: Number of port address should be equal to thread number\n");
+							printf("Error: Number of port address should be equal to thread number inside process_conf_result()\n");
 							exit(0);
 						}
 						/*						mmt_conf->port_address = malloc(sizeof(int)*nb_port_address);
@@ -894,8 +894,8 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					if (mmt_conf->one_socket_server == 1){
 						mmt_conf->server_adresses = calloc(sizeof(ip_port_t), nb_server_address);
 						if (mmt_conf->server_adresses == NULL){
-							mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating mmt_conf->server_adresses context");
-							fprintf(stderr, "Out of memory error when creating mmt_conf->server_adresses data structure!\n");
+							mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating mmt_conf->server_adresses inside process_conf_result()");
+							fprintf(stderr, "Out of memory error when creating mmt_conf->server_adresses inside process_conf_result()!\n");
 							exit(0);
 						}
 
@@ -903,8 +903,8 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 							strncpy(mmt_conf->server_adresses[j].server_ip_address, (char *) cfg_getnstr(socket, "server-address", j),18);
 							mmt_conf->server_adresses[j].server_portnb = malloc(sizeof(uint32_t)*1);
 							if (mmt_conf->server_adresses[j].server_portnb == NULL){
-								mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating mmt_conf->server_adresses[j].server_portnb context");
-								fprintf(stderr, "Out of memory error when creating mmt_conf->server_adresses[j].server_portnb data structure!\n");
+								mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating mmt_conf->server_adresses[j].server_portnb inside process_conf_result()");
+								fprintf(stderr, "Out of memory error when creating mmt_conf->server_adresses[j].server_portnb inside process_conf_result()!\n");
 								exit(0);
 							}
 							mmt_conf->server_adresses[j].server_portnb[0] = atoi(cfg_getnstr(socket, "port", 0));
@@ -921,7 +921,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 								}
 							}
 						}else{
-							printf("Error: Number of port_nb should be equal to number of threads\n");
+							printf("Error: Number of port_nb should be equal to number of threads inside process_conf_result()\n");
 
 						}
 					}
@@ -948,8 +948,8 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				security_report_opts = cfg_getnsec(cfg, "security-report", j);
 				temp_sr = &mmt_conf->security_reports[j];
 				if (temp_sr == NULL){
-					mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_sr context");
-					fprintf(stderr, "Out of memory error when creating temp_sr data structure!\n");
+					mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_sr inside process_conf_result()");
+					fprintf(stderr, "Out of memory error when creating temp_sr inside process_conf_result()!\n");
 					exit(0);
 				}
 				temp_sr->enable = (uint32_t) cfg_getint(security_report_opts, "enable");
@@ -979,8 +979,8 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					if(security_attributes_nb > 0) {
 						temp_sr->attributes = calloc(sizeof(mmt_security_attribute_t), security_attributes_nb);
 						if (temp_sr->attributes == NULL){
-							mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_sr->attributes context");
-							fprintf(stderr, "Out of memory error when creating temp_sr->attributes data structure!\n");
+							mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_sr->attributes inside process_conf_result()");
+							fprintf(stderr, "Out of memory error when creating temp_sr->attributes inside process_conf_result()!\n");
 							exit(0);
 						}
 						for(i = 0; i < security_attributes_nb; i++) {
@@ -1012,8 +1012,8 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				security_report_multisession_opts = cfg_getnsec(cfg, "security-report-multisession", j);
 				temp_msr = &mmt_conf->security_reports_multisession[j];
 				if (temp_msr == NULL){
-					mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_msr context");
-					fprintf(stderr, "Out of memory error when creating temp_msr data structure!\n");
+					mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_msr inside process_conf_result()");
+					fprintf(stderr, "Out of memory error when creating temp_msr inside process_conf_result()!\n");
 					exit(0);
 				}
 				temp_msr->enable = (uint32_t) cfg_getint(security_report_multisession_opts, "enable");
@@ -1034,8 +1034,8 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					if(security_attributes_multisession_nb > 0) {
 						temp_msr->attributes = calloc(sizeof(mmt_security_attribute_t), security_attributes_multisession_nb);
 						if (temp_msr->attributes == NULL){
-							mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_msr->attributes context");
-							fprintf(stderr, "Out of memory error when creating temp_msr->attributes data structure!\n");
+							mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_msr->attributes inside process_conf_result()");
+							fprintf(stderr, "Out of memory error when creating temp_msr->attributes inside process_conf_result()!\n");
 							exit(0);
 						}
 
@@ -1069,8 +1069,8 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				//mmt_conf->event_based_reporting_enable = (uint32_t) cfg_getint(event_opts, "enable");
 				temp_er = & mmt_conf->event_reports[j];
 				if (temp_er == NULL){
-					mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_er context");
-					fprintf(stderr, "Out of memory error when creating temp_er data structure!\n");
+					mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_er inside process_conf_result()");
+					fprintf(stderr, "Out of memory error when creating temp_er inside process_conf_result()!\n");
 					exit(0);
 				}
 				temp_er->enable = (uint32_t) cfg_getint(event_opts, "enable");
@@ -1097,8 +1097,8 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					if(event_attributes_nb > 0) {
 						temp_er->attributes = calloc(sizeof(mmt_event_attribute_t), event_attributes_nb);
 						if (temp_er->attributes == NULL){
-							mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_er->attributes context");
-							fprintf(stderr, "Out of memory error when creating temp_er->attributes data structure!\n");
+							mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_er->attributes inside process_conf_result()");
+							fprintf(stderr, "Out of memory error when creating temp_er->attributes data inside process_conf_result()!\n");
 							exit(0);
 						}
 
@@ -1131,8 +1131,8 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				condition_opts = cfg_getnsec(cfg, "condition_report", j);
 				temp_condn = & mmt_conf->condition_reports[j];
 				if (temp_condn == NULL){
-					mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_condn context");
-					fprintf(stderr, "Out of memory error when creating temp_condn data structure!\n");
+					mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_condn inside process_conf_result()");
+					fprintf(stderr, "Out of memory error when creating temp_condn inside process_conf_result()!\n");
 					exit(0);
 				}
 
@@ -1180,8 +1180,8 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 						if(condition_attributes_nb > 0) {
 							temp_condn->attributes = calloc(sizeof(mmt_condition_attribute_t), condition_attributes_nb);
 							if (temp_condn->attributes == NULL){
-								mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_condn->attributes context");
-								fprintf(stderr, "Out of memory error when creating temp_condn->attributes data structure!\n");
+								mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_condn->attributes inside process_conf_result()");
+								fprintf(stderr, "Out of memory error when creating temp_condn->attributes data inside process_conf_result()!\n");
 								exit(0);
 							}
 							for(i = 0; i < condition_attributes_nb; i++) {
@@ -1197,8 +1197,8 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 						if(condition_handlers_nb > 0) {
 							temp_condn->handlers = calloc(sizeof(mmt_condition_attribute_t), condition_handlers_nb);
 							if (temp_condn->handlers == NULL){
-								mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_condn->handlers context");
-								fprintf(stderr, "Out of memory error when creating temp_condn->handlers data structure!\n");
+								mmt_log(mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_condn->handlers inside process_conf_result()");
+								fprintf(stderr, "Out of memory error when creating temp_condn->handlers inside process_conf_result()!\n");
 								exit(0);
 							}
 							for(i = 0; i < condition_handlers_nb; i++) {
