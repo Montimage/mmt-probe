@@ -320,7 +320,6 @@ void flush_messages_to_file_thread( void *arg){
 		//pthread_spin_unlock(&th->lock);
 		return;
 	}
-	valid = 0;
 	//open a file
 	valid = snprintf(file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s", probe_context->output_location, present_time, th->thread_index, probe_context->data_out);
 	file_name_str[valid] = '\0';
