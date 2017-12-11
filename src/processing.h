@@ -890,7 +890,7 @@ void * close_http_content_processor(http_content_processor_t * sp);
  * @return         [description]
  */
 uint8_t is_http_packet(const ipacket_t * ipacket);
-void dynamic_conf(struct mmt_probe_struct * mmt_probe);
+void dynamic_conf (struct mmt_probe_struct * mmt_probe);
 size_t get_rules_id_list_in_mask(const char * rule_mask, uint32_t ** rules_set);
 static void terminate_probe_processing(int wait_thread_terminate);
 #endif // End of HTTP_RECONSTRUCT

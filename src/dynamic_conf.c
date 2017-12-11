@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
+
 static void mmt_cleanup(sr_conn_ctx_t *connection, sr_session_ctx_t *session, sr_subscription_ctx_t *subscription)
 {
 	sr_unsubscribe(session, subscription);
@@ -115,7 +116,6 @@ void config_event_report (sr_session_ctx_t * session, sr_val_t * value, struct m
 	}
 	/////////////////////////
 	int j=0, k=0, i= 0;
-	// probe_context->event_reports = NULL;
 	int len = 0;
 	mmt_event_report_t * current = probe_context->event_reports;
 	while ((current = probe_context->event_reports) != NULL){
@@ -143,7 +143,6 @@ void config_event_report (sr_session_ctx_t * session, sr_val_t * value, struct m
 				printf ("enable = %u\n", event_reports->enable);
 			}
 			len=0;
-			//if (event_reports->enable == 1){
 			len= snprintf(message,256,"/dynamic-mmt-probe:event/event-based-reporting[event_id='%u']/condition",k);
 			message[len]='\0';
 			rc = sr_get_item(session,message, &value);
@@ -263,7 +262,6 @@ void config_condition_report (sr_session_ctx_t * session, sr_val_t * value, stru
 
 	/////////////////////////
 	int j=0, k=0, i= 0;
-	// probe_context->event_reports = NULL;
 	int len = 0;
 	mmt_condition_report_t * current = probe_context->condition_reports;
 	while ((current = probe_context->condition_reports) != NULL){
@@ -339,7 +337,6 @@ void config_condition_report (sr_session_ctx_t * session, sr_val_t * value, stru
 				if (condition_reports->enable == 1) {
 					strncpy(mmt_conf->http_reconstruct_output_location, condition_reports->condition.location, 256);
 					mmt_conf->http_reconstruct_enable = 1;
-					// printf("[debug] Enable http reconstruction\n");
 				}
 				if (condition_reports->enable == 0) mmt_conf->http_reconstruct_enable = 0;
 #else
@@ -407,7 +404,6 @@ void config_output_to_redis(sr_session_ctx_t * session, sr_val_t * value, struct
 	int rc = SR_ERR_OK;
 	char hostname[256 + 1];
 	int port = 0;
-	//char * conf = malloc (sizeof(char)*50);
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	rc = sr_get_item(session, "/dynamic-mmt-probe:redis-output/enable", &value);
 	if (SR_ERR_OK == rc) {
@@ -445,7 +441,6 @@ void config_output_to_kafka(sr_session_ctx_t * session, sr_val_t * value, struct
 	int rc = SR_ERR_OK;
 	char hostname[256 + 1];
 	int port = 0;
-	//char * conf = malloc (sizeof(char)*50);
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	rc = sr_get_item(session, "/dynamic-mmt-probe:kafka-output/enable", &value);
 	if (SR_ERR_OK == rc) {
@@ -624,9 +619,6 @@ void config_security2_report(sr_session_ctx_t * session, sr_val_t * value, struc
 			token = strtok(NULL,s);
 			i++;
 		}
-               /*
-               size_t size = get_rules_id_list_in_mask(probe_context->security2_remove_rules, probe_context->remove_rules_array );
-               for (i=0; i< size; i++)printf("rule_id = %u", probe_context->remove_rules_array);*/
                 probe_context->security2_remove_rules_enable = 1;
 	}
 
@@ -1028,7 +1020,6 @@ void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_pr
 		else if (strcmp(value->data.string_val,"stop") == 0) kill (probe_context->pid, SIGTERM);
 		sr_free_val(value);
 	}
-	//if(value->data.string_val != NULL)printf("operation = %s\n",value->data.string_val);
 }
 
 int mmt_config_change_cb(sr_session_ctx_t *session, const char *module_name, sr_notif_event_t event, void *private_ctx)
@@ -1039,7 +1030,6 @@ int mmt_config_change_cb(sr_session_ctx_t *session, const char *module_name, sr_
 	(void)private_ctx;
 	char exe[1024] = { 0, };
 	int ret = 0, i = 0;
-	//        mmt_probe_context_t * probe_context = get_probe_context_config();
 
 	struct mmt_probe_struct * mmt_probe = (struct mmt_probe_struct *) private_ctx;
 

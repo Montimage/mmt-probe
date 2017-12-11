@@ -103,7 +103,7 @@ sec_wrapper_t * update_runtime_conf(void * arg, sec_wrapper_t * security2, long 
 		if (probe_context->condition_based_reporting_enable == 1)conditional_reports_init(th);// initialize our condition reports
 		if (probe_context->radius_enable == 1)radius_ext_init(th); // initialize radius extraction and attribute event handler
 		atomic_store (&th->session_report_flag, 0);
-	}else {
+	}else if (atomic_load (&th->session_report_flag) == 1 && probe_context->enable_session_report == 0) {
 		flowstruct_uninit(th);
 		atomic_store (&th->session_report_flag, 0);
 	}
@@ -118,12 +118,15 @@ sec_wrapper_t * update_runtime_conf(void * arg, sec_wrapper_t * security2, long 
 			printf("new_rules123= %zu (123%s) \n", new_rules, probe_context->security2_add_rules);
                         if (new_rules != 0){
 			    size_t proto_atts_count, l;
-			    proto_attribute_t const*const* proto_atts;
-			    proto_atts_count = mmt_sec_get_unique_protocol_attributes(& proto_atts);
+			    proto_attribute_t const*const* proto_atts_add;
+			    proto_atts_count = mmt_sec_get_unique_protocol_attributes(& proto_atts_add);
 			    printf ("number of unique attr = %zu\n", proto_atts_count );
+                            security2->proto_atts = proto_atts_add;
+                            security2->proto_atts_count = proto_atts_count;
 
 			    for (l = 0; l < proto_atts_count; l++){
-				printf ("attributes: %s.%s (%d.%d) \n",proto_atts[l]->proto, proto_atts[l]->att, proto_atts[l]->proto_id, proto_atts[l]->att_id);
+				printf ("attributes: %s.%s (%d.%d) \n",proto_atts_add[l]->proto, proto_atts_add[l]->att, proto_atts_add[l]->proto_id, proto_atts_add[l]->att_id);
+                                register_extraction_attribute(security2->mmt_handler, proto_atts_add[l]->proto_id, proto_atts_add[l]->att_id);
 			    }
                         }
 		}
@@ -131,6 +134,23 @@ sec_wrapper_t * update_runtime_conf(void * arg, sec_wrapper_t * security2, long 
 
 			count = mmt_sec_remove_rules(probe_context->security2_count_rule_remove, probe_context->remove_rules_array);
 			printf ("removed %zu rules", count);
+                        if (count != 0){
+                            size_t proto_atts_count, l;
+                            proto_attribute_t const*const* proto_atts_rmv;
+                            proto_atts_count = mmt_sec_get_unique_protocol_attributes(& proto_atts_rmv);
+                            printf ("number of unique attr = %zu\n", proto_atts_count );
+                            security2->proto_atts = proto_atts_rmv;
+                            security2->proto_atts_count = proto_atts_count;
+
+                            for (l = 0; l < proto_atts_count; l++){
+                                printf ("attributes: %s.%s (%d.%d) \n",proto_atts_rmv[l]->proto, proto_atts_rmv[l]->att, proto_atts_rmv[l]->proto_id, proto_atts_rmv[l]->att_id);
+                                register_extraction_attribute(security2->mmt_handler, proto_atts_rmv[l]->proto_id, proto_atts_rmv[l]->att_id);
+                            }
+                        }
+
+
+
+
 		}
 
 		atomic_store (&th->security2_report_flag, 0);

@@ -156,7 +156,7 @@ sec_wrapper_t* register_security( mmt_handler_t *dpi_handler, size_t threads_cou
 	ret->sec_handler = mmt_sec_register( threads_count, cores_id, rules_mask, verbose, callback, th );
 
 	//register protocols and their attributes using by mmt-sec
-	ret->proto_atts_count =  mmt_sec_get_unique_protocol_attributes( & ret->proto_atts );
+	ret->proto_atts_count =  mmt_sec_get_unique_protocol_attributes((void*) &ret->proto_atts );
 
 	for( i=0; i<ret->proto_atts_count; i++ ){
 		//mmt_debug( "Registered attribute to extract: %s.%s", proto_atts[i]->proto, proto_atts[i]->att );

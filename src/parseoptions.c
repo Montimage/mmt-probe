@@ -17,7 +17,7 @@
 #ifndef GIT_VERSION
 	#define GIT_VERSION ""
 #endif
-
+void dynamic_conf (struct mmt_probe_struct * mmt_probe);
 void usage(const char * prg_name) {
 	fprintf(stderr, "%s [<option>]\n", prg_name);
 	fprintf(stderr, "Option:\n");
