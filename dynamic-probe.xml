@@ -1,0 +1,23 @@
+<probe-cfg xmlns="urn:ietf:params:xml:ns:yang:dynamic-mmt-probe">
+	<input-mode>online</input-mode>
+	<input-source>enp0s9</input-source>
+	<threads>2</threads>
+	<thread-queue>1000</thread-queue>
+	<thread-data>0</thread-data>
+	<probe-identifier>1</probe-identifier>
+	<license-path>/opt/mmt/probe/bin/license.key</license-path>
+	<log-path>/opt/mmt/probe/log/online/log.data</log-path>
+	<stat-report-period>5</stat-report-period>
+	<snap-len>65535</snap-len>
+	<report-cache-size>300000</report-cache-size>
+</probe-cfg>
+
+<file-output xmlns="urn:ietf:params:xml:ns:yang:dynamic-mmt-probe">
+	<enable>1</enable>
+</file-output>
+
+<security2-report xmlns="urn:ietf:params:xml:ns:yang:dynamic-mmt-probe">
+	<enable>1</enable>
+	<thread_count>1</thread_count>
+	<output_to_file>1</output_to_file>
+</security2-report>

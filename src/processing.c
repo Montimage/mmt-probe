@@ -127,7 +127,7 @@ void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char * l
 	}
 }
 
-#ifdef HTTP_RECONSTRUCT
+#ifdef HTTP_RECONSTRUCT_MODULE
 uint8_t is_http_packet(const ipacket_t * ipacket){
 	uint16_t http_index = get_protocol_index_by_id(ipacket, PROTO_HTTP);
 	// META->ETH->IP->TCP->HTTP
@@ -138,7 +138,7 @@ uint8_t is_http_packet(const ipacket_t * ipacket){
 	return 1;
 }
 
-#endif // End of HTTP_RECONSTRUCT
+#endif // End of HTTP_RECONSTRUCT_MODULE
 /* This function puts the protocol path as a string (for example, 99.178.376,
  * where,99-Ethernet, 178-IP and 376-UDP), in a variable dest and
  * returns its length as a offset.
@@ -277,8 +277,8 @@ void create_session (const ipacket_t * ipacket, void * user_args){
 		}
 	}
 	temp_session->isFlowExtracted = 1;
-#ifdef HTTP_RECONSTRUCT
-	if(probe_context.http_reconstruct_enable == 1){
+#ifdef HTTP_RECONSTRUCT_MODULE
+	if(probe_context.HTTP_RECONSTRUCT_MODULE_enable == 1){
 		if(is_http_packet(ipacket) == 1){
 			// printf("[debug] %lu: flow_nb_handle\n", ipacket->packet_id);
 			// printf("[debug] %lu: new_session_handle - 2\n", ipacket->packet_id);
@@ -305,7 +305,7 @@ void create_session (const ipacket_t * ipacket, void * user_args){
 			}
 		}
 	}
-#endif // End of HTTP_RECONSTRUCT	
+#endif // End of HTTP_RECONSTRUCT_MODULE	
     //    printf ("set session\n");
 	set_user_session_context(session, temp_session);
 }
@@ -467,49 +467,7 @@ void flowstruct_init(void * args) {
 void flowstruct_cleanup(void * handler) {
 }
 
-/*
- ** encodeblock
- **
- ** encode 3 8-bit binary bytes as 4 '6-bit' characters
- */
-inline void encodeblock(unsigned char in[3], unsigned char out[4], int len) {
-	out[0] = cb64[ in[0] >> 2 ];
-	out[1] = cb64[ ((in[0] & 0x03) << 4) | ((in[1] & 0xf0) >> 4) ];
-	out[2] = (unsigned char) (len > 1 ? cb64[ ((in[1] & 0x0f) << 2) | ((in[2] & 0xc0) >> 6) ] : '=');
-	out[3] = (unsigned char) (len > 2 ? cb64[ in[2] & 0x3f ] : '=');
-}
 
-/*
- ** encode
- **
- ** base64 encode a string.
- */
-inline int encode_str(const char *infile, char *out_file) {
-	unsigned char in[3], out[4];
-	int i, len;
-	int copiedBytes = 0;
-	while (infile[0] != '\0') {
-		len = 0;
-		for (i = 0; i < 3; i++) {
-			in[i] = infile[0];
-			if (infile[0] != '\0') {
-				len++;
-			} else {
-				in[i] = 0;
-			}
-			infile++;
-		}
-		if (len) {
-			encodeblock(in, out, len);
-			for (i = 0; i < 4; i++) {
-				out_file[copiedBytes] = out[i];
-				copiedBytes++;
-			}
-		}
-	}
-	out_file[copiedBytes] = '\0';
-	return copiedBytes;
-}
 
 int time_diff(struct timeval t1, struct timeval t2) {
 	return (((t2.tv_sec - t1.tv_sec) * 1000000) + (t2.tv_usec - t1.tv_usec)) / 1000;
@@ -594,8 +552,8 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 		return;
 	}
 
-#ifdef HTTP_RECONSTRUCT
-	// printf("[debug] cleaning HTTP_RECONSTRUCT ... %lu \n",get_session_id(expired_session));
+#ifdef HTTP_RECONSTRUCT_MODULE
+	// printf("[debug] cleaning HTTP_RECONSTRUCT_MODULE ... %lu \n",get_session_id(expired_session));
 	if (temp_session->http_content_processor != NULL) {
 		close_http_content_processor(temp_session->http_content_processor);
 	}

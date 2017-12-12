@@ -23,7 +23,8 @@ uint32_t _get_index( uint32_t nu );
 /**
  * Hash function of an Ethernet packet
  */
-static inline uint32_t __attribute__((always_inline)) get_packet_hash_number( const uint8_t *packet, size_t len ){
+static inline uint32_t __attribute__((always_inline))
+	get_packet_hash_number( const uint8_t *packet, size_t len ){
 	//struct __eth_hdr_struct  * eth;
 
 	uint32_t a1, a2;

@@ -1,7 +1,7 @@
 #include "html_integration.h"
 #include <assert.h>
 
-#ifdef HTTP_RECONSTRUCT
+#ifdef HTTP_RECONSTRUCT_MODULE
 
 /**
  * Sends a data chunk for processing by the html parser.
@@ -101,4 +101,4 @@ void gzip_process(const char * chunck, size_t len, gzip_processor_t * gzp, http_
   } while (gzp->strm.avail_out == 0); //continue while we still have data to decompress
 }
 
-#endif // End of HTTP_RECONSTRUCT
+#endif // End of HTTP_RECONSTRUCT_MODULE

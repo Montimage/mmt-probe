@@ -1,15 +1,17 @@
 #include <stdio.h>
-#include<stdlib.h>
+#include <stdlib.h>
 #include <unistd.h>
-#include<string.h>
-#include <sysrepo.h>
-#include<errno.h>
+#include <string.h>
+
+#include <errno.h>
 #include "processing.h"
 #include <signal.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
 
+#ifdef NETCONF_MODULE
+#include <sysrepo.h>
 static void mmt_cleanup(sr_conn_ctx_t *connection, sr_session_ctx_t *session, sr_subscription_ctx_t *subscription)
 {
 	sr_unsubscribe(session, subscription);
@@ -333,15 +335,15 @@ void config_condition_report (sr_session_ctx_t * session, sr_val_t * value, stru
 				if (condition_reports->enable == 0) probe_context->ssl_enable = 0;
 			}
 			if(strcmp(condition_reports->condition.condition, "HTTP-RECONSTRUCT") == 0){
-#ifdef HTTP_RECONSTRUCT                                         
+#ifdef HTTP_RECONSTRUCT_MODULE                                         
 				if (condition_reports->enable == 1) {
-					strncpy(mmt_conf->http_reconstruct_output_location, condition_reports->condition.location, 256);
-					mmt_conf->http_reconstruct_enable = 1;
+					strncpy(mmt_conf->HTTP_RECONSTRUCT_MODULE_output_location, condition_reports->condition.location, 256);
+					mmt_conf->HTTP_RECONSTRUCT_MODULE_enable = 1;
 				}
-				if (condition_reports->enable == 0) mmt_conf->http_reconstruct_enable = 0;
+				if (condition_reports->enable == 0) mmt_conf->HTTP_RECONSTRUCT_MODULE_enable = 0;
 #else
 				condition_reports->enable = 0;//check with luong
-#endif // End of HTTP_RECONSTRUCT
+#endif // End of HTTP_RECONSTRUCT_MODULE
 			}
 
 			len = 0;
@@ -1081,3 +1083,4 @@ void dynamic_conf (struct mmt_probe_struct * mmt_probe){
 
 }
 
+#endif

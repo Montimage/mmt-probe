@@ -979,16 +979,16 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 						if (temp_condn->enable == 0) mmt_conf->ssl_enable = 0;
 					}
 					if(strcmp(temp_condn->condition.condition, "HTTP-RECONSTRUCT") == 0){
-#ifdef HTTP_RECONSTRUCT						
+#ifdef HTTP_RECONSTRUCT_MODULE						
 						if (temp_condn->enable == 1) {
-							strncpy(mmt_conf->http_reconstruct_output_location, temp_condn->condition.location, 256);
-							mmt_conf->http_reconstruct_enable = 1;
+							strncpy(mmt_conf->HTTP_RECONSTRUCT_MODULE_output_location, temp_condn->condition.location, 256);
+							mmt_conf->HTTP_RECONSTRUCT_MODULE_enable = 1;
 							// printf("[debug] Enable http reconstruction\n");
 						}
-						if (temp_condn->enable == 0) mmt_conf->http_reconstruct_enable = 0;
+						if (temp_condn->enable == 0) mmt_conf->HTTP_RECONSTRUCT_MODULE_enable = 0;
 #else						
 					temp_condn->enable = 0;	
-#endif // End of HTTP_RECONSTRUCT
+#endif // End of HTTP_RECONSTRUCT_MODULE
 					}
 
 					if (temp_condn->enable == 1){

@@ -11,96 +11,98 @@ RM     = rm -rf
 APP = probe
 
 ifndef VERBOSE
-        QUIET := @
+  QUIET := @
 endif
 
 #get git version abbrev
 GIT_VERSION := $(shell git log --format="%h" -n 1)
 VERSION     := 1.2.2
 
+$(info Building MMT-Probe version $(VERSION) $(GIT_VERSION))
 
 #set of library
-LIBS     := -L/opt/mmt/dpi/lib -L/opt/mmt/security/lib -lmmt_core -lmmt_tcpip -lmmt_security -lmmt_security2 -lxml2 -lconfuse -lhiredis -lpthread -lrdkafka -lrt -lsysrepo
+LIBS     := -L/opt/mmt/dpi/lib -lmmt_core -lmmt_tcpip -lmmt_security -lconfuse -lpthread 
+CFLAGS   := -I /opt/mmt/dpi/include -Wall -Wno-unused-variable\
+			   -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"
 
+#################################################
+############ OTHER SETTING ######################
+#################################################
 #for debuging
 ifdef DEBUG
-	CFLAGS   := -g
-	CLDFLAGS := -g
+	CFLAGS   := -g -O0
 else
 	CFLAGS   := -O3
-	CLDFLAGS := -O3
 endif
 
-# - - - - - - - - - - -
-# FOR DPDK ENVIRONMENT
-# - - - - - - - - - - - 
+# For showing message from debug(...)
+ifndef NDEBUG
+	CLDFLAGS   += -DNDEBUG
+	CFLAGS 	  += -DNDEBUG
+endif
 
+#################################################
+############ CAPTURE PACKETS ####################
+#################################################
 ifdef DPDK
-RTE_SDK=/home/mmt/dpdk/
-RTE_TARGET ?= x86_64-native-linuxapp-gcc
+	#dpdk makefile
+	ifndef RTE_SDK
+$(error RTE_SDK is not set)
+	endif
+   #RTE_SDK    ?= /home/mmt/dpdk/
+   RTE_TARGET ?= x86_64-native-linuxapp-gcc
+   
+   include $(RTE_SDK)/mk/rte.vars.mk
+   include $(RTE_SDK)/mk/rte.extapp.mk
+   
+   
+$(info - Use DPDK to capture packet)
+   CFLAGS += $(WERROR_CFLAGS) -DDPDK
+else
+	#for PCAP
+$(info - Use PCAP to capture packet)
+	CFLAGS += -DPCAP
+	LIBS   += -lpcap -ldl
+endif
 
-include $(RTE_SDK)/mk/rte.vars.mk
-
+#################################################
+########### MODULES #############################
+#################################################
 # For HTTP reconstruction option
-ifdef HTTP_RECONSTRUCT
-LIBS     += -lhtmlstreamparser -lz
-CFLAGS   += -DHTTP_RECONSTRUCT
+ifdef HTTP_RECONSTRUCT_MODULE
+$(info - Enable HTTP reconstruction)
+	LIBS     += -lhtmlstreamparser -lz
+	CFLAGS   += -DHTTP_RECONSTRUCT_MODULE
 endif
 
-# For showing message from debug(...)
-ifndef NDEBUG
-CLDFLAGS   += -DNDEBUG
-CFLAGS 	   += -DNDEBUG
+ifdef KAFKA_MODULE
+$(info - Enable Kafka output)
+	LIBS   += -lrdkafka
+	CFLAGS += -I /usr/local/include/librdkafka -DKAFKA_MODULE
 endif
 
-#Name of executable file to generate
-#APP = probe
-
-SRCS-y := src/smp_main.c src/dynamic_conf.c src/processing.c src/web_session_report.c src/thredis.c \
-src/send_msg_to_file.c src/send_msg_to_redis.c src/ip_statics.c src/init_socket.c src/rtp_session_report.c src/ftp_session_report.c \
-src/event_based_reporting.c src/protocols_report.c src/ssl_session_report.c src/default_app_session_report.c \
-src/microflows_session_report.c src/radius_reporting.c src/security_analysis.c src/parseoptions.c src/license.c src/dpdk_capture.c \
-src/lib/security.c src/lib/data_spsc_ring.c src/lib/lock_free_spsc_ring.c src/lib/packet_hash.c src/lib/system_info.c src/attributes_extraction.c \
-src/multisession_reporting.c src/security_msg_reporting.c src/condition_based_reporting.c  src/pcap_capture.c src/html_integration.c src/http_reconstruct.c \
-src/send_msg_to_kafka.c 
-
-#set of library
-
-LDLIBS   += $(LIBS)
-CFLAGS   += $(WERROR_CFLAGS) -I /opt/mmt/dpi/include -I /opt/mmt/security/include -I /usr/local/include/librdkafka \
- -Wall -Wno-unused-variable -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DDPDK
- 
-include $(RTE_SDK)/mk/rte.extapp.mk
-
-endif
-# - - - - - -
-# END OF DPDK
-# - - - - - -
-
-
-# - - - - - - - - - - -
-# FOR PCAP ENVIRONMENT
-# - - - - - - - - - - - 
-
-ifdef PCAP
-#name of executable file to generate
-#APP = probe
-# For HTTP reconstruction option
-ifdef HTTP_RECONSTRUCT
-LIBS     += -lhtmlstreamparser -lz
-CFLAGS   += -DHTTP_RECONSTRUCT
+ifdef REDIS_MODULE
+$(info - Enable Redis output)
+	LIBS   += -lhiredis
+	CFLAGS += -DREDIS_MODULE
 endif
 
-# For showing message from debug(...)
-ifndef NDEBUG
-CLDFLAGS   += -DNDEBUG
-CFLAGS 	  += -DNDEBUG
+ifdef NETCONF_MODULE
+$(info - Enable dynamic configuration using Netconf)
+	LIBS   += -lrt -lsysrepo -lxml2
+	CFLAGS += -DNETCONF_MODULE
 endif
-#set of library
-LIBS     += -lpcap -ldl
-CFLAGS   += -Wall -Wno-unused-variable -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DPCAP
-CLDFLAGS += -I /opt/mmt/dpi/include -I /opt/mmt/security/include -I /usr/local/include/librdkafka 
 
+ifdef SECURITY_MODULE
+$(info - Enable Security analysis)
+	LIBS   += -L/opt/mmt/security/lib -lmmt_security2 
+	CFLAGS += -I /opt/mmt/security/include -DSECURITY_MODULE
+endif
+
+
+#################################################
+############## COMPILE ##########################
+#################################################
 #folders containing source files
 SRCDIR = src
 
@@ -122,13 +124,12 @@ all: $(LIB_OBJS) $(MAIN_OBJS)
 	$(QUIET) $(CC) $(CFLAGS) $(CLDFLAGS) -c -o $@ $<
 clean:
 	$(QUIET) $(RM) $(MAIN_OBJS) $(LIB_OBJS) $(OUTPUT)
-		
-endif 
-# - - - - - -
-# END OF PCAP
-# - - - - - -
 
 
+#################################################
+############ PACKAGE & INSTALL ##################
+#################################################
+#temp folder to contain installed files
 FACE_ROOT_DIR=/tmp/probe/$(INSTALL_DIR)
 #
 # Install probe
@@ -147,9 +148,9 @@ copy_files: all
 		$(FACE_ROOT_DIR)/result/security/offline
 
 #copy probe to existing dir from buit in DPDK
-ifdef DPDK
-	$(QUIET) $(CP) $(OUTPUT_DIR)/probe $(TOP)
-endif
+	ifdef DPDK
+		$(QUIET) $(CP) $(OUTPUT_DIR)/probe $(TOP)
+	endif
 
 #copy to bin
 	$(QUIET) $(CP) $(APP)           $(FACE_ROOT_DIR)/bin/probe
@@ -167,15 +168,38 @@ SYS_NAME    = $(shell uname -s)
 SYS_VERSION = $(shell uname -p)
 
 ifdef DPDK
-	DEB_NAME = mmt-probe_$(VERSION)_$(GIT_VERSION)_$(SYS_NAME)_$(SYS_VERSION)_dpdk
+	PACKAGE_NAME = mmt-probe_$(VERSION)_$(GIT_VERSION)_$(SYS_NAME)_$(SYS_VERSION)_dpdk
 else
-	DEB_NAME = mmt-probe_$(VERSION)_$(GIT_VERSION)_$(SYS_NAME)_$(SYS_VERSION)_pcap
+	PACKAGE_NAME = mmt-probe_$(VERSION)_$(GIT_VERSION)_$(SYS_NAME)_$(SYS_VERSION)_pcap
 endif
 
-deb: copy_files
-	echo $(DEB_NAME)
-	$(QUIET) $(RM) $(DEB_NAME)
-	$(QUIET) $(MKDIR) $(DEB_NAME)/DEBIAN
+copy_libs: copy_files
+	$(QUIET) $(RM) $(PACKAGE_NAME)
+	
+	$(QUIET) $(MKDIR) $(PACKAGE_NAME)/usr/bin/
+	$(QUIET) ln -s /opt/mmt/probe/bin/probe $(PACKAGE_NAME)/usr/bin/mmt-probe
+	
+	$(QUIET) $(MKDIR) $(PACKAGE_NAME)/etc/ld.so.conf.d/
+	@echo "/opt/mmt/probe/lib" >> $(PACKAGE_NAME)/etc/ld.so.conf.d/mmt-probe.conf
+	
+	$(QUIET) $(MKDIR) $(PACKAGE_NAME)$(INSTALL_DIR)
+	$(QUIET) $(CP) -r $(FACE_ROOT_DIR)/* $(PACKAGE_NAME)$(INSTALL_DIR)
+	
+	$(QUIET) $(MKDIR) $(PACKAGE_NAME)$(INSTALL_DIR)/lib
+	
+	ifdef REDIS_MODULE
+		$(QUIET) $(CP) /usr/local/lib/libhiredis.so.*  $(PACKAGE_NAME)$(INSTALL_DIR)/lib
+	endif
+	
+	ifdef KAFKA_MODULE
+		$(QUIET) $(CP) /usr/local/lib/librdkafka.so.*  $(PACKAGE_NAME)$(INSTALL_DIR)/lib
+	endif
+	$(QUIET) $(CP) /lib64/libconfuse.so.*  $(PACKAGE_NAME)$(INSTALL_DIR)/lib/
+
+#package for Debian-based
+deb: copy_libs
+	echo $(PACKAGE_NAME)
+	$(QUIET) $(MKDIR) $(PACKAGE_NAME)/DEBIAN
 	$(QUIET) echo "Package: mmt-probe \
         \nVersion: $(VERSION) \
         \nSection: base \
@@ -186,44 +210,14 @@ deb: copy_files
         \nDescription: MMT-Probe:  \
         \n  Version id: $(GIT_VERSION). Build time: `date +"%Y-%m-%d %H:%M:%S"` \
         \nHomepage: http://www.montimage.com" \
-		> $(DEB_NAME)/DEBIAN/control
+		> $(PACKAGE_NAME)/DEBIAN/control
 
-	$(QUIET) $(MKDIR) $(DEB_NAME)/usr/bin/
-	$(QUIET) ln -s /opt/mmt/probe/bin/probe $(DEB_NAME)/usr/bin/mmt-probe
-	
-	$(QUIET) $(MKDIR) $(DEB_NAME)/etc/ld.so.conf.d/
-	@echo "/opt/mmt/probe/lib" >> $(DEB_NAME)/etc/ld.so.conf.d/mmt-probe.conf
-	
-	$(QUIET) $(MKDIR) $(DEB_NAME)$(INSTALL_DIR)
-	$(QUIET) $(CP) -r $(FACE_ROOT_DIR)/* $(DEB_NAME)$(INSTALL_DIR)
-	
-	$(QUIET) $(MKDIR) $(DEB_NAME)$(INSTALL_DIR)/lib
-	$(QUIET) $(CP) /usr/local/lib/libhiredis.so.*  $(DEB_NAME)$(INSTALL_DIR)/lib
-	$(QUIET) $(CP) /usr/local/lib/librdkafka.so.*  $(DEB_NAME)$(INSTALL_DIR)/lib
-	$(QUIET) $(CP) /usr/lib/x86_64-linux-gnu/libconfuse.so.*  $(DEB_NAME)$(INSTALL_DIR)/lib
-	
-	$(QUIET) dpkg-deb -b $(DEB_NAME)
-	$(QUIET) $(RM) $(DEB_NAME)
+	$(QUIET) dpkg-deb -b $(PACKAGE_NAME)
+	$(QUIET) $(RM) $(PACKAGE_NAME)
 	$(QUIET) $(RM) $(FACE_ROOT_DIR)
-
-rpm: copy_files
-	$(QUIET) $(RM) $(DEB_NAME)
 	
-	$(QUIET) $(MKDIR) $(DEB_NAME)/usr/bin/
-	$(QUIET) ln -s /opt/mmt/probe/bin/probe $(DEB_NAME)/usr/bin/mmt-probe
-	
-	$(QUIET) $(MKDIR) $(DEB_NAME)/etc/ld.so.conf.d/
-	@echo "/opt/mmt/probe/lib" >> $(DEB_NAME)/etc/ld.so.conf.d/mmt-probe.conf
-	
-	$(QUIET) $(MKDIR) $(DEB_NAME)$(INSTALL_DIR)
-	$(QUIET) $(CP) -r $(FACE_ROOT_DIR)/* $(DEB_NAME)$(INSTALL_DIR)
-	
-	$(QUIET) $(MKDIR) $(DEB_NAME)$(INSTALL_DIR)/lib
-	$(QUIET) $(CP) /usr/local/lib/libhiredis.so.*  $(DEB_NAME)$(INSTALL_DIR)/lib
-	$(QUIET) $(CP) /usr/local/lib/librdkafka.so.*  $(DEB_NAME)$(INSTALL_DIR)/lib
-	$(QUIET) $(CP) /lib64/libconfuse.so.*  $(DEB_NAME)$(INSTALL_DIR)/lib/
-	
-	
+#package for CentOS
+rpm: copy_libs
 	$(QUIET) $(MKDIR) ./rpmbuild/{RPMS,BUILD}
 	
 	$(QUIET) echo -e\
@@ -245,7 +239,7 @@ rpm: copy_files
       \n%prep\
       \nrm -rf %{buildroot}\
       \nmkdir -p %{buildroot}\
-      \ncp -r %{_topdir}/../$(DEB_NAME)/* %{buildroot}/\
+      \ncp -r %{_topdir}/../$(PACKAGE_NAME)/* %{buildroot}/\
       \n\
       \n%clean\
       \nrm -rf %{buildroot}\
@@ -259,13 +253,12 @@ rpm: copy_files
       \nldconfig\
    " > ./mmt-probe.spec
 	
-	$(QUIET) rpmbuild --quiet --rmspec --define "_topdir $(shell pwd)/rpmbuild" --define "_rpmfilename ../../$(DEB_NAME).rpm" -bb ./mmt-probe.spec
+	$(QUIET) rpmbuild --quiet --rmspec --define "_topdir $(shell pwd)/rpmbuild" --define "_rpmfilename ../../$(PACKAGE_NAME).rpm" -bb ./mmt-probe.spec
 	$(QUIET) $(RM) rpmbuild
-	@echo "[PACKAGE] $(DEB_NAME).rpm"
+	@echo "[PACKAGE] $(PACKAGE_NAME).rpm"
 	
-	$(QUIET) $(RM) $(DEB_NAME)
+	$(QUIET) $(RM) $(PACKAGE_NAME)
 	$(QUIET) $(RM) $(FACE_ROOT_DIR)
-
 
 keygen:
 	$(QUIET) $(CC) -o keygen $(CLDFLAGS)  key_generator.c

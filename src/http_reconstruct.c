@@ -36,7 +36,7 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
-#ifdef HTTP_RECONSTRUCT
+#ifdef HTTP_RECONSTRUCT_MODULE
 #include "html_integration.h"
 
 /**
@@ -62,7 +62,7 @@ void http_write_data_to_file ( char * path, const char * content, size_t len) {
     mmt_probe_context_t * probe_context = get_probe_context_config();
 
     char filename[MAX_FILE_NAME];
-    snprintf(filename, MAX_FILE_NAME, "%s/%s", probe_context->http_reconstruct_output_location, path);
+    snprintf(filename, MAX_FILE_NAME, "%s/%s", probe_context->HTTP_RECONSTRUCT_MODULE_output_location, path);
     filename[MAX_FILE_NAME-1] = '\0';
     // printf("[debug] Going to write to file: %s\n",filename);
     // printf("%s\n",content);
@@ -469,8 +469,8 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args) {
         return 0;
     }
 
-    if(probe_context->http_reconstruct_enable == 0){
-        printf("[debug] %lu HTTP_RECONSTRUCT is not enabled\n", ipacket->packet_id);
+    if(probe_context->HTTP_RECONSTRUCT_MODULE_enable == 0){
+        printf("[debug] %lu HTTP_RECONSTRUCT_MODULE is not enabled\n", ipacket->packet_id);
         return 0;   
     }
 
@@ -639,11 +639,11 @@ void clean_http_session_data(uint64_t session_id, struct smp_thread * th){
     fprintf(stderr, "[error] Cannot find http_session_data with id: %lu\n",session_id);
 }
 
-void http_reconstruct_init(void *arg){
+void HTTP_RECONSTRUCT_MODULE_init(void *arg){
     struct smp_thread *th = (struct smp_thread *) arg;
     register_packet_handler(th->mmt_handler, 11, http_packet_handler, arg);
     // register_session_timeout_handler(th->mmt_handler, http_classification_expiry_session, NULL);
-    // printf("[debug] http_reconstruct_init\n");
+    // printf("[debug] HTTP_RECONSTRUCT_MODULE_init\n");
 }
 
-#endif // End of HTTP_RECONSTRUCT
+#endif // End of HTTP_RECONSTRUCT_MODULE

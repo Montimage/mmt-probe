@@ -241,9 +241,9 @@ void * smp_thread_routine(void *arg) {
 	if (probe_context->event_based_reporting_enable == 1)event_reports_init(th); // initialize our event reports
 	if (probe_context->enable_security_report == 0 && probe_context->enable_security_report_multisession == 0)proto_stats_init(th);//initialise this before security_reports_init
 	if (probe_context->enable_security_report == 1)security_reports_init(th);
-#ifdef HTTP_RECONSTRUCT
-	if (probe_context->http_reconstruct_enable == 1) http_reconstruct_init(th);
-#endif // End of HTTP_RECONSTRUCT
+#ifdef HTTP_RECONSTRUCT_MODULE
+	if (probe_context->HTTP_RECONSTRUCT_MODULE_enable == 1) HTTP_RECONSTRUCT_MODULE_init(th);
+#endif // End of HTTP_RECONSTRUCT_MODULE
 	if (probe_context->enable_security_report_multisession == 1)security_reports_multisession_init(th);// should be defined before proto_stats_init
 
 	//security2
@@ -796,7 +796,7 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 		mmt_probe->smp_threads->last_stat_report_time = time(0);
 		mmt_probe->smp_threads->pcap_last_stat_report_time = 0;
 		mmt_probe->smp_threads->pcap_current_packet_time = 0;
-#ifdef HTTP_RECONSTRUCT
+#ifdef HTTP_RECONSTRUCT_MODULE
 		mmt_probe->smp_threads->list_http_session_data = NULL;
 #endif		
 		//One thread for reading packets and processing them
@@ -839,9 +839,9 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 		if(mmt_probe->mmt_conf->event_based_reporting_enable == 1)event_reports_init((void *)mmt_probe->smp_threads); // initialize our event reports
 		if (mmt_probe->mmt_conf->enable_security_report == 1)security_reports_init((void *)mmt_probe->smp_threads);// should be defined before proto_stats_init
 		if (mmt_probe->mmt_conf->enable_security_report == 0)proto_stats_init(mmt_probe->smp_threads);
-#ifdef HTTP_RECONSTRUCT
-		if (mmt_probe->mmt_conf->http_reconstruct_enable == 1) http_reconstruct_init(mmt_probe->smp_threads);
-#endif // End of HTTP_RECONSTRUCT
+#ifdef HTTP_RECONSTRUCT_MODULE
+		if (mmt_probe->mmt_conf->HTTP_RECONSTRUCT_MODULE_enable == 1) HTTP_RECONSTRUCT_MODULE_init(mmt_probe->smp_threads);
+#endif // End of HTTP_RECONSTRUCT_MODULE
 		if (mmt_probe->mmt_conf->enable_security_report_multisession == 1)security_reports_multisession_init((void *)mmt_probe->smp_threads);// should be defined before proto_stats_init
 		if (mmt_probe->mmt_conf->enable_security_report == 0 && mmt_probe->mmt_conf->enable_security_report_multisession == 0 )proto_stats_init(mmt_probe->smp_threads);
 		//initialisation of multisession report
@@ -870,7 +870,7 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 			mmt_probe->smp_threads[i].nb_packets         = 0;
 
 			mmt_probe->smp_threads[i].thread_index = i;
-#ifdef HTTP_RECONSTRUCT
+#ifdef HTTP_RECONSTRUCT_MODULE
 			mmt_probe->smp_threads[i].list_http_session_data = NULL;
 #endif			
 			if( data_spsc_ring_init( &mmt_probe->smp_threads[i].fifo, mmt_probe->mmt_conf->thread_queue_plen, mmt_probe->mmt_conf->requested_snap_len ) != 0 ){

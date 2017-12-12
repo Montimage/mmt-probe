@@ -42,7 +42,7 @@ extern "C" {
 #define MMT_FTP_REPORT_FORMAT    0x4
 #define MMT_RTP_REPORT_FORMAT    0x3
 #define MMT_SSL_REPORT_FORMAT    0x2
-#define MMT_HTTP_RECONSTRUCT_REPORT_FORMAT    0xb
+#define MMT_HTTP_RECONSTRUCT_MODULE_REPORT_FORMAT    0xb
 //#define MMT_SKIP_APP_REPORT_FORMAT      0xFF //This is mainly to skip the reporting of flows of specific applications.
 #define MMT_DEFAULT_APP_REPORT_FORMAT   0x0
 #define MMT_IP_FRAG_REPORT_FORMAT   0x65
@@ -154,15 +154,14 @@ typedef struct mmt_event_attribute_struct {
 	uint32_t attribute_id;
 } mmt_event_attribute_t;
 
-
 typedef struct mmt_event_report_struct {
 	uint32_t enable;
 	uint32_t id;
 	mmt_event_attribute_t event;
 	uint32_t attributes_nb;
-        uint32_t event_output_channel[3];
+	uint32_t event_output_channel[3];
 	mmt_event_attribute_t * attributes;
-        struct mmt_event_report_struct *next;
+	struct mmt_event_report_struct *next;
 } mmt_event_report_t;
 
 typedef struct mmt_condition_attribute_struct {
@@ -181,7 +180,7 @@ typedef struct mmt_condition_report_struct {
 	uint32_t handlers_nb;
 	mmt_condition_attribute_t * attributes;
 	mmt_condition_attribute_t * handlers;
-        struct mmt_condition_report_struct *next;
+	struct mmt_condition_report_struct *next;
 
 } mmt_condition_report_t;
 
@@ -192,7 +191,6 @@ typedef struct mmt_security_attribute_struct {
 	uint32_t attribute_id;
 } mmt_security_attribute_t;
 
-
 typedef struct mmt_security_report_struct {
 	uint32_t enable;
 	uint32_t attributes_nb;
@@ -202,7 +200,6 @@ typedef struct mmt_security_report_struct {
 	uint8_t rule_type;
 	mmt_security_attribute_t * attributes;
 } mmt_security_report_t;
-
 
 typedef struct mmt_security_report_multisession_struct {
 	uint32_t enable;
@@ -215,7 +212,7 @@ typedef struct ip_port_struct {
 	uint32_t *server_portnb;
 } ip_port_t;
 
-#ifdef HTTP_RECONSTRUCT
+#ifdef HTTP_RECONSTRUCT_MODULE
 
 #define HSDS_START 1
 #define HSDS_TRANSFER 2
@@ -225,39 +222,40 @@ typedef struct ip_port_struct {
 /**
  * HTTP content processing structure
  */
-typedef struct 
+typedef struct
 {
-  int status; //indicates if we can process data or not, not used but can be if we wish to limit processing to one direction client-> server or server->client
-  int interaction_count; //number of HTTP messages seen on the same session
-  int content_type; //set to 1 if the content type is html
-  int content_encoding; //set to 1 if the content encoding is gzip
-  void * pre_processor; //opaque pointer to the pre-processor (in this case gzip parser)
-  void * processor; //opaque pointer to the processor (in this case: html parse)
-} http_content_processor_t;
+	int status; //indicates if we can process data or not, not used but can be if we wish to limit processing to one direction client-> server or server->client
+	int interaction_count;//number of HTTP messages seen on the same session
+	int content_type;//set to 1 if the content type is html
+	int content_encoding;//set to 1 if the content encoding is gzip
+	void * pre_processor;//opaque pointer to the pre-processor (in this case gzip parser)
+	void * processor;//opaque pointer to the processor (in this case: html parse)
+}http_content_processor_t;
 
 typedef struct http_session_data_struct {
-    uint64_t session_id;
-    uint64_t http_session_status;
-    char * filename;
-    char * content_type;
-    uint64_t current_len;
-    uint64_t total_len;
-    uint64_t data_packets[MAX_NB_DATA_PACKETS];
-    uint8_t file_has_extension;
-    struct http_session_data_struct *next;
-} http_session_data_t;
+	uint64_t session_id;
+	uint64_t http_session_status;
+	char * filename;
+	char * content_type;
+	uint64_t current_len;
+	uint64_t total_len;
+	uint64_t data_packets[MAX_NB_DATA_PACKETS];
+	uint8_t file_has_extension;
+	struct http_session_data_struct *next;
+}http_session_data_t;
 
 // static http_session_data_t * list_http_session_data = NULL;
 
-#endif // End of HTTP_RECONSTRUCT
+#endif // End of HTTP_RECONSTRUCT_MODULE
 
 typedef struct mmt_cpu_perf_struct {
-    uint8_t cpu_mem_usage_rep_freq; //frequency to send the report
-    long double cpu_usage_avg;
-    long double mem_usage_avg;
+	bool is_enable;
+	uint8_t cpu_mem_usage_rep_freq; //frequency to send the report
+	long double cpu_usage_avg;
+	long double mem_usage_avg;
 } mmt_cpu_perf_t;
 
-typedef struct kafka_topic_object_struct{
+typedef struct kafka_topic_object_struct {
 	rd_kafka_topic_t * rkt_session;
 	rd_kafka_topic_t * rkt_event;
 	rd_kafka_topic_t * rkt_cpu;
@@ -270,88 +268,88 @@ typedef struct kafka_topic_object_struct{
 	rd_kafka_topic_t * rkt_security;
 	rd_kafka_topic_t * rkt_frag;
 
-}kafka_topic_object_t;
+} kafka_topic_object_t;
 
 typedef struct mmt_probe_context_struct {
-    uint32_t thread_nb;
-    uint32_t thread_nb_2_power;
-    uint32_t thread_queue_plen;
-    uint32_t thread_queue_blen;
-    uint32_t input_mode;
-    uint32_t probe_id_number;
-    uint64_t report_cache_size_before_flushing;
-    uint32_t requested_snap_len;
-    char input_source[256 + 1];
-    char log_file[256 + 1];
-    char data_out[256 + 1];
-    char dir_out[256 + 1];
-    char properties_file[256 + 1];
-    char radius_out[256 + 1];
-    char input_f_name[256 + 1];
-    char out_f_name[256 + 1];
-    char output_location[256 + 1];
-    char license_location[256 + 1];
-    char behaviour_output_location[256 + 1];
-    char ftp_reconstruct_output_location[256 + 1];
-    char dynamic_config_file[256 + 1];
+	uint32_t thread_nb;
+	uint32_t thread_nb_2_power;
+	uint32_t thread_queue_plen;
+	uint32_t thread_queue_blen;
+	uint32_t input_mode;
+	uint32_t probe_id_number;
+	uint64_t report_cache_size_before_flushing;
+	uint32_t requested_snap_len;
+	char input_source[256 + 1];
+	char log_file[256 + 1];
+	char data_out[256 + 1];
+	char dir_out[256 + 1];
+	char properties_file[256 + 1];
+	char radius_out[256 + 1];
+	char input_f_name[256 + 1];
+	char out_f_name[256 + 1];
+	char output_location[256 + 1];
+	char license_location[256 + 1];
+	char behaviour_output_location[256 + 1];
+	char ftp_reconstruct_output_location[256 + 1];
+	char dynamic_config_file[256 + 1];
 
-    uint32_t ftp_enable;
-    uint32_t web_enable;
-    uint32_t rtp_enable;
-    uint32_t ssl_enable;
-    uint32_t behaviour_enable;
-    uint32_t security_enable;
-    uint32_t event_based_reporting_enable;
-    uint32_t condition_based_reporting_enable;
-    uint32_t enable_security_report;
-    uint32_t ftp_reconstruct_enable;
-    uint32_t radius_enable;
-    uint32_t default_session_timeout;
-    uint32_t long_session_timeout;
-    uint32_t short_session_timeout;
-    uint32_t live_session_timeout;
+	uint32_t ftp_enable;
+	uint32_t web_enable;
+	uint32_t rtp_enable;
+	uint32_t ssl_enable;
+	uint32_t behaviour_enable;
+	uint32_t security_enable;
+	uint32_t event_based_reporting_enable;
+	uint32_t condition_based_reporting_enable;
+	uint32_t enable_security_report;
+	uint32_t ftp_reconstruct_enable;
+	uint32_t radius_enable;
+	uint32_t default_session_timeout;
+	uint32_t long_session_timeout;
+	uint32_t short_session_timeout;
+	uint32_t live_session_timeout;
 
-    //uint32_t output_to_file_enable;
-    atomic_int output_to_file_enable;
-    uint32_t redis_enable;
-    uint32_t kafka_enable;
-    //rd_kafka_topic_conf_t * topic_old;
+	//uint32_t output_to_file_enable;
+	atomic_int output_to_file_enable;
+	uint32_t redis_enable;
+	uint32_t kafka_enable;
+	//rd_kafka_topic_conf_t * topic_old;
 
-    kafka_topic_object_t * topic_object;
+	kafka_topic_object_t * topic_object;
 
-    char out_f_name_index[256 + 1];
-    FILE * data_out_file;
-    int combine_radius;
-    FILE * radius_out_file;
-    FILE * log_output;
-    uint32_t log_level;
+	char out_f_name_index[256 + 1];
+	FILE * data_out_file;
+	int combine_radius;
+	FILE * radius_out_file;
+	FILE * log_output;
+	uint32_t log_level;
 
-    uint32_t enable_proto_without_session_stats;
-    uint32_t enable_flow_stats;
-    uint32_t enable_IP_fragmentation_report;
+	uint32_t enable_proto_without_session_stats;
+	uint32_t enable_flow_stats;
+	uint32_t enable_IP_fragmentation_report;
 
-    uint32_t radius_starategy;
-    uint32_t radius_message_id;
-    uint32_t radius_condition_id;
+	uint32_t radius_starategy;
+	uint32_t radius_message_id;
+	uint32_t radius_condition_id;
 
-    uint32_t microf_enable;
-    uint32_t microf_pthreshold;
-    uint32_t microf_bthreshold;
-    uint32_t microf_report_pthreshold;
-    uint32_t microf_report_bthreshold;
-    uint32_t microf_report_fthreshold;
-    uint32_t user_agent_parsing_threshold;
-    uint32_t stats_reporting_period;
-    uint32_t sampled_report_period;
-    uint32_t sampled_report;
-    uint32_t event_reports_nb;
-    uint32_t condition_reports_nb;
-    uint32_t new_condition_reports_nb;
-    uint32_t new_event_reports_nb;
-    mmt_event_report_t * event_reports;
-    mmt_condition_report_t * condition_reports;
-    mmt_condition_report_t * register_new_condition_reports;
-    mmt_event_report_t * register_new_event_reports;
+	uint32_t microf_enable;
+	uint32_t microf_pthreshold;
+	uint32_t microf_bthreshold;
+	uint32_t microf_report_pthreshold;
+	uint32_t microf_report_bthreshold;
+	uint32_t microf_report_fthreshold;
+	uint32_t user_agent_parsing_threshold;
+	uint32_t stats_reporting_period;
+	uint32_t sampled_report_period;
+	uint32_t sampled_report;
+	uint32_t event_reports_nb;
+	uint32_t condition_reports_nb;
+	uint32_t new_condition_reports_nb;
+	uint32_t new_event_reports_nb;
+	mmt_event_report_t * event_reports;
+	mmt_condition_report_t * condition_reports;
+	mmt_condition_report_t * register_new_condition_reports;
+	mmt_event_report_t * register_new_event_reports;
 
 	uint32_t socket_enable;
 
@@ -370,21 +368,21 @@ typedef struct mmt_probe_context_struct {
 	uint32_t nb_of_report_per_msg;
 	uint8_t one_socket_server;
 	uint32_t retain_files;
-#ifdef HTTP_RECONSTRUCT
-    char http_reconstruct_output_location[256 + 1];
-    uint16_t http_reconstruct_id;
-    uint32_t http_reconstruct_enable;
-#endif    // End of HTTP_RECONSTRUCT
+#ifdef HTTP_RECONSTRUCT_MODULE
+	char HTTP_RECONSTRUCT_MODULE_output_location[256 + 1];
+	uint16_t HTTP_RECONSTRUCT_MODULE_id;
+	uint32_t HTTP_RECONSTRUCT_MODULE_enable;
+#endif    // End of HTTP_RECONSTRUCT_MODULE
 
 	uint32_t socket_domain;
-	char unix_socket_descriptor[256 +1];
+	char unix_socket_descriptor[256 + 1];
 
 	mmt_security_report_multisession_t * security_reports_multisession;
 	uint32_t security_reports_multisession_nb;
 	uint32_t enable_security_report_multisession;
 	uint32_t total_security_multisession_attribute_nb;
 
-    uint32_t enable_session_report;
+	uint32_t enable_session_report;
 	uint8_t microf_output_channel[3];
 	uint8_t multisession_output_channel[3];
 	uint8_t security1_output_channel[3];
@@ -395,33 +393,29 @@ typedef struct mmt_probe_context_struct {
 	uint8_t cpu_mem_output_channel[3];
 	uint8_t security2_output_channel[3];
 
-
-
-
-	rd_kafka_t *kafka_producer_instance;         /* Producer instance handle */
-
+	rd_kafka_t *kafka_producer_instance; /* Producer instance handle */
 
 	//hn - new security
 	bool security2_enable;
 
 	char security2_rules_mask[1000];
 	char security2_excluded_rules[1000];
-        char security2_add_rules[1000];
-        char security2_remove_rules[1000];
-        int security2_count_rule_remove;
-        uint32_t remove_rules_array[1000];
-        int security2_add_rules_enable;
-        int security2_remove_rules_enable;
+	char security2_add_rules[1000];
+	char security2_remove_rules[1000];
+	int security2_count_rule_remove;
+	uint32_t remove_rules_array[1000];
+	int security2_add_rules_enable;
+	int security2_remove_rules_enable;
 	//number of threads of security2 per one thread of probe
 	uint8_t security2_threads_count;
-        int probe_load_running;
-        int pid;
-        //volatile uint8_t event_report_flag;
-        sr_conn_ctx_t *connection;
-        sr_session_ctx_t *session;
-        sr_subscription_ctx_t *subscription;
-        int load_enable;
-        long avail_processors;
+	int probe_load_running;
+	int pid;
+	//volatile uint8_t event_report_flag;
+	sr_conn_ctx_t *connection;
+	sr_session_ctx_t *session;
+	sr_subscription_ctx_t *subscription;
+	int load_enable;
+	long avail_processors;
 } mmt_probe_context_t;
 
 typedef struct microsessions_stats_struct {
@@ -466,7 +460,7 @@ typedef struct ftp_session_attr_struct {
 
 } ftp_session_attr_t;
 
-typedef struct temp_session_statistics_struct{
+typedef struct temp_session_statistics_struct {
 	struct timeval start_time;
 	struct timeval last_activity_time;
 	uint64_t total_byte_count;
@@ -482,7 +476,7 @@ typedef struct temp_session_statistics_struct{
 	uint64_t rtt_avg_usec[2];
 	uint64_t rtt_counter[2];
 	uint32_t retransmission_count;
-}temp_session_statistics_t;
+} temp_session_statistics_t;
 
 typedef struct web_session_attr_struct {
 	struct timeval first_request_time;
@@ -493,7 +487,7 @@ typedef struct web_session_attr_struct {
 	char hostname[96];
 	char referer[64];
 	char useragent[64];
-	uint8_t has_referer : 1, has_useragent : 1, xcdn_seen : 1, seen_response : 1;
+	uint8_t has_referer :1, has_useragent :1, xcdn_seen :1, seen_response :1;
 	uint8_t trans_nb;
 	char method[20];
 	char uri[1024];
@@ -509,15 +503,15 @@ typedef struct ssl_session_attr_struct {
 } ssl_session_attr_t;
 
 typedef struct session_struct {
-    uint8_t dtt_seen;
-    struct timeval dtt_start_time;
-    uint64_t data_transfer_time;
-    uint64_t rtt_at_handshake;
-    uint8_t proto;
-    uint8_t isClassified;
-#ifdef HTTP_RECONSTRUCT
-    http_content_processor_t * http_content_processor;
-#endif // End of HTTP_RECONSTRUCT   
+	uint8_t dtt_seen;
+	struct timeval dtt_start_time;
+	uint64_t data_transfer_time;
+	uint64_t rtt_at_handshake;
+	uint8_t proto;
+	uint8_t isClassified;
+#ifdef HTTP_RECONSTRUCT_MODULE
+	http_content_processor_t * http_content_processor;
+#endif // End of HTTP_RECONSTRUCT_MODULE   
 	uint16_t format_id;
 	uint16_t app_format_id;
 	int proto_path;
@@ -529,8 +523,8 @@ typedef struct session_struct {
 	mmt_ipv4_ipv6_id_t ipserver;
 	uint16_t clientport;
 	uint16_t serverport;
-	unsigned char src_mac [7];
-	unsigned char dst_mac [7];
+	unsigned char src_mac[7];
+	unsigned char dst_mac[7];
 	uint8_t isFlowExtracted;
 	uint8_t ipversion;
 	uint32_t contentclass;
@@ -546,48 +540,6 @@ struct packet_element {
 	u_char *data;
 };
 
-/**
- * Double linked list structure
- */
-struct list_entry {
-	struct list_entry *next, *prev;
-};
-
-/**
- * List node initialization
- */
-static inline void init_list_head(struct list_entry *list) {
-	list->next = list;
-	list->prev = list;
-}
-
-/**
- * Test if list is empty
- */
-static inline int list_empty(struct list_entry *list) {
-	return (list->next == list);
-}
-
-/**
- * Add a node at list tail
- */
-static inline void list_add_tail(struct list_entry *new, struct list_entry *head) {
-	new->next = head;
-	head->prev->next = new;
-	new->prev = head->prev;
-	head->prev = new;
-}
-
-/**
- * Remove a node from list
- */
-static inline void list_del(struct list_entry *entry) {
-	entry->next->prev = entry->prev;
-	entry->prev->next = entry->next;
-	entry->next = NULL;
-	entry->prev = NULL;
-}
-
 /*
  * Packet with pointer on next packet
  * for list insertion
@@ -600,14 +552,13 @@ typedef struct probe_internal_struct {
 	uint32_t instance_id;
 	microsessions_stats_t mf_stats[PROTO_MAX_IDENTIFIER];
 } probe_internal_t;
-struct mmsghdr
-{
+struct mmsghdr {
 	struct msghdr msg_hdr;	 //Actual message header.
 	unsigned int msg_len;	 //Number of received or sent bytes for the  entry.
 };
 
-extern int sendmmsg (int __fd, struct mmsghdr *__vmessages,
-		unsigned int __vlen, int __flags);
+extern int sendmmsg(int __fd, struct mmsghdr *__vmessages, unsigned int __vlen,
+		int __flags);
 
 typedef struct security_report_buffer_struct {
 	uint32_t length;
@@ -617,7 +568,6 @@ typedef struct security_report_buffer_struct {
 	unsigned char ** data;
 
 } security_report_buffer_t;
-
 
 typedef struct mmt_security_attributes_struct {
 	uint32_t proto_id;
@@ -633,7 +583,7 @@ typedef struct worker_args {
 	char rx_to_workers[20];
 	int lcore_id;
 	long long int num_packet;
-}worker_args_t;
+} worker_args_t;
 
 struct smp_thread {
 	int thread_index;
@@ -656,13 +606,13 @@ struct smp_thread {
 	char **cache_message_list;
 	int cache_count;
 	data_spsc_ring_t fifo;
-	uint64_t nb_packets, nb_dropped_packets, nb_dropped_packets_NIC, nb_dropped_packets_kernel;
+	uint64_t nb_packets, nb_dropped_packets, nb_dropped_packets_NIC,
+			nb_dropped_packets_kernel;
 	uint32_t * sockfd_internet;
-	uint32_t  sockfd_unix;
+	uint32_t sockfd_unix;
 	uint64_t packet_send;
 	worker_args_t * workers;
 	uint8_t socket_active;
-
 
 	unsigned lcore_id;	//lcore_id of probe
 
@@ -670,18 +620,18 @@ struct smp_thread {
 	unsigned security2_lcore_id; //lcore_id of security2
 
 	sem_t sem_wait;
-#ifdef HTTP_RECONSTRUCT
+#ifdef HTTP_RECONSTRUCT_MODULE
 	http_session_data_t * list_http_session_data;
 #endif	
-        volatile uint8_t  event_report_flag;
-        volatile uint8_t  condition_report_flag;
+	volatile uint8_t event_report_flag;
+	volatile uint8_t condition_report_flag;
 
-        volatile uint8_t  session_report_flag;
-        volatile uint8_t  security2_report_flag;
-        volatile uint8_t behaviour_flag;
-        volatile uint8_t ftp_reconstruct_flag;
-        volatile uint8_t  config_updated;
-        volatile uint8_t micro_flows_flag;
+	volatile uint8_t session_report_flag;
+	volatile uint8_t security2_report_flag;
+	volatile uint8_t behaviour_flag;
+	volatile uint8_t ftp_reconstruct_flag;
+	volatile uint8_t config_updated;
+	volatile uint8_t micro_flows_flag;
 };
 
 typedef struct mmt_probe_struct {
@@ -691,18 +641,19 @@ typedef struct mmt_probe_struct {
 	mmt_probe_context_t * mmt_conf;
 	probe_internal_t iprobe;
 	uint64_t packets_nb;
-}mmt_probe_struct_t;
+} mmt_probe_struct_t;
 
-struct user_data{
+struct user_data {
 	void *smp_thread;
 	void *event_reports;
 };
 struct sockaddr_un {
-	unsigned short sun_family;  /* AF_UNIX */
+	unsigned short sun_family; /* AF_UNIX */
 	char sun_path[108];
 };
-void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char * log_msg);
-void init_redis (char * hostname, int port);
+void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code,
+		const char * log_msg);
+void init_redis(char * hostname, int port);
 void proto_stats_cleanup(void * handler);
 void flowstruct_init(void * handler);
 void flowstruct_cleanup(void * handler);
@@ -710,12 +661,14 @@ void radius_ext_init(void * args);
 void radius_ext_cleanup(void * handler);
 void event_reports_init(void * args);
 void conditional_reports_init(void * handler);
-void security_event( int prop_id, char *verdict, char *type, char *cause, char *history , struct timeval packet_timestamp, void * user_args);
+void security_event(int prop_id, char *verdict, char *type, char *cause,
+		char *history, struct timeval packet_timestamp, void * user_args);
 void protocols_stats_iterator(uint32_t proto_id, void * args);
-void send_message_to_file (char * message);
-void send_message_to_file_thread (char * message, void *args);
-void send_message_to_redis (char *channel, char * message);
-int proto_hierarchy_ids_to_str(const proto_hierarchy_t * proto_hierarchy, char * dest);
+void send_message_to_file(char * message);
+void send_message_to_file_thread(char * message, void *args);
+void send_message_to_redis(char *channel, char * message);
+int proto_hierarchy_ids_to_str(const proto_hierarchy_t * proto_hierarchy,
+		char * dest);
 int is_local_net(int addr);
 int is_localv6_net(char * addr);
 void security_reports_multisession_init(void * args);
@@ -726,48 +679,73 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt);
 uint32_t is_microflow(const mmt_session_t * expired_session);
 uint32_t is_microflow_stats_reportable(microsessions_stats_t * stats);
 void report_microflows_stats(microsessions_stats_t * stats, void *args);
-void update_microflows_stats(microsessions_stats_t * stats, const mmt_session_t * expired_session);
+void update_microflows_stats(microsessions_stats_t * stats,
+		const mmt_session_t * expired_session);
 void reset_microflows_stats(microsessions_stats_t * stats);
 void report_all_protocols_microflows_stats(void *args);
 int license_expiry_check(int status);
 void parseOptions(int argc, char ** argv, struct mmt_probe_struct * mmt_probe);
 void todo_at_start(char *file_path);
 void todo_at_end();
-void init_mmt_security(mmt_handler_t *mmt_handler, char * property_file, void *args);
+void init_mmt_security(mmt_handler_t *mmt_handler, char * property_file,
+		void *args);
 void exit_timers();
-void flush_messages_to_file_thread( void *);
-int start_timer( uint32_t period, void *callback, void *user_data);
+void flush_messages_to_file_thread(void *);
+int start_timer(uint32_t period, void *callback, void *user_data);
 struct timeval mmt_time_diff(struct timeval tstart, struct timeval tend);
 void proto_stats_init(void * arg);
 void read_attributes();
-int condition_parse_dot_proto_attribute(char * inputstring, mmt_condition_attribute_t * protoattr);
-int parse_condition_attribute(char * inputstring, mmt_condition_attribute_t * conditionattr);
-int parse_handlers_attribute(char * inputstring, mmt_condition_attribute_t * handlersattr);
+int condition_parse_dot_proto_attribute(char * inputstring,
+		mmt_condition_attribute_t * protoattr);
+int parse_condition_attribute(char * inputstring,
+		mmt_condition_attribute_t * conditionattr);
+int parse_handlers_attribute(char * inputstring,
+		mmt_condition_attribute_t * handlersattr);
 void new_conditional_reports_init(void * args);
 void new_event_reports_init(void * args);
-int parse_dot_proto_attribute(char * inputstring, mmt_event_attribute_t * protoattr);
+int parse_dot_proto_attribute(char * inputstring,
+		mmt_event_attribute_t * protoattr);
 
 //handlers
-void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void ftp_session_connection_type_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void xcdn_seen_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void useragent_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void referer_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void host_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void mime_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void rtp_version_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void rtp_jitter_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void rtp_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void rtp_order_error_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void content_len_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void flush_messages_to_file_thread( void *arg);
-void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void ftp_response_value_handle(const ipacket_t * ipacket,
+		attribute_t * attribute, void * user_args);
+void ftp_session_connection_type_handle(const ipacket_t * ipacket,
+		attribute_t * attribute, void * user_args);
+void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute,
+		void * user_args);
+void xcdn_seen_handle(const ipacket_t * ipacket, attribute_t * attribute,
+		void * user_args);
+void useragent_handle(const ipacket_t * ipacket, attribute_t * attribute,
+		void * user_args);
+void referer_handle(const ipacket_t * ipacket, attribute_t * attribute,
+		void * user_args);
+void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute,
+		void * user_args);
+void host_handle(const ipacket_t * ipacket, attribute_t * attribute,
+		void * user_args);
+void mime_handle(const ipacket_t * ipacket, attribute_t * attribute,
+		void * user_args);
+void rtp_version_handle(const ipacket_t * ipacket, attribute_t * attribute,
+		void * user_args);
+void rtp_jitter_handle(const ipacket_t * ipacket, attribute_t * attribute,
+		void * user_args);
+void rtp_loss_handle(const ipacket_t * ipacket, attribute_t * attribute,
+		void * user_args);
+void rtp_order_error_handle(const ipacket_t * ipacket, attribute_t * attribute,
+		void * user_args);
+void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute,
+		void * user_args);
+void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute,
+		void * user_args);
+void uri_handle(const ipacket_t * ipacket, attribute_t * attribute,
+		void * user_args);
+void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute,
+		void * user_args);
+void content_len_handle(const ipacket_t * ipacket, attribute_t * attribute,
+		void * user_args);
+void flush_messages_to_file_thread(void *arg);
+void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute,
+		void * user_args);
 int file_is_modified(const char *path);
 void write_to_socket_internet(struct smp_thread *th);
 void write_to_socket_unix(struct smp_thread *th);
@@ -775,33 +753,40 @@ void create_socket(mmt_probe_context_t * mmt_conf, void *args);
 int packet_handler(const ipacket_t * ipacket, void * args);
 void security_reports_init(void * args);
 void * get_handler_by_name(char * func_name);
-void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe);
+void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute,
+		void * user_args);
+int dpdk_capture(int argc, char **argv, struct mmt_probe_struct * mmt_probe);
 //void print_stats(void * args);
 int cleanup_registered_handlers(void *arg);
-void payload_extraction(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num);
-void data_extraction(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num);
-void ftp_last_command(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num);
-void ftp_last_response_code(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num);
-void ip_opts(const ipacket_t * ipacket,struct smp_thread *th,attribute_t * attr_extract, int report_num);
-void get_security_multisession_report(const ipacket_t * ipacket,void * args);
-void get_security_report(const ipacket_t * ipacket,void * args);
+void payload_extraction(const ipacket_t * ipacket, struct smp_thread *th,
+		attribute_t * attr_extract, int report_num);
+void data_extraction(const ipacket_t * ipacket, struct smp_thread *th,
+		attribute_t * attr_extract, int report_num);
+void ftp_last_command(const ipacket_t * ipacket, struct smp_thread *th,
+		attribute_t * attr_extract, int report_num);
+void ftp_last_response_code(const ipacket_t * ipacket, struct smp_thread *th,
+		attribute_t * attr_extract, int report_num);
+void ip_opts(const ipacket_t * ipacket, struct smp_thread *th,
+		attribute_t * attr_extract, int report_num);
+void get_security_multisession_report(const ipacket_t * ipacket, void * args);
+void get_security_report(const ipacket_t * ipacket, void * args);
 void cleanup(int signo, mmt_probe_struct_t * mmt_probe);
 void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe);
 void process_interface(char * ifname, struct mmt_probe_struct * mmt_probe);
 void clean_up_security2();
-void * smp_thread_routine(void *arg);//TODO: Static removed
+void * smp_thread_routine(void *arg); //TODO: Static removed
 int pcap_capture(struct mmt_probe_struct * mmt_probe);
-
 
 void init_kafka(char * hostname, int port);
 void send_msg_to_kafka(rd_kafka_topic_t *rkt, char *message);
-void config_output_to_redis(sr_session_ctx_t * session, sr_val_t * value, struct mmt_probe_struct * mmt_probe);
-void read_mmt_config(sr_session_ctx_t *session, struct mmt_probe_struct * mmt_probe);
+void config_output_to_redis(sr_session_ctx_t * session, sr_val_t * value,
+		struct mmt_probe_struct * mmt_probe);
+void read_mmt_config(sr_session_ctx_t *session,
+		struct mmt_probe_struct * mmt_probe);
 void flowstruct_uninit(void * handler);
 
 /** Luong NGUYEN: HTTP reconstruct */
-#ifdef HTTP_RECONSTRUCT
+#ifdef HTTP_RECONSTRUCT_MODULE
 /**
  * Initialize for http reconstruction
  * - Register handle
@@ -864,7 +849,6 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args);
  * Close the HTTP content processing structure
  */
 // void http_classification_expiry_session(const mmt_session_t * expired_session, void * args);
-
 http_session_data_t * new_http_session_data();
 
 void add_http_session_data(http_session_data_t * current_http_data, struct smp_thread * th);
@@ -876,8 +860,8 @@ http_session_data_t * get_http_session_data_by_id(uint64_t session_id, http_sess
  */
 inline static void * init_http_content_processor()
 {
-  http_content_processor_t * sp = (http_content_processor_t *) calloc( 1, sizeof( http_content_processor_t ) );
-  return (void *) sp;
+	http_content_processor_t * sp = (http_content_processor_t *) calloc( 1, sizeof( http_content_processor_t ) );
+	return (void *) sp;
 }
 
 void clean_http_session_data(uint64_t session_id,struct smp_thread * th);
@@ -893,46 +877,39 @@ uint8_t is_http_packet(const ipacket_t * ipacket);
 void dynamic_conf (struct mmt_probe_struct * mmt_probe);
 size_t get_rules_id_list_in_mask(const char * rule_mask, uint32_t ** rules_set);
 static void terminate_probe_processing(int wait_thread_terminate);
-#endif // End of HTTP_RECONSTRUCT
+#endif // End of HTTP_RECONSTRUCT_MODULE
 /** END OF HTTP RECONSTRUCT */
+
+
 //prototypes
-void print_ip_session_report (const mmt_session_t * session, void *user_args);
-void print_initial_web_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
-void print_initial_rtp_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
-void print_initial_ssl_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
-void print_initial_ftp_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
-void print_initial_default_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
+void print_ip_session_report(const mmt_session_t * session, void *user_args);
+void print_initial_web_report(const mmt_session_t * session,
+		session_struct_t * temp_session, char message[MAX_MESS + 1], int valid);
+void print_initial_rtp_report(const mmt_session_t * session,
+		session_struct_t * temp_session, char message[MAX_MESS + 1], int valid);
+void print_initial_ssl_report(const mmt_session_t * session,
+		session_struct_t * temp_session, char message[MAX_MESS + 1], int valid);
+void print_initial_ftp_report(const mmt_session_t * session,
+		session_struct_t * temp_session, char message[MAX_MESS + 1], int valid);
+void print_initial_default_report(const mmt_session_t * session,
+		session_struct_t * temp_session, char message[MAX_MESS + 1], int valid);
 
-int get_protocol_index_from_session(const proto_hierarchy_t * proto_hierarchy, uint32_t proto_id);
+int get_protocol_index_from_session(const proto_hierarchy_t * proto_hierarchy,
+		uint32_t proto_id);
 
-
-int register_conditional_report_handle(void * handler, mmt_condition_report_t * condition_report);
+int register_conditional_report_handle(void * handler,
+		mmt_condition_report_t * condition_report);
 
 mmt_probe_context_t * get_probe_context_config();
 
-mmt_dev_properties_t get_dev_properties_from_user_agent(char * user_agent, uint32_t len);
-/*
- ** Translation Table as described in RFC1113
- */
-static const char cb64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-//static char lock_file [256+1]={0};
-/*
- ** encodeblock
- **
- ** encode 3 8-bit binary bytes as 4 '6-bit' characters
- */
-inline void encodeblock(unsigned char in[3], unsigned char out[4], int len);
+mmt_dev_properties_t get_dev_properties_from_user_agent(char * user_agent,
+		uint32_t len);
 
-/*
- ** encode
- **
- ** base64 encode a string.
- */
-inline int encode_str(const char *infile, char *outfile);
 
 int time_diff(struct timeval t1, struct timeval t2);
 
-void classification_expiry_session(const mmt_session_t * expired_session, void * args);
+void classification_expiry_session(const mmt_session_t * expired_session,
+		void * args);
 
 #ifdef	__cplusplus
 }

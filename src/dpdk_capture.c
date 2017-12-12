@@ -377,7 +377,7 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 			th->thread_index = thread_index;
 			th->lcore_id     = lcore_id;
 			th->mmt_handler  = mmt_init_handler( DLT_EN10MB, 0, mmt_errbuf );
-#ifdef HTTP_RECONSTRUCT
+#ifdef HTTP_RECONSTRUCT_MODULE
 			th->list_http_session_data = NULL;
 #endif			
 			if (! th->mmt_handler ) { /* pcap error ?*/

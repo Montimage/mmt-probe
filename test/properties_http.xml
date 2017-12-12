@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<?xml-stylesheet type="text/xsl" href="properties.xsl"?>
+<beginning>
+
+
+<property value="THEN" delay_units="m" delay_min="0+" delay_max="1" property_id="2" type_property="ATTACK" 
+          description="Simple test.">
+      <event value="COMPUTE" event_id="4" 
+             description="Has HTTP.URI"
+             boolean_expression="( http.uri != '' )"/>
+    <event value="COMPUTE" event_id="5" 
+           description="Has HTTP.URI"
+           boolean_expression="( http.uri != http.method )"/>
+</property>
+</beginning>
