@@ -30,21 +30,24 @@ CFLAGS   := -I /opt/mmt/dpi/include -Wall -Wno-unused-variable\
 #################################################
 #for debuging
 ifdef DEBUG
-	CFLAGS   := -g -O0
+	CFLAGS   += -g -O0 -DDEBUG_MODE
 else
-	CFLAGS   := -O3
+	CFLAGS   += -O3
 endif
 
 # For showing message from debug(...)
 ifndef NDEBUG
-	CLDFLAGS   += -DNDEBUG
 	CFLAGS 	  += -DNDEBUG
 endif
+
+
+MODULE_SRCS := 
 
 #################################################
 ############ CAPTURE PACKETS ####################
 #################################################
 ifdef DPDK
+$(info - Use DPDK to capture packet)
 	#dpdk makefile
 	ifndef RTE_SDK
 $(error RTE_SDK is not set)
@@ -54,69 +57,71 @@ $(error RTE_SDK is not set)
    
    include $(RTE_SDK)/mk/rte.vars.mk
    include $(RTE_SDK)/mk/rte.extapp.mk
-   
-   
-$(info - Use DPDK to capture packet)
-   CFLAGS += $(WERROR_CFLAGS) -DDPDK
-else
-	#for PCAP
+
+   CFLAGS      += $(WERROR_CFLAGS) -DDPDK_MODULE
+   MODULE_SRCS += $(wildcard src/modules/dpdk/*.c)
+else #for PCAP
 $(info - Use PCAP to capture packet)
-	CFLAGS += -DPCAP
-	LIBS   += -lpcap -ldl
+	CFLAGS      += -DPCAP_MODULE
+	LIBS        += -lpcap -ldl
+	MODULE_SRCS += $(wildcard src/modules/pcap/*.c)
 endif
 
 #################################################
 ########### MODULES #############################
 #################################################
+
 # For HTTP reconstruction option
 ifdef HTTP_RECONSTRUCT_MODULE
 $(info - Enable HTTP reconstruction)
-	LIBS     += -lhtmlstreamparser -lz
-	CFLAGS   += -DHTTP_RECONSTRUCT_MODULE
+	LIBS        += -lhtmlstreamparser -lz
+	CFLAGS      += -DHTTP_RECONSTRUCT_MODULE
+	MODULE_SRCS += $(wildcard src/modules/construct_http/*.c)
 endif
 
 ifdef KAFKA_MODULE
 $(info - Enable Kafka output)
-	LIBS   += -lrdkafka
-	CFLAGS += -I /usr/local/include/librdkafka -DKAFKA_MODULE
+	LIBS        += -lrdkafka
+	CFLAGS      += -I /usr/local/include/librdkafka -DKAFKA_MODULE
+	MODULE_SRCS += $(wildcard src/modules/kafka /*.c)
 endif
 
 ifdef REDIS_MODULE
 $(info - Enable Redis output)
-	LIBS   += -lhiredis
-	CFLAGS += -DREDIS_MODULE
+	LIBS        += -lhiredis
+	CFLAGS      += -DREDIS_MODULE
+	MODULE_SRCS += $(wildcard src/modules/redis/*.c)
 endif
 
 ifdef NETCONF_MODULE
 $(info - Enable dynamic configuration using Netconf)
-	LIBS   += -lrt -lsysrepo -lxml2
-	CFLAGS += -DNETCONF_MODULE
+	LIBS        += -lrt -lsysrepo -lxml2
+	CFLAGS      += -DNETCONF_MODULE
+	MODULE_SRCS += $(wildcard src/modules/netconf/*.c)
 endif
 
 ifdef SECURITY_MODULE
 $(info - Enable Security analysis)
-	LIBS   += -L/opt/mmt/security/lib -lmmt_security2 
-	CFLAGS += -I /opt/mmt/security/include -DSECURITY_MODULE
+	LIBS        += -L/opt/mmt/security/lib -lmmt_security2 
+	CFLAGS      += -I /opt/mmt/security/include -DSECURITY_MODULE
+	MODULE_SRCS += $(wildcard src/modules/security/*.c)
 endif
 
 
 #################################################
 ############## COMPILE ##########################
 #################################################
-#folders containing source files
-SRCDIR = src
-
 #objects to generate
-LIB_OBJS :=  $(patsubst %.c,%.o, $(wildcard $(SRCDIR)/lib/*.c)) \
+
+MODULE_OBJS := $(patsubst %.c,%.o, $(MODULE_SRCS))
+LIB_OBJS :=  $(patsubst %.c,%.o, $(wildcard src/lib/*.c))
 
 #filter out 2 files: src/main.c and src/test_probe.c
-MAIN_SRCS := $(wildcard   $(SRCDIR)/*.c)
-MAIN_SRCS := $(filter-out $(SRCDIR)/main.c,       $(MAIN_SRCS))
-MAIN_SRCS := $(filter-out $(SRCDIR)/test_probe.c, $(MAIN_SRCS))
+MAIN_SRCS := src/main.c
 
-MAIN_OBJS := $(patsubst %.c,%.o, $(MAIN_SRCS)) \
+MAIN_OBJS := $(patsubst %.c,%.o, $(MAIN_SRCS))
 
-all: $(LIB_OBJS) $(MAIN_OBJS)
+all: $(LIB_OBJS) $(MODULE_OBJS) $(MAIN_OBJS)
 	@echo "[COMPILE] probe"
 	$(QUIET) $(CC) -o $(APP) $(CLDFLAGS)  $^ $(LIBS)
 %.o: %.c

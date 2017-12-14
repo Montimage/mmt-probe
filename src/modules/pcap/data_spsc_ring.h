@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include "data_spsc_ring.h"
 #include "lock_free_spsc_ring.h"
-#include "optimization.h"
+#include "../../lib/optimization.h"
 
 typedef struct data_spsc_ring_struct{
 	void **_data;

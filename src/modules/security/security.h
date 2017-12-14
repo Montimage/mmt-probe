@@ -9,6 +9,8 @@
 #define SRC_LIB_SECURITY_H_
 
 #include <mmt_core.h>
+
+#ifdef SECURITY_MODULE
 #include <mmt_security.h>
 
 #include "../processing.h"
@@ -89,5 +91,5 @@ size_t unregister_security( sec_wrapper_t* );
 static inline const char* security_get_version(){
 	return mmt_sec_get_version_info();
 }
-
+#endif
 #endif /* SRC_LIB_SECURITY_H_ */

@@ -13,5 +13,5 @@ const char* get_version(){
 #ifndef GIT_VERSION
 	#define GIT_VERSION "unknown"
 #endif
-	return VERSION "(" GIT_VERSION ")";
+	return VERSION "-" GIT_VERSION;
 }

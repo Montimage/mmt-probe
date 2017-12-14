@@ -4,16 +4,38 @@
  *  Created on: Dec 12, 2017
  *      Author: nhnghia
  */
-
+#include <execinfo.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <pthread.h>
+#include <errno.h>
+#include <signal.h>
+#include <unistd.h> //usleep, sleep
 #include <stdio.h>
 #include <string.h>
 
-#include "lib/configure.h"
+#include <mmt_core.h>
+
+#include "lib/alloc.h"
+#include "lib/log.h"
+#include "lib/context.h"
 #include "lib/version.h"
+
+#ifdef DPDK_MODULE
+#include "modules/dpdk/dpdk.h"
+#endif
+
+#ifdef PCAP_MODULE
+#include "modules/pcap/pcap_capture.h"
+#endif
+
 //#include "mmt_dpi.h"
 
 
-#define DEFAULT_CONFIG_FILE "/opt/mmt/probe/mmt-probe.conf"
+//#define DEFAULT_CONFIG_FILE "/opt/mmt/probe/mmt-probe.conf"
+#define DEFAULT_CONFIG_FILE "./probe.conf"
 
 void usage(const char * prg_name) {
 	fprintf(stderr, "%s [<option>]\n", prg_name);
@@ -38,15 +60,20 @@ static inline void _override_string_conf( char **conf, const char*new_val ){
 	*conf = strdup( new_val );
 }
 
-extern char *optarg;
+
 static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 	int opt, optcount = 0;
 	int val;
 
+	const char *options = "c:t:i:o:R:P:p:s:n:f:vh";
 	const char *config_file = DEFAULT_CONFIG_FILE;
 	probe_conf_t *conf = NULL;
 
-	while ((opt = getopt(argc, argv, "c:hv")) != EOF) {
+	extern char *optarg;
+	extern int optind;
+
+	//first parser round to get configuration file
+	while ((opt = getopt(argc, argv, options )) != EOF) {
 		switch (opt) {
 		case 'c':
 			config_file = optarg;
@@ -54,26 +81,30 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 		case 'v':
 			printf( "Versions: \n Probe v%s (MMT-DPI v%s, Security v0.9b)\n",
 					get_version(),
-					"mmt_version()");
+					mmt_version());
 			break;
 		case 'h':
-		default:
 			usage(argv[0]);
 		}
 	}
 
 	conf = load_configuration_from_file( config_file );
-
+	//reset getopt function
+	optind = 0;
 	//override some options inside the configuration
-	while ((opt = getopt(argc, argv, "t:i:o:R:P:p:s:n:f:")) != EOF) {
+	while ((opt = getopt(argc, argv, options)) != EOF) {
 		switch (opt) {
 		//trace file
 		case 't':
 			_override_string_conf( &conf->input->input_source, optarg );
+			//switch to offline mode
+			conf->input->input_mode = OFFLINE_ANALYSIS;
 			break;
 		//input interface
 		case 'i':
 			_override_string_conf( &conf->input->input_source, optarg );
+			//switch to online mode
+			conf->input->input_mode = ONLINE_ANALYSIS;
 			break;
 		//stat period
 		case 'p':
@@ -93,8 +124,140 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 	return conf;
 }
 
-int main( int argc, char** argv ){
-	probe_conf_t *conf = _parse_options(argc, argv);
+#ifdef DEBUG_MODE
+	#warning "This compile option is reserved only for debugging"
+#endif
 
-	release_probe_configuration(conf);
+/* Obtain a backtrace */
+void print_execution_trace () {
+  void *array[10];
+  size_t size;
+  char **strings;
+  size_t i;
+  size    = backtrace (array, 10);
+  strings = backtrace_symbols (array, size);
+
+  //i=2: ignore 2 first elements in trace as they are: this fun, then mmt_log
+  for (i = 2; i < size; i++){
+     log_write( LOG_ERR, "%zu. %s\n", (i-1), strings[i]);
+
+     //DEBUG_MODE given by Makefile
+#ifdef DEBUG_MODE
+     /* find first occurence of '(' or ' ' in message[i] and assume
+      * everything before that is the file name. (Don't go beyond 0 though
+      * (string terminator)*/
+     size_t p = 0, size;
+     while(strings[i][p] != '(' && strings[i][p] != ' '
+   		  && strings[i][p] != 0)
+   	  ++p;
+
+     char syscom[256];
+
+
+     size = snprintf(syscom, sizeof( syscom ), "addr2line %p -e %.*s", array[i] , (int)p, strings[i] );
+     syscom[size] = '\0';
+     //last parameter is the filename of the symbol
+
+     fprintf(stderr, "\t    ");
+     if( system(syscom) ) {}
+#endif
+
+  }
+
+  free (strings);
+}
+
+probe_context_t context;
+
+void termination(){
+#ifdef PCAP_MODULE
+	pcap_capture_close( &context );
+#endif
+
+	//end
+	release_probe_configuration( context.config );
+	log_close();
+}
+
+/* This signal handler ensures clean exits */
+void signal_handler(int type) {
+	switch (type) {
+	case SIGINT:
+		if(  context.is_aborting ){
+			log_write( LOG_WARNING, "Received Ctrl+C again. Exit immediately.");
+			exit( EXIT_FAILURE );
+		}
+		log_write(LOG_INFO, "Received Ctrl+C. Releasing resource ...");
+		context.is_aborting = true;
+
+		termination();
+		break;
+
+	//segmentation fault
+	case SIGSEGV:
+		log_write(LOG_ERR, "Segv signal received! Exit immediately!");
+		print_execution_trace();
+		exit( EXIT_FAILURE );
+		break;
+	case SIGTERM:
+		log_write(LOG_ERR, "Termination signal received! Cleaning up before exiting!");
+		break;
+	case SIGABRT:
+		log_write(LOG_ERR, "Abort signal received! Cleaning up before exiting!");
+		break;
+	case SIGKILL:
+		log_write(LOG_ERR, "Kill signal received! Cleaning up before exiting!");
+		break;
+	}
+}
+
+#if defined DPDK_MODULE && defined PCAP_MODULE
+#error("Either DPDK_MODULE or PCAP_MODULE is defined but must not all of them")
+#endif
+
+int main( int argc, char** argv ){
+	log_open();
+
+#ifdef DPDK_MODULE
+	int ret = rte_eal_init(argc, argv);
+	if (ret < 0){
+		log_write("Error with EAL initialization of DPDK");
+		rte_exit(EXIT_FAILURE, "Error with EAL initialization\n");
+	}
+
+	argc -= ret;
+	argv += ret;
+#endif
+
+	//init context
+	context.is_aborting = false;
+	context.config = _parse_options(argc, argv);
+
+	signal(SIGINT,  signal_handler);
+	signal(SIGTERM, signal_handler);
+	signal(SIGSEGV, signal_handler);
+	signal(SIGABRT, signal_handler);
+
+	log_write( LOG_INFO, "MMT-Probe (v%s built on %s %s) started on pid %d",
+			get_version(),
+			__DATE__, __TIME__,
+			getpid() );
+
+	//DPI initialization
+	if( !init_extraction() ) { // general ixE initialization
+		log_write( LOG_ERR, "MMT Extraction engine initialization error! Exiting!");
+		return EXIT_FAILURE;
+	}else
+		log_write( LOG_INFO, "started MMT-DPI %s", mmt_version() );
+
+#ifdef DPDK_MODULE
+
+#elif defined PCAP_MODULE
+	pcap_capture_start( &context );
+#endif
+
+
+	termination();
+
+	return EXIT_SUCCESS;
 }

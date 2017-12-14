@@ -11,8 +11,6 @@
 #include <errno.h>
 #include <stdarg.h>
 
-#include "processing.h"
-
 #ifdef HTTP_RECONSTRUCT_MODULE
 #include <htmlstreamparser.h>
 #include "zlib.h"

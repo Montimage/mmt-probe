@@ -5,11 +5,7 @@
  *  Created by: Huu Nghia NGUYEN <huunghia.nguyen@montimage.com>
  */
 
-
 #include "security.h"
-
-#include <mmt_smp_security.h>
-#include <dpi_message_t.h>
 
 #include <tcpip/mmt_tcpip.h>
 #include <signal.h>

@@ -8,7 +8,6 @@
 #include <stdlib.h>
 #include "data_spsc_ring.h"
 #include "lock_free_spsc_ring.h"
-#include "optimization.h"
 
 void __free_data_spsc_ring( data_spsc_ring_t *q){
 	uint32_t i;
