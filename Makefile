@@ -35,6 +35,11 @@ else
 	CFLAGS   += -O3
 endif
 
+#for valgrind check
+ifdef VALGRIND
+	CFLAGS += -DVALGRIND_MODE
+endif
+
 # For showing message from debug(...)
 ifndef NDEBUG
 	CFLAGS 	  += -DNDEBUG
@@ -128,7 +133,7 @@ all: $(LIB_OBJS) $(MODULE_OBJS) $(MAIN_OBJS)
 	@echo "[COMPILE] $(notdir $@)"
 	$(QUIET) $(CC) $(CFLAGS) $(CLDFLAGS) -c -o $@ $<
 clean:
-	$(QUIET) $(RM) $(MAIN_OBJS) $(LIB_OBJS) $(OUTPUT)
+	$(QUIET) $(RM) $(MAIN_OBJS) $(LIB_OBJS) $(MODULE_OBJS) $(OUTPUT)
 
 
 #################################################

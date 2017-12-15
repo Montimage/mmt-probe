@@ -12,6 +12,7 @@
 #include "data_spsc_ring.h"
 #include "lock_free_spsc_ring.h"
 #include "../../lib/optimization.h"
+#include "../../lib/valgrind.h"
 
 typedef struct data_spsc_ring_struct{
 	void **_data;
@@ -94,6 +95,8 @@ data_spsc_ring_pop_bulk ( const data_spsc_ring_t *q, uint32_t *tail ){
 
 static inline void* __attribute__((always_inline))
 data_spsc_ring_get_data( const data_spsc_ring_t *q, uint32_t index ){
+	EXEC_ONLY_IN_VALGRIND_MODE( ANNOTATE_HAPPENS_AFTER( &(q->_fifo_index->_data) ));
+	EXEC_ONLY_IN_VALGRIND_MODE( ANNOTATE_HAPPENS_AFTER( &(q->_fifo_index) ));
 	return q->_data[ q->_fifo_index->_data[ index ] ];
 }
 

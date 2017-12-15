@@ -59,6 +59,7 @@ typedef struct probe_context_struct{
 }probe_context_t;
 
 
+#define IS_SMP_MODE( context ) (context->config->thread->thread_count > 1)
 
 
 static inline single_thread_context_t * alloc_init_single_thread_context_t(){
@@ -82,12 +83,12 @@ static inline single_thread_context_t * alloc_init_single_thread_context_t(){
 }
 
 
-static inline void print_statistics( const probe_context_t *context ){
+static inline void print_common_statistics( const probe_context_t *context ){
 	int i;
 	uint64_t pkt_received = 0;
 	//single thread
-	if( context->config->thread->thread_count  == 1){
-		log_write( LOG_INFO, "MMT processed %12"PRIu64" packets, dropped %12"PRIu64" packets (%3.2f%%) \n",
+	if( !IS_SMP_MODE( context )){
+		log_write( LOG_INFO, "MMT processed %"PRIu64" packets, dropped %"PRIu64" packets (%.2f%%) \n",
 				context->smp[0]->stat.pkt_processed,
 				context->smp[0]->stat.pkt_dropped,
 				context->smp[0]->stat.pkt_dropped * 100.0 / context->smp[0]->stat.pkt_processed );
@@ -98,7 +99,7 @@ static inline void print_statistics( const probe_context_t *context ){
 
 		//for each thread
 		for( i = 0; i < context->config->thread->thread_count; i++ ){
-			log_write( LOG_INFO, "- thread %d processed %12"PRIu64" packets (%3.2f%%), dropped %12"PRIu64" packets (%3.2f%%) \n",
+			log_write( LOG_INFO, "Thread %d processed %"PRIu64" packets (%.2f%%), dropped %"PRIu64" packets (%3.2f%%) \n",
 					i,
 					context->smp[i]->stat.pkt_processed,
 					context->smp[i]->stat.pkt_processed * 100.0 /  pkt_received,

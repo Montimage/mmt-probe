@@ -56,6 +56,12 @@ int data_spsc_ring_init( data_spsc_ring_t *q, uint32_t size, uint32_t element_si
 			return 2;
 		}
 	}
+
+	EXEC_ONLY_IN_VALGRIND_MODE( DRD_IGNORE_VAR( q )  );
+	EXEC_ONLY_IN_VALGRIND_MODE( DRD_IGNORE_VAR( q->_size )  );
+	EXEC_ONLY_IN_VALGRIND_MODE( DRD_IGNORE_VAR( q->_fifo_index )  );
+	EXEC_ONLY_IN_VALGRIND_MODE( DRD_IGNORE_VAR( q->_data )  );
+
 	return 0;
 }
 

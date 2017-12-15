@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <stdatomic.h>
 #include <stdio.h>
+#include "../../lib/valgrind.h"
 
 #define QUEUE_EMPTY  -1
 #define QUEUE_FULL   -2
@@ -25,6 +26,18 @@ typedef struct lock_free_spsc_ring_struct
     uint32_t _cached_head, _cached_tail, _size;
     uint32_t *_data;
 }lock_free_spsc_ring_t;
+
+#ifdef atomic_load_explicit
+#undef atomic_load_explicit
+#endif
+
+#ifdef atomic_store_explicit
+#undef atomic_store_explicit
+#endif
+
+#define atomic_load_explicit( x, y )    __sync_fetch_and_add( x, 0 )
+#define atomic_store_explicit( x, y, z) __sync_lock_test_and_set( x, y)
+//#define atomic_store_explicit( x, y, z) __sync_synchronize( *x = y )
 
 void queue_init( lock_free_spsc_ring_t *q, uint32_t size );
 void queue_free( lock_free_spsc_ring_t *q );
@@ -46,6 +59,9 @@ queue_push( lock_free_spsc_ring_t *q, uint32_t val  ){
 
 	//not full
 	q->_data[ h ] = val;
+	EXEC_ONLY_IN_VALGRIND_MODE(ANNOTATE_HAPPENS_BEFORE( &(q) ));
+	EXEC_ONLY_IN_VALGRIND_MODE(ANNOTATE_HAPPENS_BEFORE( &(q->_data) ));
+
 	atomic_store_explicit( &q->_head, (h +1) % q->_size, memory_order_release );
 
 	return QUEUE_SUCCESS;
@@ -74,7 +90,6 @@ static inline int __attribute__((always_inline))
 
 static inline int __attribute__((always_inline))
 	queue_pop_bulk ( lock_free_spsc_ring_t *q, uint32_t *val ){
-	int size;
 	uint32_t t = q->_tail;
 
 	if( q->_cached_head == t ){
@@ -89,9 +104,9 @@ static inline int __attribute__((always_inline))
 	*val = t;
 
 	if( q->_cached_head > t ){
-		return size = q->_cached_head - t;
+		return q->_cached_head - t;
 	}else{
-		return size = q->_size - t;
+		return q->_size - t;
 	}
 }
 
