@@ -17,9 +17,10 @@
 
 //TODO: remove this block
 //#define DPDK_MODULE
-#ifndef PCAP_MODULE
-#define PCAP_MODULE
-#endif
+//#ifndef PCAP_MODULE
+//#define PCAP_MODULE
+//#endif
+
 #define SECURITY_MODULE
 #define REDIS_MODULE
 #define KAFKA_MODULE
@@ -39,4 +40,8 @@ static inline void xfree( void *x ){
 		free( x );
 }
 
+
+#define EXPECT( expected, ret )\
+	while( unlikely( ! (expected) ) )\
+		return ret
 #endif /* SRC_LIB_ALLOC_H_ */

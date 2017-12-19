@@ -46,32 +46,9 @@ ifndef NDEBUG
 endif
 
 
-MODULE_SRCS := 
-
-#################################################
-############ CAPTURE PACKETS ####################
-#################################################
-ifdef DPDK
-$(info - Use DPDK to capture packet)
-	#dpdk makefile
-	ifndef RTE_SDK
-$(error RTE_SDK is not set)
-	endif
-   #RTE_SDK    ?= /home/mmt/dpdk/
-   RTE_TARGET ?= x86_64-native-linuxapp-gcc
-   
-   include $(RTE_SDK)/mk/rte.vars.mk
-   include $(RTE_SDK)/mk/rte.extapp.mk
-
-   CFLAGS      += $(WERROR_CFLAGS) -DDPDK_MODULE
-   MODULE_SRCS += $(wildcard src/modules/dpdk/*.c)
-else #for PCAP
-$(info - Use PCAP to capture packet)
-	CFLAGS      += -DPCAP_MODULE
-	LIBS        += -lpcap -ldl
-	MODULE_SRCS += $(wildcard src/modules/pcap/*.c)
-endif
-
+MODULE_SRCS := $(wildcard src/modules/output/*.c)
+MODULE_SRCS += $(wildcard src/modules/output/file/*.c)
+MODULE_SRCS += $(wildcard src/modules/dpi/*.c)
 #################################################
 ########### MODULES #############################
 #################################################
@@ -88,14 +65,14 @@ ifdef KAFKA_MODULE
 $(info - Enable Kafka output)
 	LIBS        += -lrdkafka
 	CFLAGS      += -I /usr/local/include/librdkafka -DKAFKA_MODULE
-	MODULE_SRCS += $(wildcard src/modules/kafka /*.c)
+	MODULE_SRCS += $(wildcard src/modules/output/kafka /*.c)
 endif
 
 ifdef REDIS_MODULE
 $(info - Enable Redis output)
 	LIBS        += -lhiredis
 	CFLAGS      += -DREDIS_MODULE
-	MODULE_SRCS += $(wildcard src/modules/redis/*.c)
+	MODULE_SRCS += $(wildcard src/modules/output/redis/*.c)
 endif
 
 ifdef NETCONF_MODULE
@@ -113,18 +90,52 @@ $(info - Enable Security analysis)
 endif
 
 
-#################################################
-############## COMPILE ##########################
-#################################################
-#objects to generate
-
-MODULE_OBJS := $(patsubst %.c,%.o, $(MODULE_SRCS))
-LIB_OBJS :=  $(patsubst %.c,%.o, $(wildcard src/lib/*.c))
-
-#filter out 2 files: src/main.c and src/test_probe.c
 MAIN_SRCS := src/main.c
 
-MAIN_OBJS := $(patsubst %.c,%.o, $(MAIN_SRCS))
+#################################################
+############ CAPTURE PACKETS ####################
+#################################################
+ifdef DPDK
+$(info - Use DPDK to capture packet $(RTE_SDK))
+	#dpdk makefile
+	ifndef RTE_SDK
+#$(error RTE_SDK is not set)
+	endif
+   RTE_SDK    ?= /home/mmt/dpdk/
+   RTE_TARGET ?= x86_64-native-linuxapp-gcc
+
+	#avoid being overried by DPDK
+	_OLD_CFLAGS := $(CFLAGS) -DDPDK_MODULE
+
+	include $(RTE_SDK)/mk/rte.vars.mk
+
+   CFLAGS += $(WERROR_CFLAGS) $(_OLD_CFLAGS)
+   LDLIBS += $(LIBS) 
+   
+	#DPDK variable
+	SRCS-y := $(wildcard src/lib/*.c) $(MODULE_SRCS) $(wildcard src/modules/dpdk/*.c)
+   SRCS-y += $(MAIN_SRCS)
+   
+   SRCS-y := src/lib/configure.c src/lib/system_info.c src/lib/version.c src/lib/dispatcher.c src/lib/valgrind.c src/lib/base64.c src/lib/worker.c src/modules/dpdk/dpdk_capture.c src/main.c
+   
+   V      := $(VERBOSE)
+   
+$(info $(SRCS-y))
+   
+   include $(RTE_SDK)/mk/rte.extapp.mk
+   
+   
+else #for PCAP
+
+$(info - Use PCAP to capture packet)
+	CFLAGS      += -DPCAP_MODULE
+	LIBS        += -lpcap -ldl
+	MODULE_SRCS += $(wildcard src/modules/pcap/*.c)
+
+# PCAP COMPILE
+MODULE_OBJS := $(patsubst %.c,%.o, $(MODULE_SRCS))
+LIB_OBJS    :=  $(patsubst %.c,%.o, $(wildcard src/lib/*.c))
+MAIN_OBJS   := $(patsubst %.c,%.o, $(MAIN_SRCS))
 
 all: $(LIB_OBJS) $(MODULE_OBJS) $(MAIN_OBJS)
 	@echo "[COMPILE] probe"
@@ -134,6 +145,8 @@ all: $(LIB_OBJS) $(MODULE_OBJS) $(MAIN_OBJS)
 	$(QUIET) $(CC) $(CFLAGS) $(CLDFLAGS) -c -o $@ $<
 clean:
 	$(QUIET) $(RM) $(MAIN_OBJS) $(LIB_OBJS) $(MODULE_OBJS) $(OUTPUT)
+	
+endif
 
 
 #################################################

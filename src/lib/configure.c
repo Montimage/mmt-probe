@@ -229,6 +229,15 @@ static inline char * _cfg_get_str( cfg_t *cfg, const char *header ){
 	return strdup( str );
 }
 
+static inline long int _cfg_getint( cfg_t *cfg, const char *ident, long int min, long int max, long int def_val, long int replaced_val ){
+	long int val = cfg_getint( cfg, ident );
+	if( val < min || val > max || val == def_val ){
+		log_write( LOG_WARNING, "Not expected %ld for %s. Used default value %ld.", val, ident, replaced_val );
+		return replaced_val;
+	}
+	return val;
+}
+
 static inline input_source_conf_t * _parse_input_source( cfg_t *cfg ){
 	input_source_conf_t *ret = alloc( sizeof( input_source_conf_t ));
 
@@ -250,6 +259,10 @@ static inline input_source_conf_t * _parse_input_source( cfg_t *cfg ){
 #endif
 
 	ret->snap_len = cfg_getint( cfg, "snap-len" );
+
+	if( ret->snap_len == 0 )
+		ret->snap_len = UINT16_MAX;
+
 	return ret;
 }
 
@@ -491,6 +504,18 @@ static inline session_report_conf_t *_parse_session_block( cfg_t *cfg ){
 	return ret;
 }
 
+static inline session_timeout_conf_t *_parse_session_timeout_block( cfg_t *cfg ){
+	if( (cfg = _get_first_cfg_block( cfg, "session-timeout")) == NULL )
+		return NULL;
+
+	session_timeout_conf_t *ret = alloc( sizeof( session_timeout_conf_t ));
+	ret->default_session_timeout = _cfg_getint( cfg, "default-session-timeout", 0, 6000, 0,   60 );
+	ret->live_session_timeout    = _cfg_getint( cfg, "live-session-timeout",    0, 6000, 0, 1500 );
+	ret->long_session_timeout    = _cfg_getint( cfg, "long-session-timeout",    0, 6000, 0,  600 );
+	ret->short_session_timeout   = _cfg_getint( cfg, "short-session-timeout",   0, 6000, 0,   15 );
+	return ret;
+}
+
 static inline socket_output_conf_t *_parse_socket_block( cfg_t *cfg ){
 	int i;
 	cfg_t *c = _get_first_cfg_block( cfg, "socket");
@@ -616,6 +641,8 @@ probe_conf_t* load_configuration_from_file( const char* filename ){
 	conf->reports.security_multisession = _parse_multi_session_block( cfg );
 	conf->reports.session = _parse_session_block( cfg );
 	conf->reports.socket = _parse_socket_block( cfg );
+
+	conf->session_timeout = _parse_session_timeout_block( cfg );
 
 	//
 	conf->conditions.ftp              = _parse_condition_block( cfg, "FTP" );

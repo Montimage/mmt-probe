@@ -19,6 +19,13 @@ static inline void log_open(){
 
 #define log_write syslog
 
+#ifdef DEBUG_MODE
+#define log_debug( format, ... ) \
+    printf( "DEBUG %s:%d: " format "\n", __FILE__, __LINE__ ,## __VA_ARGS__ )
+#else
+	#define log_debug( ... )
+#endif
+
 /**
  * Close log file
  */

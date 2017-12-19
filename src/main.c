@@ -25,14 +25,12 @@
 #include "lib/tools.h"
 
 #ifdef DPDK_MODULE
-#include "modules/dpdk/dpdk.h"
+#include "modules/dpdk/dpdk_capture.h"
 #endif
 
 #ifdef PCAP_MODULE
 #include "modules/pcap/pcap_capture.h"
 #endif
-
-//#include "mmt_dpi.h"
 
 
 //#define DEFAULT_CONFIG_FILE "/opt/mmt/probe/mmt-probe.conf"
@@ -122,7 +120,7 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 			break;
 			//number of threads
 		case 'T':
-			conf->thread->thread_count = mmt_atoi(optarg, 1, 256, 1);
+			conf->thread->thread_count = mmt_atoi(optarg, 0, 256, 1);
 			break;
 		}
 	}
@@ -225,10 +223,8 @@ int main( int argc, char** argv ){
 
 #ifdef DPDK_MODULE
 	int ret = rte_eal_init(argc, argv);
-	if (ret < 0){
-		log_write("Error with EAL initialization of DPDK");
-		rte_exit(EXIT_FAILURE, "Error with EAL initialization\n");
-	}
+	if (ret < 0)
+		rte_exit_failure("Error with EAL initialization\n");
 
 	argc -= ret;
 	argv += ret;
@@ -237,9 +233,6 @@ int main( int argc, char** argv ){
 	//init context
 	context.is_aborting = false;
 	context.config = _parse_options(argc, argv);
-	//allocate context for each thread
-	context.smp = alloc( sizeof( single_thread_context_t ) * context.config->thread->thread_count );
-
 
 	signal(SIGINT,  signal_handler);
 	signal(SIGTERM, signal_handler);
@@ -259,23 +252,15 @@ int main( int argc, char** argv ){
 		log_write( LOG_INFO, "started MMT-DPI %s", mmt_version() );
 
 #ifdef DPDK_MODULE
-
+	dpdk_capture_start( &context );
 #elif defined PCAP_MODULE
 	pcap_capture_start( &context );
 #endif
 
-
 	//end
-	print_common_statistics( &context );
-
-#ifdef DPDK_MODULE
-
-#elif defined PCAP_MODULE
-	pcap_capture_release( &context );
-#endif
-
 	release_probe_configuration( context.config );
-	xfree( context.smp );
+
+	close_extraction();
 
 	log_close();
 

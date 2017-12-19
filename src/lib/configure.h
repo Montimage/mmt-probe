@@ -164,7 +164,7 @@ typedef struct micro_flow_conf_struct{
 }micro_flow_conf_t;
 
 typedef struct session_timeout_conf_struct{
-	bool is_enable;
+	uint32_t default_session_timeout;
 	uint32_t long_session_timeout;
 	uint32_t short_session_timeout;
 	uint32_t live_session_timeout;
@@ -215,6 +215,8 @@ typedef struct probe_conf_struct{
 	}outputs;
 
 	multi_thread_conf_t *thread;
+
+	session_timeout_conf_t *session_timeout;
 
 	struct report_conf_struct{
 		security1_conf_t *security1;
