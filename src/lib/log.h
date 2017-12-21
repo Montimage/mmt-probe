@@ -14,7 +14,7 @@
  * Open system log file
  */
 static inline void log_open(){
-	openlog("mmt-probe", LOG_NDELAY | LOG_CONS | LOG_PERROR, LOG_USER);
+	openlog( "mmt-probe", LOG_NDELAY | LOG_CONS | LOG_PERROR, LOG_USER);
 }
 
 #define log_write syslog

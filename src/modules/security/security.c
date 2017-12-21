@@ -7,11 +7,16 @@
 
 #include "security.h"
 
+#include <dpi_message_t.h>
 #include <tcpip/mmt_tcpip.h>
 #include <signal.h>
 #include <execinfo.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "../output/output.h"
+
+#define SECURITY_DPI_PACKET_HANDLER_ID 10
 
 /**
  * Convert a pcap packet to a message being understandable by mmt-security.
@@ -40,9 +45,9 @@ static inline message_t* _get_packet_info( const ipacket_t *pkt, const proto_att
  * It gets interested information from the #ipkacet to a message then sends the
  * message to mmt-security.
  */
-static int _packet_handler( const ipacket_t *ipacket, void *args ) {
-	sec_wrapper_t *wrapper = (sec_wrapper_t *)args;
-        if (wrapper == NULL) return 0;
+static int _security_packet_handler( const ipacket_t *ipacket, void *args ) {
+	security_context_t *wrapper = (security_context_t *)args;
+	if (wrapper == NULL) return 0;
 	message_t *msg = _get_packet_info( ipacket, wrapper->proto_atts, wrapper->proto_atts_count );
 
 	//if there is no interested information
@@ -58,25 +63,18 @@ static int _packet_handler( const ipacket_t *ipacket, void *args ) {
 	return 0;
 }
 
-static void _signal_handler_seg(int signal_type) {
-	mmt_error( "Interrupted by signal %d", signal_type );
-	mmt_print_execution_trace();
-	exit( 1 );
-}
-
 /**
  * This function inits security rules
  * @return
  */
-int init_security(){
-
-	signal(SIGSEGV, _signal_handler_seg );
+int security_open( const char *excluded_rules ){
+	log_write( LOG_INFO, "start MMT-Security %s", mmt_sec_get_version_info() );
 	//exclude rules in rules_mask
-	return mmt_sec_init( get_probe_context_config()->security2_excluded_rules );
+	return mmt_sec_init( excluded_rules );
 }
 
 
-void close_security(){
+void security_close(){
 	mmt_sec_close();
 }
 
@@ -85,11 +83,11 @@ void close_security(){
  * Note: this function can be called from one or many different threads,
  *       ==> be carefully when using static or global variables inside it
  */
-void security_print_verdict(
-		const rule_info_t *rule,		//rule being validated
+static void _print_verdict(
+		const rule_info_t *rule,		    //rule being validated
 		enum verdict_type verdict,		//DETECTED, NOT_RESPECTED
 		uint64_t timestamp,  			//moment (by time) the rule is validated
-		uint64_t counter,					//moment (by order of packet) the rule is validated
+		uint64_t counter,			    //moment (by order of packet) the rule is validated
 		const mmt_array_t * const trace,//historic of messages that validates the rule
 		void *user_data					//#user-data being given in register_security
 )
@@ -98,30 +96,22 @@ void security_print_verdict(
 	const char *exec_trace  = mmt_convert_execution_trace_to_json_string( trace, rule );
 	char message[10000];
 	int len = 10000;
-	const mmt_probe_context_t * mmt_conf = get_probe_context_config();
-	struct smp_thread *th = (struct smp_thread *) user_data;
+	worker_context_t *worker_context = (worker_context_t *) user_data;
 
-	len = snprintf( message, len, "%d,%d,\"%s\",%ld,%"PRIu32",\"%s\",\"%s\",\"%s\",%s",
-			MMT_SECURITY_REPORT_FORMAT,
-			mmt_conf->probe_id_number,
-			mmt_conf->input_source,
-			time( NULL ),
+	struct timeval ts;
+	mmt_sec_decode_timeval(timestamp, &ts );
+
+	output_write_report(worker_context->output,
+			& worker_context->probe_context->config->reports.security->output_channels,
+			SECURITY_REPORT_TYPE,
+			&ts,
+			"%"PRIu32",\"%s\",\"%s\",\"%s\",%s",
 			rule->id,
 			verdict_type_string[verdict],
 			rule->type_string,
 			description,
-			exec_trace );
-
-	message[ len ] = '\0';
-
-	if( mmt_conf->output_to_file_enable && mmt_conf->security2_output_channel[0])
-		send_message_to_file_thread ( message, user_data );
-	if ( mmt_conf->redis_enable && mmt_conf->security2_output_channel[1])
-		send_message_to_redis ( "security.report", message );
-	if ( mmt_conf->kafka_enable && mmt_conf->security2_output_channel[2])
-		send_msg_to_kafka( mmt_conf->topic_object->rkt_security, message );
-
-	printf("%s\n", message );
+			exec_trace
+			);
 }
 
 /**
@@ -135,21 +125,30 @@ void security_print_verdict(
  * @param user_data
  * @return
  */
-sec_wrapper_t* register_security( mmt_handler_t *dpi_handler, size_t threads_count,
-		const uint32_t *cores_id, const char *rules_mask,
-		bool verbose, mmt_sec_callback callback, struct smp_thread *th ){
-
-	sec_wrapper_t *ret = mmt_mem_alloc(sizeof( sec_wrapper_t ));
-
+security_context_t* security_worker_alloc_init( worker_context_t *worker ){
+	mmt_handler_t *dpi_handler = worker->dpi_handler;
+	size_t threads_count = worker->probe_context->config->reports.security->threads_size;
+	const uint32_t *cores_id = (uint32_t[]){0,1};
+	const char *rules_mask = worker->probe_context->config->reports.security->rules_mask;
+	const bool verbose = (worker->index == 0); //
 	int i;
-	char att_registed[10000], *att_registed_ptr = att_registed;
 
-        ret->mmt_handler = dpi_handler;
-	ret->threads_count = threads_count;
-	ret->msg_count     = 0;
+	int att_registed_offset = 0;
+	const int att_registed_length = 10000;
+	char att_registed[10000];
+
+	if( ! worker->probe_context->config->reports.security->is_enable )
+		return NULL;
+
+	//init
+	security_context_t *ret = alloc(sizeof( security_context_t ));
+
+	ret->worker_context = worker;
+	ret->threads_count  = threads_count;
+	ret->msg_count      = 0;
 
 	//init mmt-sec to verify the rules
-	ret->sec_handler = mmt_sec_register( threads_count, cores_id, rules_mask, verbose, callback, th );
+	ret->sec_handler = mmt_sec_register( threads_count, cores_id, rules_mask, false, _print_verdict, worker );
 
 	//register protocols and their attributes using by mmt-sec
 	ret->proto_atts_count =  mmt_sec_get_unique_protocol_attributes((void*) &ret->proto_atts );
@@ -157,29 +156,35 @@ sec_wrapper_t* register_security( mmt_handler_t *dpi_handler, size_t threads_cou
 	for( i=0; i<ret->proto_atts_count; i++ ){
 		//mmt_debug( "Registered attribute to extract: %s.%s", proto_atts[i]->proto, proto_atts[i]->att );
 		if( register_extraction_attribute( dpi_handler, ret->proto_atts[i]->proto_id, ret->proto_atts[i]->att_id ) == 0){
-			mmt_warn( "Cannot register protocol/attribute %s.%s", ret->proto_atts[i]->proto, ret->proto_atts[i]->att );
+			log_write( LOG_WARNING, "Cannot register protocol/attribute %s.%s", ret->proto_atts[i]->proto, ret->proto_atts[i]->att );
 		}
-		else
-			att_registed_ptr += sprintf( att_registed_ptr, "%s.%s,", ret->proto_atts[i]->proto, ret->proto_atts[i]->att );
+		else if( verbose )
+			att_registed_offset += snprintf( att_registed + att_registed_offset, MAX( att_registed_length - att_registed_offset, 0),
+					"%s.%s,", ret->proto_atts[i]->proto, ret->proto_atts[i]->att );
 
 		//we need IP_HEADER_LEN to calculate length of IP_OPTS
 		if( ret->proto_atts[i]->proto_id == PROTO_IP && ret->proto_atts[i]->att_id == IP_OPTS ){
 			if (!register_extraction_attribute( dpi_handler, PROTO_IP, IP_HEADER_LEN)){
-				mmt_warn("Cannot register protocol/attribute ip.header_len");
+				log_write( LOG_WARNING, "Cannot register protocol/attribute ip.header_len");
 			}
-			else
-				att_registed_ptr += sprintf( att_registed_ptr, "ip.header_len");
+			else if( verbose )
+				att_registed_offset += snprintf( att_registed + att_registed_offset, MAX( att_registed_length - att_registed_offset, 0),
+						"ip.header_len");
 		}
 
 	}
 	if( verbose ){
-		//replace the last comma by dot
-		att_registed[ strlen( att_registed ) - 1 ] = '.';
-		mmt_info( "Registered %d proto.atts: %s", ret->proto_atts_count, att_registed );
+		rule_info_t const* const* rules_array = NULL;
+		//remove the last comma
+		att_registed[ strlen( att_registed ) - 1 ] = '\0';
+		log_write( LOG_INFO,"Registered %d proto.atts to process %zu rules: %s",
+				ret->proto_atts_count,
+				mmt_sec_get_rules_info( &rules_array ),
+				att_registed );
 	}
 
 	//Register a packet handler, it will be called for every processed packet
-	register_packet_handler( ret->mmt_handler, 10, _packet_handler, ret );
+	register_packet_handler( dpi_handler, SECURITY_DPI_PACKET_HANDLER_ID, _security_packet_handler, ret );
 
 	return ret;
 }
@@ -190,7 +195,7 @@ sec_wrapper_t* register_security( mmt_handler_t *dpi_handler, size_t threads_cou
  * @param wrapper
  * @return
  */
-size_t unregister_security( sec_wrapper_t* ret ){
+size_t security_worker_release( security_context_t* ret ){
 	size_t alerts_count = 0;
 
 	if( unlikely( ret == NULL || ret->sec_handler == NULL ) )
@@ -198,9 +203,12 @@ size_t unregister_security( sec_wrapper_t* ret ){
 
 	alerts_count = mmt_sec_unregister( ret->sec_handler );
 
+	log_write( LOG_INFO, "Security on worker %d processed %zu messages, generated %zu alerts", ret->worker_context->index, ret->msg_count, alerts_count );
+
 	ret->sec_handler = NULL;
-        unregister_packet_handler (ret->mmt_handler, 10);
-	mmt_mem_free( ret );
+
+	unregister_packet_handler (ret->worker_context->dpi_handler, SECURITY_DPI_PACKET_HANDLER_ID );
+	xfree( ret );
 
 	return alerts_count;
 }

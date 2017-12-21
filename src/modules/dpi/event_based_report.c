@@ -11,77 +11,102 @@
 #include "../../lib/alloc.h"
 #include "../output/output.h"
 
-struct _user_data{
+struct event_based_report_context_struct{
 	uint16_t report_id;
-	const worker_context_t *context;
+	const worker_context_t *worker_context;
 };
 
 static void _event_report_handle( const ipacket_t *packet, attribute_t *attribute, void *arg ){
-	struct _user_data *user = (struct _user_data *)arg;
-	const worker_context_t *worker_context = user->context;
+	event_based_report_context_t *user = (event_based_report_context_t *)arg;
+	const worker_context_t *worker_context = user->worker_context;
 	int id = user->report_id;
 	const event_report_conf_t *conf = &worker_context->probe_context->config->reports.events[ id ];
 
-	output_write( worker_context->output, &conf->output_channels, "hihi" );
-}
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 
-static inline void _register_unregister( struct _user_data *args ){
+	int offset = mmt_attr_sprintf( message, MAX_LENGTH_REPORT_MESSAGE, attribute );
 
-	const worker_context_t *worker_context = args->context;
-	const event_report_conf_t *conf = &worker_context->probe_context->config->reports.events[ args->report_id ];
-	mmt_handler_t *mmt_dpi  = worker_context->dpi_handler;
-	bool need_to_register = conf->is_enable;
-
+	attribute_t * attr_extract;
 	int i;
+	for( i=0; i<conf->attributes_size; i++ ){
+		attr_extract = get_extracted_attribute_by_name( packet, conf->attributes[i].proto_name, conf->attributes[i].attribute_name );
+		if( attr_extract == NULL )
+			continue;
 
-	uint32_t proto_id, att_id;
-	if( ! dpi_get_proto_id_and_att_id( conf->event, &proto_id, &att_id ) ){
-		log_write( LOG_ERR, "Does not support protocol %s and its attribute %s", conf->event->proto_name, conf->event->attribute_name );
-		return;
+		//separator
+		message[offset] = ',';
+		offset ++;
+
+		offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, attr_extract );
 	}
 
-	//register event to handler
-	if( is_registered_attribute_handler( mmt_dpi, proto_id, att_id, _event_report_handle) )
-		unregister_attribute_handler( mmt_dpi, proto_id, att_id, _event_report_handle);
+	message[offset] = '\0';
 
-	if( need_to_register )
-		if( !register_attribute_handler( mmt_dpi, proto_id, att_id, _event_report_handle, NULL, args ) ){
-			log_write( LOG_ERR, "Cannot register for event-based report: %s.%s", conf->event->proto_name, conf->event->attribute_name );
-			return;
-		}
+	output_write_report( worker_context->output, &conf->output_channels,
+			EVENT_REPORT_TYPE, &packet->p_hdr->ts, "%s", message );
+}
+
+static inline void _register( event_based_report_context_t *args ){
+
+	const worker_context_t *worker_context = args->worker_context;
+	const event_report_conf_t *conf = &worker_context->probe_context->config->reports.events[ args->report_id ];
+	mmt_handler_t *dpi_handler      = worker_context->dpi_handler;
+
+	if( dpi_register_attribute( conf->event, 1, dpi_handler, _event_report_handle, args) == 0 ){
+		log_write( LOG_ERR, "Cannot register an event-based report" );
+		return;
+	}
 
 	//register attribute to extract data
-	for( i=0; i<conf->attributes_size; i++ ){
-		if( ! dpi_get_proto_id_and_att_id( &conf->attributes[i], &proto_id, &att_id ) ){
-			log_write( LOG_ERR, "Does not support protocol %s and its attribute %s",
-					conf->attributes[i].proto_name,
-					conf->attributes[i].attribute_name);
-			continue;
-		}
-		if( is_registered_attribute( mmt_dpi, proto_id, att_id) )
-			unregister_extraction_attribute( mmt_dpi, proto_id, att_id);
+	dpi_register_attribute( conf->attributes, conf->attributes_size, dpi_handler, NULL, NULL );
+}
 
-		if( ! register_extraction_attribute( mmt_dpi, proto_id, att_id) )
-			log_write( LOG_WARNING, "Cannot register attribute for event-based report: %s.%s",
-					conf->attributes[i].proto_name,
-					conf->attributes[i].attribute_name
-					);
+/**
+ * Unregister all attributes/handlers being done by event-based reports
+ * @param context
+ */
+static void inline _unregister_all(event_based_report_context_t *context  ){
+	const probe_conf_t *config = context->worker_context->probe_context->config;
+	mmt_handler_t *dpi_handler = context->worker_context->dpi_handler;
+
+	int i;
+	const event_report_conf_t *ev;
+	for( i=0; i<config->reports.events_size; i++ ){
+		ev = & config->reports.events[i];
+		//unregister event
+		dpi_unregister_attribute( ev->event, 1, dpi_handler, _event_report_handle );
+
+		//unregister attributes
+		dpi_unregister_attribute( ev->attributes, ev->attributes_size, dpi_handler, NULL );
 	}
 }
 
-void event_based_report_register( const worker_context_t *worker_context ){
+event_based_report_context_t* event_based_report_register( const dpi_context_t *dpi_context ){
 	int i;
-	const probe_conf_t *config = worker_context->probe_context->config;
+	const probe_conf_t *config = dpi_context->worker_context->probe_context->config;
 	if( config->reports.events_size == 0 )
-		return;
+		return NULL;
 
-	struct _user_data **report_handlers = alloc( config->reports.events_size * sizeof( void *) );
+	//Already registered
+	if( dpi_context->event_based_reports != NULL ){
+
+	}
+
+	event_based_report_context_t *ret = alloc( config->reports.events_size * sizeof( event_based_report_context_t  ) );
 
 	for( i=0; i<config->reports.events_size; i++ ){
-		report_handlers[i] = alloc( sizeof( struct _user_data ));
-		report_handlers[i]->report_id = i;
-		report_handlers[i]->context   = worker_context;
+		if( ! config->reports.events[i].is_enable )
+			continue;
 
-		_register_unregister( report_handlers[i] );
+		ret[i].report_id      = i;
+		ret[i].worker_context = dpi_context->worker_context;
+
+		_register( &ret[i] );
 	}
+	return ret;
+}
+
+void event_based_report_unregister( event_based_report_context_t *context  ){
+	_unregister_all(context);
+	xfree( context );
 }

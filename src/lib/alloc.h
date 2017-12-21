@@ -14,6 +14,7 @@
 #include <stdbool.h>
 #include "optimization.h"
 #include "log.h"
+#include "limit.h"
 
 //TODO: remove this block
 //#define DPDK_MODULE
@@ -21,7 +22,7 @@
 //#define PCAP_MODULE
 //#endif
 
-#define SECURITY_MODULE
+//#define SECURITY_MODULE
 #define REDIS_MODULE
 #define KAFKA_MODULE
 #define NETCONF_MODULE

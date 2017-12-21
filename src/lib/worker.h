@@ -24,6 +24,8 @@
 
 
 typedef struct output_struct output_t;
+typedef struct dpi_context_struct dpi_context_t;
+typedef struct security_context_struct security_context_t;
 
 //for each thread
 struct worker_context_struct{
@@ -42,12 +44,19 @@ struct worker_context_struct{
 
 	output_t *output;
 
+	dpi_context_t *dpi_context;
+
+	//input
 #ifdef PCAP_MODULE
 	struct pcap_worker_context_struct *pcap;
-#else
+#endif
+
 #ifdef DPDK_MODULE
 	struct dpdk_worker_context_struct *dpdk;
 #endif
+
+#ifdef SECURITY_MODULE
+	security_context_t *security;
 #endif
 };
 

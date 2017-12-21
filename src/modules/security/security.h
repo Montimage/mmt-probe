@@ -8,15 +8,13 @@
 #ifndef SRC_LIB_SECURITY_H_
 #define SRC_LIB_SECURITY_H_
 
-#include <mmt_core.h>
-
-#ifdef SECURITY_MODULE
 #include <mmt_security.h>
+#include "../../lib/worker.h"
 
-#include "../processing.h"
+struct security_context_struct{
+	worker_context_t *worker_context;
 
-typedef struct sec_wrapper_struct{
-	uint64_t msg_count;
+	size_t msg_count;
 
 	mmt_sec_handler_t *sec_handler;
 
@@ -24,23 +22,22 @@ typedef struct sec_wrapper_struct{
 
 	uint32_t proto_atts_count;
 
-        mmt_handler_t * mmt_handler;
-
 	int threads_count;
-}sec_wrapper_t;
+
+};
 
 /**
  * This function init globally mmt-security
  * It must be called from main thread before any register_security
  * @return
  */
-int init_security( );
+int security_open( );
 
 /**
  * This function closes globally mmt-security
  * It must be called from main thread after all unregister_security
  */
-void close_security( );
+void security_close();
 
 /**
  * Send security alerts' information to file or redis depending .conf file
@@ -58,7 +55,7 @@ void security_print_verdict(
 		uint64_t counter,					//moment (by order of packet) the rule is validated
 		const mmt_array_t * const trace,//historic of messages that validates the rule
 		void *user_data					//#user-data being given in register_security
-		);
+);
 
 /**
  *
@@ -71,8 +68,7 @@ void security_print_verdict(
  * @param user_data
  * @return
  */
-sec_wrapper_t* register_security( mmt_handler_t *dpi_handler, size_t threads_count, const uint32_t *cores_id, const char *rules_mask,
-		bool verbose, mmt_sec_callback callback, struct smp_thread *th );
+security_context_t* security_worker_alloc_init( worker_context_t *worker );
 
 
 /**
@@ -81,15 +77,6 @@ sec_wrapper_t* register_security( mmt_handler_t *dpi_handler, size_t threads_cou
  * @return number of alerts being generated
  * @note This function must be called from the same thread that calls #register_security
  */
-size_t unregister_security( sec_wrapper_t* );
+size_t security_worker_release( security_context_t* );
 
-
-/**
- * Get version information of smp-security
- * @return
- */
-static inline const char* security_get_version(){
-	return mmt_sec_get_version_info();
-}
-#endif
 #endif /* SRC_LIB_SECURITY_H_ */

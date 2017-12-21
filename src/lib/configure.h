@@ -19,7 +19,6 @@
 typedef struct multi_thread_conf_struct{
 	uint16_t thread_count;
 	uint32_t thread_queue_packet_threshold;
-	uint64_t thread_queue_data_threshold;
 }multi_thread_conf_t;
 
 
@@ -29,7 +28,7 @@ typedef struct file_output_conf_struct{
 	char *filename;
 	bool is_sampled;
 	//indicates the periodicity for reporting output file, i.e., a file contains statistics of traffic during x seconds
-	uint16_t file_output_period;
+	uint16_t output_period;
 	uint16_t retained_files_count; //retains the last x sampled files,
 								//set to 0 to retain all files
 								// ( note that the value of retain-files must be greater than the value of thread_nb + 1)
@@ -71,14 +70,6 @@ typedef struct output_channel_conf_struct{
 	bool is_output_to_kafka;
 }output_channel_conf_t;
 
-typedef struct security1_conf_struct{
-	bool is_enable;
-	char *result_directory;
-	char *property_file;
-	output_channel_conf_t output_channels;
-}security1_conf_t;
-
-
 typedef struct security_conf_struct{
 	bool is_enable;
 	uint16_t threads_size;
@@ -92,7 +83,7 @@ typedef struct cpu_mem_usage_conf_struct{
 	bool is_enable;
 	uint16_t frequency; //time-interval for reporting
 	output_channel_conf_t output_channels;
-}cpu_mem_usage_conf;
+}cpu_mem_usage_conf_t;
 
 
 typedef struct behaviour_conf_struct{
@@ -105,7 +96,7 @@ typedef struct reconstruct_ftp_conf_struct{
 	bool is_enable;
 	char *directory; //indicates the folder where the output file is created
 	output_channel_conf_t output_channels;
-}reconstruct_ftp_setting_t;
+}reconstruct_data_conf_t;
 
 
 typedef struct dpi_protocol_attribute_struct{
@@ -172,6 +163,7 @@ typedef struct session_timeout_conf_struct{
 
 typedef struct event_report_conf_struct{
 	bool is_enable;
+	char *title;
 	dpi_protocol_attribute_t *event;
 	uint16_t attributes_size;
 	dpi_protocol_attribute_t *attributes;
@@ -182,19 +174,11 @@ typedef struct event_report_conf_struct{
 typedef struct session_report_conf_struct{
 	bool is_enable;
 	output_channel_conf_t output_channels;
+	bool is_ftp;
+	bool is_http;
+	bool is_ssl;
+	bool is_rtp;
 }session_report_conf_t;
-
-typedef struct condition_report_conf_struct{
-	bool is_enable;
-	uint16_t attributes_size;
-	dpi_protocol_attribute_t *attributes;
-	char **handler_names;
-}condition_report_conf_t;
-
-typedef struct log_conf_struct{
-	int level;
-	char *file;
-}log_conf_t;
 
 /**
  * Configuration of MMT-Probe
@@ -202,8 +186,6 @@ typedef struct log_conf_struct{
 typedef struct probe_conf_struct{
 	uint32_t probe_id;
 	char *license_file;
-
-	log_conf_t *log;
 
 	input_source_conf_t *input;
 
@@ -219,11 +201,9 @@ typedef struct probe_conf_struct{
 	session_timeout_conf_t *session_timeout;
 
 	struct report_conf_struct{
-		security1_conf_t *security1;
 		security_conf_t *security;
-		cpu_mem_usage_conf *cpu_mem;
+		cpu_mem_usage_conf_t *cpu_mem;
 		behaviour_conf_t   *behaviour;
-		reconstruct_ftp_setting_t *reconstruct_ftp;
 		socket_output_conf_t *socket;
 		security_multi_sessions_conf_t *security_multisession;
 		radius_conf_t *radius;
@@ -234,13 +214,10 @@ typedef struct probe_conf_struct{
 		event_report_conf_t *events;
 	}reports;
 
-	struct condition_reports_struct{
-		condition_report_conf_t *web;
-		condition_report_conf_t *ftp;
-		condition_report_conf_t *rtp;
-		condition_report_conf_t *ssl;
-		condition_report_conf_t *reconstruit_http;
-	}conditions;
+	struct reconstruct_data_struct{
+		reconstruct_data_conf_t *http;
+		reconstruct_data_conf_t *ftp;
+	}reconstructions;
 
 	bool is_enable_ip_fragementation;
 	bool is_enable_proto_no_session_stat;

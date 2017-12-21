@@ -29,7 +29,7 @@ static int _conf_parse_input_mode(cfg_t *cfg, cfg_opt_t *opt, const char *value,
 
 static inline cfg_t *_load_cfg_from_file(const char *filename) {
 	cfg_opt_t micro_flows_opts[] = {
-			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_INT("include-packet-count", 10, CFGF_NONE),
 			CFG_INT("include-byte-count", 5, CFGF_NONE),
 			CFG_INT("report-packet-count", 10000, CFGF_NONE),
@@ -49,37 +49,28 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 	cfg_opt_t redis_output_opts[] = {
 			CFG_STR("hostname", "localhost", CFGF_NONE),
 			CFG_INT("port", 6379, CFGF_NONE),
-			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_END()
 	};
 
 	cfg_opt_t kafka_output_opts[] = {
 			CFG_STR("hostname", "localhost", CFGF_NONE),
 			CFG_INT("port", 9092, CFGF_NONE),
-			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_END()
 	};
 
-	cfg_opt_t output_opts[] = {
-			CFG_INT("enable", 0, CFGF_NONE),
+	cfg_opt_t file_output_opts[] = {
+			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_STR("data-file", 0, CFGF_NONE),
-			CFG_STR("location", 0, CFGF_NONE),
+			CFG_STR("output-dir", 0, CFGF_NONE),
 			CFG_INT("retain-files", 0, CFGF_NONE),
-			CFG_INT("sampled-report", 0, CFGF_NONE),
-			CFG_INT("file-output-period", 5, CFGF_NONE),
-			CFG_END()
-	};
-
-	cfg_opt_t security1_opts[] = {
-			CFG_INT("enable", 0, CFGF_NONE),
-			CFG_STR("results-dir", 0, CFGF_NONE),
-			CFG_STR("properties-file", 0, CFGF_NONE),
-			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
+			CFG_INT("output-period", 5, CFGF_NONE),
 			CFG_END()
 	};
 
 	cfg_opt_t security2_opts[] = {
-			CFG_INT("enable",       0, CFGF_NONE),
+			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_INT("thread-nb",    0, CFGF_NONE),
 			CFG_STR("rules-mask",   0, CFGF_NONE),
 			CFG_STR("exclude-rules",   0, CFGF_NONE),
@@ -88,27 +79,27 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 	};
 
 	cfg_opt_t cpu_mem_report_opts[] = {
-			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_INT("frequency", 0, CFGF_NONE),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
 	};
 
 	cfg_opt_t behaviour_opts[] = {
-			CFG_INT("enable", 0, CFGF_NONE),
-			CFG_STR("location", 0, CFGF_NONE),
+			CFG_BOOL("enable", false, CFGF_NONE),
+			CFG_STR("output-dir", 0, CFGF_NONE),
 			CFG_END()
 	};
 
-	cfg_opt_t reconstruct_ftp_opts[] = {
-			CFG_INT("enable", 0, CFGF_NONE),
-			CFG_STR("location", 0, CFGF_NONE),
+	cfg_opt_t reconstruct_data_opts[] = {
+			CFG_BOOL("enable", false, CFGF_NONE),
+			CFG_STR("output-dir", 0, CFGF_NONE),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
 	};
 
 	cfg_opt_t radius_output_opts[] = {
-			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_INT("include-msg", 0, CFGF_NONE),
 			CFG_INT("include-condition", 0, CFGF_NONE),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
@@ -121,39 +112,32 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 	};
 
 	cfg_opt_t event_report_opts[] = {
-			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_STR("event", "", CFGF_NONE),
 			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
 	};
 
-	cfg_opt_t condition_report_opts[] = {
-			CFG_INT("enable", 0, CFGF_NONE),
-			CFG_STR("condition", "", CFGF_NONE),
-			CFG_STR("location", 0, CFGF_NONE),
-			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
-			CFG_STR_LIST("handlers", "{}", CFGF_NONE),
-			CFG_END()
-	};
 	cfg_opt_t socket_opts[] = {
-			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_INT("domain", 0, CFGF_NONE),
 			CFG_STR_LIST("port", "{}", CFGF_NONE),
 			CFG_STR_LIST("server-address", "{}", CFGF_NONE),
 			CFG_STR("socket-descriptor", "", CFGF_NONE),
 			CFG_INT("one-socket-server", 1, CFGF_NONE),
+			CFG_INT("num-of-report-per-msg", 1, CFGF_NONE),
 			CFG_END()
 	};
 	cfg_opt_t security_report_opts[] = {
-			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_STR_LIST("event", "{}", CFGF_NONE),
 			CFG_INT("rule-type", 0, CFGF_NONE),
 			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
 			CFG_END()
 	};
 	cfg_opt_t security_report_multisession_opts[] = {
-			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_INT("file-output", 0, CFGF_NONE),
 			CFG_INT("redis-output", 0, CFGF_NONE),
 			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
@@ -161,7 +145,11 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_END()
 	};
 	cfg_opt_t session_report_opts[] = {
-			CFG_INT("enable", 0, CFGF_NONE),
+			CFG_BOOL("enable", false, CFGF_NONE),
+			CFG_BOOL("ftp", false, CFGF_NONE),
+			CFG_BOOL("rtp", false, CFGF_NONE),
+			CFG_BOOL("http", false, CFGF_NONE),
+			CFG_BOOL("ssl", false, CFGF_NONE),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
 	};
@@ -169,39 +157,32 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 	cfg_opt_t opts[] = {
 			CFG_SEC("micro-flows", micro_flows_opts, CFGF_NONE),
 			CFG_SEC("session-timeout", session_timeout_opts, CFGF_NONE),
-			CFG_SEC("file-output", output_opts, CFGF_NONE),
+			CFG_SEC("file-output", file_output_opts, CFGF_NONE),
 			CFG_SEC("redis-output", redis_output_opts, CFGF_NONE),
 			CFG_SEC("kafka-output", redis_output_opts, CFGF_NONE),
 			CFG_SEC("data-output", data_output_opts, CFGF_NONE),
-			CFG_SEC("security1", security1_opts, CFGF_NONE),
-			CFG_SEC("security2", security2_opts, CFGF_NONE),
-			CFG_SEC("cpu-mem-usage", cpu_mem_report_opts, CFGF_NONE),
+			CFG_SEC("security", security2_opts, CFGF_NONE),
+			CFG_SEC("system-report", cpu_mem_report_opts, CFGF_NONE),
 			CFG_SEC("socket", socket_opts, CFGF_NONE),
 			CFG_SEC("behaviour", behaviour_opts, CFGF_NONE),
-			CFG_SEC("reconstruct-ftp", reconstruct_ftp_opts, CFGF_NONE),
+			CFG_SEC("reconstruct-data", reconstruct_data_opts, CFGF_TITLE | CFGF_MULTI ),
 			CFG_SEC("radius-output", radius_output_opts, CFGF_NONE),
 			CFG_INT("stats-period", 5, CFGF_NONE),
-			CFG_INT("enable-proto-without-session-stat", 0, CFGF_NONE),
-			CFG_INT("enable-IP-fragmentation-report", 0, CFGF_NONE),
-			CFG_INT("enable-session-report", 0, CFGF_NONE),
+			CFG_BOOL("enable-proto-without-session-report", false, CFGF_NONE),
+			CFG_BOOL("enable-ip-fragmentation-report", false, CFGF_NONE),
 			CFG_INT("thread-nb", 1, CFGF_NONE),
 			CFG_INT("thread-queue", 0, CFGF_NONE),
-			CFG_INT("thread-data", 0, CFGF_NONE),
 			CFG_INT("snap-len", 65535, CFGF_NONE),
-			CFG_INT("cache-size-for-reporting", 300000, CFGF_NONE),
 			CFG_INT_CB("input-mode", 0, CFGF_NONE, _conf_parse_input_mode),
 			CFG_STR("input-source", "nosource", CFGF_NONE),
 			CFG_INT("probe-id", 0, CFGF_NONE),
 			CFG_STR("logfile", 0, CFGF_NONE),
-			CFG_STR("license_file_path", 0, CFGF_NONE),
+			CFG_STR("license", 0, CFGF_NONE),
 			CFG_INT("loglevel", 2, CFGF_NONE),
-			CFG_SEC("event_report", event_report_opts, CFGF_TITLE | CFGF_MULTI),
-			CFG_SEC("condition_report", condition_report_opts, CFGF_TITLE | CFGF_MULTI),
+			CFG_SEC("event-report", event_report_opts, CFGF_TITLE | CFGF_MULTI),
 			CFG_SEC("security-report", security_report_opts, CFGF_TITLE | CFGF_MULTI),
-			CFG_INT("num-of-report-per-msg", 1, CFGF_NONE),
 			CFG_SEC("security-report-multisession", security_report_multisession_opts, CFGF_TITLE | CFGF_MULTI),
-			CFG_SEC("session-report", session_report_opts, CFGF_TITLE | CFGF_MULTI),
-
+			CFG_SEC("session-report", session_report_opts, CFGF_NONE),
 			CFG_END()
 	};
 
@@ -231,8 +212,13 @@ static inline char * _cfg_get_str( cfg_t *cfg, const char *header ){
 
 static inline long int _cfg_getint( cfg_t *cfg, const char *ident, long int min, long int max, long int def_val, long int replaced_val ){
 	long int val = cfg_getint( cfg, ident );
-	if( val < min || val > max || val == def_val ){
+	if( val < min || val > max ){
 		log_write( LOG_WARNING, "Not expected %ld for %s. Used default value %ld.", val, ident, replaced_val );
+		return replaced_val;
+	}
+
+	if( val == def_val ){
+		log_write( LOG_INFO, "Used default value %ld for %s", replaced_val, ident );
 		return replaced_val;
 	}
 	return val;
@@ -246,9 +232,14 @@ static inline input_source_conf_t * _parse_input_source( cfg_t *cfg ){
 
 #ifndef DPDK_MODULE
 #ifndef PCAP_MODULE
-#error("Neither DPDK nor PCAP is defined")
+	#error("Neither DPDK nor PCAP is defined")
 #endif
 #endif
+
+#if defined DPDK_MODULE && defined PCAP_MODULE
+	#error("Either DPDK_MODULE or PCAP_MODULE is defined but must not all of them")
+#endif
+
 
 #ifdef DPDK_MODULE
 	ret->capture_mode = DPDK_CAPTURE;
@@ -269,6 +260,7 @@ static inline input_source_conf_t * _parse_input_source( cfg_t *cfg ){
 static inline cfg_t* _get_first_cfg_block( cfg_t *cfg, const char* block_name ){
 	if( ! cfg_size( cfg, block_name) )
 		return NULL;
+	log_debug( "Parsing block '%s'", block_name );
 	return cfg_getnsec( cfg, block_name, 0 );
 }
 
@@ -279,11 +271,11 @@ static inline file_output_conf_t *_parse_output_to_file( cfg_t *cfg ){
 
 	file_output_conf_t *ret = alloc( sizeof( file_output_conf_t ));
 
-	ret->is_enable  = cfg_getint( c, "enable" );
-	ret->directory  = _cfg_get_str(c, "location");
+	ret->is_enable  = cfg_getbool( c, "enable" );
+	ret->directory  = _cfg_get_str(c, "output-dir");
 	ret->filename   = _cfg_get_str(c, "data-file");
-	ret->is_sampled = cfg_getint( c, "sampled-report" );
-	ret->file_output_period   = cfg_getint( c, "file-output-period");
+	ret->output_period = cfg_getint( c, "output-period");
+	ret->is_sampled    = (ret->output_period > 0);
 	ret->retained_files_count = cfg_getint( c, "retain-files" );
 
 	return ret;
@@ -296,7 +288,7 @@ static inline kafka_output_conf_t *_parse_output_to_kafka( cfg_t *cfg ){
 
 	kafka_output_conf_t *ret = alloc( sizeof( kafka_output_conf_t ));
 
-	ret->is_enable        = cfg_getint( cfg,  "enable" );
+	ret->is_enable        = cfg_getbool( cfg,  "enable" );
 	ret->host.host_name   = _cfg_get_str(cfg, "hostname");
 	ret->host.port_number = cfg_getint( cfg,  "port" );
 
@@ -310,24 +302,16 @@ static inline redis_output_conf_t *_parse_output_to_redis( cfg_t *cfg ){
 
 	redis_output_conf_t *ret = alloc( sizeof( redis_output_conf_t ));
 
-	ret->is_enable        = cfg_getint( cfg,  "enable" );
+	ret->is_enable        = cfg_getbool( cfg, "enable" );
 	ret->host.host_name   = _cfg_get_str(cfg, "hostname");
 	ret->host.port_number = cfg_getint( cfg,  "port" );
 
 	return ret;
 }
 
-static inline log_conf_t * _parse_log( cfg_t *cfg ){
-	log_conf_t *ret = alloc( sizeof( log_conf_t ));
-	ret->level = cfg_getint( cfg, "loglevel" );
-	ret->file  = _cfg_get_str(cfg, "logfile" );
-	return ret;
-}
-
 static inline multi_thread_conf_t * _parse_thread( cfg_t *cfg ){
 	multi_thread_conf_t *ret = alloc( sizeof( multi_thread_conf_t ));
 	ret->thread_count                  = cfg_getint( cfg, "thread-nb" );
-	ret->thread_queue_data_threshold   = cfg_getint( cfg, "thread-data" );
 	ret->thread_queue_packet_threshold = cfg_getint( cfg, "thread-queue" );
 	return ret;
 }
@@ -337,8 +321,8 @@ static inline behaviour_conf_t *_parse_behaviour_block( cfg_t *cfg ){
 		return NULL;
 
 	behaviour_conf_t *ret = alloc( sizeof( behaviour_conf_t ));
-	ret->is_enable = cfg_getint( cfg, "enable" );
-	ret->directory = _cfg_get_str(cfg, "location");
+	ret->is_enable = cfg_getbool( cfg, "enable" );
+	ret->directory = _cfg_get_str(cfg, "output-dir");
 	return ret;
 }
 
@@ -347,7 +331,7 @@ static inline void _parse_output_channel( output_channel_conf_t *out, cfg_t *cfg
 	int i;
 	const char *channel_name;
 
-	out->is_output_to_file  = false;
+	out->is_output_to_file  = true; //default is to output to file
 	out->is_output_to_kafka = false;
 	out->is_output_to_redis = false;
 
@@ -359,17 +343,19 @@ static inline void _parse_output_channel( output_channel_conf_t *out, cfg_t *cfg
 			out->is_output_to_kafka = true;
 		else if ( strncmp( channel_name, "redis", 5 ) == 0 )
 			out->is_output_to_redis = true;
+		else
+			log_write( LOG_WARNING, "Unexpected channel %s", channel_name );
 	}
 
 	out->is_enable = (out->is_output_to_file || out->is_output_to_kafka || out->is_output_to_redis );
 }
 
-static inline cpu_mem_usage_conf *_parse_cpu_mem_block( cfg_t *cfg ){
-	if( (cfg = _get_first_cfg_block( cfg, "cpu-mem-usage")) == NULL )
+static inline cpu_mem_usage_conf_t *_parse_cpu_mem_block( cfg_t *cfg ){
+	if( (cfg = _get_first_cfg_block( cfg, "system-report")) == NULL )
 		return NULL;
 
-	cpu_mem_usage_conf *ret = alloc( sizeof( cpu_mem_usage_conf ));
-	ret->is_enable = cfg_getint( cfg, "enable" );
+	cpu_mem_usage_conf_t *ret = alloc( sizeof( cpu_mem_usage_conf_t ));
+	ret->is_enable = cfg_getbool( cfg, "enable" );
 	ret->frequency = cfg_getint( cfg, "frequency" );
 	_parse_output_channel( & ret->output_channels, cfg );
 	return ret;
@@ -410,7 +396,8 @@ static inline uint16_t _parse_attributes_helper( cfg_t *cfg, const char* name, d
 static inline void _parse_event_block( event_report_conf_t *ret, cfg_t *cfg ){
 	int i;
 	assert( cfg != NULL );
-	ret->is_enable = cfg_getint( cfg, "enable" );
+	ret->is_enable = cfg_getbool( cfg, "enable" );
+	ret->title     = strdup( cfg_title(cfg) );
 	ret->event = alloc( sizeof( dpi_protocol_attribute_t ));
 	_parse_dpi_protocol_attribute( ret->event, cfg_getstr( cfg, "event" ) );
 
@@ -424,7 +411,7 @@ static inline micro_flow_conf_t *_parse_microflow_block( cfg_t *cfg ){
 		return NULL;
 
 	micro_flow_conf_t *ret = alloc( sizeof( micro_flow_conf_t ));
-	ret->is_enable             = cfg_getint( cfg, "enable" );
+	ret->is_enable             = cfg_getbool( cfg, "enable" );
 	ret->include_bytes_count   = cfg_getint( cfg, "include-byte-count" );
 	ret->include_packets_count = cfg_getint( cfg, "include-packet-count" );
 	ret->report_bytes_count    = cfg_getint( cfg, "report-byte-count" );
@@ -438,47 +425,22 @@ static inline radius_conf_t *_parse_radius_block( cfg_t *cfg ){
 		return NULL;
 
 	radius_conf_t *ret     = alloc( sizeof( radius_conf_t ));
-	ret->is_enable         = cfg_getint( cfg, "enable" );
+	ret->is_enable         = cfg_getbool( cfg, "enable" );
 	ret->include_msg       = cfg_getint( cfg, "include-msg" );
 	ret->include_condition = cfg_getint( cfg, "include-condition" );
 	_parse_output_channel( & ret->output_channels, cfg );
 	return ret;
 }
 
-
-static inline reconstruct_ftp_setting_t *_parse_reconstruct_ftp_block( cfg_t *cfg ){
-	if( (cfg = _get_first_cfg_block( cfg, "reconstruct-ftp")) == NULL )
-		return NULL;
-
-	reconstruct_ftp_setting_t *ret = alloc( sizeof( reconstruct_ftp_setting_t ));
-	ret->is_enable = cfg_getint( cfg, "enable" );
-	ret->directory = _cfg_get_str(cfg, "location" );
-	_parse_output_channel( & ret->output_channels, cfg );
-	return ret;
-}
-
 static inline security_conf_t *_parse_security_block( cfg_t *cfg ){
-	if( (cfg = _get_first_cfg_block( cfg, "security2")) == NULL )
+	if( (cfg = _get_first_cfg_block( cfg, "security")) == NULL )
 		return NULL;
 
 	security_conf_t *ret = alloc( sizeof( security_conf_t ));
-	ret->is_enable = cfg_getint( cfg, "enable" );
+	ret->is_enable = cfg_getbool( cfg, "enable" );
 	ret->threads_size = cfg_getint( cfg, "thread-nb" );
 	ret->excluded_rules = _cfg_get_str(cfg, "exclude-rules" );
 	ret->rules_mask = _cfg_get_str(cfg, "rules-mask" );
-	_parse_output_channel( & ret->output_channels, cfg );
-	return ret;
-}
-
-//old security version 1
-static inline security1_conf_t *_parse_security1_block( cfg_t *cfg ){
-	if( (cfg = _get_first_cfg_block( cfg, "security1")) == NULL )
-		return NULL;
-
-	security1_conf_t *ret = alloc( sizeof( security1_conf_t ));
-	ret->is_enable = cfg_getint( cfg, "enable" );
-	ret->property_file = _cfg_get_str(cfg, "properties-file" );
-	ret->result_directory = _cfg_get_str(cfg, "results-dir" );
 	_parse_output_channel( & ret->output_channels, cfg );
 	return ret;
 }
@@ -488,7 +450,7 @@ static inline security_multi_sessions_conf_t *_parse_multi_session_block( cfg_t 
 		return NULL;
 
 	security_multi_sessions_conf_t *ret = alloc( sizeof( security_multi_sessions_conf_t ));
-	ret->is_enable = cfg_getint( cfg, "enable" );
+	ret->is_enable = cfg_getbool( cfg, "enable" );
 	ret->attributes_size = _parse_attributes_helper(cfg, "attributes", &ret->attributes );
 	_parse_output_channel( & ret->output_channels, cfg );
 	return ret;
@@ -499,7 +461,11 @@ static inline session_report_conf_t *_parse_session_block( cfg_t *cfg ){
 		return NULL;
 
 	session_report_conf_t *ret = alloc( sizeof( session_report_conf_t ));
-	ret->is_enable = cfg_getint( cfg, "enable" );
+	ret->is_enable = cfg_getbool( cfg, "enable" );
+	ret->is_ftp    = cfg_getbool( cfg, "ftp" );
+	ret->is_rtp    = cfg_getbool( cfg, "rtp" );
+	ret->is_http   = cfg_getbool( cfg, "http" );
+	ret->is_ssl    = cfg_getbool( cfg, "ssl" );
 	_parse_output_channel( & ret->output_channels, cfg );
 	return ret;
 }
@@ -523,7 +489,7 @@ static inline socket_output_conf_t *_parse_socket_block( cfg_t *cfg ){
 		return NULL;
 
 	socket_output_conf_t *ret = alloc( sizeof( socket_output_conf_t ));
-	ret->is_enable = cfg_getint( c, "enable" );
+	ret->is_enable = cfg_getbool( c, "enable" );
 	switch( cfg_getint( c, "domain")  ){
 	case 0:
 		ret->socket_type = UNIX_SOCKET_TYPE;
@@ -537,8 +503,7 @@ static inline socket_output_conf_t *_parse_socket_block( cfg_t *cfg ){
 	}
 	ret->unix_socket_descriptor = _cfg_get_str(c, "socket-descriptor" );
 	ret->is_one_socket_server =  (cfg_getint( c, "one-socket-server") == 1);
-	//this is inside main config
-	ret->messages_per_report  = cfg_getint( cfg, "num-of-report-per-msg");
+	ret->messages_per_report  = cfg_getint( c, "num-of-report-per-msg");
 
 	ret->internet_sockets_size = cfg_size( c, "port" );
 	if( ret->internet_sockets_size > cfg_size( c, "server-address") ){
@@ -552,35 +517,29 @@ static inline socket_output_conf_t *_parse_socket_block( cfg_t *cfg ){
 }
 
 
-static inline condition_report_conf_t *_parse_condition_block( cfg_t *cfg, const char*name ){
-	int size = cfg_size( cfg, "condition_report");
+static inline reconstruct_data_conf_t *_parse_reconstruct_data_block( cfg_t *cfg, const char *name ){
+	int size = cfg_size( cfg, "reconstruct-data");
 	int i;
 	cfg_t *c;
 
-	if( size == 0 )
+	if( size == 0 ){
+		log_write( LOG_ERR, "Expected reconstruct-data blocks" );
+		abort();
 		return NULL;
+	}
 
 	for( i=0; i<size; i++ ){
-		c = cfg_getnsec(cfg, "condition_report", i );
-		if( c == NULL )
-			return NULL;
-		if( strcmp(name, cfg_getstr( c, "condition")) != 0 )
+		c = cfg_getnsec(cfg, "reconstruct-data", i );
+
+		if( strcmp(name, cfg_title(c) ) != 0 )
 			continue;
 
-		condition_report_conf_t *ret = alloc( sizeof( condition_report_conf_t ));
-		ret->is_enable = cfg_getint( c, "enable" );
-		ret->attributes_size = _parse_attributes_helper(c, "attributes", &ret->attributes );
+		log_debug( "Parsing block 'reconstruct-data %s'", name );
 
-		if( ret->attributes_size != cfg_size( c, "handlers" ) ){
-			printf("Error: Number of attributes and handlers for condition %s must be the same",
-					cfg_getstr( c, "condition") );
-			exit( 1 );
-		}
-
-		ret->handler_names = alloc( sizeof( char *) * ret->attributes_size);
-		for( i=0; i<ret->attributes_size; i++ )
-			ret->handler_names[i] = strdup( cfg_getnstr(c, "handlers", i)  );
-
+		reconstruct_data_conf_t *ret = alloc( sizeof( reconstruct_data_conf_t ));
+		ret->is_enable = cfg_getbool( c, "enable" );
+		ret->directory = _cfg_get_str(c, "output-dir" );
+		_parse_output_channel( & ret->output_channels, c );
 		return ret;
 	}
 	return NULL;
@@ -602,9 +561,9 @@ probe_conf_t* load_configuration_from_file( const char* filename ){
 
 	conf->probe_id     = cfg_getint(cfg, "probe-id");
 	conf->stat_period  = cfg_getint(cfg, "stats-period");
-	conf->license_file = _cfg_get_str(cfg, "license_file_path" );
-	conf->is_enable_proto_no_session_stat = cfg_getint(cfg, "enable-proto-without-session-stat");
-	conf->is_enable_ip_fragementation     = cfg_getint(cfg, "enable-IP-fragmentation-report");
+	conf->license_file = _cfg_get_str(cfg, "license" );
+	conf->is_enable_proto_no_session_stat = cfg_getbool(cfg, "enable-proto-without-session-report");
+	conf->is_enable_ip_fragementation     = cfg_getbool(cfg, "enable-ip-fragmentation-report");
 
 	conf->input = _parse_input_source( cfg );
 	//set of output channels
@@ -617,27 +576,22 @@ probe_conf_t* load_configuration_from_file( const char* filename ){
 									|| (conf->outputs.kafka != NULL && conf->outputs.kafka->is_enable ));
 
 	//
-	conf->log = _parse_log( cfg );
-
-	//
 	conf->thread = _parse_thread( cfg );
 
 	conf->reports.behaviour = _parse_behaviour_block( cfg );
 	conf->reports.cpu_mem   = _parse_cpu_mem_block( cfg );
 
 	//events reports
-	conf->reports.events_size = cfg_size( cfg, "event_report" );
+	conf->reports.events_size = cfg_size( cfg, "event-report" );
 	conf->reports.events  = alloc( sizeof( event_report_conf_t ) * conf->reports.events_size );
 	for( i=0; i<conf->reports.events_size; i++ )
-		_parse_event_block( &conf->reports.events[i], cfg_getnsec( cfg, "event_report", i) );
+		_parse_event_block( &conf->reports.events[i], cfg_getnsec( cfg, "event-report", i) );
 
 	//
 	conf->reports.microflow = _parse_microflow_block( cfg );
 
 	conf->reports.radius = _parse_radius_block( cfg );
-	conf->reports.reconstruct_ftp = _parse_reconstruct_ftp_block( cfg );
 	conf->reports.security = _parse_security_block( cfg );
-	conf->reports.security1 = _parse_security1_block( cfg );
 	conf->reports.security_multisession = _parse_multi_session_block( cfg );
 	conf->reports.session = _parse_session_block( cfg );
 	conf->reports.socket = _parse_socket_block( cfg );
@@ -645,28 +599,10 @@ probe_conf_t* load_configuration_from_file( const char* filename ){
 	conf->session_timeout = _parse_session_timeout_block( cfg );
 
 	//
-	conf->conditions.ftp              = _parse_condition_block( cfg, "FTP" );
-	conf->conditions.reconstruit_http = _parse_condition_block( cfg, "HTTP-RECONSTRUCT" );
-	conf->conditions.rtp              = _parse_condition_block( cfg, "RTP" );
-	conf->conditions.ssl              = _parse_condition_block( cfg, "SSL" );
-	conf->conditions.web              = _parse_condition_block( cfg, "WEB" );
-
+	conf->reconstructions.ftp = _parse_reconstruct_data_block(cfg, "ftp");
+	conf->reconstructions.http = _parse_reconstruct_data_block(cfg, "http");
 	cfg_free( cfg );
 	return conf;
-}
-
-static inline void _free_condition_report( condition_report_conf_t *ret ){
-	if( ret == NULL )
-		return;
-	int i;
-	for( i=0; i<ret->attributes_size; i++ ){
-		xfree( ret->handler_names[i] );
-		xfree( ret->attributes[i].proto_name );
-		xfree( ret->attributes[i].attribute_name );
-	}
-	xfree( ret->handler_names );
-	xfree( ret->attributes );
-	xfree( ret );
 }
 
 static inline void _free_event_report( event_report_conf_t *ret ){
@@ -678,7 +614,7 @@ static inline void _free_event_report( event_report_conf_t *ret ){
 		xfree( ret->attributes[i].attribute_name );
 	}
 	xfree( ret->attributes );
-
+	xfree( ret->title );
 	xfree( ret->event->proto_name );
 	xfree( ret->event->attribute_name );
 	xfree( ret->event );
@@ -710,10 +646,6 @@ void release_probe_configuration( probe_conf_t *conf){
 	xfree( conf->reports.cpu_mem );
 	xfree( conf->reports.microflow );
 	xfree( conf->reports.radius );
-	if( conf->reports.reconstruct_ftp ){
-		xfree( conf->reports.reconstruct_ftp->directory );
-		xfree( conf->reports.reconstruct_ftp );
-	}
 
 	if( conf->reports.security ){
 		xfree( conf->reports.security->excluded_rules );
@@ -721,11 +653,6 @@ void release_probe_configuration( probe_conf_t *conf){
 		xfree( conf->reports.security );
 	}
 
-	if( conf->reports.security1 ){
-		xfree( conf->reports.security1->result_directory );
-		xfree( conf->reports.security1->property_file );
-		xfree( conf->reports.security1 );
-	}
 	if( conf->reports.security_multisession ){
 		for( i=0; i<conf->reports.security_multisession->attributes_size; i++ ){
 			xfree( conf->reports.security_multisession->attributes[i].proto_name );
@@ -745,11 +672,14 @@ void release_probe_configuration( probe_conf_t *conf){
 		xfree( conf->reports.socket );
 	}
 
-	_free_condition_report( conf->conditions.ftp );
-	_free_condition_report( conf->conditions.reconstruit_http );
-	_free_condition_report( conf->conditions.rtp );
-	_free_condition_report( conf->conditions.ssl );
-	_free_condition_report( conf->conditions.web );
+	if( conf->reconstructions.ftp ){
+		xfree( conf->reconstructions.ftp->directory );
+		xfree( conf->reconstructions.ftp );
+	}
+	if( conf->reconstructions.http ){
+		xfree( conf->reconstructions.http->directory );
+		xfree( conf->reconstructions.http );
+	}
 
 	xfree( conf->thread );
 	if( conf->outputs.file ){
@@ -766,10 +696,7 @@ void release_probe_configuration( probe_conf_t *conf){
 		xfree( conf->outputs.redis );
 	}
 
-	if( conf->log ){
-		xfree( conf->log->file );
-		xfree( conf->log );
-	}
+	xfree( conf->session_timeout );
 
 	xfree( conf->license_file );
 	xfree( conf );

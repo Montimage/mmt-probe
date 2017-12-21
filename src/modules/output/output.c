@@ -14,6 +14,7 @@
 
 struct output_struct{
 	uint16_t index;
+	struct timeval last_report_ts;
 	const worker_context_t *worker_context;
 	const struct output_conf_struct *config;
 
@@ -34,17 +35,16 @@ output_t *output_alloc_init( const worker_context_t *worker_context ){
 	output_t *ret = alloc( sizeof( output_t ));
 	ret->worker_context = worker_context;
 	ret->config         = &( worker_context->probe_context->config->outputs );
-	ret->index          = 0;
-
+	ret->index          = worker_context->index;
+	ret->last_report_ts.tv_sec  = 0;
+	ret->last_report_ts.tv_usec = 0;
 	ret->modules.file   = NULL;
 
 	if( ! ret->config->is_enable )
 		return ret;
 
-
-
 	if( ret->config->file->is_enable ){
-		ret->modules.file = file_output_alloc_init( ret->config->file, worker_context->pid );
+		ret->modules.file = file_output_alloc_init( ret->config->file, worker_context->index );
 	}
 
 #ifdef KAFKA_MODULE
@@ -54,21 +54,45 @@ output_t *output_alloc_init( const worker_context_t *worker_context ){
 	return ret;
 }
 
+
+int output_write_report( output_t *output, const output_channel_conf_t *channels,
+		report_type_t report_type, const struct timeval *ts,
+		const char* format, ...){
+
+	//global output is disable or no output on this channel
+	if( ! output->config->is_enable || ! channels->is_enable )
+		return 0;
+
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	int offset = snprintf( message, MAX_LENGTH_REPORT_MESSAGE, "%d,%d,\"%s\",%lu.%06lu,",
+			report_type,
+			output->worker_context->probe_context->config->probe_id,
+			output->worker_context->probe_context->config->input->input_source,
+			ts->tv_sec, ts->tv_usec);
+
+	va_list args;
+
+	va_start( args, format );
+	offset += vsnprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, format, args);
+	va_end( args );
+
+	int ret = output_write( output, channels, message );
+	output->last_report_ts.tv_sec  = ts->tv_sec;
+	output->last_report_ts.tv_usec = ts->tv_usec;
+
+	return ret;
+}
+
 //public API
-int output_write( output_t *output, const output_channel_conf_t *channels, const char *format, ...){
+int output_write( output_t *output, const output_channel_conf_t *channels, const char *message ){
 	int ret = 0;
 	//global output is disable or no output on this channel
 	if( ! output->config->is_enable || ! channels->is_enable )
 		return 0;
 
-	char message[1];
-
 	//output to file
 	if( output->config->file->is_enable && channels->is_output_to_file ){
-		va_list args;
-		va_start( args, format );
-		file_output_write( output->modules.file, format, args );
-		va_end( args );
+		file_output_write( output->modules.file, message );
 		ret ++;
 	}
 

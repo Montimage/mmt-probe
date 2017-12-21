@@ -8,8 +8,9 @@
 #ifndef SRC_MODULES_DPI_EVENT_BASED_REPORT_H_
 #define SRC_MODULES_DPI_EVENT_BASED_REPORT_H_
 
-#include "../../lib/worker.h"
+#include "dpi.h"
 
-void event_based_report_register( const worker_context_t *worker_context );
+event_based_report_context_t* event_based_report_register( const dpi_context_t *dpi_context );
+void event_based_report_unregister( event_based_report_context_t *context  );
 
 #endif /* SRC_MODULES_DPI_EVENT_BASED_REPORT_H_ */

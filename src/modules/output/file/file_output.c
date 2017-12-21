@@ -38,6 +38,7 @@ static inline void _create_new_file( file_output_t *output ){
 	if( output->file == NULL )
 		log_write( LOG_ERR, "Cannot create data file %s", filename );
 
+	log_debug("Create file output %s", filename );
 }
 
 file_output_t* file_output_alloc_init( const file_output_conf_t *config, uint16_t id ){
@@ -94,25 +95,30 @@ void file_output_flush( file_output_t * output){
 void file_output_release( file_output_t *output ){
 	EXPECT( output != NULL, );
 
-	if( output->file ){
-		fflush( output->file );
-
-		if( output->config->is_sampled )
-			fclose( output->file );
-	}
+	if( output->file )
+		fclose( output->file );
 
 	_create_semaphore_file_if_need( output );
 	xfree( output );
 }
 
-int file_output_write( file_output_t *output, const char *format, ... ){
+int file_output_write( file_output_t *output, const char *message ){
+	int ret = 0;
+	if( output && output->file ){
+		ret = fprintf( output->file, "%s\n", message );
+		//printf( "%s\n", message );
+	}
+	return ret;
+}
+
+int file_output_write_( file_output_t *output, const char *format, ... ){
 	int ret = 0;
 	if( output && output->file ){
 		va_list args;
 
 		va_start( args, format );
 		ret = vfprintf( output->file, format, args);
-		vprintf( format, args );
+		//vprintf( format, args );
 		va_end( args );
 	}
 	return ret;

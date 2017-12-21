@@ -32,27 +32,30 @@
 #include "modules/pcap/pcap_capture.h"
 #endif
 
+#ifdef SECURITY_MODULE
+#include "modules/security/security.h"
+#endif
+
 
 //#define DEFAULT_CONFIG_FILE "/opt/mmt/probe/mmt-probe.conf"
 #define DEFAULT_CONFIG_FILE "./probe.conf"
 
 void usage(const char * prg_name) {
-	fprintf(stderr, "%s [<option>]\n", prg_name);
-	fprintf(stderr, "Option:\n");
-	fprintf(stderr, "\t-v               : Versions.\n");
-	fprintf(stderr, "\t-c <config file> : Gives the path to the config file (default: %s).\n", DEFAULT_CONFIG_FILE);
-	fprintf(stderr, "\t-t <trace file>  : Gives the trace file to analyse.\n");
-	fprintf(stderr, "\t-i <interface>   : Gives the interface name for live traffic analysis.\n");
-	fprintf(stderr, "\t-o <output file> : Gives the output file name. \n");
-	fprintf(stderr, "\t-R <output dir>  : Gives the security output folder name. \n");
-	fprintf(stderr, "\t-p <period>      : Gives the period in seconds for statistics reporting. \n");
-	fprintf(stderr, "\t-n <number>      : Give the unique probe id number. \n");
-	fprintf(stderr, "\t-T <number>      : Give the number of threads. \n");
-	fprintf(stderr, "\t-s <0|1>         : Enables or disables protocol statistics reporting. \n");
-	fprintf(stderr, "\t-f <0|1>         : Enables or disables flows reporting. \n");
-	//fprintf(stderr, "\t-c <number of cores>: see dpdk manual to assign number of cores (2 * thread_nb + 2) \n");
-	fprintf(stderr, "\t-h               : Prints this help.\n");
-	exit( 0 );
+	printf("%s [<option>]\n", prg_name);
+	printf("Option:\n");
+	printf("\t-v               : Print version information then exit.\n");
+	printf("\t-c <config file> : Gives the path to the config file (default: %s).\n", DEFAULT_CONFIG_FILE);
+	printf("\t-t <trace file>  : Gives the trace file to analyse.\n");
+	printf("\t-i <interface>   : Gives the interface name for live traffic analysis.\n");
+	printf("\t-o <output file> : Gives the output file name. \n");
+	printf("\t-R <output dir>  : Gives the security output folder name. \n");
+	printf("\t-p <period>      : Gives the period (in seconds) for statistics reporting. \n");
+	printf("\t-n <number>      : Give the unique probe id number. \n");
+	printf("\t-T <number>      : Give the number of threads. \n");
+	printf("\t-s <0|1>         : Enables or disables protocol statistics reporting. \n");
+	printf("\t-f <0|1>         : Enables or disables flows reporting. \n");
+	printf("\t-h               : Prints this help.\n");
+	exit( EXIT_SUCCESS );
 }
 
 static inline void _override_string_conf( char **conf, const char*new_val ){
@@ -79,10 +82,13 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 			config_file = optarg;
 			break;
 		case 'v':
-			printf( "Versions: \n Probe v%s (MMT-DPI v%s, Security v0.9b)\n",
-					get_version(),
-					mmt_version());
-			break;
+			printf("Version:\n");
+			printf( "- MMT-Probe %s\n", get_version());
+			printf( "- MMT-DPI %s\n", mmt_version() );
+#ifdef SECURITY_MODULE
+			printf( "- MMT-Security %s\n", mmt_sec_get_version_info() );
+#endif
+			exit( EXIT_SUCCESS );
 		case 'h':
 			usage(argv[0]);
 		}
@@ -100,21 +106,21 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 			//switch to offline mode
 			conf->input->input_mode = OFFLINE_ANALYSIS;
 			break;
-		//input interface
+			//input interface
 		case 'i':
 			_override_string_conf( &conf->input->input_source, optarg );
 			//switch to online mode
 			conf->input->input_mode = ONLINE_ANALYSIS;
 			break;
-		//stat period
+			//stat period
 		case 'p':
 			conf->stat_period = mmt_atoi(optarg, 1, 60, 5);
 			break;
-		//enable/disable no-session protocol statistic
+			//enable/disable no-session protocol statistic
 		case 's':
 			conf->is_enable_proto_no_session_stat = mmt_atoi(optarg, 0, 1, 0);
 			break;
-		//probe id
+			//probe id
 		case 'n':
 			conf->probe_id = mmt_atoi(optarg, 1, INT_MAX, 1 );
 			break;
@@ -129,46 +135,47 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 }
 
 #ifdef DEBUG_MODE
-	#warning "This compile option is reserved only for debugging"
+#warning "This compile option is reserved only for debugging"
 #endif
 
 /* Obtain a backtrace */
 void print_execution_trace () {
-  void *array[10];
-  size_t size;
-  char **strings;
-  size_t i;
-  size    = backtrace (array, 10);
-  strings = backtrace_symbols (array, size);
+	void *array[10];
+	size_t size;
+	char **strings;
+	size_t i;
+	size    = backtrace (array, 10);
+	strings = backtrace_symbols (array, size);
 
-  //i=2: ignore 2 first elements in trace as they are: this fun, then mmt_log
-  for (i = 2; i < size; i++){
-     log_write( LOG_ERR, "%zu. %s\n", (i-1), strings[i]);
+	//i=2: ignore 2 first elements in trace as they are: this fun, then mmt_log
+	for (i = 2; i < size; i++){
+		log_write( LOG_ERR, "%zu. %s\n", (i-1), strings[i]);
 
-     //DEBUG_MODE given by Makefile
+		//DEBUG_MODE given by Makefile
 #ifdef DEBUG_MODE
-     /* find first occurence of '(' or ' ' in message[i] and assume
-      * everything before that is the file name. (Don't go beyond 0 though
-      * (string terminator)*/
-     size_t p = 0, size;
-     while(strings[i][p] != '(' && strings[i][p] != ' '
-   		  && strings[i][p] != 0)
-   	  ++p;
+		/* find first occurence of '(' or ' ' in message[i] and assume
+		 * everything before that is the file name. (Don't go beyond 0 though
+		 * (string terminator)*/
+		size_t p = 0, size;
+		while(strings[i][p] != '(' && strings[i][p] != ' '
+				&& strings[i][p] != 0)
+			++p;
 
-     char syscom[256];
+		char syscom[256];
 
 
-     size = snprintf(syscom, sizeof( syscom ), "addr2line %p -e %.*s", array[i] , (int)p, strings[i] );
-     syscom[size] = '\0';
-     //last parameter is the filename of the symbol
+		size = snprintf(syscom, sizeof( syscom ), "addr2line %p -e %.*s", array[i] , (int)p, strings[i] );
+		syscom[size] = '\0';
+		//last parameter is the filename of the symbol
 
-     fprintf(stderr, "\t    ");
-     if( system(syscom) ) {}
+		fprintf(stderr, "\t    ");
+		if( system(syscom) ) {}
 #endif
 
-  }
+	}
 
-  free (strings);
+	free (strings);
+	fflush( stdout );
 }
 
 
@@ -187,8 +194,12 @@ void signal_handler(int type) {
 	switch (type) {
 	case SIGINT:
 		if(  context.is_aborting ){
-			log_write( LOG_WARNING, "Received Ctrl+C again. Exit immediately.");
+#ifdef DPDK_MODULE
+			rte_exit_failure( "Received Ctrl+C again. Exit immediately." );
+#else
+			log_write(LOG_ERR, "Received Ctrl+C again. Exit immediately." );
 			exit( EXIT_FAILURE );
+#endif
 		}
 		log_write(LOG_INFO, "Received Ctrl+C. Releasing resource ...");
 		context.is_aborting = true;
@@ -196,7 +207,7 @@ void signal_handler(int type) {
 		_stop_modules( &context );
 		break;
 
-	//segmentation fault
+		//segmentation fault
 	case SIGSEGV:
 		log_write(LOG_ERR, "Segv signal received! Exit immediately!");
 		print_execution_trace();
@@ -206,7 +217,13 @@ void signal_handler(int type) {
 		log_write(LOG_ERR, "Termination signal received! Cleaning up before exiting!");
 		break;
 	case SIGABRT:
+		print_execution_trace();
+#ifdef DPDK_MODULE
+		rte_exit_failure( "Abort signal received! Cleaning up before exiting!" );
+#else
 		log_write(LOG_ERR, "Abort signal received! Cleaning up before exiting!");
+		exit( EXIT_FAILURE );
+#endif
 		break;
 	case SIGKILL:
 		log_write(LOG_ERR, "Kill signal received! Cleaning up before exiting!");
@@ -219,6 +236,11 @@ void signal_handler(int type) {
 #endif
 
 int main( int argc, char** argv ){
+	signal(SIGINT,  signal_handler);
+	signal(SIGTERM, signal_handler);
+	signal(SIGSEGV, signal_handler);
+	signal(SIGABRT, signal_handler);
+
 	log_open();
 
 #ifdef DPDK_MODULE
@@ -234,14 +256,13 @@ int main( int argc, char** argv ){
 	context.is_aborting = false;
 	context.config = _parse_options(argc, argv);
 
-	signal(SIGINT,  signal_handler);
-	signal(SIGTERM, signal_handler);
-	signal(SIGSEGV, signal_handler);
-	signal(SIGABRT, signal_handler);
+#ifdef SECURITY_MODULE
+	if( context.config->reports.security != NULL )
+		security_open( context.config->reports.security->excluded_rules );
+#endif
 
-	log_write( LOG_INFO, "MMT-Probe (v%s built on %s %s) started on pid %d",
+	log_write( LOG_INFO, "MMT-Probe (v%s) started on pid %d",
 			get_version(),
-			__DATE__, __TIME__,
 			getpid() );
 
 	//DPI initialization
@@ -253,7 +274,7 @@ int main( int argc, char** argv ){
 
 #ifdef DPDK_MODULE
 	dpdk_capture_start( &context );
-#elif defined PCAP_MODULE
+#else
 	pcap_capture_start( &context );
 #endif
 
@@ -261,6 +282,11 @@ int main( int argc, char** argv ){
 	release_probe_configuration( context.config );
 
 	close_extraction();
+
+
+#ifdef SECURITY_MODULE
+	security_close();
+#endif
 
 	log_close();
 

@@ -25,11 +25,12 @@ typedef enum{
  */
 output_t *output_alloc_init( const worker_context_t *worker_context );
 
-int output_write( output_t *output, const output_channel_conf_t *channels, const char *format, ... )
-__attribute__((format (printf, 3, 4)));
+int output_write( output_t *output, const output_channel_conf_t *channels, const char *message );
 
-int output_write_report( output_t *output, const output_channel_conf_t *channels, report_type_t report_type,
-		const char* format, ...);
+int output_write_report( output_t *output, const output_channel_conf_t *channels,
+		report_type_t report_type, const struct timeval *ts,
+		const char* format, ...)
+__attribute__((format (printf, 5, 6)));
 
 void output_flush( output_t *output );
 

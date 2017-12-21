@@ -502,7 +502,7 @@ void terminate_probe_processing(int wait_thread_terminate) {
 	cleanup_report_allocated_memory();
 
 	if (mmt_conf->security2_enable)
-		close_security();
+		security_close();
 
 	//printf("close_extraction_start\n");
 	close_extraction();
@@ -819,7 +819,7 @@ int main(int argc, char **argv) {
 	//	if( mmt_conf->security2_enable ){
 	//initialize security rules
 	strcpy(mmt_conf->security2_excluded_rules, "20-50");
-	if (init_security() != 0)
+	if (security_open() != 0)
 		return 1;
 	//	}
 	printf("[info] Versions: Probe v%s (%s), DPI v%s, Security v0.9b \n",

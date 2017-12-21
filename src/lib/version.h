@@ -5,8 +5,8 @@
  *      Author: nhnghia
  */
 
-#ifndef SRC_LIB_VERSION_H_
-#define SRC_LIB_VERSION_H_
+#ifndef PROBE_SRC_LIB_VERSION_H_
+#define PROBE_SRC_LIB_VERSION_H_
 
 const char* get_version();
 

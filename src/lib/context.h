@@ -17,6 +17,7 @@
 
 #include "alloc.h"
 #include "configure.h"
+#include "tools.h"
 
 //for each thread
 typedef struct worker_context_struct worker_context_t;

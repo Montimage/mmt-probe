@@ -69,7 +69,7 @@ sec_wrapper_t * init_security2(void * arg, sec_wrapper_t * security2, long avail
 	}
 
 	//th->security2_alerts_output_count = 0;
-	security2 = register_security( th->mmt_handler,
+	security2 = security_alloc_init( th->mmt_handler,
 			probe_context->security2_threads_count,
 			sec_cores_mask, probe_context->security2_rules_mask,
 			th->thread_index == 0,//false, //true,
@@ -410,7 +410,7 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 			}
 
 			//mmt_probe->smp_threads->security2_alerts_output_count = 0;
-			security2_single_thread = register_security( mmt_probe->smp_threads->mmt_handler,
+			security2_single_thread = security_alloc_init( mmt_probe->smp_threads->mmt_handler,
 					mmt_probe->mmt_conf->security2_threads_count,
 					sec_cores_mask, mmt_probe->mmt_conf->security2_rules_mask,
 					mmt_probe->smp_threads->thread_index == 0,//false, //true,
@@ -688,7 +688,7 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 		 }
 
 		 //mmt_probe->smp_threads->security2_alerts_output_count = 0;
-		 security2_single_thread = register_security( mmt_probe->smp_threads->mmt_handler,
+		 security2_single_thread = security_alloc_init( mmt_probe->smp_threads->mmt_handler,
 				 mmt_probe->mmt_conf->security2_threads_count,
 				 sec_cores_mask, mmt_probe->mmt_conf->security2_rules_mask,
 				 mmt_probe->smp_threads->thread_index == 0,//false, //true,
