@@ -19,4 +19,10 @@ static inline int mmt_atoi( const char*string, int low, int high, int def ){
 	return ret;
 }
 
+
+static inline size_t usecond_diff( const struct timeval *end, const struct timeval *start ){
+	return ( end->tv_sec - start->tv_sec ) * 1000000 + ( end->tv_usec - start->tv_usec );
+}
+
+
 #endif /* SRC_LIB_TOOLS_H_ */

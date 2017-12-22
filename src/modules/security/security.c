@@ -14,7 +14,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../output/output.h"
+#include "../../lib/alloc.h"
+#include "../../lib/tools.h"
 
 #define SECURITY_DPI_PACKET_HANDLER_ID 10
 
@@ -58,7 +59,6 @@ static int _security_packet_handler( const ipacket_t *ipacket, void *args ) {
 	}
 
 	mmt_sec_process( wrapper->sec_handler, msg );
-	wrapper->msg_count ++;
 
 	return 0;
 }
@@ -79,42 +79,6 @@ void security_close(){
 }
 
 /**
- * A function to be called when a rule is validated
- * Note: this function can be called from one or many different threads,
- *       ==> be carefully when using static or global variables inside it
- */
-static void _print_verdict(
-		const rule_info_t *rule,		    //rule being validated
-		enum verdict_type verdict,		//DETECTED, NOT_RESPECTED
-		uint64_t timestamp,  			//moment (by time) the rule is validated
-		uint64_t counter,			    //moment (by order of packet) the rule is validated
-		const mmt_array_t * const trace,//historic of messages that validates the rule
-		void *user_data					//#user-data being given in register_security
-)
-{
-	const char *description = rule->description;
-	const char *exec_trace  = mmt_convert_execution_trace_to_json_string( trace, rule );
-	char message[10000];
-	int len = 10000;
-	worker_context_t *worker_context = (worker_context_t *) user_data;
-
-	struct timeval ts;
-	mmt_sec_decode_timeval(timestamp, &ts );
-
-	output_write_report(worker_context->output,
-			& worker_context->probe_context->config->reports.security->output_channels,
-			SECURITY_REPORT_TYPE,
-			&ts,
-			"%"PRIu32",\"%s\",\"%s\",\"%s\",%s",
-			rule->id,
-			verdict_type_string[verdict],
-			rule->type_string,
-			description,
-			exec_trace
-			);
-}
-
-/**
  *
  * @param dpi_handler
  * @param threads_count: if 0, security will use the lcore of caller
@@ -125,30 +89,27 @@ static void _print_verdict(
  * @param user_data
  * @return
  */
-security_context_t* security_worker_alloc_init( worker_context_t *worker ){
-	mmt_handler_t *dpi_handler = worker->dpi_handler;
-	size_t threads_count = worker->probe_context->config->reports.security->threads_size;
-	const uint32_t *cores_id = (uint32_t[]){0,1};
-	const char *rules_mask = worker->probe_context->config->reports.security->rules_mask;
-	const bool verbose = (worker->index == 0); //
+security_context_t* security_worker_alloc_init( const security_conf_t *config,
+		mmt_handler_t *dpi_handler, const uint32_t *cores_id,
+		bool verbose,
+		mmt_sec_callback callback, void *user_data ){
+	size_t threads_count = config->threads_size;
 	int i;
 
 	int att_registed_offset = 0;
 	const int att_registed_length = 10000;
 	char att_registed[10000];
 
-	if( ! worker->probe_context->config->reports.security->is_enable )
+	if( ! config->is_enable )
 		return NULL;
 
 	//init
 	security_context_t *ret = alloc(sizeof( security_context_t ));
-
-	ret->worker_context = worker;
-	ret->threads_count  = threads_count;
-	ret->msg_count      = 0;
+	ret->dpi_handler = dpi_handler;
+	ret->config      = config;
 
 	//init mmt-sec to verify the rules
-	ret->sec_handler = mmt_sec_register( threads_count, cores_id, rules_mask, false, _print_verdict, worker );
+	ret->sec_handler = mmt_sec_register( threads_count, cores_id, config->rules_mask, false, callback, user_data);
 
 	//register protocols and their attributes using by mmt-sec
 	ret->proto_atts_count =  mmt_sec_get_unique_protocol_attributes((void*) &ret->proto_atts );
@@ -203,11 +164,9 @@ size_t security_worker_release( security_context_t* ret ){
 
 	alerts_count = mmt_sec_unregister( ret->sec_handler );
 
-	log_write( LOG_INFO, "Security on worker %d processed %zu messages, generated %zu alerts", ret->worker_context->index, ret->msg_count, alerts_count );
-
 	ret->sec_handler = NULL;
 
-	unregister_packet_handler (ret->worker_context->dpi_handler, SECURITY_DPI_PACKET_HANDLER_ID );
+	unregister_packet_handler (ret->dpi_handler, SECURITY_DPI_PACKET_HANDLER_ID );
 	xfree( ret );
 
 	return alerts_count;

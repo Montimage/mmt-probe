@@ -5,16 +5,15 @@
  *  Created by: Huu Nghia NGUYEN <huunghia.nguyen@montimage.com>
  */
 
-#ifndef SRC_LIB_SECURITY_H_
-#define SRC_LIB_SECURITY_H_
+#ifndef SRC_LIB_SECURITY_SECURITY_H_
+#define SRC_LIB_SECURITY_SECURITY_H_
 
 #include <mmt_security.h>
-#include "../../lib/worker.h"
+#include <mmt_core.h>
+#include "../../lib/configure.h"
 
-struct security_context_struct{
-	worker_context_t *worker_context;
-
-	size_t msg_count;
+typedef struct security_context_struct{
+	mmt_handler_t *dpi_handler;
 
 	mmt_sec_handler_t *sec_handler;
 
@@ -22,9 +21,8 @@ struct security_context_struct{
 
 	uint32_t proto_atts_count;
 
-	int threads_count;
-
-};
+	const security_conf_t *config;
+} security_context_t;
 
 /**
  * This function init globally mmt-security
@@ -58,17 +56,11 @@ void security_print_verdict(
 );
 
 /**
- *
- * @param dpi_handler
- * @param thread_size
- * @param cores_mask
- * @param rule_mask
- * @param verbose
- * @param callback
- * @param user_data
- * @return
  */
-security_context_t* security_worker_alloc_init( worker_context_t *worker );
+security_context_t* security_worker_alloc_init( const security_conf_t *config,
+		mmt_handler_t *dpi_handler, const uint32_t *core_mask,
+		bool verbose,
+		mmt_sec_callback callback, void *user_data );
 
 
 /**

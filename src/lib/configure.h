@@ -79,11 +79,11 @@ typedef struct security_conf_struct{
 }security_conf_t;
 
 
-typedef struct cpu_mem_usage_conf_struct{
+typedef struct system_stats_conf_struct{
 	bool is_enable;
 	uint16_t frequency; //time-interval for reporting
 	output_channel_conf_t output_channels;
-}cpu_mem_usage_conf_t;
+}system_stats_conf_t;
 
 
 typedef struct behaviour_conf_struct{
@@ -202,7 +202,7 @@ typedef struct probe_conf_struct{
 
 	struct report_conf_struct{
 		security_conf_t *security;
-		cpu_mem_usage_conf_t *cpu_mem;
+		system_stats_conf_t *cpu_mem;
 		behaviour_conf_t   *behaviour;
 		socket_output_conf_t *socket;
 		security_multi_sessions_conf_t *security_multisession;

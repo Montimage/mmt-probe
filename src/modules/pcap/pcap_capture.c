@@ -11,6 +11,8 @@
 #include <pcap.h>
 #include <time.h>
 #include <assert.h>
+#include <unistd.h>
+#include <signal.h>
 
 #include "../../lib/worker.h"
 #include "../../lib/alloc.h"
@@ -37,6 +39,53 @@ struct pcap_probe_context_struct{
 	pcap_t *handler;
 };
 
+#define MICRO_SECOND 1000000
+
+/**
+ * This function is called only in **single thread function mode**
+ * @param signal
+ */
+static void _alarm_handler( int signal ){
+	extern probe_context_t context;
+	static size_t stat_period_counter = 0, sample_file_period_counter = 0;
+
+	struct timeval start_time, end_time;
+	gettimeofday( &start_time, NULL );
+
+	if( context.config->outputs.file->is_sampled && context.config->outputs.file->is_enable ){
+		sample_file_period_counter ++;
+		if( sample_file_period_counter == context.config->outputs.file->output_period ){
+			worker_on_timer_sample_file_period( context.smp[0] );
+			//reset counter
+			sample_file_period_counter = 0;
+		}
+	}
+
+	//increase 1 second;
+	stat_period_counter ++;
+	if( stat_period_counter == context.config->stat_period ){
+		worker_on_timer_stat_period( context.smp[0] );
+		//reset counter
+		stat_period_counter = 0;
+	}
+
+	//calculate the rest of one second after executed the functions above
+	gettimeofday( &end_time, NULL );
+	size_t usecond = (end_time.tv_sec - start_time.tv_sec)*MICRO_SECOND + (end_time.tv_usec - start_time.tv_usec );
+	if( usecond >= MICRO_SECOND ){
+		log_write( LOG_ERR, "Too slow interval processing" );
+		_alarm_handler( SIGALRM );
+	}
+
+	log_debug("next iterate in %zu us", MICRO_SECOND - usecond);
+	fflush( stdout );
+	//call this handler again
+	if( usecond == 0 )
+		alarm( 1 ); //ualarm cannot be used for interval >= 1 second
+	else
+		ualarm( MICRO_SECOND - usecond, 0 );
+
+}
 
 /**
  * Hash function of an Ethernet packet
@@ -102,6 +151,7 @@ static void *_worker_thread( void *arg){
 	worker_context_t *worker_context = (worker_context_t*) arg;
 	probe_context_t *probe_context = worker_context->probe_context;
 	data_spsc_ring_t *fifo = &worker_context->pcap->fifo;
+	const probe_conf_t *config = worker_context->probe_context->config;
 	uint32_t fifo_tail_index;
 	pkthdr_t *pkt_header;
 	const u_char *pkt_data;
@@ -115,8 +165,19 @@ static void *_worker_thread( void *arg){
 		(void) move_the_current_thread_to_a_core( worker_context->index % avail_processors + 1, -10 );
 	}
 
-
 	worker_on_start( worker_context );
+
+
+	struct timeval last_sample_ts = {0, 0},
+			last_stat_ts = {0, 0};
+	struct timeval now;
+
+	//init ts
+	if( config->input->input_mode == ONLINE_ANALYSIS ){
+		gettimeofday( &last_stat_ts, NULL );
+		last_sample_ts.tv_sec  = last_stat_ts.tv_sec;
+		last_sample_ts.tv_usec = last_stat_ts.tv_usec;
+	}
 
 	while( true ){
 		//get number of packets being available
@@ -124,8 +185,7 @@ static void *_worker_thread( void *arg){
 
 		/* if no packet has arrived sleep 1 milli-second */
 		if ( avail_pkt_count <= 0 ) {
-			select(0, NULL, NULL, NULL, (struct timeval[]){{.tv_sec = 0, .tv_usec = 10000}});
-			//nanosleep( (const struct timespec[]){{0, 1000000L}}, NULL );
+			nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
 		} else {  /* else remove number of packets from list and process it */
 			//the last packet will be verified after (not in for)
 			avail_pkt_count --;
@@ -144,12 +204,51 @@ static void *_worker_thread( void *arg){
 			if( unlikely( pkt_header->len == BREAK_PCAP_NUMBER ))
 				break;
 			else{
+
+				now.tv_sec  = pkt_header->ts.tv_sec;
+				now.tv_usec = pkt_header->ts.tv_usec;
+
 				worker_process_a_packet( worker_context, pkt_header, (u_char *)(pkt_header + 1) );
 				//update new position of ring's tail
 				//data_spsc_ring_update_tail( fifo, avail_pkt_count + fifo_tail_index, 1);
 			}
 
 			data_spsc_ring_update_tail( fifo, fifo_tail_index, avail_pkt_count + 1);
+		}
+
+		//get the current time
+		if( config->input->input_mode == ONLINE_ANALYSIS )
+			//this is timestamp of system
+			gettimeofday( &now, NULL );
+		else{
+			//this is timestamp of packet
+			//init
+			if( last_stat_ts.tv_sec == 0 ){
+				last_sample_ts.tv_sec  = now.tv_sec;
+				last_sample_ts.tv_usec = now.tv_usec;
+				last_stat_ts.tv_sec    = now.tv_sec;
+				last_stat_ts.tv_usec   = now.tv_usec;
+			}
+		}
+
+		//statistic periodically
+		if( usecond_diff( &now, &last_stat_ts ) >= config->stat_period * MICRO_SECOND ){
+			last_stat_ts.tv_sec  = now.tv_sec;
+			last_stat_ts.tv_usec = now.tv_usec;
+			//call worker
+			worker_on_timer_stat_period(worker_context);
+		}
+
+		//if we need to sample output file
+		if( worker_context->probe_context->config->outputs.file->is_enable
+				&& worker_context->probe_context->config->outputs.file->is_sampled ){
+			if( usecond_diff( &now, &last_sample_ts ) >=
+					config->outputs.file->output_period * MICRO_SECOND  ){
+				last_sample_ts.tv_sec  = now.tv_sec;
+				last_sample_ts.tv_usec = now.tv_usec;
+				//call worker
+				worker_on_timer_sample_file_period( worker_context );
+			}
 		}
 	}
 
@@ -379,6 +478,12 @@ void pcap_capture_start( probe_context_t *context ){
 
 	context->modules.pcap->handler = pcap;
 
+	//working in a single thread
+	if( !IS_SMP_MODE( context )){
+		signal( SIGALRM, _alarm_handler );
+		//call _alarm_handler 1 second latter
+		alarm( 1 );
+	}
 
 	//start processing
 

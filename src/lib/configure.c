@@ -350,11 +350,11 @@ static inline void _parse_output_channel( output_channel_conf_t *out, cfg_t *cfg
 	out->is_enable = (out->is_output_to_file || out->is_output_to_kafka || out->is_output_to_redis );
 }
 
-static inline cpu_mem_usage_conf_t *_parse_cpu_mem_block( cfg_t *cfg ){
+static inline system_stats_conf_t *_parse_cpu_mem_block( cfg_t *cfg ){
 	if( (cfg = _get_first_cfg_block( cfg, "system-report")) == NULL )
 		return NULL;
 
-	cpu_mem_usage_conf_t *ret = alloc( sizeof( cpu_mem_usage_conf_t ));
+	system_stats_conf_t *ret = alloc( sizeof( system_stats_conf_t ));
 	ret->is_enable = cfg_getbool( cfg, "enable" );
 	ret->frequency = cfg_getint( cfg, "frequency" );
 	_parse_output_channel( & ret->output_channels, cfg );

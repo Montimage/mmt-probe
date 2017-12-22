@@ -43,7 +43,8 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 	message[offset] = '\0';
 
 	output_write_report( worker_context->output, &conf->output_channels,
-			EVENT_REPORT_TYPE, &packet->p_hdr->ts, "%s", message );
+			EVENT_REPORT_TYPE, worker_context->probe_context->config->input->input_source,
+			&packet->p_hdr->ts, "%s", message );
 }
 
 static inline void _register( event_based_report_context_t *args ){

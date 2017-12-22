@@ -38,3 +38,4 @@ src/examples/proto_attributes_iterator
 /Debug/
 /.cproject
 /.project
+/rsync.sh
