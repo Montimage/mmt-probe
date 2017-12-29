@@ -31,7 +31,7 @@
 	dst[5] = src[5];
 
 #define has_string( x )   ( x[0] != '\0' )
-#define reset_string( x ) ( x[0] == '\0' )
+#define reset_string( x ) ( x[0]  = '\0' )
 
 typedef enum{
 	SESSION_STAT_TYPE_APP_IP  = 0,
