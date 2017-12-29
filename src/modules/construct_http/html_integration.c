@@ -1,8 +1,6 @@
 #include "html_integration.h"
 #include <assert.h>
 
-#ifdef HTTP_RECONSTRUCT_MODULE
-
 /**
  * Sends a data chunk for processing by the html parser.
  * In this case, extract "href" attribute from "a" tags.
@@ -100,5 +98,3 @@ void gzip_process(const char * chunck, size_t len, gzip_processor_t * gzp, http_
     }
   } while (gzp->strm.avail_out == 0); //continue while we still have data to decompress
 }
-
-#endif // End of HTTP_RECONSTRUCT_MODULE

@@ -15,6 +15,7 @@
 #include <dirent.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #include "../../../lib/alloc.h"
 #include "file_output.h"
@@ -23,8 +24,7 @@
 
 struct file_output_struct{
 	uint16_t id;
-	size_t files_count; //number of file being created by this output
-	time_t created_time_of_file;
+	struct timeval created_time_of_file;
 
 	FILE *file;
 	const file_output_conf_t *config;
@@ -72,7 +72,7 @@ static int _remove_old_sampled_files(const char *folder, size_t retains){
 
 		ret = unlink( file_name );
 		if( ret ){
-			log_write( LOG_ERR, "Cannot delete semaphore of old sampled files: %s", strerror( errno ));
+			log_write( LOG_ERR, "Cannot delete semaphore of old sampled file '%s': %s", file_name, strerror( errno ));
 			continue;
 		}
 	}
@@ -88,12 +88,12 @@ static inline void _create_new_file( file_output_t *output ){
 	char filename[ MAX_LENGTH_FULL_PATH_FILE_NAME ];
 
 	//create output file
-	output->created_time_of_file = time( NULL );
-	output->files_count ++;
-	snprintf( filename, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%lu%zu_%d_%s",
+	gettimeofday( &output->created_time_of_file, NULL );
+
+	snprintf( filename, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%lu_%06zu_%02d_%s",
 			output->config->directory,
-			output->created_time_of_file,
-			output->files_count,
+			output->created_time_of_file.tv_sec,
+			output->created_time_of_file.tv_usec,
 			output->id,
 			output->config->filename );
 	output->file = fopen( filename,"w");
@@ -117,7 +117,6 @@ file_output_t* file_output_alloc_init( const file_output_conf_t *config, uint16_
 	ret->file          = NULL;
 	ret->config        = config;
 	ret->id            = id;
-	ret->files_count   = 0;
 	//init file, created_time_of_file
 	_create_new_file( ret );
 	return ret;
@@ -129,10 +128,10 @@ static inline void _create_semaphore_file_if_need( file_output_t *output ){
 		char filename[ MAX_LENGTH_FULL_PATH_FILE_NAME ];
 
 		//create semaphore
-		snprintf( filename, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%lu%zu_%d_%s.sem",
+		snprintf( filename, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%lu_%06zu_%02d_%s.sem",
 				output->config->directory,
-				output->created_time_of_file,
-				output->files_count,
+				output->created_time_of_file.tv_sec,
+				output->created_time_of_file.tv_usec,
 				output->id,
 				output->config->filename );
 		FILE *file = fopen( filename,"w");

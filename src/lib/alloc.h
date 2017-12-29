@@ -15,6 +15,7 @@
 #include "optimization.h"
 #include "log.h"
 #include "limit.h"
+#include "tools.h"
 
 //TODO: remove this block
 //#define DPDK_MODULE

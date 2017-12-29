@@ -95,4 +95,22 @@ static inline int dpi_unregister_attribute( const dpi_protocol_attribute_t *atts
 }
 
 
+static inline int dpi_proto_hierarchy_ids_to_str(const proto_hierarchy_t * proto_hierarchy, char * dest, int max_length ) {
+	int offset = 0;
+	if (proto_hierarchy->len < 1) {
+		offset += sprintf(dest, ".");
+	} else {
+		int index = 1;
+		offset += snprintf(dest, max_length - offset, "%u", proto_hierarchy->proto_path[index]);
+		index++;
+		for (; index < proto_hierarchy->len && index < 16; index++) {
+			offset += snprintf(&dest[offset], max_length - offset, ".%u", proto_hierarchy->proto_path[index]);
+		}
+	}
+
+	dest[ offset ] = '\0';
+
+	return offset;
+}
+
 #endif /* SRC_MODULES_DPI_DPI_TOOL_H_ */

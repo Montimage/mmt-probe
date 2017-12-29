@@ -135,7 +135,7 @@ typedef struct mmt_ipv4_ipv6_id_struct {
 		uint32_t ipv4;
 		uint8_t ipv6[16];
 	};
-} mmt_ipv4_ipv6_id_t;
+} mmt_ipv4_ipv6_t;
 
 typedef struct http_line_struct {
 	const uint8_t *ptr;
@@ -476,7 +476,7 @@ typedef struct temp_session_statistics_struct {
 	uint64_t rtt_avg_usec[2];
 	uint64_t rtt_counter[2];
 	uint32_t retransmission_count;
-} temp_session_statistics_t;
+} session_stat_t;
 
 typedef struct web_session_attr_struct {
 	struct timeval first_request_time;
@@ -519,8 +519,8 @@ typedef struct session_struct {
 	char path[128];
 	char path_ul[128]; //path for uplink traffic
 	char path_dl[128]; //path for downlink traffic
-	mmt_ipv4_ipv6_id_t ipclient;
-	mmt_ipv4_ipv6_id_t ipserver;
+	mmt_ipv4_ipv6_t ipclient;
+	mmt_ipv4_ipv6_t ipserver;
 	uint16_t clientport;
 	uint16_t serverport;
 	unsigned char src_mac[7];
@@ -531,7 +531,7 @@ typedef struct session_struct {
 	uint32_t thread_number;
 	uint64_t session_id;
 	uint64_t report_counter;
-	temp_session_statistics_t * session_attr;
+	session_stat_t * session_attr;
 	void * app_data;
 } session_struct_t;
 

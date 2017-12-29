@@ -10,9 +10,6 @@
 #include <locale.h>
 #include "worker.h"
 
-#include "../modules/output/output.h"
-#include "../modules/dpi/dpi.h"
-
 #ifdef SECURITY_MODULE
 	#include "../modules/security/security.h"
 #endif
@@ -141,7 +138,6 @@ static void _print_security_verdict(
 	output_write_report( worker->output,
 			channels,
 			SECURITY_REPORT_TYPE,
-			worker->probe_context->config->input->input_source,
 			&ts,
 			"%"PRIu32",\"%s\",\"%s\",\"%s\",%s",
 			rule->id,
@@ -159,28 +155,20 @@ static void _print_security_verdict(
  * @param worker_context
  */
 void worker_on_start( worker_context_t *worker_context ){
-	//set timeouts
-	mmt_handler_t *mmt_dpi = worker_context->dpi_handler;
-	const probe_conf_t *config= worker_context->probe_context->config;
 
-	set_default_session_timed_out( mmt_dpi, config->session_timeout->default_session_timeout);
-	set_long_session_timed_out(    mmt_dpi, config->session_timeout->long_session_timeout);
-	set_short_session_timed_out(   mmt_dpi, config->session_timeout->short_session_timeout);
-	set_live_session_timed_out(    mmt_dpi, config->session_timeout->live_session_timeout);
+	worker_context->output = output_alloc_init( worker_context->index, &(worker_context->probe_context->config->outputs),
+			worker_context->probe_context->config->input->input_source );
 
-
-	worker_context->output = output_alloc_init( worker_context->index, &(worker_context->probe_context->config->outputs) );
-
-	worker_context->dpi_context = dpi_alloc_init( worker_context );
+	worker_context->dpi_context = dpi_alloc_init( worker_context->probe_context->config,
+			worker_context->dpi_handler, worker_context->output, worker_context->index );
 
 	uint32_t *cores_id = (uint32_t []){0,1};
 
-#ifdef SECURITY_MODULE
+	IF_ENABLE_SECURITY_MODULE(
 	worker_context->security = security_worker_alloc_init( worker_context->probe_context->config->reports.security,
 				worker_context->dpi_handler, cores_id,
 				(worker_context->index == 0), //verbose for only the first worker
-				_print_security_verdict, worker_context);
-#endif
+				_print_security_verdict, worker_context));
 }
 
 /**
@@ -201,19 +189,18 @@ void worker_on_stop( worker_context_t *worker_context ){
  * @param worker_context
  */
 void worker_on_timer_stat_period( worker_context_t *worker_context ){
-	printf("ok...\n");
-	fflush( stdout );
-
 	struct timeval now;
+	//the first worker
 	if( worker_context->index == 0 ){
 		//print a dummy message to inform that MMT-Probe is still alive
 		if( worker_context->probe_context->config->input->input_mode == ONLINE_ANALYSIS ){
 			gettimeofday( &now, NULL );
 			output_write_report(worker_context->output, NULL, DUMMY_REPORT_TYPE,
-					worker_context->probe_context->config->input->input_source,
 					&now, NULL );
 		}
 	}
+
+	dpi_callback_on_stat_period( worker_context->dpi_context );
 }
 
 /**
@@ -224,7 +211,7 @@ void worker_on_timer_stat_period( worker_context_t *worker_context ){
  */
 void worker_on_timer_sample_file_period( worker_context_t *worker_context ){
 
-
+	//the first worker
 	if( worker_context->index == 0 ){
 	}
 

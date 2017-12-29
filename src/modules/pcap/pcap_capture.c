@@ -30,7 +30,6 @@
 //for one thread
 struct pcap_worker_context_struct{
 	pthread_t thread_handler;
-	pthread_spinlock_t spin_lock;
 	data_spsc_ring_t fifo;
 };
 
@@ -77,7 +76,7 @@ static void _alarm_handler( int signal ){
 		_alarm_handler( SIGALRM );
 	}
 
-	log_debug("next iterate in %zu us", MICRO_SECOND - usecond);
+	DEBUG("next iterate in %zu us", MICRO_SECOND - usecond);
 	fflush( stdout );
 	//call this handler again
 	if( usecond == 0 )
@@ -232,7 +231,7 @@ static void *_worker_thread( void *arg){
 		}
 
 		//statistic periodically
-		if( usecond_diff( &now, &last_stat_ts ) >= config->stat_period * MICRO_SECOND ){
+		if( u_second_diff( &now, &last_stat_ts ) >= config->stat_period * MICRO_SECOND ){
 			last_stat_ts.tv_sec  = now.tv_sec;
 			last_stat_ts.tv_usec = now.tv_usec;
 			//call worker
@@ -242,7 +241,7 @@ static void *_worker_thread( void *arg){
 		//if we need to sample output file
 		if( worker_context->probe_context->config->outputs.file->is_enable
 				&& worker_context->probe_context->config->outputs.file->is_sampled ){
-			if( usecond_diff( &now, &last_sample_ts ) >=
+			if( u_second_diff( &now, &last_sample_ts ) >=
 					config->outputs.file->output_period * MICRO_SECOND  ){
 				last_sample_ts.tv_sec  = now.tv_sec;
 				last_sample_ts.tv_usec = now.tv_usec;
@@ -409,7 +408,7 @@ void pcap_capture_start( probe_context_t *context ){
 		//specific for pcap module
 		context->smp[i]->pcap = alloc( sizeof( struct pcap_worker_context_struct ));
 
-		pthread_spin_init( & context->smp[i]->pcap->spin_lock, PTHREAD_PROCESS_PRIVATE);
+		//pthread_spin_init( & context->smp[i]->pcap->spin_lock, PTHREAD_PROCESS_PRIVATE);
 
 		//initialize in case of multi-threading
 		if( IS_SMP_MODE( context ) ){
@@ -498,13 +497,13 @@ void pcap_capture_start( probe_context_t *context ){
 
 	switch( ret ){
 	case 0: //no more packets are available
-		log_debug( "reach end of pcap file. No more packets are available" );
+		DEBUG( "reach end of pcap file. No more packets are available" );
 		break;
 	case -1:// if an error occurs
 		log_write( LOG_ERR, "Error when reading pcap: %s", pcap_geterr( pcap ));
 		break;
 	case -2: // if the loop terminated due to a call to pcap_breakloop() before any packets were processed.
-		log_debug( "pcap_breakloop() is called" );
+		DEBUG( "pcap_breakloop() is called" );
 		break;
 	}
 

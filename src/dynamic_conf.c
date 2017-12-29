@@ -10,7 +10,6 @@
 #include <fcntl.h>
 #include <string.h>
 
-#ifdef NETCONF_MODULE
 #include <sysrepo.h>
 static void mmt_cleanup(sr_conn_ctx_t *connection, sr_session_ctx_t *session, sr_subscription_ctx_t *subscription)
 {
@@ -1083,4 +1082,3 @@ void dynamic_conf (struct mmt_probe_struct * mmt_probe){
 
 }
 
-#endif

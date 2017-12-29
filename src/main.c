@@ -261,7 +261,7 @@ int main( int argc, char** argv ){
 		security_open( context.config->reports.security->excluded_rules );
 #endif
 
-	log_write( LOG_INFO, "MMT-Probe (v%s) started on pid %d",
+	log_write( LOG_INFO, "MMT-Probe v%s is running on pid %d",
 			get_version(),
 			getpid() );
 

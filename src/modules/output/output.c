@@ -16,7 +16,7 @@ struct output_struct{
 	uint16_t index;
 	struct timeval last_report_ts;
 	const struct output_conf_struct *config;
-
+	const char*input_src;
 	struct output_modules_struct{
 		file_output_t *file;
 #ifdef REDIS_MODULE
@@ -30,7 +30,7 @@ struct output_struct{
 
 
 //public API
-output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct *config ){
+output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct *config, const char* input_src ){
 	if( ! config->is_enable )
 		return NULL;
 
@@ -40,6 +40,7 @@ output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct
 	ret->last_report_ts.tv_sec  = 0;
 	ret->last_report_ts.tv_usec = 0;
 	ret->modules.file   = NULL;
+	ret->input_src = input_src;
 
 	if( ! ret->config->is_enable )
 		return ret;
@@ -57,7 +58,7 @@ output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct
 
 
 int output_write_report( output_t *output, const output_channel_conf_t *channels,
-		report_type_t report_type, const char* input_src, const struct timeval *ts,
+		report_type_t report_type, const struct timeval *ts,
 		const char* format, ...){
 
 	//global output is disable or no output on this channel
@@ -71,7 +72,7 @@ int output_write_report( output_t *output, const output_channel_conf_t *channels
 	int offset = snprintf( message, MAX_LENGTH_REPORT_MESSAGE, "%d,%d,\"%s\",%lu.%06lu,",
 			report_type,
 			output->index,
-			input_src,
+			output->input_src,
 			ts->tv_sec, ts->tv_usec);
 
 	va_list args;
@@ -93,6 +94,8 @@ int output_write( output_t *output, const output_channel_conf_t *channels, const
 	//global output is disable or no output on this channel
 	if( ! output || ! output->config->is_enable || (channels && ! channels->is_enable ))
 		return 0;
+
+	printf("%s\n", message );
 
 	//output to file
 	if( output->config->file->is_enable && (channels == NULL || channels->is_output_to_file )){

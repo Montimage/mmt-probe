@@ -70,6 +70,11 @@ typedef struct output_channel_conf_struct{
 	bool is_output_to_kafka;
 }output_channel_conf_t;
 
+typedef struct dynamic_config_conf_struct{
+	bool is_enable;
+	char *descriptor;
+}dynamic_config_conf_t;
+
 typedef struct security_conf_struct{
 	bool is_enable;
 	uint16_t threads_size;
@@ -199,6 +204,7 @@ typedef struct probe_conf_struct{
 	multi_thread_conf_t *thread;
 
 	session_timeout_conf_t *session_timeout;
+	dynamic_config_conf_t *dynamic_conf;
 
 	struct report_conf_struct{
 		security_conf_t *security;

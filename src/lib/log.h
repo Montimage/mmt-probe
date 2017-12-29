@@ -20,10 +20,10 @@ static inline void log_open(){
 #define log_write syslog
 
 #ifdef DEBUG_MODE
-#define log_debug( format, ... ) \
+#define DEBUG( format, ... ) \
     printf( "DEBUG %s:%d: " format "\n", __FILE__, __LINE__ ,## __VA_ARGS__ )
 #else
-	#define log_debug( ... )
+	#define DEBUG( ... )
 #endif
 
 /**
@@ -32,5 +32,12 @@ static inline void log_open(){
 static inline void log_close(){
 	closelog();
 }
+
+
+#define ABORT( format, ... )                                                \
+	do{                                                                     \
+		log_write( LOG_ERR, format,## __VA_ARGS__ );                        \
+		abort();                                                            \
+	}while( 0 )                                                             \
 
 #endif /* SRC_LIB_LOG_H_ */

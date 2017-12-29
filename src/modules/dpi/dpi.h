@@ -5,21 +5,43 @@
  *      Author: nhnghia
  */
 
-#ifndef SRC_MODULES_DPI_FLOW_STAT_H_
-#define SRC_MODULES_DPI_FLOW_STAT_H_
+#ifndef SRC_MODULES_DPI_STAT_H_
+#define SRC_MODULES_DPI_STAT_H_
 
-#include "../../lib/worker.h"
+#include <mmt_core.h>
 
-typedef struct event_based_report_context_struct event_based_report_context_t;
-
-struct dpi_context_struct{
-	const worker_context_t *worker_context;
-	event_based_report_context_t *event_based_reports;
-};
+#include "../../lib/configure.h"
+#include "../output/output.h"
 
 
-dpi_context_t* dpi_alloc_init( worker_context_t *worker );
+typedef struct dpi_context_struct{
+	uint16_t worker_index;
 
+	mmt_handler_t *dpi_handler;
+
+	const probe_conf_t *probe_config;
+
+	output_t *output;
+
+	void *event_based_context;
+}dpi_context_t;
+
+/**
+ * This must be called by worker when it is initialize
+ * @return
+ */
+dpi_context_t* dpi_alloc_init( const probe_conf_t *, mmt_handler_t *, output_t *, uint16_t worker_index );
+
+/**
+ * This function must be called by worker periodically each x seconds( = config.stat_period )
+ * @param
+ */
+void dpi_callback_on_stat_period( dpi_context_t * );
+
+/**
+ * This mest be called by worker when it is released
+ */
 void dpi_release( dpi_context_t *dpi );
+
 
 #endif /* SRC_MODULES_DPI_FLOW_STAT_H_ */

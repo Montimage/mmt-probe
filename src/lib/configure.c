@@ -59,13 +59,17 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_END()
 	};
-
+	cfg_opt_t dynamic_conf_opts[] = {
+				CFG_STR("descriptor", "", CFGF_NONE),
+				CFG_BOOL("enable", false, CFGF_NONE),
+				CFG_END()
+		};
 	cfg_opt_t file_output_opts[] = {
 			CFG_BOOL("enable", false, CFGF_NONE),
-			CFG_STR("data-file", 0, CFGF_NONE),
+			CFG_STR("output-file", 0, CFGF_NONE),
 			CFG_STR("output-dir", 0, CFGF_NONE),
 			CFG_INT("retain-files", 0, CFGF_NONE),
-			CFG_INT("output-period", 5, CFGF_NONE),
+			CFG_INT("period", 5, CFGF_NONE),
 			CFG_END()
 	};
 
@@ -154,7 +158,15 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_END()
 	};
 
+	cfg_opt_t input_opts[] = {
+			CFG_INT_CB("mode", 0, CFGF_NONE, _conf_parse_input_mode),
+			CFG_STR("source", "", CFGF_NONE),
+			CFG_INT("snap-len", 65535, CFGF_NONE),
+			CFG_END()
+	};
+
 	cfg_opt_t opts[] = {
+			CFG_SEC("input", input_opts, CFGF_NONE),
 			CFG_SEC("micro-flows", micro_flows_opts, CFGF_NONE),
 			CFG_SEC("session-timeout", session_timeout_opts, CFGF_NONE),
 			CFG_SEC("file-output", file_output_opts, CFGF_NONE),
@@ -167,22 +179,24 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_SEC("behaviour", behaviour_opts, CFGF_NONE),
 			CFG_SEC("reconstruct-data", reconstruct_data_opts, CFGF_TITLE | CFGF_MULTI ),
 			CFG_SEC("radius-output", radius_output_opts, CFGF_NONE),
+
 			CFG_INT("stats-period", 5, CFGF_NONE),
 			CFG_BOOL("enable-proto-without-session-report", false, CFGF_NONE),
 			CFG_BOOL("enable-ip-fragmentation-report", false, CFGF_NONE),
+
 			CFG_INT("thread-nb", 1, CFGF_NONE),
 			CFG_INT("thread-queue", 0, CFGF_NONE),
-			CFG_INT("snap-len", 65535, CFGF_NONE),
-			CFG_INT_CB("input-mode", 0, CFGF_NONE, _conf_parse_input_mode),
-			CFG_STR("input-source", "nosource", CFGF_NONE),
 			CFG_INT("probe-id", 0, CFGF_NONE),
+
 			CFG_STR("logfile", 0, CFGF_NONE),
 			CFG_STR("license", 0, CFGF_NONE),
 			CFG_INT("loglevel", 2, CFGF_NONE),
+
 			CFG_SEC("event-report", event_report_opts, CFGF_TITLE | CFGF_MULTI),
 			CFG_SEC("security-report", security_report_opts, CFGF_TITLE | CFGF_MULTI),
 			CFG_SEC("security-report-multisession", security_report_multisession_opts, CFGF_TITLE | CFGF_MULTI),
 			CFG_SEC("session-report", session_report_opts, CFGF_NONE),
+			CFG_SEC("dynamic-config", dynamic_conf_opts, CFGF_NONE),
 			CFG_END()
 	};
 
@@ -210,6 +224,14 @@ static inline char * _cfg_get_str( cfg_t *cfg, const char *header ){
 	return strdup( str );
 }
 
+static inline cfg_t* _get_first_cfg_block( cfg_t *cfg, const char* block_name ){
+	if( ! cfg_size( cfg, block_name) )
+		return NULL;
+	DEBUG( "Parsing block '%s'", block_name );
+	return cfg_getnsec( cfg, block_name, 0 );
+}
+
+
 static inline long int _cfg_getint( cfg_t *cfg, const char *ident, long int min, long int max, long int def_val, long int replaced_val ){
 	long int val = cfg_getint( cfg, ident );
 	if( val < min || val > max ){
@@ -225,10 +247,14 @@ static inline long int _cfg_getint( cfg_t *cfg, const char *ident, long int min,
 }
 
 static inline input_source_conf_t * _parse_input_source( cfg_t *cfg ){
+	cfg = _get_first_cfg_block( cfg, "input" );
+	if( cfg == NULL )
+		return NULL;
+
 	input_source_conf_t *ret = alloc( sizeof( input_source_conf_t ));
 
-	ret->input_mode   = cfg_getint(cfg, "input-mode");
-	ret->input_source = _cfg_get_str(cfg, "input-source");
+	ret->input_mode   = cfg_getint(cfg, "mode");
+	ret->input_source = _cfg_get_str(cfg, "source");
 
 #ifndef DPDK_MODULE
 #ifndef PCAP_MODULE
@@ -257,12 +283,6 @@ static inline input_source_conf_t * _parse_input_source( cfg_t *cfg ){
 	return ret;
 }
 
-static inline cfg_t* _get_first_cfg_block( cfg_t *cfg, const char* block_name ){
-	if( ! cfg_size( cfg, block_name) )
-		return NULL;
-	log_debug( "Parsing block '%s'", block_name );
-	return cfg_getnsec( cfg, block_name, 0 );
-}
 
 static inline file_output_conf_t *_parse_output_to_file( cfg_t *cfg ){
 	cfg_t * c = _get_first_cfg_block( cfg, "file-output" );
@@ -273,8 +293,8 @@ static inline file_output_conf_t *_parse_output_to_file( cfg_t *cfg ){
 
 	ret->is_enable  = cfg_getbool( c, "enable" );
 	ret->directory  = _cfg_get_str(c, "output-dir");
-	ret->filename   = _cfg_get_str(c, "data-file");
-	ret->output_period = cfg_getint( c, "output-period");
+	ret->filename   = _cfg_get_str(c, "output-file");
+	ret->output_period = cfg_getint( c, "period");
 	ret->is_sampled    = (ret->output_period > 0);
 	ret->retained_files_count = cfg_getint( c, "retain-files" );
 
@@ -308,6 +328,20 @@ static inline redis_output_conf_t *_parse_output_to_redis( cfg_t *cfg ){
 
 	return ret;
 }
+
+static inline dynamic_config_conf_t *_parse_dynamic_config_block( cfg_t *cfg ){
+	cfg_t * c = _get_first_cfg_block( cfg, "dynamic-config" );
+	if( c == NULL )
+		return NULL;
+
+	dynamic_config_conf_t *ret = alloc( sizeof( dynamic_config_conf_t ));
+
+	ret->is_enable  = cfg_getbool( c, "enable" );
+	ret->descriptor  = _cfg_get_str(c, "descriptor");
+
+	return ret;
+}
+
 
 static inline multi_thread_conf_t * _parse_thread( cfg_t *cfg ){
 	multi_thread_conf_t *ret = alloc( sizeof( multi_thread_conf_t ));
@@ -534,7 +568,7 @@ static inline reconstruct_data_conf_t *_parse_reconstruct_data_block( cfg_t *cfg
 		if( strcmp(name, cfg_title(c) ) != 0 )
 			continue;
 
-		log_debug( "Parsing block 'reconstruct-data %s'", name );
+		DEBUG( "Parsing block 'reconstruct-data %s'", name );
 
 		reconstruct_data_conf_t *ret = alloc( sizeof( reconstruct_data_conf_t ));
 		ret->is_enable = cfg_getbool( c, "enable" );
@@ -574,6 +608,8 @@ probe_conf_t* load_configuration_from_file( const char* filename ){
 	conf->outputs.is_enable = ( (conf->outputs.file != NULL && conf->outputs.file->is_enable )
 									|| (conf->outputs.redis != NULL && conf->outputs.redis->is_enable)
 									|| (conf->outputs.kafka != NULL && conf->outputs.kafka->is_enable ));
+
+	conf->dynamic_conf = _parse_dynamic_config_block( cfg );
 
 	//
 	conf->thread = _parse_thread( cfg );

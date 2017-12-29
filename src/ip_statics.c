@@ -36,8 +36,8 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	struct smp_thread *th = (struct smp_thread *) user_args;
 
 	if (temp_session->session_attr == NULL) {
-		temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
-		memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+		temp_session->session_attr = (session_stat_t *) malloc(sizeof (session_stat_t));
+		memset(temp_session->session_attr, 0, sizeof (session_stat_t));
 	}
 
 	// To  check whether the session activity occurs between the reporting time interval
@@ -175,7 +175,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	}
 	valid = strlen(message);
 	message[ valid ] = '\0'; // correct end of string in case of truncated message
-        //printf("session=%s\n", message);       
+        //printf("session=%s\n", message);
 	if (probe_context->output_to_file_enable && probe_context->session_output_channel[0])send_message_to_file_thread (message, (void *)user_args);
 	if (probe_context->redis_enable && probe_context->session_output_channel[1])send_message_to_redis ("session.flow.report", message);
 	if (probe_context->kafka_enable && probe_context->session_output_channel[2])send_msg_to_kafka(probe_context->topic_object->rkt_session, message);
@@ -219,8 +219,8 @@ void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		return;
 	}
 	if (temp_session->session_attr == NULL) {
-		temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
-		memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+		temp_session->session_attr = (session_stat_t *) malloc(sizeof (session_stat_t));
+		memset(temp_session->session_attr, 0, sizeof (session_stat_t));
 	}
 	uint8_t * proto_id = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_PROTO_ID);
 

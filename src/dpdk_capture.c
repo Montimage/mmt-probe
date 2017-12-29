@@ -11,7 +11,6 @@
 #include "processing.h"
 #include "lib/security.h"
 
-#ifdef DPDK
 #include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
@@ -434,4 +433,3 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	return 0;
 
 }
-#endif

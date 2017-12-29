@@ -30,7 +30,7 @@ PORT=2222
 
 rsync -e "ssh -i /Users/nhnghia/.ssh/id_rsa -p $PORT" -rca .git ./* $USER@$IP:$TARGET
 
-DEBUG="DEBUG=1 VALGRIND=1 VERBOSE=1 PCAP=1 SECURITY_MODULE=1"
+DEBUG="DEBUG=1 VALGRIND=1 VERBOSE=1 PCAP=1"
 
 #EXPORT="export RTE_SDK=/home/server10g/huunghia/dpdk-stable-16.11.1/; export RTE_TARGET=x86_64-native-linuxapp-gcc"
 #RUN="$EXPORT;  make clean DPDK=1; make DPDK=1 -j2 && cp ./build/probe ./"
@@ -38,7 +38,6 @@ DEBUG="DEBUG=1 VALGRIND=1 VERBOSE=1 PCAP=1 SECURITY_MODULE=1"
 RUN="make clean PCAP=1; make PCAP=1 DEBUG=1"
 #RUN="make clean PCAP=1; make PCAP=1 $DEBUG -j5 && cp probe ../hn"
 
-RUN="gcc -g -O0 -o probe src/lib/configure.c src/lib/version.c src/main.c -lconfuse && valgrind --leak-check=full --show-leak-kinds=all ./probe -c mmt_online.conf"
-RUN="make clean $DEBUG; make $DEBUG"
+RUN=" make $DEBUG"
 
 ssh -p $PORT $USER@$IP "cd $TARGET && $RUN"

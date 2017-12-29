@@ -541,6 +541,7 @@ mmt_dev_properties_t get_dev_properties_from_user_agent(char * user_agent, uint3
 	}
 	return retval;
 }
+
 /* This function is called by mmt-dpi for each session time-out (expiry).
  * It provides the expired session information and frees the memory allocated.
  * */
@@ -582,8 +583,8 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 			}
 			if (((web_session_attr_t *) temp_session->app_data)->state_http_request_response != 0)((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;
 			if (temp_session->session_attr == NULL) {
-				temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
-				memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+				temp_session->session_attr = (session_stat_t *) malloc(sizeof (session_stat_t));
+				memset(temp_session->session_attr, 0, sizeof (session_stat_t));
 			}
 			temp_session->report_counter = th->report_counter;
 			print_ip_session_report (expired_session, th);

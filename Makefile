@@ -82,6 +82,12 @@ $(info - Enable dynamic configuration using Netconf)
 	MODULE_SRCS += $(wildcard src/modules/netconf/*.c)
 endif
 
+ifdef DYNAMIC_CONFIG_MODULE
+$(info - Enable dynamic configuration)
+	CFLAGS      += -DDYNAMIC_CONFIG_MODULE
+	MODULE_SRCS += $(wildcard src/modules/dynamic_conf/*.c)
+endif
+
 ifdef SECURITY_MODULE
 $(info - Enable Security analysis)
 	LIBS        += -L/opt/mmt/security/lib -lmmt_security2 -lxml2
