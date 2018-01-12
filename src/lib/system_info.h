@@ -2,7 +2,7 @@
  * system_info.h
  *
  *  Created on: 15 avr. 2016
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_LIB_SYSTEM_INFO_H_

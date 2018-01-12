@@ -2,7 +2,7 @@
  * dpdk_capture.h
  *
  *  Created on: Dec 14, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_MODULES_DPDK_DPDK_CAPTURE_H_

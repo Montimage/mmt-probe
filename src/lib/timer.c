@@ -2,7 +2,7 @@
  * timer.c
  *
  *  Created on: Dec 22, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #include <pthread.h>

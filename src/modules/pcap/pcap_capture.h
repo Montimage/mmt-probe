@@ -2,7 +2,7 @@
  * pcap_capture.h
  *
  *  Created on: Dec 13, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_MODULES_PCAP_PCAP_CAPTURE_H_

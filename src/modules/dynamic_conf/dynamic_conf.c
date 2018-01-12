@@ -2,7 +2,7 @@
  * dynamic_conf.c
  *
  *  Created on: Dec 27, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #include <fcntl.h>

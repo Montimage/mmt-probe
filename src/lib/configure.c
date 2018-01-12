@@ -2,7 +2,7 @@
  * configure.c
  *
  *  Created on: Dec 12, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #include <confuse.h>

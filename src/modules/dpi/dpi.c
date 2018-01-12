@@ -2,7 +2,7 @@
  * flow_stat.c
  *
  *  Created on: Dec 20, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #include "header.h"
@@ -17,6 +17,8 @@ bool no_session_report( dpi_context_t *context );
 //session protocols report
 bool session_report_register( dpi_context_t *context );
 
+void data_dump_start( dpi_context_t *dpi_context );
+void data_dump_stop( dpi_context_t *dpi_context );
 
 dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *mmt_dpi, output_t *output, uint16_t worker_index ){
 
@@ -32,12 +34,13 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *mmt_dp
 	ret->output        = output;
 	ret->probe_config  = config;
 	ret->event_based_context = NULL;
-
+	ret->data_dump_context   = NULL;
 
 	event_based_report_register( ret );
 
 	session_report_register( ret );
 
+	data_dump_start( ret );
 	//if(  )
 
 	return ret;

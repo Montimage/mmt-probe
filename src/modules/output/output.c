@@ -2,7 +2,7 @@
  * output.c
  *
  *  Created on: Dec 18, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 #include <stdarg.h>
 

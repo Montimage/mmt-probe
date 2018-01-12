@@ -2,7 +2,7 @@
  * data_spsc_ring.h
  *
  *  Created on: 14 avr. 2016
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_QUEUE_DATA_SPSC_RING_H_

@@ -2,7 +2,7 @@
  * base64.h
  *
  *  Created on: Dec 11, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_LIB_BASE64_H_

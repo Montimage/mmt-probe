@@ -2,7 +2,7 @@
  * system_stats.c
  *
  *  Created on: Dec 21, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #include <stdlib.h>

@@ -2,7 +2,7 @@
  * linked_list.h
  *
  *  Created on: Dec 27, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_LIB_LINKED_LIST_H_

@@ -2,7 +2,7 @@
  * lock_free_spsc_ring.c
  *
  *  Created on: 31 mars 2016
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_QUEUE_LOCK_FREE_SPSC_RING_H_

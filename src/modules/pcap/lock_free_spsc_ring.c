@@ -2,7 +2,7 @@
  * lock_free_spsc_ring.c
  *
  *  Created on: 31 mars 2016
- *      Author: nhnghia
+ *          by: Huu Nghia
  *
  * An implementation of Lamport queue without lock
  * based on https://github.com/blytkerchan/Lamport

@@ -2,7 +2,7 @@
  * dpi_tool.h
  *
  *  Created on: Dec 19, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_MODULES_DPI_DPI_TOOL_H_

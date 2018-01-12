@@ -2,7 +2,7 @@
  * session_report_ssl.c
  *
  *  Created on: Dec 29, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #include "header.h"

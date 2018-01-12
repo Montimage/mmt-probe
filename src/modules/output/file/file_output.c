@@ -2,7 +2,7 @@
  * file_output.c
  *
  *  Created on: Dec 19, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #include <stdio.h>

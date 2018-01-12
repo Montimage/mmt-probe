@@ -2,7 +2,7 @@
  * tools.h
  *
  *  Created on: Dec 15, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_LIB_TOOLS_H_

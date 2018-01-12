@@ -2,7 +2,7 @@
  * dynamic_conf.h
  *
  *  Created on: Dec 26, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_MODULES_DYNAMIC_CONF_DYNAMIC_CONF_H_

@@ -2,7 +2,7 @@
  * alloc.h
  *
  *  Created on: Dec 13, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_LIB_ALLOC_H_

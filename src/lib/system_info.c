@@ -2,7 +2,7 @@
  * system_info.c
  *
  *  Created on: 15 avr. 2016
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef __USE_GNU

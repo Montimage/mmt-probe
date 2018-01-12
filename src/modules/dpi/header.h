@@ -2,7 +2,7 @@
  * header.h
  *
  *  Created on: Dec 28, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_MODULES_DPI_HEADER_H_

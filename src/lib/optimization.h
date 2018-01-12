@@ -2,7 +2,7 @@
  * optimization.h
  *
  *  Created on: 14 avr. 2016
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_LIB_OPTIMIZATION_H_

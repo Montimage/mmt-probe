@@ -2,7 +2,7 @@
  * no_session_report.c
  *
  *  Created on: Dec 27, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #include <stdint.h>

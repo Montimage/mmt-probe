@@ -2,7 +2,7 @@
  * timer.h
  *
  *  Created on: Dec 22, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_LIB_TIMER_H_

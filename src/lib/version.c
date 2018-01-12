@@ -2,7 +2,7 @@
  * version.c
  *
  *  Created on: Dec 12, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 const char* get_version(){

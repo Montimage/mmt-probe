@@ -2,7 +2,7 @@
  * data_spsc_ring.c
  *
  *  Created on: 14 avr. 2016
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #include <stdlib.h>

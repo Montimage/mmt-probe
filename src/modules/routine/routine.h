@@ -2,7 +2,7 @@
  * routine.h
  *
  *  Created on: Dec 22, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_MODULES_ROUTINE_ROUTINE_H_

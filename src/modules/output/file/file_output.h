@@ -2,7 +2,7 @@
  * file_output.h
  *
  *  Created on: Dec 19, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_MODULES_OUTPUT_FILE_FILE_OUTPUT_H_

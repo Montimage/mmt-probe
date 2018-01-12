@@ -2,7 +2,7 @@
  * system_stats.h
  *
  *  Created on: Dec 22, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_MODUELS_ROUTINE_SYSTEM_STATS_H_

@@ -2,7 +2,7 @@
  * session_report.c
  *
  *  Created on: Dec 28, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #include "header.h"

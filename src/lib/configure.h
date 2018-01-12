@@ -2,7 +2,7 @@
  * configure.h
  *
  *  Created on: Dec 12, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_LIB_CONFIGURE_H_
@@ -12,7 +12,7 @@
 #include <stdint.h>
 #include <inttypes.h> //for uint64_t PRIu64
 #include <stdbool.h>
-
+#include <errno.h>
 
 #define MMT_USER_AGENT_THRESHOLD 0x20 //32KB
 
@@ -96,6 +96,14 @@ typedef struct behaviour_conf_struct{
 	char *directory;
 }behaviour_conf_t;
 
+typedef struct data_dump_conf_struct{
+	bool is_enable;
+	char *directory;
+	uint16_t frequency;
+
+	uint16_t protocols_size;
+	char **protocols;
+}data_dump_conf_t;
 
 typedef struct reconstruct_ftp_conf_struct{
 	bool is_enable;
@@ -218,6 +226,8 @@ typedef struct probe_conf_struct{
 
 		uint16_t events_size;
 		event_report_conf_t *events;
+
+		data_dump_conf_t *data_dump;
 	}reports;
 
 	struct reconstruct_data_struct{

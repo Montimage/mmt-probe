@@ -2,7 +2,7 @@
  * worker.h
  *
  *  Created on: Dec 18, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_LIB_WORKER_H_

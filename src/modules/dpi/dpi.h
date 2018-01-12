@@ -2,14 +2,13 @@
  * flow_stat.h
  *
  *  Created on: Dec 20, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_MODULES_DPI_STAT_H_
 #define SRC_MODULES_DPI_STAT_H_
 
 #include <mmt_core.h>
-
 #include "../../lib/configure.h"
 #include "../output/output.h"
 
@@ -24,6 +23,8 @@ typedef struct dpi_context_struct{
 	output_t *output;
 
 	void *event_based_context;
+
+	void *data_dump_context;
 }dpi_context_t;
 
 /**

@@ -2,7 +2,7 @@
  * limit.h
  *
  *  Created on: Dec 19, 2017
- *      Author: nhnghia
+ *          by: Huu Nghia
  */
 
 #ifndef SRC_LIB_LIMIT_H_
