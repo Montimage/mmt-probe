@@ -95,8 +95,6 @@ int output_write( output_t *output, const output_channel_conf_t *channels, const
 	if( ! output || ! output->config->is_enable || (channels && ! channels->is_enable ))
 		return 0;
 
-	printf("%s\n", message );
-
 	//output to file
 	if( output->config->file->is_enable && (channels == NULL || channels->is_output_to_file )){
 		file_output_write( output->modules.file, message );

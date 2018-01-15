@@ -25,6 +25,10 @@ typedef struct dpi_context_struct{
 	void *event_based_context;
 
 	void *data_dump_context;
+
+	//number of stat_period, e.g., 5s,
+	// => this number will increase 1 for each 5 seconds
+	size_t stat_periods_index;
 }dpi_context_t;
 
 /**

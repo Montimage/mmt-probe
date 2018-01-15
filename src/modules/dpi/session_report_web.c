@@ -73,24 +73,13 @@ static inline packet_session_t* _get_packet_session(const ipacket_t * ipacket) {
 
 		session->data_stat.is_touched = false;
 
-		DEBUG("Create a new Web report for session %"PRIu64", packet_id = %"PRIu64,
-				session->session_id, ipacket->packet_id );
+//		DEBUG("Create a new Web report for session %"PRIu64", packet_id = %"PRIu64,
+//				session->session_id, ipacket->packet_id );
 	}
 	session->app_type = SESSION_STAT_TYPE_APP_WEB;
 	return session;
 }
 
-static inline bool _copy_string_value( char *target, size_t target_size, void *att_data ){
-	mmt_header_line_t *val = (mmt_header_line_t *) att_data;
-	if( val == NULL || val->len == 0 )
-		return false;
-
-	if( val->len < target_size )
-		target_size = val->len;
-	strncpy( target, val->ptr, target_size );
-
-	return true;
-}
 
 /* This function is called by mmt-dpi for reporting http method, if an extraction handler is registered
  * Initializes temp_session in the probe
@@ -117,7 +106,7 @@ static void _web_method_handle(const ipacket_t * ipacket, attribute_t * attribut
 		web->trans_nb++;
 	}
 
-	_copy_string_value(web->method, sizeof( web->method ), attribute->data );
+	dpi_copy_string_value(web->method, sizeof( web->method ), attribute->data );
 
 	//((web_session_attr_t *) temp_session->app_data)->trans_nb += 1;
 	if (web->trans_nb >= 1) {
@@ -128,7 +117,7 @@ static void _web_method_handle(const ipacket_t * ipacket, attribute_t * attribut
 		web->first_request_time = ipacket->p_hdr->ts;
 	}
 
-	DEBUG("Web method: %s, session_id = %"PRIu64, web->method, session->session_id );
+	//DEBUG("Web method: %s, session_id = %"PRIu64, web->method, session->session_id );
 }
 
 static void _web_response_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
@@ -144,7 +133,7 @@ static void _web_response_handle(const ipacket_t * ipacket, attribute_t * attrib
 
 	web->interaction_time = ipacket->p_hdr->ts;
 
-	_copy_string_value(web->response, sizeof( web->response ), attribute->data );
+	dpi_copy_string_value(web->response, sizeof( web->response ), attribute->data );
 }
 
 static void _web_referer_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
@@ -152,7 +141,7 @@ static void _web_referer_handle(const ipacket_t * ipacket, attribute_t * attribu
 	if( unlikely( session == NULL ))
 		return;
 	session_web_stat_t *web = session->apps.web;
-	_copy_string_value(web->referer, sizeof( web->referer ), attribute->data );
+	dpi_copy_string_value(web->referer, sizeof( web->referer ), attribute->data );
 }
 
 static void _web_user_agent_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
@@ -160,7 +149,7 @@ static void _web_user_agent_handle(const ipacket_t * ipacket, attribute_t * attr
 	if( unlikely( session == NULL ))
 		return;
 	session_web_stat_t *web = session->apps.web;
-	_copy_string_value(web->user_agent, sizeof( web->user_agent ), attribute->data );
+	dpi_copy_string_value(web->user_agent, sizeof( web->user_agent ), attribute->data );
 }
 
 static void _web_uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
@@ -168,7 +157,7 @@ static void _web_uri_handle(const ipacket_t * ipacket, attribute_t * attribute, 
 	if( unlikely( session == NULL ))
 		return;
 	session_web_stat_t *web = session->apps.web;
-	_copy_string_value(web->uri, sizeof( web->uri ), attribute->data );
+	dpi_copy_string_value(web->uri, sizeof( web->uri ), attribute->data );
 }
 
 static void _web_content_len_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
@@ -176,7 +165,7 @@ static void _web_content_len_handle(const ipacket_t * ipacket, attribute_t * att
 	if( unlikely( session == NULL ))
 		return;
 	session_web_stat_t *web = session->apps.web;
-	_copy_string_value(web->content_len, sizeof( web->content_len ), attribute->data );
+	dpi_copy_string_value(web->content_len, sizeof( web->content_len ), attribute->data );
 }
 
 static void _web_host_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
@@ -188,7 +177,7 @@ static void _web_host_handle(const ipacket_t * ipacket, attribute_t * attribute,
 	if( has_string( web->hostname ))
 		return;
 
-	_copy_string_value(web->hostname, sizeof( web->hostname ), attribute->data );
+	dpi_copy_string_value(web->hostname, sizeof( web->hostname ), attribute->data );
 
 	char *coma = strchr(web->hostname, ',');
 	//Semi column found, replace it by an en of string '\0'
@@ -204,7 +193,7 @@ static void _content_type_handle(const ipacket_t * ipacket, attribute_t * attrib
 	if( has_string( web->mime_type ))
 		return;
 
-	_copy_string_value(web->mime_type, sizeof( web->mime_type ), attribute->data );
+	dpi_copy_string_value(web->mime_type, sizeof( web->mime_type ), attribute->data );
 
 	char *coma = strchr(web->mime_type, ',');
 	//Semi column found, replace it by an en of string '\0'
@@ -263,11 +252,14 @@ int print_web_report(char *message, size_t message_size, packet_session_t *sessi
 		cdn_flag = 2;
 
 	int valid = snprintf(message, message_size,
-			",%ld,%d,%ld,"
-			"\"%s\",\"%s\",\"%s\","
-			"%d,"
-			"\"%s\",\"%s\",\"%s\",%s,"
-			"%u", // app specific
+			",%ld," //response time
+			"%d,"   //transaction nb
+			"%ld,"  //interaction time
+			"\"%s\",\"%s\",\"%s\"," //host, mime, referrer
+			"%d,"    //CDN flag
+			"\"%s\",\"%s\",\"%s\"" //URI, method, response
+			",\"%s\""   //content length
+			",%d",    //request-response indicator
 			has_string(web->response) ? u_second_diff( &web->response_time, &web->method_time ) : 0,
 			has_string(web->response) ? web->trans_nb : 0,
 			has_string(web->response) ? u_second_diff( &web->interaction_time, &web->first_request_time) : 0,

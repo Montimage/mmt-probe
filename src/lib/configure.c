@@ -73,6 +73,15 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_END()
 	};
 
+	cfg_opt_t dump_pcap_opts[] = {
+			CFG_BOOL("enable", false, CFGF_NONE),
+			CFG_STR("output-dir", 0, CFGF_NONE),
+			CFG_STR_LIST("protocols", "{}", CFGF_NONE),
+			CFG_INT("period", 0, CFGF_NONE),
+			CFG_INT("retain-files", 0, CFGF_NONE),
+			CFG_END()
+		};
+
 	cfg_opt_t security2_opts[] = {
 			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_INT("thread-nb",    0, CFGF_NONE),
@@ -179,6 +188,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_SEC("behaviour", behaviour_opts, CFGF_NONE),
 			CFG_SEC("reconstruct-data", reconstruct_data_opts, CFGF_TITLE | CFGF_MULTI ),
 			CFG_SEC("radius-output", radius_output_opts, CFGF_NONE),
+			CFG_SEC("dump-pcap", dump_pcap_opts, CFGF_NONE),
 
 			CFG_INT("stats-period", 5, CFGF_NONE),
 			CFG_BOOL("enable-proto-without-session-report", false, CFGF_NONE),
@@ -301,6 +311,31 @@ static inline file_output_conf_t *_parse_output_to_file( cfg_t *cfg ){
 	return ret;
 }
 
+static inline data_dump_conf_t *_parse_dump_to_file( cfg_t *cfg ){
+	cfg = _get_first_cfg_block( cfg, "dump-pcap" );
+	if( cfg == NULL )
+		return NULL;
+
+	data_dump_conf_t *ret = alloc( sizeof( data_dump_conf_t ));
+
+	ret->is_enable  = cfg_getbool( cfg, "enable" );
+	ret->directory  = _cfg_get_str(cfg, "output-dir");
+	ret->frequency  = cfg_getint( cfg, "period");
+	if( ret->frequency == 0 )
+		ret->frequency = 3600;
+	ret->retained_files_count = cfg_getint( cfg, "retain-files" );
+
+	ret->protocols_size = cfg_size( cfg, "protocols");
+
+	ret->protocols = alloc( sizeof( void* ) * ret->protocols_size );
+	int i;
+	char *str;
+	for( i=0; i<ret->protocols_size; i++) {
+		str = cfg_getnstr(cfg, "protocols", i);
+		ret->protocols[i] = strdup( str );
+	}
+	return ret;
+}
 
 static inline kafka_output_conf_t *_parse_output_to_kafka( cfg_t *cfg ){
 	if( (cfg = _get_first_cfg_block( cfg, "kafka-output")) == NULL )
@@ -610,7 +645,6 @@ probe_conf_t* load_configuration_from_file( const char* filename ){
 									|| (conf->outputs.kafka != NULL && conf->outputs.kafka->is_enable ));
 
 	conf->dynamic_conf = _parse_dynamic_config_block( cfg );
-
 	//
 	conf->thread = _parse_thread( cfg );
 
@@ -631,6 +665,8 @@ probe_conf_t* load_configuration_from_file( const char* filename ){
 	conf->reports.security_multisession = _parse_multi_session_block( cfg );
 	conf->reports.session = _parse_session_block( cfg );
 	conf->reports.socket = _parse_socket_block( cfg );
+
+	conf->reports.data_dump = _parse_dump_to_file(cfg);
 
 	conf->session_timeout = _parse_session_timeout_block( cfg );
 

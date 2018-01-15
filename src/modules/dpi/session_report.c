@@ -13,12 +13,13 @@ int print_web_report(char *message, size_t message_size, packet_session_t *sessi
 
 //This callback is called by DPI periodically
 static inline void _print_ip_session_report (const mmt_session_t * dpi_session, void *user_args){
-	if (is_micro_flow( dpi_session )) {
-		return;
-	}
 	packet_session_t * session = (packet_session_t *) get_user_session_context(dpi_session);
 	if( unlikely( session == NULL ))
 		return;
+
+	if( unlikely( is_micro_flow( dpi_session ))) {
+		return;
+	}
 
 	dpi_context_t *context = (dpi_context_t *)user_args;
 
@@ -37,6 +38,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	session->data_stat.last_activity_time =  last_activity_time;
 	session->data_stat.start_time = get_session_init_time(dpi_session);
 
+	uint64_t data_transfer_time = 0;
 	// Data transfer time calculation
 	if (session->dtt_seen ){
 		struct timeval t1;
@@ -46,9 +48,8 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 		else
 			t1 = get_session_last_data_packet_time_by_direction(dpi_session, 1);
 
-		session->data_transfer_time =  u_second_diff(&t1, &session->dtt_start_time);
-		session->dtt_start_time.tv_sec = t1.tv_sec;
-		session->dtt_start_time.tv_usec = t1.tv_usec;
+		data_transfer_time      =  u_second_diff(&t1, &session->dtt_start_time);
+		session->dtt_start_time = t1;
 	}
 
 	if( !has_string( session->path_ul))
@@ -83,24 +84,28 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 
 	int valid = snprintf(message, MAX_LENGTH_REPORT_MESSAGE,
+			"%zu," //index of a stat period
 			"%u,"  //protocol
 			"\"%s\",\"%s\"," //upload - download path
 			"%"PRIu64","    //active sessions count
-			"%"PRIu64",%"PRIu64",%"PRIu64","
-			"%"PRIu64",%"PRIu64",%"PRIu64","
-			"%"PRIu64",%"PRIu64",%"PRIu64","
-			"%lu.%06lu," //start timestamp
+			"%"PRIu64",%"PRIu64",%"PRIu64"," //data, payload, packets
+			"%"PRIu64",%"PRIu64",%"PRIu64"," // upload  data, payload, packets
+			"%"PRIu64",%"PRIu64",%"PRIu64"," //download data, payload, packets
+			"%lu.%06lu," //start timestamp of this session
 			"\"%s\",\"%s\"," //ip src - dst
 			"\""PRETTY_MAC_FORMAT"\",\""PRETTY_MAC_FORMAT"\"," //mac src - dst
 			"%"PRIu64"," //session_id
 			"%hu,%hu,"   //port src dst
 			"%u,"        //thread_id
-			"%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64","
-			"%"PRIu64",%"PRIu64",%"PRIu64","
-			"%"PRIu64",%"PRIu64","
-			"%d," //format of app report
-			"%d,%d",
-
+			"%"PRIu64"," //rtt
+			"%"PRIu64",%"PRIu64"," //rtt min dst, src
+			"%"PRIu64",%"PRIu64"," //rtt max dst, src
+			"%"PRIu64",%"PRIu64"," //rtt avg dst, src
+			"%"PRIu64"," //data transfer time
+			"%"PRIu64"," //retransmission
+			"%d," //format of the next app report, either http, ssl, ftp, rtp
+			"%d,%d", //app family, content class
+			context->stat_periods_index,
 			proto_id,
 			session->path_ul, session->path_dl,
 			total_active_sessions,
@@ -134,7 +139,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 			session->data_stat.rtt_avg_usec[1],
 			session->data_stat.rtt_avg_usec[0],
 
-			session->data_transfer_time,
+			data_transfer_time,
 			(total_retrans - session->data_stat.retransmission_count),
 
 			session->app_type,
@@ -545,6 +550,7 @@ static inline int _register_conditional_handler( size_t count,  const conditiona
 }
 
 size_t get_session_web_handlers_to_register(const conditional_handler_t**);
+size_t get_session_ssl_handlers_to_register( const conditional_handler_t **ret );
 
 bool session_report_register( dpi_context_t *context ){
 	if( ! context->probe_config->reports.session->is_enable )
@@ -567,6 +573,12 @@ bool session_report_register( dpi_context_t *context ){
 		size = get_session_web_handlers_to_register( &handlers );
 		_register_conditional_handler( size, handlers, context );
 	}
+	if( context->probe_config->reports.session->is_ssl ){
+		size = get_session_ssl_handlers_to_register( &handlers );
+		_register_conditional_handler( size, handlers, context );
+	}
+
+
 
 	register_session_timer_handler(context->dpi_handler,   _print_ip_session_report, context);
 

@@ -179,8 +179,8 @@ void worker_on_stop( worker_context_t *worker_context ){
 #ifdef SECURITY_MODULE
 	worker_context->stat.alert_generated = security_worker_release( worker_context->security );
 #endif
-	output_release( worker_context->output );
 	dpi_release( worker_context->dpi_context );
+	output_release( worker_context->output );
 }
 
 
@@ -212,8 +212,8 @@ void worker_on_timer_stat_period( worker_context_t *worker_context ){
 void worker_on_timer_sample_file_period( worker_context_t *worker_context ){
 
 	//the first worker
-	if( worker_context->index == 0 ){
-	}
+//	if( worker_context->index == 0 ){
+//	}
 
 	output_flush( worker_context->output );
 }

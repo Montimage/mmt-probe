@@ -113,4 +113,26 @@ static inline int dpi_proto_hierarchy_ids_to_str(const proto_hierarchy_t * proto
 	return offset;
 }
 
+/**
+ * Copy string value of a mmt_header_line_t
+ * @param target
+ * @param target_size
+ * @param val
+ * @return
+ */
+static inline bool dpi_copy_string_value( char *target, size_t target_size, mmt_header_line_t *val ){
+	if( val == NULL || val->len == 0 ){
+		target[0] = '\0';
+		return false;
+	}
+
+	if( val->len < target_size )
+		target_size = val->len;
+
+	memcpy( target, val->ptr, target_size );
+	target[ target_size ] = '\0';
+
+	return true;
+}
+
 #endif /* SRC_MODULES_DPI_DPI_TOOL_H_ */

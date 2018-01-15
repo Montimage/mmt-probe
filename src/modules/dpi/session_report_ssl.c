@@ -44,9 +44,7 @@ static void _ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * att
 
     	int target_size = sizeof( session->apps.ssl->hostname );
 
-    	if( val->len < target_size )
-    		target_size = val->len;
-    	strncpy( session->apps.ssl->hostname, val->ptr, target_size );
+    	dpi_copy_string_value( session->apps.ssl->hostname, target_size, val );
 
     session->content_class = get_content_class_by_content_flags( get_session_content_flags(ipacket->session) );
 }

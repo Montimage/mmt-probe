@@ -85,12 +85,10 @@ typedef struct packet_session_struct {
 	uint64_t session_id;
 
 	struct timeval dtt_start_time;
-	uint64_t data_transfer_time;
 	uint64_t rtt_at_handshake;
 
 
 	uint32_t proto_id; //protocol ID
-	uint64_t report_counter;
 
 	char path_ul[128]; //path for uplink traffic
 	char path_dl[128]; //path for downlink traffic
@@ -98,6 +96,7 @@ typedef struct packet_session_struct {
 	mmt_ipv4_ipv6_t ip_dst;
 	uint16_t port_src;
 	uint16_t port_dst;
+
 	uint8_t  mac_src[6];
 	uint8_t  mac_dst[6];
 	uint8_t proto;
@@ -106,7 +105,7 @@ typedef struct packet_session_struct {
 	bool is_flow_extracted;
 	uint8_t ip_version;
 
-	uint32_t content_class;
+	uint16_t content_class;
 
 	session_stat_t data_stat;
 

@@ -1,6 +1,6 @@
 #include <unistd.h>
-#include <sys/time.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include "pcap_dump.h"
 
 int pd_write_header(int fd, int linktype, int thiszone, int snaplen) {
@@ -26,9 +26,9 @@ int pd_write_header(int fd, int linktype, int thiszone, int snaplen) {
 int pd_write(int fd, const char * buf, uint16_t len, const struct timeval *tv) {
     struct pd_pcap_pkthdr h;
     // char mem[65535];
-    if (len > 65535) {
-        len = 65535;
-    }
+//    if (len > 65535) {
+//        len = 65535;
+//    }
     int left = sizeof(h), ret;
     h.ts.tv_sec  = (uint32_t)tv->tv_sec;
     h.ts.tv_usec = (uint32_t)tv->tv_usec;
@@ -41,7 +41,6 @@ int pd_write(int fd, const char * buf, uint16_t len, const struct timeval *tv) {
         ret = write(fd, ptr, left);
         left -= ret;
         ptr += ret;
-
     }
 
     left = len;
@@ -49,7 +48,6 @@ int pd_write(int fd, const char * buf, uint16_t len, const struct timeval *tv) {
         ret = write(fd, buf, left);
         buf += ret;
         left -= ret;
-
     }
     return 0;
 }

@@ -13,8 +13,9 @@ typedef struct data_dump_context_struct{
 	int dump_file_handler;
 	const data_dump_conf_t *config;
 	struct timeval last_dump_ts;
-	long u_frequency;
 	int worker_index;
+	uint32_t *proto_ids_lst;
+
 } data_dump_context_t;
 
 static int _packet_handler_to_dump_data(const ipacket_t * ipacket, void * args) {
@@ -24,15 +25,18 @@ static int _packet_handler_to_dump_data(const ipacket_t * ipacket, void * args) 
 	int i, j;
 	//for each protocol need to be dump
 	for( i = 0; i < context->config->protocols_size; i++ ){
-		int proto_to_check;// = context->protocols_id[z];
+		int proto_to_check = context->proto_ids_lst[i];
 
 		for(j = ipacket->proto_hierarchy->len - 1; j > 1; j--){
 			if(ipacket->proto_hierarchy->proto_path[j] != proto_to_check)
 				continue;
+
 			//found one protocol
 
 			//check periodically
-			if( context->dump_file_handler <= 0 || u_second_diff( &ipacket->p_hdr->ts, &context->last_dump_ts) >= context->u_frequency ){
+			if( context->dump_file_handler <= 0
+					|| u_second_diff( &ipacket->p_hdr->ts, &context->last_dump_ts) >= context->config->frequency * 1000000L ){
+
 				//close old file
 				if( context->dump_file_handler > 0 )
 					pd_close( context->dump_file_handler );
@@ -52,11 +56,12 @@ static int _packet_handler_to_dump_data(const ipacket_t * ipacket, void * args) 
 					);
 					return 0;
 				}
+				DEBUG("Dummp pcap to file %s", file_name );
 				context->last_dump_ts = ipacket->p_hdr->ts;
 			}
 
 			pd_write( context->dump_file_handler, (char*)ipacket->data,
-					ipacket->p_hdr->caplen, &ipacket->p_hdr->ts);
+					ipacket->p_hdr->caplen, &(ipacket->p_hdr->ts));
 
 			return 0;
 		}
@@ -73,18 +78,18 @@ void data_dump_start( dpi_context_t *dpi_context ){
 	context->dump_file_handler = 0;
 	context->config = dpi_context->probe_config->reports.data_dump;
 	context->worker_index = dpi_context->worker_index;
-	context->u_frequency = context->config->frequency * 1000000;
+
+	//protocol ids
+	context->proto_ids_lst = alloc( sizeof( uint32_t ) * context->config->protocols_size );
+	int i;
+	for( i=0; i<context->config->protocols_size; i++ ){
+		context->proto_ids_lst[i] = get_protocol_id_by_name( context->config->protocols[i] );
+	}
+
 	dpi_context->data_dump_context = context;
 
-
-	mmt_handler_t *dpi_handler = dpi_context->dpi_handler;
-	//register protocols
-	int i;
-//	for( i=0; i<context->config->protocols_size; i++ ){
-//		const char* proto_name = context->config->protocols[i];
-//
-//	}
-	int ret = register_packet_handler( dpi_handler, 7, _packet_handler_to_dump_data, context );
+	//register a new packet handler
+	int ret = register_packet_handler( dpi_context->dpi_handler, 7, _packet_handler_to_dump_data, context );
 	if( ! ret)
 		ABORT( "Cannot register packet handler for data dumping" );
 }

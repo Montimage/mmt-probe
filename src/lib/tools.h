@@ -7,6 +7,7 @@
 
 #ifndef SRC_LIB_TOOLS_H_
 #define SRC_LIB_TOOLS_H_
+#include <sys/time.h>
 
 #define MIN( a, b ) (a>b? b : a )
 #define MAX( a, b ) (a<b? b : a )

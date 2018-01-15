@@ -35,6 +35,7 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *mmt_dp
 	ret->probe_config  = config;
 	ret->event_based_context = NULL;
 	ret->data_dump_context   = NULL;
+	ret->stat_periods_index  = 0;
 
 	event_based_report_register( ret );
 
@@ -48,8 +49,8 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *mmt_dp
 
 
 void dpi_release( dpi_context_t *dpi_context ){
-	//last report of no-session
-	no_session_report( dpi_context );
+	//last period
+	dpi_callback_on_stat_period( dpi_context );
 
 	event_based_report_unregister( dpi_context );
 	xfree( dpi_context );
@@ -63,7 +64,7 @@ void dpi_release( dpi_context_t *dpi_context ){
 void dpi_callback_on_stat_period( dpi_context_t *dpi_context){
 
 	no_session_report( dpi_context );
-
+	dpi_context->stat_periods_index ++;
 	//push SDK to perform session callback
 	if( dpi_context->probe_config->reports.session->is_enable )
 		process_session_timer_handler( dpi_context->dpi_handler );
