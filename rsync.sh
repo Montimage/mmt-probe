@@ -19,25 +19,26 @@ echo "Compiling `pwd` ... "
 #USER=montimage
 #IP=192.168.0.194
 
-#TARGET=/home/server10ga/huunghia/mmt-probe
-#USER=root
-#IP=192.168.0.36
-
-IP=localhost
-TARGET=/home/mmt/mmt-probe
+TARGET=/home/mmt/huunghia/mmt-probe
 USER=mmt
-PORT=2222
+IP=192.168.0.35
+PORT=22
+
+#IP=localhost
+#TARGET=/home/mmt/mmt-probe
+#USER=mmt
+#PORT=2222
 
 rsync -e "ssh -i /Users/nhnghia/.ssh/id_rsa -p $PORT" -rca .git ./* $USER@$IP:$TARGET
 
-DEBUG="DEBUG=1 VALGRIND=1 VERBOSE=1 PCAP=1"
+DEBUG="DEBUG=1 VALGRIND=1 VERBOSE=1 DPDK=1"
 
 #EXPORT="export RTE_SDK=/home/server10g/huunghia/dpdk-stable-16.11.1/; export RTE_TARGET=x86_64-native-linuxapp-gcc"
 #RUN="$EXPORT;  make clean DPDK=1; make DPDK=1 -j2 && cp ./build/probe ./"
 
-RUN="make clean PCAP=1; make PCAP=1 DEBUG=1"
+RUN="make clean PCAP=1; make DEBUG=1"
 #RUN="make clean PCAP=1; make PCAP=1 $DEBUG -j5 && cp probe ../hn"
 
-RUN=" make $DEBUG"
+RUN="make clean $DEBUG; make $DEBUG"
 
 ssh -p $PORT $USER@$IP "cd $TARGET && $RUN"

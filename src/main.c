@@ -23,6 +23,8 @@
 #include "lib/context.h"
 #include "lib/version.h"
 #include "lib/tools.h"
+#include "lib/configure.h"
+#include "lib/version.h"
 
 #ifdef DPDK_MODULE
 #include "modules/dpdk/dpdk_capture.h"

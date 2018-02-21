@@ -28,6 +28,7 @@
 #define KAFKA_MODULE
 #define NETCONF_MODULE
 
+
 static inline void* alloc( size_t size ){
 	void *ret = malloc( size );
 	if( unlikely( ret == NULL )){
@@ -38,10 +39,8 @@ static inline void* alloc( size_t size ){
 }
 
 static inline void xfree( void *x ){
-	if( likely( x != NULL ))
-		free( x );
+	free( x );
 }
-
 
 #define EXPECT( expected, ret )\
 	while( unlikely( ! (expected) ) )\
