@@ -156,6 +156,7 @@ static void _print_security_verdict(
  */
 void worker_on_start( worker_context_t *worker_context ){
 
+	DEBUG("Starting worker %d", worker_context->index );
 	worker_context->output = output_alloc_init( worker_context->index, &(worker_context->probe_context->config->outputs),
 			worker_context->probe_context->config->input->input_source );
 
@@ -192,12 +193,13 @@ void worker_on_timer_stat_period( worker_context_t *worker_context ){
 	struct timeval now;
 	//the first worker
 	if( worker_context->index == 0 ){
-		//print a dummy message to inform that MMT-Probe is still alive
-		if( worker_context->probe_context->config->input->input_mode == ONLINE_ANALYSIS ){
-			gettimeofday( &now, NULL );
-			output_write_report(worker_context->output, NULL, DUMMY_REPORT_TYPE,
-					&now, NULL );
-		}
+	}
+
+	//print a dummy message to inform that MMT-Probe is still alive
+	if( worker_context->probe_context->config->input->input_mode == ONLINE_ANALYSIS ){
+		gettimeofday( &now, NULL );
+		output_write_report(worker_context->output, NULL, DUMMY_REPORT_TYPE,
+				&now, NULL );
 	}
 
 	dpi_callback_on_stat_period( worker_context->dpi_context );

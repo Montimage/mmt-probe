@@ -69,17 +69,25 @@ int output_write_report( output_t *output, const output_channel_conf_t *channels
 		return 0;
 
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
-	int offset = snprintf( message, MAX_LENGTH_REPORT_MESSAGE, "%d,%d,\"%s\",%lu.%06lu,",
+
+	if( unlikely( format == NULL )){
+		snprintf( message, MAX_LENGTH_REPORT_MESSAGE, "%d,%d,\"%s\",%lu.%06lu",
 			report_type,
 			output->index,
 			output->input_src,
-			ts->tv_sec, ts->tv_usec);
+			ts->tv_sec, ts->tv_usec );
+	} else {
+		int offset = snprintf( message, MAX_LENGTH_REPORT_MESSAGE, "%d,%d,\"%s\",%lu.%06lu,",
+					report_type,
+					output->index,
+					output->input_src,
+					ts->tv_sec, ts->tv_usec);
+		va_list args;
 
-	va_list args;
-
-	va_start( args, format );
-	offset += vsnprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, format, args);
-	va_end( args );
+		va_start( args, format );
+		offset += vsnprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, format, args);
+		va_end( args );
+	}
 
 	int ret = output_write( output, channels, message );
 	output->last_report_ts.tv_sec  = ts->tv_sec;

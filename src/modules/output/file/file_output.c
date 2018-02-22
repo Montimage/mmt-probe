@@ -90,7 +90,7 @@ static inline void _create_new_file( file_output_t *output ){
 	//create output file
 	gettimeofday( &output->created_time_of_file, NULL );
 
-	snprintf( filename, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%lu_%06zu_%02d_%s",
+	snprintf( filename, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%lu-%06zu_%02d_%s",
 			output->config->directory,
 			output->created_time_of_file.tv_sec,
 			output->created_time_of_file.tv_usec,
@@ -123,37 +123,35 @@ file_output_t* file_output_alloc_init( const file_output_conf_t *config, uint16_
 }
 
 
-static inline void _create_semaphore_file_if_need( file_output_t *output ){
-	if( output && output->file && output->config->is_sampled ){
-		char filename[ MAX_LENGTH_FULL_PATH_FILE_NAME ];
+static inline void _create_semaphore( const file_output_t *output ){
+	char filename[ MAX_LENGTH_FULL_PATH_FILE_NAME ];
 
-		//create semaphore
-		snprintf( filename, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%lu_%06zu_%02d_%s.sem",
-				output->config->directory,
-				output->created_time_of_file.tv_sec,
-				output->created_time_of_file.tv_usec,
-				output->id,
-				output->config->filename );
-		FILE *file = fopen( filename,"w");
-		if( file == NULL )
-			log_write( LOG_ERR, "Cannot create semaphore file %s: %s", filename, strerror( errno ) );
-		else
-			fclose( file );
-	}
+	//create semaphore
+	snprintf( filename, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%lu-%06zu_%02d_%s.sem",
+			output->config->directory,
+			output->created_time_of_file.tv_sec,
+			output->created_time_of_file.tv_usec,
+			output->id,
+			output->config->filename );
+
+	FILE *file = fopen( filename,"w");
+	if( file == NULL )
+		log_write( LOG_ERR, "Cannot create semaphore file %s: %s", filename, strerror( errno ) );
+	else
+		fclose( file );
 }
 
 
 void file_output_flush( file_output_t * output){
 	EXPECT( output != NULL && output->file != NULL,  );
+//	DEBUG("flush file %d\n", output->id );
+	fflush( output->file );
 
-	if( output->file ){
-		fflush( output->file );
-
-		if( output->config->is_sampled )
-			fclose( output->file );
+	if( output->config->is_sampled ){
+		//close csv file
+		fclose( output->file );
+		_create_semaphore( output );
 	}
-
-	_create_semaphore_file_if_need( output );
 
 	if( output->config->is_sampled )
 		_create_new_file(output);
@@ -162,10 +160,11 @@ void file_output_flush( file_output_t * output){
 void file_output_release( file_output_t *output ){
 	EXPECT( output != NULL, );
 
-	if( output->file )
+	if( output->file ){
 		fclose( output->file );
-
-	_create_semaphore_file_if_need( output );
+		if( output->config->is_sampled )
+			_create_semaphore( output );
+	}
 	xfree( output );
 }
 

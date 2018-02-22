@@ -23,7 +23,7 @@
 #include "../../lib/alloc.h"
 
 #define RX_DESCRIPTORS    4096 	/* Size for RX ring*/
-#define RX_BURST_SIZE     4096  	/* Burst size to receive packets from RX ring */
+#define RX_BURST_SIZE      128  	/* Burst size to receive packets from RX ring */
 
 #define MBUF_CACHE_SIZE    512
 
@@ -59,11 +59,10 @@ static const struct rte_eth_rxconf rx_default_conf = {
 /* eth port configuration struct */
 static const struct rte_eth_conf port_default_conf = {
 		.rxmode = {
-				//.max_rx_pkt_len = ETHER_MAX_LEN,
 				.mq_mode        = ETH_MQ_RX_RSS,
 				.max_rx_pkt_len = ETHER_MAX_LEN,
 				.split_hdr_size = 0,
-				.header_split   = 0,   /**< Header Split disabled */
+				.header_split   = 0, /**< Header Split disabled */
 				.hw_ip_checksum = 0, /**< IP checksum offload disabled */
 				.hw_vlan_filter = 0, /**< VLAN filtering disabled */
 				.jumbo_frame    = 0,
@@ -76,6 +75,9 @@ static const struct rte_eth_conf port_default_conf = {
 				},
 		},
 };
+
+
+volatile uint8_t quit_signal_work = 0;
 
 /**
  * Print statistic of captured packets given by DPDK
@@ -106,16 +108,15 @@ static int _worker_thread( void *arg ){
 	struct param *param = (struct param *) arg;
 
 	worker_context_t *worker_context = (worker_context_t *)arg;
-	probe_context_t *probe_context   = worker_context->probe_context;
+	const probe_conf_t *config       = worker_context->probe_context->config;
 	struct rte_distributor *distributor = worker_context->dpdk->distributor;
-	int i;
-	uint16_t nb_rx;
+	int i, nb_rx;
 	struct pkthdr pkt_header;
 	const u_char* pkt_data;
 
 	worker_on_start( worker_context );
 
-	const uint8_t input_port = atoi( probe_context->config->input->input_source );
+	const uint8_t input_port = atoi( config->input->input_source );
 
 	pkt_header.user_args = NULL;
 
@@ -124,18 +125,26 @@ static int _worker_thread( void *arg ){
 
 	unsigned int worker_id = worker_context->index;
 
+
+	struct timeval now = {0, 0};
+
+	gettimeofday( &now, NULL );
+	uint32_t next_sample_ts = now.tv_sec + config->stat_period;
+	uint32_t next_stat_ts   = now.tv_sec + config->outputs.file->output_period;
+
+	uint64_t total_pkts = 0;
 	bool is_continuous = true;
 	/* Run until the application is quit or killed. */
-	while ( likely( is_continuous )) {
+	while ( likely( !quit_signal_work )) {
 
-//		rte_distributor_request_pkt(distributor, worker_id, NULL, 0 );
+//		rte_distributor_request_pkt( distributor, worker_id, NULL, 0 );
 //		nb_rx = rte_distributor_poll_pkt( distributor, worker_id, bufs );
 
 		// Get burst of RX packets, from first port
 		nb_rx = rte_distributor_get_pkt( distributor, worker_id, bufs, NULL, 0 );
 
 		if( nb_rx == 0 ){
-//			nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
+			//nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
 		}else {
 			for (i = 0; i < nb_rx; i++){
 				pkt_header.len         = bufs[i]->pkt_len;
@@ -146,10 +155,34 @@ static int _worker_thread( void *arg ){
 
 				pkt_data = (bufs[i]->buf_addr + bufs[i]->data_off);
 
-				//worker_process_a_packet( worker_context, &pkt_header, pkt_data );
+//				worker_process_a_packet( worker_context, &pkt_header, pkt_data );
+
+				//do a small processing
+				uint64_t x = rte_rdtsc() + 2000 + worker_id*200;
+				while (rte_rdtsc() < x)
+					rte_pause();
 
 				rte_pktmbuf_free( bufs[i] );
 			}
+
+			total_pkts += nb_rx;
+		}
+
+		gettimeofday( &now, NULL );
+
+		//statistic periodically
+		if( now.tv_sec >= next_stat_ts  ){
+			DEBUG("stat period %2d %"PRIu64"", worker_id, total_pkts );
+			next_stat_ts += config->stat_period;
+			//call worker
+			worker_on_timer_stat_period( worker_context );
+		}
+
+		//if we need to sample output file
+		if( now.tv_sec >=  next_sample_ts ){
+			next_sample_ts += config->outputs.file->output_period;
+			//call worker
+			worker_on_timer_sample_file_period( worker_context );
 		}
 	}
 
@@ -158,25 +191,27 @@ static int _worker_thread( void *arg ){
 	//finish, wake up the main thread
 	sem_post( &worker_context->dpdk->semaphore );
 
+	printf("Worker %2d processed %12"PRIu64"\n", worker_id, total_pkts );
+
 	return 0;
 }
 
 static int _distributor_thread( void *arg ){
 	int i;
 	bool is_continuous = true;
-	struct rte_mbuf *bufs[RX_BURST_SIZE];
+	struct rte_mbuf *bufs[RX_BURST_SIZE*2];
 
 	struct param *param = (struct param *) arg;
 
 	struct rte_ring *ring               = param->rx_ring;
 	struct rte_distributor *distributor = param->distributor;
 
-	uint64_t drop_pkts = 0;
+	uint64_t drop_pkts = 0, total_pkts = 0;
 
 	/* Run until the distributor received a null packet. */
-	while ( is_continuous ) {
+	while ( likely( is_continuous )) {
 		// Get burst of RX packets, from first port
-		uint32_t nb_rx = rte_ring_sc_dequeue_burst( ring, (void *)bufs, RX_BURST_SIZE, NULL );
+		uint32_t nb_rx = rte_ring_sc_dequeue_burst( ring, (void *)bufs, RX_BURST_SIZE*2, NULL );
 		if( unlikely( nb_rx == 0 )){
 //			nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
 		} else {
@@ -186,23 +221,29 @@ static int _distributor_thread( void *arg ){
 				is_continuous = false; //exit while loop
 			}
 
+			total_pkts += nb_rx;
+
 			//give packets to distributor
 			int nb_proc = rte_distributor_process( distributor, bufs, nb_rx );
 
 			//cannot process all packets => free the ones being unprocessed
 			if( unlikely( nb_proc < nb_rx )){
 				drop_pkts += nb_rx - nb_proc;
-				for( i=nb_proc; i<nb_rx; i++ )
-					rte_pktmbuf_free( bufs[i] );
+				while( nb_proc < nb_rx )
+					rte_pktmbuf_free( bufs[nb_proc ++] );
 			}
 		}
 	}
 
-	printf("Distributor drop %"PRIu64" packets\n", drop_pkts );
+	log_write(LOG_INFO, "Distributor received %"PRIu64" pkt, dropped %"PRIu64" pkt (%6.3f %%)",
+				total_pkts, drop_pkts, (drop_pkts == 0? 0 : drop_pkts*100.0 / total_pkts ));
+
+	quit_signal_work = 1;
 
 	rte_distributor_flush( distributor );
 	/* Unblock any returns so workers can exit */
 	rte_distributor_clear_returns( distributor );
+
 
 	return 0;
 }
@@ -221,9 +262,16 @@ static int _reader_thread( void *arg ){
 	const uint8_t input_port = atoi( probe_context->config->input->input_source );
 	struct rte_ring *ring    = param->rx_ring;
 
-	uint64_t total_pkts = 0, total_bytes = 0, drop_pkts = 0;
 
-	printf("reading packets on port %d\n", input_port );
+	//redear should be run on lcore having the same socket with the on of its NIC
+	if (rte_eth_dev_socket_id( input_port) > 0 &&
+			rte_eth_dev_socket_id( input_port ) != rte_socket_id())
+		log_write(LOG_WARNING, "Reader of port %u is on remote NUMA node to "
+						"RX thread. Performance will not be optimal.",
+						input_port );
+
+	//statistic variables
+	uint64_t total_pkts = 0, total_bytes = 0, drop_pkts = 0;
 
 	/* Run until the application is quit or killed. */
 	while ( likely( !probe_context->is_aborting )) {
@@ -233,6 +281,9 @@ static int _reader_thread( void *arg ){
 		if( unlikely( nb_rx == 0 )){
 //			nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
 		} else {
+			//total received packets
+			total_pkts += nb_rx;
+
 			//timestamp of a packet is the moment we retrieve it from buffer of DPDK
 			gettimeofday(&time_now, NULL);
 
@@ -241,7 +292,7 @@ static int _reader_thread( void *arg ){
 			//for each received packet,
 			// we remember the moment the packet is received
 			for (i = 0; i < nb_rx; i++){
-				//calculate total data this reader received
+				//cumulate total data this reader received
 				total_bytes += bufs[i]->data_len;
 
 				//encode a timval into a number of 64bits
@@ -256,14 +307,14 @@ static int _reader_thread( void *arg ){
 			//ring is full
 			if( unlikely( sent < nb_rx )){
 				drop_pkts += nb_rx - sent;
-				for( i=sent; i<nb_rx; i++ )
-					rte_pktmbuf_free( bufs[i] );
+				while( sent < nb_rx )
+					rte_pktmbuf_free( bufs[sent ++] );
 			}
 		}
 	}
 
-	printf ("[mmt-probe-1]{reader, %9"PRIu64" pkt %12"PRIu64" B, drop %9"PRIu64" pkt (%6.3f %%)}\n",
-			total_pkts, total_bytes, drop_pkts, drop_pkts*100.0 / total_pkts );
+	log_write(LOG_INFO, "Reader received %"PRIu64" pkt (%"PRIu64" B), dropped %"PRIu64" pkt (%6.3f %%)",
+			total_pkts, total_bytes, drop_pkts, (drop_pkts == 0? 0: drop_pkts*100.0 / total_pkts) );
 
 	//enqueue a null message to each reader's ring to tell them exit
 	//while loop ensures that the NULL obj is enqueued
@@ -465,7 +516,6 @@ void dpdk_capture_start ( probe_context_t *context){
 	signal( SIGALRM, _print_stats );
 	alarm( 1 );
 
-	printf("start all tthreads");
 	// Waiting for all workers finish their jobs
 
 

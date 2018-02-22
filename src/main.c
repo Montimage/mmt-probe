@@ -190,6 +190,7 @@ static inline void _stop_modules( probe_context_t *context){
 }
 
 
+
 probe_context_t context;
 /* This signal handler ensures clean exits */
 void signal_handler(int type) {
@@ -203,6 +204,8 @@ void signal_handler(int type) {
 			exit( EXIT_FAILURE );
 #endif
 		}
+
+		fprintf(stderr, "Received Ctrl+C. Releasing resource ...");
 		log_write(LOG_INFO, "Received Ctrl+C. Releasing resource ...");
 		context.is_aborting = true;
 
