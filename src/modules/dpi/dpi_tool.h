@@ -97,9 +97,7 @@ static inline int dpi_unregister_attribute( const dpi_protocol_attribute_t *atts
 
 static inline int dpi_proto_hierarchy_ids_to_str(const proto_hierarchy_t * proto_hierarchy, char * dest, int max_length ) {
 	int offset = 0;
-	if (proto_hierarchy->len < 1) {
-		offset += sprintf(dest, ".");
-	} else {
+	if (proto_hierarchy->len >= 1) {
 		int index = 1;
 		offset += snprintf(dest, max_length - offset, "%u", proto_hierarchy->proto_path[index]);
 		index++;

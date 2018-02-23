@@ -123,7 +123,7 @@ file_output_t* file_output_alloc_init( const file_output_conf_t *config, uint16_
 }
 
 
-static inline void _create_semaphore( const file_output_t *output ){
+static inline void _create_semaphore_file( const file_output_t *output ){
 	char filename[ MAX_LENGTH_FULL_PATH_FILE_NAME ];
 
 	//create semaphore
@@ -150,7 +150,7 @@ void file_output_flush( file_output_t * output){
 	if( output->config->is_sampled ){
 		//close csv file
 		fclose( output->file );
-		_create_semaphore( output );
+		_create_semaphore_file( output );
 	}
 
 	if( output->config->is_sampled )
@@ -163,7 +163,7 @@ void file_output_release( file_output_t *output ){
 	if( output->file ){
 		fclose( output->file );
 		if( output->config->is_sampled )
-			_create_semaphore( output );
+			_create_semaphore_file( output );
 	}
 	xfree( output );
 }

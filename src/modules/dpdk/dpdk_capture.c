@@ -11,6 +11,7 @@
 #define DPDK_MODULE
 #endif
 
+#include <rte_random.h>
 #include <rte_ethdev.h>
 #include <rte_prefetch.h>
 #include <rte_distributor.h>
@@ -23,27 +24,38 @@
 #include "../../lib/alloc.h"
 
 #define RX_DESCRIPTORS    4096 	/* Size for RX ring*/
-#define RX_BURST_SIZE      128  	/* Burst size to receive packets from RX ring */
+#define RX_BURST_SIZE      256  	/* Burst size to receive packets from RX ring */
 
 #define MBUF_CACHE_SIZE    512
 
+/* Symmetric RSS hash key */
+static uint8_t hash_key[52] = {
+		0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
+		0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
+		0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
+		0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
+		0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
+		0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
+		0x6D, 0x5A, 0x6D, 0x5A
+
+};
 
 struct dpdk_worker_context_struct{
 	struct rte_distributor *distributor;
 	sem_t semaphore;
-};
+}__rte_cache_aligned;
 
 struct timeval64{
 	uint32_t tv_sec;
 	uint32_t tv_usec;
-};
+}__rte_cache_aligned;
 
 
 struct param{
 	struct rte_distributor *distributor;
 	struct rte_ring  *rx_ring;
 	probe_context_t *probe_context;
-};
+}__rte_cache_aligned;
 
 /* RX configuration struct */
 static const struct rte_eth_rxconf rx_default_conf = {
@@ -70,14 +82,13 @@ static const struct rte_eth_conf port_default_conf = {
 		},
 		.rx_adv_conf = {
 				.rss_conf = {
-						.rss_hf = ETH_RSS_IP | ETH_RSS_UDP |
-						ETH_RSS_TCP | ETH_RSS_SCTP,
+						.rss_key     = hash_key,
+						.rss_key_len = 52,
+						.rss_hf      = ETH_RSS_PROTO_MASK
 				},
 		},
 };
 
-
-volatile uint8_t quit_signal_work = 0;
 
 /**
  * Print statistic of captured packets given by DPDK
@@ -110,7 +121,7 @@ static int _worker_thread( void *arg ){
 	worker_context_t *worker_context = (worker_context_t *)arg;
 	const probe_conf_t *config       = worker_context->probe_context->config;
 	struct rte_distributor *distributor = worker_context->dpdk->distributor;
-	int i, nb_rx;
+	int i, nb_rx = 0;
 	struct pkthdr pkt_header;
 	const u_char* pkt_data;
 
@@ -126,26 +137,33 @@ static int _worker_thread( void *arg ){
 	unsigned int worker_id = worker_context->index;
 
 
-	struct timeval now = {0, 0};
+	time_t now = time( NULL );
 
-	gettimeofday( &now, NULL );
-	uint32_t next_sample_ts = now.tv_sec + config->stat_period;
-	uint32_t next_stat_ts   = now.tv_sec + config->outputs.file->output_period;
+	uint32_t next_sample_ts = now + config->stat_period;
+	uint32_t next_stat_ts   = now + config->outputs.file->output_period;
 
 	uint64_t total_pkts = 0;
+
+	uint64_t bursts_stat[8] = {0};
+
 	bool is_continuous = true;
 	/* Run until the application is quit or killed. */
-	while ( likely( !quit_signal_work )) {
-
-//		rte_distributor_request_pkt( distributor, worker_id, NULL, 0 );
-//		nb_rx = rte_distributor_poll_pkt( distributor, worker_id, bufs );
-
+	while ( likely( is_continuous )) {
 		// Get burst of RX packets, from first port
 		nb_rx = rte_distributor_get_pkt( distributor, worker_id, bufs, NULL, 0 );
 
-		if( nb_rx == 0 ){
-			//nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
+		if( nb_rx <= 0 ){
+//			nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
 		}else {
+			//last packet is special one to tell worker exist
+			if( unlikely( bufs[ nb_rx - 1 ]->udata64 == 0 )){
+				bufs[ nb_rx - 1 ]->udata64 = worker_id; //confirm i-th worker is existing
+				//tell distributor that the worker is existing
+				rte_distributor_return_pkt( distributor, worker_id, &bufs[ nb_rx - 1 ], 1 );
+				is_continuous = false;
+				nb_rx --;
+			}
+
 			for (i = 0; i < nb_rx; i++){
 				pkt_header.len         = bufs[i]->pkt_len;
 				pkt_header.caplen      = bufs[i]->data_len;
@@ -153,25 +171,30 @@ static int _worker_thread( void *arg ){
 				pkt_header.ts.tv_sec  = t->tv_sec;
 				pkt_header.ts.tv_usec = t->tv_usec;
 
+				//packet data
 				pkt_data = (bufs[i]->buf_addr + bufs[i]->data_off);
 
-//				worker_process_a_packet( worker_context, &pkt_header, pkt_data );
+				worker_process_a_packet( worker_context, &pkt_header, pkt_data );
 
 				//do a small processing
-				uint64_t x = rte_rdtsc() + 2000 + worker_id*200;
-				while (rte_rdtsc() < x)
-					rte_pause();
+//				uint64_t x = rte_rdtsc() + 2000 + worker_id*50000;
+//				while (rte_rdtsc() < x)
+//					rte_pause();
 
+				//after processing packet, we need to free its memory in mempool
+				// to have place for others coming
 				rte_pktmbuf_free( bufs[i] );
 			}
 
 			total_pkts += nb_rx;
+
+			bursts_stat[ nb_rx -1 ] ++;
 		}
 
-		gettimeofday( &now, NULL );
+		now = time( NULL );
 
 		//statistic periodically
-		if( now.tv_sec >= next_stat_ts  ){
+		if( now >= next_stat_ts  ){
 			DEBUG("stat period %2d %"PRIu64"", worker_id, total_pkts );
 			next_stat_ts += config->stat_period;
 			//call worker
@@ -179,7 +202,7 @@ static int _worker_thread( void *arg ){
 		}
 
 		//if we need to sample output file
-		if( now.tv_sec >=  next_sample_ts ){
+		if( config->outputs.file->is_sampled && now >=  next_sample_ts ){
 			next_sample_ts += config->outputs.file->output_period;
 			//call worker
 			worker_on_timer_sample_file_period( worker_context );
@@ -192,7 +215,8 @@ static int _worker_thread( void *arg ){
 	sem_post( &worker_context->dpdk->semaphore );
 
 	printf("Worker %2d processed %12"PRIu64"\n", worker_id, total_pkts );
-
+//	for( i=0; i<8; i++ )
+//		printf("  %2d %d -> %"PRIu64"\n", worker_id, i, bursts_stat[i] );
 	return 0;
 }
 
@@ -214,6 +238,9 @@ static int _distributor_thread( void *arg ){
 		uint32_t nb_rx = rte_ring_sc_dequeue_burst( ring, (void *)bufs, RX_BURST_SIZE*2, NULL );
 		if( unlikely( nb_rx == 0 )){
 //			nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
+
+			//Flush out all non-full cache-lines to workers
+			rte_distributor_process( distributor, NULL, 0 );
 		} else {
 			//received a null message => exit
 			if( unlikely( bufs[ nb_rx - 1 ] == NULL )){
@@ -238,12 +265,42 @@ static int _distributor_thread( void *arg ){
 	log_write(LOG_INFO, "Distributor received %"PRIu64" pkt, dropped %"PRIu64" pkt (%6.3f %%)",
 				total_pkts, drop_pkts, (drop_pkts == 0? 0 : drop_pkts*100.0 / total_pkts ));
 
-	quit_signal_work = 1;
-
 	rte_distributor_flush( distributor );
-	/* Unblock any returns so workers can exit */
-	rte_distributor_clear_returns( distributor );
 
+	//===> send special packet to each worker to tell them to exit <=====
+	//create
+	struct rte_mempool *p = rte_pktmbuf_pool_create( "*", 1, 1, 0, 0, rte_socket_id() );
+	struct rte_mbuf *b = rte_pktmbuf_alloc( p );
+
+	uint16_t total_workers = param->probe_context->config->thread->thread_count;
+	bool *alive_workers = alloc( sizeof( bool ) * total_workers );
+	//suppose that all workers are working
+	for( i=0; i<total_workers; i++ )
+		alive_workers[i] = true;
+	while( total_workers > 0 ){
+		rte_distributor_clear_returns( distributor );
+
+		b->udata64  = 0; //this is a signal to tell workers to exit
+		b->hash.usr = rte_rand(); //expect that the hash number is different
+
+		//distribute the packet
+		rte_distributor_process( distributor, &b, 1 );
+		rte_distributor_process( distributor, NULL, 0);
+		//rte_distributor_flush( distributor );
+
+		//waiting for a worker exit
+		if( rte_distributor_returned_pkts( distributor, bufs, 1) > 0 )
+			//check if having a confirmation
+			if( alive_workers[ bufs[0]->udata64 ]){
+				total_workers --;
+				alive_workers[ bufs[0]->udata64 ] = false;
+			}
+	}
+
+	//free b & p
+	rte_pktmbuf_free( b );
+	rte_mempool_free( p );
+	//=====> all workers are informed to exit <========
 
 	return 0;
 }
@@ -295,6 +352,9 @@ static int _reader_thread( void *arg ){
 				//cumulate total data this reader received
 				total_bytes += bufs[i]->data_len;
 
+				//tell distributor uses rss hash as flow id
+				bufs[i]->hash.usr = bufs[i]->hash.rss;
+
 				//encode a timval into a number of 64bits
 				t = (struct timeval64 *) &bufs[i]->udata64;
 				t->tv_sec  = time_now.tv_sec;
@@ -334,15 +394,13 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 	unsigned socket_id = rte_eth_dev_socket_id( input_port );
 	uint16_t nb_rx_queues = 1; //context->config->thread->thread_count
 
-	// Configure the Ethernet device: no tx, #thread_count rx
+	// Configure the Ethernet device: no tx
 	int ret = rte_eth_dev_configure(input_port, nb_rx_queues, 0 , &port_default_conf);
 	if( ret != 0 )
 		rte_exit_failure( "Cannot configure port %d (%s)\n", input_port, rte_strerror(ret) );
 
-
-	snprintf( name, sizeof( name), "pool_%d", input_port );
-
 	// Creates a new mempool in memory to hold the mbufs.
+	snprintf( name, sizeof( name), "pool_%d", input_port );
 	mbuf_pool = rte_pktmbuf_pool_create( name,
 			context->config->thread->thread_queue_packet_threshold*2-1,
 			MBUF_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE, socket_id);
@@ -350,7 +408,17 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 	if (mbuf_pool == NULL)
 		rte_exit_failure( "Cannot create mbuf_pool for port %d\n", input_port );
 
-	/* Allocate and set up 1 RX queue per Ethernet port. */
+	//update nb of descriptors
+	uint16_t nb_rxd = RX_DESCRIPTORS, nb_txd = 0;
+	ret = rte_eth_dev_adjust_nb_rx_tx_desc( input_port, &nb_rxd, &nb_txd);
+	if (ret < 0)
+		rte_exit_failure( "Cannot adjust number of descriptors for port=%d: %s\n",
+				input_port, rte_strerror( ret ));
+	else
+		log_write( LOG_INFO, "Adjust number of rx descriptors of port %d to %d",
+				input_port, nb_rxd );
+
+	// Allocate and set up the first RX queue
 	ret = rte_eth_rx_queue_setup( input_port,
 			0,
 			RX_DESCRIPTORS,
@@ -362,7 +430,8 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 		rte_exit_failure( "Cannot init queue of port %d (%s)\n",
 				input_port, rte_strerror(ret) );
 
-	//create ring
+	//create a ring that is a buffer between reader and distributor:
+	// reader ==> (ring) ===> distributor
 	snprintf( name, sizeof( name), "ring_%d", input_port );
 	param->rx_ring = rte_ring_create( name,
 			context->config->thread->thread_queue_packet_threshold,
@@ -471,43 +540,39 @@ void dpdk_capture_start ( probe_context_t *context){
 	i = 0;
 
 	// Initialize the workers
-	while ( i < context->config->thread->thread_count ){
+	for( i=0; i< context->config->thread->thread_count; i++ ){
 		//put a worker on a core being different with main core
-		if ( rte_lcore_is_enabled( lcore_id ) && lcore_id != master_lcore_id){
+		lcore_id = rte_get_next_lcore( lcore_id, true, true );
 
-			context->smp[i] = worker_alloc_init();
+		context->smp[i] = worker_alloc_init();
 
-			context->smp[i]->lcore_id      = lcore_id;
-			context->smp[i]->index         = i;
-			//keep a reference to its root
-			context->smp[i]->probe_context = context;
+		//general part
+		context->smp[i]->lcore_id      = lcore_id;
+		context->smp[i]->index         = i;
+		//keep a reference to its root
+		context->smp[i]->probe_context = context;
 
-			//for DPDK
-			context->smp[i]->dpdk = alloc( sizeof( struct dpdk_worker_context_struct ));
-			sem_init( &context->smp[i]->dpdk->semaphore, 0, 0 );
-			context->smp[i]->dpdk->distributor = param.distributor;
+		//for DPDK
+		context->smp[i]->dpdk = alloc( sizeof( struct dpdk_worker_context_struct ));
+		sem_init( &context->smp[i]->dpdk->semaphore, 0, 0 );
+		context->smp[i]->dpdk->distributor = param.distributor;
 
-			//start worker
-			ret = rte_eal_remote_launch( _worker_thread, context->smp[i], lcore_id );
-			if( ret != 0 )
-				rte_exit_failure("Cannot start worker %d. The remote lcore is not in a WAIT state", i);
-			i ++;
-		}
-		lcore_id ++ ;
+		//start worker
+		ret = rte_eal_remote_launch( _worker_thread, context->smp[i], lcore_id );
+		if( ret != 0 )
+			rte_exit_failure("Cannot start worker %d. The remote lcore is not in a WAIT state", i);
 	}
 
 	//start distributor
 	//find an available lcore for distributor
-	while( !rte_lcore_is_enabled( lcore_id ) && lcore_id != master_lcore_id )
-		lcore_id ++;
+	lcore_id = rte_get_next_lcore( lcore_id, true, true );
 	ret = rte_eal_remote_launch( _distributor_thread, &param, lcore_id );
 	if( ret != 0 )
 		rte_exit_failure("Cannot start distributor. The remote lcore is not in a WAIT state");
+
 	//start reader
-	//find an available lcore for reader
-	lcore_id ++;
-	while( !rte_lcore_is_enabled( lcore_id ) && lcore_id != master_lcore_id )
-		lcore_id ++;
+	//ensure that reader and distributor run on 2 different lcores
+	lcore_id = rte_get_next_lcore( lcore_id, true, true );
 	ret = rte_eal_remote_launch( _reader_thread, &param, lcore_id );
 	if( ret != 0 )
 		rte_exit_failure("Cannot start reader. The remote lcore is not in a WAIT state");
@@ -523,8 +588,9 @@ void dpdk_capture_start ( probe_context_t *context){
 	for( i=0; i< context->config->thread->thread_count; i++ )
 		sem_wait( & context->smp[i]->dpdk->semaphore );
 
-	//all workers have been stopped
+	//====> all workers have been stopped <====//
 
+	//statistic of each worker
 	worker_print_common_statistics( context );
 
 	//statistic of DPDK

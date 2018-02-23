@@ -205,7 +205,7 @@ void signal_handler(int type) {
 #endif
 		}
 
-		fprintf(stderr, "Received Ctrl+C. Releasing resource ...");
+		fprintf(stderr, "Received Ctrl+C. Releasing resource ...\n");
 		log_write(LOG_INFO, "Received Ctrl+C. Releasing resource ...");
 		context.is_aborting = true;
 
@@ -294,6 +294,7 @@ int main( int argc, char** argv ){
 #endif
 
 	log_close();
+	printf("bye\n");
 
 	return EXIT_SUCCESS;
 }

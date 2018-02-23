@@ -157,7 +157,9 @@ static void _print_security_verdict(
 void worker_on_start( worker_context_t *worker_context ){
 
 	DEBUG("Starting worker %d", worker_context->index );
-	worker_context->output = output_alloc_init( worker_context->index, &(worker_context->probe_context->config->outputs),
+	worker_context->output = output_alloc_init( worker_context->index,
+			&(worker_context->probe_context->config->outputs),
+			worker_context->probe_context->config->probe_id,
 			worker_context->probe_context->config->input->input_source );
 
 	worker_context->dpi_context = dpi_alloc_init( worker_context->probe_context->config,
@@ -177,9 +179,9 @@ void worker_on_start( worker_context_t *worker_context ){
  * @param worker_context
  */
 void worker_on_stop( worker_context_t *worker_context ){
-#ifdef SECURITY_MODULE
-	worker_context->stat.alert_generated = security_worker_release( worker_context->security );
-#endif
+	IF_ENABLE_SECURITY_MODULE(
+		worker_context->stat.alert_generated = security_worker_release( worker_context->security );
+	)
 	dpi_release( worker_context->dpi_context );
 	output_release( worker_context->output );
 }

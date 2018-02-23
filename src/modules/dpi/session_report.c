@@ -67,8 +67,8 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	struct timeval rtt_time = get_session_rtt(dpi_session);
 	uint64_t rtt_at_handshake = u_second( &rtt_time );
 
-	uint64_t total_volumes = get_session_data_byte_count(dpi_session),
-			 total_payload = get_session_data_cap_volume(dpi_session),
+	uint64_t total_volumes = get_session_data_cap_volume(dpi_session),
+			 total_payload = get_session_byte_count(dpi_session),
 			 total_packets = get_session_packet_cap_count(dpi_session);
 
 	uint64_t ul_volumes = get_session_ul_cap_byte_count(dpi_session),

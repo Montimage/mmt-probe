@@ -30,7 +30,7 @@ typedef enum{
  * @param worker_context
  * @return
  */
-output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct *config, const char* input_src );
+output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct *config, uint32_t probe_id, const char* input_src );
 
 int output_write( output_t *output, const output_channel_conf_t *channels, const char *message );
 
