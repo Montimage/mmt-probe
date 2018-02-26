@@ -91,22 +91,22 @@ int output_write_report( output_t *output, const output_channel_conf_t *channels
 		const char* format, ...){
 
 	//global output is disable or no output on this channel
-	if( output == NULL
+	if( unlikely( output == NULL
 			|| output->config == NULL
 			|| ! output->config->is_enable
-			|| (channels != NULL && ! channels->is_enable ))
+			|| (channels != NULL && ! channels->is_enable ) ))
 		return 0;
 
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 
 	if( unlikely( format == NULL )){
-		snprintf( message, MAX_LENGTH_REPORT_MESSAGE, "%d,%d,\"%s\",%lu.%06lu",
+		snprintf( message, MAX_LENGTH_REPORT_MESSAGE, "%d,%"PRIu32",\"%s\",%lu.%06lu",
 			report_type,
 			output->probe_id,
 			output->input_src,
 			ts->tv_sec, ts->tv_usec );
 	} else {
-		int offset = snprintf( message, MAX_LENGTH_REPORT_MESSAGE, "%d,%d,\"%s\",%lu.%06lu,",
+		int offset = snprintf( message, MAX_LENGTH_REPORT_MESSAGE, "%d,%"PRIu32",\"%s\",%lu.%06lu,",
 					report_type,
 					output->probe_id,
 					output->input_src,

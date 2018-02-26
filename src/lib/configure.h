@@ -200,10 +200,10 @@ typedef struct session_report_conf_struct{
  * Configuration of MMT-Probe
  */
 typedef struct probe_conf_struct{
-	uint32_t probe_id;
-	char *license_file;
+	bool is_enable_ip_fragementation;
+	bool is_enable_proto_no_session_stat;
 
-	input_source_conf_t *input;
+	uint32_t probe_id;
 
 	struct output_conf_struct{
 		bool is_enable;
@@ -238,10 +238,12 @@ typedef struct probe_conf_struct{
 		reconstruct_data_conf_t *ftp;
 	}reconstructions;
 
-	bool is_enable_ip_fragementation;
-	bool is_enable_proto_no_session_stat;
+
 	uint16_t stat_period;
 
+	char *license_file;
+
+	input_source_conf_t *input;
 }probe_conf_t;
 
 

@@ -201,6 +201,7 @@ void signal_handler(int type) {
 			rte_exit_failure( "Received Ctrl+C again. Exit immediately." );
 #else
 			log_write(LOG_ERR, "Received Ctrl+C again. Exit immediately." );
+			fflush( stdout );
 			exit( EXIT_FAILURE );
 #endif
 		}
@@ -240,6 +241,7 @@ void signal_handler(int type) {
 #error("Either DPDK_MODULE or PCAP_MODULE is defined but must not all of them")
 #endif
 
+
 int main( int argc, char** argv ){
 	signal(SIGINT,  signal_handler);
 	signal(SIGTERM, signal_handler);
@@ -270,12 +272,14 @@ int main( int argc, char** argv ){
 			get_version(),
 			getpid() );
 
+//	log_write( LOG_INFO, "MMT-Probe's modules: %s", MODULES_STRING );
+
 	//DPI initialization
 	if( !init_extraction() ) { // general ixE initialization
 		log_write( LOG_ERR, "MMT Extraction engine initialization error! Exiting!");
 		return EXIT_FAILURE;
 	}else
-		log_write( LOG_INFO, "started MMT-DPI %s", mmt_version() );
+		log_write( LOG_INFO, "MMT-DPI %s", mmt_version() );
 
 #ifdef DPDK_MODULE
 	dpdk_capture_start( &context );
@@ -294,7 +298,7 @@ int main( int argc, char** argv ){
 #endif
 
 	log_close();
-	printf("bye\n");
+	printf("Bye\n");
 
 	return EXIT_SUCCESS;
 }

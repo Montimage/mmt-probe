@@ -89,6 +89,11 @@ static void _protocols_stats_iterator(uint32_t proto_id, void * args) {
 	}
 }
 
+/**
+ * Being called periodically by #dpi_callback_on_stat_period
+ * @param context
+ * @return
+ */
 bool no_session_report( dpi_context_t *context ){
 	if( !( context->probe_config->is_enable_proto_no_session_stat || context->probe_config->is_enable_ip_fragementation ))
 		//TODO: unregister?

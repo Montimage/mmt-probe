@@ -41,7 +41,7 @@ static int _load_filter( const struct dirent *entry ){
 /**
  * Remove old sampled files in #folder
  * Sample file name in format: xxxxxxxxxx_abc.csv and its semaphore in format: xxxxxxxxxx_abc.csv.sem
- *  in which xxxxxxxxxx is a number represeting timestamp when the file was created
+ *  in which xxxxxxxxxx is a number representing timestamp when the file was created
  */
 static int _remove_old_sampled_files(const char *folder, size_t retains){
 	struct dirent **entries, *entry;
@@ -104,8 +104,8 @@ static inline void _create_new_file( file_output_t *output ){
 	//log_debug("Create file output %s", filename );
 
 	//the first output
-	if( output->id == 0 && output->config->retained_files_count > 0 )
-		_remove_old_sampled_files( output->config->directory, output->config->retained_files_count  );
+//	if( output->id == 0 && output->config->retained_files_count > 0 )
+//		_remove_old_sampled_files( output->config->directory, output->config->retained_files_count  );
 
 }
 
@@ -171,24 +171,8 @@ void file_output_release( file_output_t *output ){
 int file_output_write( file_output_t *output, const char *message ){
 	EXPECT( output != NULL && output->file != NULL && message != NULL, 0 );
 
-	int ret = 0;
-	if( output && output->file ){
-		ret = fprintf( output->file, "%s\n", message );
-		//printf( "%s\n", message );
-	}
+	int ret = fprintf( output->file, "%s\n", message );
+	//printf( "%s\n", message );
 	return ret;
 }
 
-int file_output_write_( file_output_t *output, const char *format, ... ){
-	EXPECT( output != NULL && output->file != NULL && format != NULL, 0 );
-	int ret = 0;
-	if( output && output->file ){
-		va_list args;
-
-		va_start( args, format );
-		ret = vfprintf( output->file, format, args);
-		//vprintf( format, args );
-		va_end( args );
-	}
-	return ret;
-}

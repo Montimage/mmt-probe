@@ -30,9 +30,6 @@ struct security_context_struct;
 
 //for each thread
 struct worker_context_struct{
-	uint16_t       index;    //thread index
-	uint16_t       lcore_id; //id of logical core on which the thread is running
-	pid_t          pid;
 	mmt_handler_t *dpi_handler;
 	//statistics
 	struct {
@@ -59,10 +56,18 @@ struct worker_context_struct{
 
 	IF_ENABLE_SECURITY_MODULE(
 			struct security_context_struct *security );
+
+	uint16_t index;    //thread index
+	uint16_t lcore_id; //id of logical core on which the thread is running
+	pid_t    pid;
 };
 
-void worker_process_a_packet( worker_context_t *context, pkthdr_t *header, const u_char *pkt_data );
-
+static inline void worker_process_a_packet( worker_context_t *worker_context, struct pkthdr *pkt_header, const u_char *pkt_data ){
+	//printf("%d %5d %5d\n", worker_context->index, header->caplen, header->len );
+	//fflush( stdout );
+	packet_process(worker_context->dpi_handler, pkt_header, pkt_data);
+	worker_context->stat.pkt_processed ++;
+}
 
 worker_context_t * worker_alloc_init();
 

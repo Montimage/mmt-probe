@@ -22,6 +22,8 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	}
 
 	dpi_context_t *context = (dpi_context_t *)user_args;
+	if( unlikely( context == NULL ))
+		return;
 
 	uint64_t report_number;
 	struct timeval last_activity_time = get_session_last_activity_time(dpi_session);
@@ -311,11 +313,9 @@ static inline packet_session_t *_create_session (const ipacket_t * ipacket, dpi_
 		inet_ntop(AF_INET, (void *) &session->ip_dst.ipv4, session->ip_dst.ip_string, INET_ADDRSTRLEN);
 
 		uint8_t *proto_id = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_PROTO_ID);
-		if( likely( proto_id != NULL )) {
+		if( likely( proto_id != NULL ))
 			session->proto = *proto_id;
-		} else {
-			session->proto = 0;
-		}
+
 		session->ip_version = IPv4;
 		uint16_t * cport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_CLIENT_PORT);
 		uint16_t * dport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_SERVER_PORT);
@@ -348,12 +348,10 @@ static inline packet_session_t *_create_session (const ipacket_t * ipacket, dpi_
 		session->ip_version = IPv6;
 		uint16_t * cport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_CLIENT_PORT);
 		uint16_t * dport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SERVER_PORT);
-		if (cport) {
+		if (cport)
 			session->port_src = *cport;
-		}
-		if (dport) {
+		if (dport)
 			session->port_dst = *dport;
-		}
 	}
 
 	session->is_flow_extracted = 1;
@@ -407,6 +405,7 @@ void _expired_session_callback(const mmt_session_t * expired_session, void * arg
 	default:
 		break;
 	}
+
 	xfree( session->apps.web );
 
 	//	if (temp_session->app_data != NULL) {

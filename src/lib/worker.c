@@ -14,12 +14,6 @@
 	#include "../modules/security/security.h"
 #endif
 
-void worker_process_a_packet( worker_context_t *worker_context, struct pkthdr *pkt_header, const u_char *pkt_data ){
-	//printf("%d %5d %5d\n", worker_context->index, header->caplen, header->len );
-	//fflush( stdout );
-	packet_process(worker_context->dpi_handler, pkt_header, pkt_data);
-	worker_context->stat.pkt_processed ++;
-}
 
 /**
  * This function must be called by the main thread when allocating a worker

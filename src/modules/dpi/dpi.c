@@ -62,9 +62,10 @@ void dpi_release( dpi_context_t *dpi_context ){
  * @param
  */
 void dpi_callback_on_stat_period( dpi_context_t *dpi_context){
+	dpi_context->stat_periods_index ++;
 
 	no_session_report( dpi_context );
-	dpi_context->stat_periods_index ++;
+
 	//push SDK to perform session callback
 	if( dpi_context->probe_config->reports.session->is_enable )
 		process_session_timer_handler( dpi_context->dpi_handler );
