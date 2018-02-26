@@ -23,10 +23,10 @@
 #include "../../lib/worker.h"
 #include "../../lib/alloc.h"
 
-#define RX_DESCRIPTORS    4096 	/* Size for RX ring*/
-#define RX_BURST_SIZE      256  	/* Burst size to receive packets from RX ring */
-
-#define MBUF_CACHE_SIZE    512
+#define RX_DESCRIPTORS         4096 	/* Size for RX ring*/
+#define READER_BURST_SIZE       256  	/* Burst size to receive packets from RX ring */
+#define DISTRIBUTOR_BURST_SIZE  256
+#define MBUF_CACHE_SIZE         512
 
 /* Symmetric RSS hash key */
 static uint8_t hash_key[52] = {
@@ -261,7 +261,7 @@ static inline void _exit_worker( struct rte_distributor *distributor, uint16_t t
 static int _distributor_thread( void *arg ){
 	int i;
 	bool is_continuous = true;
-	struct rte_mbuf *bufs[RX_BURST_SIZE*2];
+	struct rte_mbuf *bufs[DISTRIBUTOR_BURST_SIZE];
 
 	struct param *param = (struct param *) arg;
 
@@ -276,7 +276,7 @@ static int _distributor_thread( void *arg ){
 	/* Run until the distributor received a null packet. */
 	while ( likely( is_continuous )) {
 		// Get burst of RX packets, from first port
-		uint32_t nb_rx = rte_ring_sc_dequeue_burst( ring, (void *)bufs, RX_BURST_SIZE*2, NULL );
+		uint32_t nb_rx = rte_ring_sc_dequeue_burst( ring, (void *)bufs, DISTRIBUTOR_BURST_SIZE, NULL );
 		if( unlikely( nb_rx == 0 )){
 //			nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
 
@@ -322,7 +322,7 @@ static int _reader_thread( void *arg ){
 	int i;
 	uint16_t nb_rx;
 	struct timeval time_now;
-	struct rte_mbuf *bufs[RX_BURST_SIZE];
+	struct rte_mbuf *bufs[READER_BURST_SIZE];
 
 	struct param *param = (struct param *) arg;
 
@@ -346,7 +346,7 @@ static int _reader_thread( void *arg ){
 	/* Run until the application is quit or killed. */
 	while ( likely( !probe_context->is_aborting )) {
 		// Get burst of RX packets, from first port
-		nb_rx = rte_eth_rx_burst( input_port, 0, bufs, RX_BURST_SIZE );
+		nb_rx = rte_eth_rx_burst( input_port, 0, bufs, READER_BURST_SIZE );
 
 		if( unlikely( nb_rx == 0 )){
 //			nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
@@ -419,8 +419,8 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 	mbuf_pool = rte_pktmbuf_pool_create( name,
 			context->config->thread->thread_queue_packet_threshold //ring
 			+ nb_rx_queues*(nb_rxd*2)  //nic queue
-			+ RX_BURST_SIZE*2    //reader
-			+ RX_BURST_SIZE*16    //distributor
+			+ READER_BURST_SIZE * 2   //reader
+			+ DISTRIBUTOR_BURST_SIZE * 2    //distributor
 			- 1,
 			MBUF_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE, socket_id);
 

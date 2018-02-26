@@ -43,7 +43,7 @@ static int _load_filter( const struct dirent *entry ){
  * Sample file name in format: xxxxxxxxxx_abc.csv and its semaphore in format: xxxxxxxxxx_abc.csv.sem
  *  in which xxxxxxxxxx is a number representing timestamp when the file was created
  */
-static int _remove_old_sampled_files(const char *folder, size_t retains){
+static inline int _remove_old_sampled_files(const char *folder, size_t retains){
 	struct dirent **entries, *entry;
 	char file_name[ MAX_LENGTH_FULL_PATH_FILE_NAME ];
 	int i, n, ret, to_remove;
@@ -60,21 +60,20 @@ static int _remove_old_sampled_files(const char *folder, size_t retains){
 
 	for( i = 0 ; i < to_remove ; ++i ) {
 		entry = entries[i];
-		snprintf( file_name, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%s", folder, entry->d_name );
 
-		ret = unlink( file_name );
-		if( ret ){
-			log_write( LOG_ERR, "Cannot delete old sampled files: %s", strerror( errno ));
-			continue;
-		}
-
+		//delete semaphore
 		snprintf( file_name, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%s.sem", folder, entry->d_name );
 
 		ret = unlink( file_name );
-		if( ret ){
+		if( ret )
 			log_write( LOG_ERR, "Cannot delete semaphore of old sampled file '%s': %s", file_name, strerror( errno ));
-			continue;
-		}
+
+		//delete csv files
+		snprintf( file_name, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%s", folder, entry->d_name );
+
+		ret = unlink( file_name );
+		if( ret )
+			log_write( LOG_ERR, "Cannot delete old sampled files: %s", strerror( errno ));
 	}
 
 	for( i = 0; i < n; i++ )
@@ -103,9 +102,9 @@ static inline void _create_new_file( file_output_t *output ){
 
 	//log_debug("Create file output %s", filename );
 
-	//the first output
-//	if( output->id == 0 && output->config->retained_files_count > 0 )
-//		_remove_old_sampled_files( output->config->directory, output->config->retained_files_count  );
+	//use the first one to limit number of output files
+	if( output->id == 0 && output->config->retained_files_count > 0 )
+		_remove_old_sampled_files( output->config->directory, output->config->retained_files_count  );
 
 }
 

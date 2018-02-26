@@ -90,8 +90,6 @@ typedef struct packet_session_struct {
 
 	uint32_t proto_id; //protocol ID
 
-	char path_ul[128]; //path for uplink traffic
-	char path_dl[128]; //path for downlink traffic
 	mmt_ipv4_ipv6_t ip_src;
 	mmt_ipv4_ipv6_t ip_dst;
 	uint16_t port_src;

@@ -88,6 +88,29 @@ static inline int _write( output_t *output, const output_channel_conf_t *channel
 
 int output_write_report( output_t *output, const output_channel_conf_t *channels,
 		report_type_t report_type, const struct timeval *ts,
+		const char* msg){
+	//global output is disable or no output on this channel
+	if( unlikely( output == NULL
+			|| output->config == NULL
+			|| ! output->config->is_enable
+			|| (channels != NULL && ! channels->is_enable ) ))
+		return 0;
+
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+
+	snprintf( message, MAX_LENGTH_REPORT_MESSAGE, "%d,%"PRIu32",\"%s\",%lu.%06lu,%s",
+			report_type,
+			output->probe_id,
+			output->input_src,
+			ts->tv_sec, ts->tv_usec, msg );
+	int ret = _write( output, channels, message );
+	output->last_report_ts.tv_sec  = ts->tv_sec;
+	output->last_report_ts.tv_usec = ts->tv_usec;
+	return ret;
+}
+
+int output_write_report_with_format( output_t *output, const output_channel_conf_t *channels,
+		report_type_t report_type, const struct timeval *ts,
 		const char* format, ...){
 
 	//global output is disable or no output on this channel
@@ -110,7 +133,8 @@ int output_write_report( output_t *output, const output_channel_conf_t *channels
 					report_type,
 					output->probe_id,
 					output->input_src,
-					ts->tv_sec, ts->tv_usec);
+					ts->tv_sec,
+					ts->tv_usec);
 		va_list args;
 
 		va_start( args, format );

@@ -129,7 +129,7 @@ static void _print_security_verdict(
 	struct timeval ts;
 	mmt_sec_decode_timeval(timestamp, &ts );
 
-	output_write_report( worker->output,
+	output_write_report_with_format( worker->output,
 			channels,
 			SECURITY_REPORT_TYPE,
 			&ts,
@@ -194,7 +194,7 @@ void worker_on_timer_stat_period( worker_context_t *worker_context ){
 	//print a dummy message to inform that MMT-Probe is still alive
 	if( worker_context->probe_context->config->input->input_mode == ONLINE_ANALYSIS ){
 		gettimeofday( &now, NULL );
-		output_write_report(worker_context->output, NULL, DUMMY_REPORT_TYPE,
+		output_write_report_with_format(worker_context->output, NULL, DUMMY_REPORT_TYPE,
 				&now, NULL );
 	}
 

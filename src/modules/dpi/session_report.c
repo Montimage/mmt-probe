@@ -17,13 +17,27 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	if( unlikely( session == NULL ))
 		return;
 
-	if( unlikely( is_micro_flow( dpi_session ))) {
+	if( unlikely( is_micro_flow( dpi_session )))
 		return;
-	}
 
 	dpi_context_t *context = (dpi_context_t *)user_args;
 	if( unlikely( context == NULL ))
 		return;
+
+	uint64_t total_volumes = get_session_data_cap_volume(dpi_session);
+	if( unlikely( total_volumes == 0 ))
+		return;
+
+	uint64_t	 total_payload = get_session_byte_count(dpi_session),
+			total_packets = get_session_packet_cap_count(dpi_session);
+
+	uint64_t ul_volumes = get_session_ul_cap_byte_count(dpi_session),
+			ul_payload = get_session_ul_data_byte_count(dpi_session),
+			ul_packets = get_session_ul_cap_packet_count(dpi_session);
+
+	uint64_t dl_volumes = get_session_dl_cap_byte_count(dpi_session),
+			dl_payload = get_session_dl_data_byte_count(dpi_session),
+			dl_packets = get_session_dl_cap_packet_count(dpi_session);
 
 	uint64_t report_number;
 	struct timeval last_activity_time = get_session_last_activity_time(dpi_session);
@@ -54,32 +68,20 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 		session->dtt_start_time = t1;
 	}
 
-	if( !has_string( session->path_ul))
-		dpi_proto_hierarchy_ids_to_str(
+	char path_ul[128], path_dl[128];
+
+	dpi_proto_hierarchy_ids_to_str(
 			get_session_proto_path_direction( dpi_session, 1 ),
-			session->path_ul, sizeof( session->path_ul) );
+			path_ul, sizeof( path_ul) );
 
-	if( !has_string( session->path_dl ))
-		dpi_proto_hierarchy_ids_to_str(
+	dpi_proto_hierarchy_ids_to_str(
 			get_session_proto_path_direction( dpi_session, 0 ),
-			session->path_dl, sizeof( session->path_dl ));
+			path_dl, sizeof( path_dl ));
 
-	uint64_t total_active_sessions = get_active_session_count(context->dpi_handler);
+	uint64_t total_active_sessions = get_active_session_count( context->dpi_handler );
 
 	struct timeval rtt_time = get_session_rtt(dpi_session);
 	uint64_t rtt_at_handshake = u_second( &rtt_time );
-
-	uint64_t total_volumes = get_session_data_cap_volume(dpi_session),
-			 total_payload = get_session_byte_count(dpi_session),
-			 total_packets = get_session_packet_cap_count(dpi_session);
-
-	uint64_t ul_volumes = get_session_ul_cap_byte_count(dpi_session),
-			 ul_payload = get_session_ul_data_byte_count(dpi_session),
-			 ul_packets = get_session_ul_cap_packet_count(dpi_session);
-
-	uint64_t dl_volumes = get_session_dl_cap_byte_count(dpi_session),
-			 dl_payload = get_session_dl_data_byte_count(dpi_session),
-			 dl_packets = get_session_dl_cap_packet_count(dpi_session);
 
 	uint64_t total_retrans = get_session_retransmission_count( dpi_session );
 
@@ -109,7 +111,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 			"%d,%d", //app family, content class
 			context->stat_periods_index,
 			proto_id,
-			session->path_ul, session->path_dl,
+			path_ul, path_dl,
 			total_active_sessions,
 
 			total_volumes - session->data_stat.total_volumes,
@@ -187,8 +189,9 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 
 	output_write_report( context->output,
 			&context->probe_config->reports.session->output_channels,
-			SESSION_REPORT_TYPE, &session->data_stat.last_activity_time,
-			"%s", message );
+			SESSION_REPORT_TYPE,
+			&session->data_stat.last_activity_time,
+			message );
 
 
 	session->data_stat.retransmission_count = total_retrans;
@@ -382,23 +385,8 @@ void _expired_session_callback(const mmt_session_t * expired_session, void * arg
 //		}
 		return;
 	}
-		//if(temp_session->app_format_id == MMT_WEB_REPORT_FORMAT)
-	{
-//		if (temp_session-> == NULL) {
-//
-//			xfree( temp_session );
-//			return;
-//		}
 
-		//			if (((web_session_attr_t *) temp_session->app_data)->state_http_request_response != 0)((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;
-		////			if (temp_session->session_attr == NULL) {
-		////				temp_session->session_attr = (session_statistics_t *) malloc(sizeof (session_statistics_t));
-		////				memset(temp_session->session_attr, 0, sizeof (session_statistics_t));
-		////			}
-		//		}
-		//			temp_session->report_counter = th->report_counter;
-		_print_ip_session_report ( expired_session, context );
-	}
+	_print_ip_session_report ( expired_session, context );
 
 	//release memory being allocated for application stat (web, ftp, rtp, ssl)
 	switch( session->app_type ){
@@ -408,23 +396,6 @@ void _expired_session_callback(const mmt_session_t * expired_session, void * arg
 
 	xfree( session->apps.web );
 
-	//	if (temp_session->app_data != NULL) {
-	//		//Free the application specific data
-	//		//if (temp_session->app_format_id == MMT_FTP_REPORT_FORMAT)
-	//		{
-	//			if (((ftp_session_attr_t*) temp_session->app_data)->filename != NULL)free (((ftp_session_attr_t*) temp_session->app_data)->filename);
-	//			if (((ftp_session_attr_t*) temp_session->app_data)->response_value != NULL)free(((ftp_session_attr_t*) temp_session->app_data)->response_value);
-	//			if (((ftp_session_attr_t*) temp_session->app_data)->session_username != NULL)free(((ftp_session_attr_t*) temp_session->app_data)->session_username);
-	//			if (((ftp_session_attr_t*) temp_session->app_data)->session_password != NULL)free(((ftp_session_attr_t*) temp_session->app_data)->session_password);
-	//			((ftp_session_attr_t*) temp_session->app_data)->filename = NULL;
-	//			((ftp_session_attr_t*) temp_session->app_data)->response_value = NULL;
-	//			((ftp_session_attr_t*) temp_session->app_data)->session_username = NULL;
-	//			((ftp_session_attr_t*) temp_session->app_data)->session_password = NULL;
-	//		}
-	//		if(temp_session->app_data) free(temp_session->app_data);
-	//		temp_session->app_data = NULL;
-	//	}
-
 	xfree(session);
 }
 
@@ -433,7 +404,7 @@ static int _packet_handler_for_session(const ipacket_t * ipacket, void * args) {
 
 	packet_session_t *session = (packet_session_t *) get_user_session_context_from_packet(ipacket);
 
-	if( unlikely( session == NULL))
+	if( unlikely( ipacket->session != NULL && session == NULL))
 		session = _create_session (ipacket, context);
 
 	//only for packet based on TCP

@@ -238,7 +238,7 @@ int print_web_report(char *message, size_t message_size, packet_session_t *sessi
 	session_web_stat_t *web = session->apps.web;
 
 	//does not concern
-	if( web == NULL || session->app_type != SESSION_STAT_TYPE_APP_WEB )
+	if( unlikely( web == NULL || session->app_type != SESSION_STAT_TYPE_APP_WEB ))
 		return 0;
 
 	//0: CDN not detected (This does not mean it is not used :)).
