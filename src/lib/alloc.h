@@ -24,9 +24,9 @@
 //#endif
 
 //#define SECURITY_MODULE
-#define REDIS_MODULE
-#define KAFKA_MODULE
-#define NETCONF_MODULE
+//#define REDIS_MODULE
+//#define KAFKA_MODULE
+//#define NETCONF_MODULE
 
 
 static inline void* alloc( size_t size ){
@@ -40,6 +40,15 @@ static inline void* alloc( size_t size ){
 
 static inline void xfree( void *x ){
 	free( x );
+}
+
+
+static inline void assign_6bytes( void *dest, void *source){
+	uint16_t *s = (uint16_t *)source;
+	uint16_t *d = (uint16_t *)dest;
+	d[0] = s[0];
+	d[1] = s[1];
+	d[2] = s[2];
 }
 
 #define EXPECT( expected, ret )\

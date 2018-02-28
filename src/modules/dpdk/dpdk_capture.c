@@ -15,6 +15,7 @@
 #include <rte_ethdev.h>
 #include <rte_prefetch.h>
 #include <rte_distributor.h>
+#include <rte_ip.h>
 
 #include <signal.h>
 #include <unistd.h> //alarm
@@ -123,7 +124,7 @@ static int _worker_thread( void *arg ){
 	const probe_conf_t *config          = worker_context->probe_context->config;
 	struct rte_distributor *distributor = worker_context->dpdk->distributor;
 	int i;
-	struct pkthdr pkt_header;
+	struct pkthdr pkt_header __rte_cache_aligned;
 	const u_char* pkt_data;
 
 	worker_on_start( worker_context );
@@ -166,6 +167,7 @@ static int _worker_thread( void *arg ){
 			for (i = 0; i < nb_rx; i++){
 				pkt_header.len         = bufs[i]->pkt_len;
 				pkt_header.caplen      = bufs[i]->data_len;
+				//decode timestamp
 				struct timeval64 *t   = (struct timeval64 *) & bufs[i]->udata64;
 				pkt_header.ts.tv_sec  = t->tv_sec;
 				pkt_header.ts.tv_usec = t->tv_usec;
@@ -284,7 +286,8 @@ static int _distributor_thread( void *arg ){
 			time( &now );
 			if( now > flush_time ){
 				//Flush out all non-full cache-lines to workers
-				rte_distributor_process( distributor, NULL, 0 );
+				//rte_distributor_process( distributor, NULL, 0 );
+				rte_distributor_flush(distributor);
 				flush_time = now;
 			}
 		} else {
@@ -343,47 +346,59 @@ static int _reader_thread( void *arg ){
 	//statistic variables
 	uint64_t total_pkts = 0, total_bytes = 0, drop_pkts = 0;
 
+	struct ipv4_hdr *ipv4_hdr;
+
+	int q=0;
 	/* Run until the application is quit or killed. */
 	while ( likely( !probe_context->is_aborting )) {
-		// Get burst of RX packets, from first port
-		nb_rx = rte_eth_rx_burst( input_port, 0, bufs, READER_BURST_SIZE );
+			// Get burst of RX packets, from first port
+			nb_rx = rte_eth_rx_burst( input_port, q, bufs, READER_BURST_SIZE );
 
-		if( unlikely( nb_rx == 0 )){
-//			nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
-		} else {
-			//total received packets
-			total_pkts += nb_rx;
+			if( unlikely( nb_rx == 0 )){
+				//			nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
+			} else {
+				//total received packets
+				total_pkts += nb_rx;
 
-			//timestamp of a packet is the moment we retrieve it from buffer of DPDK
-			gettimeofday(&time_now, NULL);
+				//timestamp of a packet is the moment we retrieve it from buffer of DPDK
+				gettimeofday(&time_now, NULL);
 
-			struct timeval64 *t;
+				struct timeval64 *t;
 
-			//for each received packet,
-			// we remember the moment the packet is received
-			for (i = 0; i < nb_rx; i++){
-				//cumulate total data this reader received
-				total_bytes += bufs[i]->data_len;
+				//for each received packet,
+				// we remember the moment the packet is received
+				for (i = 0; i < nb_rx; i++){
+					//cumulate total data this reader received
+					total_bytes += bufs[i]->data_len;
 
-				//tell distributor uses rss hash as flow id
-				bufs[i]->hash.usr = bufs[i]->hash.rss;
+					if( RTE_ETH_IS_IPV4_HDR( bufs[i]->packet_type )){
+						// Handle IPv4 header
+						ipv4_hdr = rte_pktmbuf_mtod_offset(bufs[i], struct ipv4_hdr *,
+								sizeof(struct ether_hdr));
 
-				//encode a timval into a number of 64bits
-				t = (struct timeval64 *) &bufs[i]->udata64;
-				t->tv_sec  = time_now.tv_sec;
-				//suppose that each packet arrives after one microsecond
-				t->tv_usec = time_now.tv_usec + i;
+						//tell distributor uses rss hash as flow id
+						bufs[i]->hash.usr = ipv4_hdr->dst_addr;
+					}
+					else
+						bufs[i]->hash.usr = bufs[i]->hash.rss;
+//					bufs[i]->hash.usr = 0;
+
+					//encode a timval into a number of 64bits
+					t = (struct timeval64 *) &bufs[i]->udata64;
+					t->tv_sec  = time_now.tv_sec;
+					//suppose that each packet arrives after one microsecond
+					t->tv_usec = time_now.tv_usec + i;
+				}
+
+				uint32_t sent = rte_ring_sp_enqueue_burst(ring, (void*)bufs, nb_rx, NULL);
+
+				//ring is full
+				if( unlikely( sent < nb_rx )){
+					drop_pkts += nb_rx - sent;
+					while( sent < nb_rx )
+						rte_pktmbuf_free( bufs[sent ++] );
+				}
 			}
-
-			uint32_t sent = rte_ring_sp_enqueue_burst(ring, (void*)bufs, nb_rx, NULL);
-
-			//ring is full
-			if( unlikely( sent < nb_rx )){
-				drop_pkts += nb_rx - sent;
-				while( sent < nb_rx )
-					rte_pktmbuf_free( bufs[sent ++] );
-			}
-		}
 	}
 
 	log_write(LOG_INFO, "Reader received %"PRIu64" pkt (%"PRIu64" B), dropped %"PRIu64" pkt (%6.3f %%)",
@@ -418,6 +433,7 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 	snprintf( name, sizeof( name), "pool_%d", input_port );
 	mbuf_pool = rte_pktmbuf_pool_create( name,
 			context->config->thread->thread_queue_packet_threshold //ring
+
 			+ nb_rx_queues*(nb_rxd*2)  //nic queue
 			+ READER_BURST_SIZE * 2   //reader
 			+ DISTRIBUTOR_BURST_SIZE * 2    //distributor
@@ -436,17 +452,21 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 		log_write( LOG_INFO, "Adjust number of rx descriptors of port %d to %d",
 				input_port, nb_rxd );
 
-	// Allocate and set up the first RX queue
-	ret = rte_eth_rx_queue_setup( input_port,
-			0,
-			RX_DESCRIPTORS,
-			socket_id,
-			&rx_default_conf,
-			mbuf_pool);
+	//init rx queue(s) of NIC
+	int q;
+	for( q=0; q<nb_rx_queues; q++ ){
+		// Allocate and set up the first RX queue
+		ret = rte_eth_rx_queue_setup( input_port,
+				q,
+				RX_DESCRIPTORS,
+				socket_id,
+				&rx_default_conf,
+				mbuf_pool);
 
-	if (ret < 0)
-		rte_exit_failure( "Cannot init queue of port %d (%s)\n",
-				input_port, rte_strerror(ret) );
+		if (ret < 0)
+			rte_exit_failure( "Cannot init queue of port %d (%s)\n",
+					input_port, rte_strerror(ret) );
+	}
 
 	//create a ring that is a buffer between reader and distributor:
 	// reader ==> (ring) ===> distributor
@@ -466,7 +486,9 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 	param->distributor = rte_distributor_create( name, socket_id,
 			//The maximum number of workers that will request packets from this distributor
 			context->config->thread->thread_count,
-			RTE_DIST_ALG_BURST );
+			//RTE_DIST_ALG_BURST
+			RTE_DIST_ALG_SINGLE
+			);
 
 	if( param->distributor == NULL)
 		rte_exit_failure( "Cannot create distributor for port %d (%s)\n",

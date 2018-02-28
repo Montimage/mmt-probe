@@ -22,14 +22,6 @@
 #define IPv4 4
 #define IPv6 6
 
-#define ASSIGN_6_BYTES( dst, src ) \
-	dst[0] = src[0];\
-	dst[1] = src[1];\
-	dst[2] = src[2];\
-	dst[3] = src[3];\
-	dst[4] = src[4];\
-	dst[5] = src[5];
-
 #define has_string( x )   ( x[0] != '\0' )
 #define reset_string( x ) ( x[0]  = '\0' )
 
@@ -86,9 +78,6 @@ typedef struct packet_session_struct {
 
 	struct timeval dtt_start_time;
 	uint64_t rtt_at_handshake;
-
-
-	uint32_t proto_id; //protocol ID
 
 	mmt_ipv4_ipv6_t ip_src;
 	mmt_ipv4_ipv6_t ip_dst;

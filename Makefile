@@ -107,7 +107,7 @@ $(info - Use DPDK to capture packet $(RTE_SDK))
 	ifndef RTE_SDK
 #$(error RTE_SDK is not set)
 	endif
-   RTE_SDK    ?= /home/mmt/mmt/dpdk-stable-17.08.1
+   RTE_SDK    ?= /home/mmt/mmt/dpdk-stable-17.11.1
    RTE_TARGET ?= build
 
 	#avoid being overried by DPDK

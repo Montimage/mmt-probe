@@ -18,7 +18,9 @@
 
 typedef struct multi_thread_conf_struct{
 	uint16_t thread_count;
+	uint16_t readers_count;
 	uint32_t thread_queue_packet_threshold;
+
 }multi_thread_conf_t;
 
 

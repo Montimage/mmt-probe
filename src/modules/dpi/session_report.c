@@ -148,7 +148,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 
 			session->app_type,
 
-			get_application_class_by_protocol_id( session->proto_id ),
+			get_application_class_by_protocol_id( proto_id ),
 			session->content_class
 	);
 
@@ -265,7 +265,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 
 
 static inline packet_session_t *_create_session (const ipacket_t * ipacket, dpi_context_t *context){
-	mmt_session_t * dpi_session = get_session_from_packet(ipacket);
+	mmt_session_t * dpi_session = ipacket->session;
 	if(dpi_session == NULL) return NULL;
 
 	packet_session_t *session = alloc(sizeof (packet_session_t));
@@ -274,29 +274,21 @@ static inline packet_session_t *_create_session (const ipacket_t * ipacket, dpi_
 
 	session->dpi_session = dpi_session;
 	session->context     = context;
-	session->session_id  = get_session_id(dpi_session);
+	session->session_id  = get_session_id( dpi_session );
 	session->app_type    = SESSION_STAT_TYPE_APP_IP;
 
 	// Flow extraction
 	int ip_index = get_protocol_index_by_id(ipacket, PROTO_IP);
 
-	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(ipacket->session);
-
-	//protocol id is the last in the hierarchy
-	session->proto_id =
-			proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)];
-
 	uint8_t *src = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_SRC);
 	uint8_t *dst = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_DST);
 
-	if (src){
+	if (src)
 		//memcpy(session->mac_src, src, 6);
-		ASSIGN_6_BYTES( session->mac_src, src )
-	}
-	if (dst){
+		assign_6bytes( session->mac_src, src );
+	if (dst)
 		//memcpy(session->mac_dst, dst, 6);
-		ASSIGN_6_BYTES( session->mac_dst, dst );
-	}
+		assign_6bytes( session->mac_dst, dst );
 
 	//IPV4
 	if (ip_index != -1) {
@@ -368,7 +360,7 @@ static inline packet_session_t *_create_session (const ipacket_t * ipacket, dpi_
 /* This function is called by mmt-dpi for each session time-out (expiry).
  * It provides the expired session information and frees the memory allocated.
  * */
-void _expired_session_callback(const mmt_session_t * expired_session, void * args) {
+static void _expired_session_callback(const mmt_session_t * expired_session, void * args) {
 	//	debug("classification_expiry_session : %lu",get_session_id(expired_session));
 	packet_session_t * session = get_user_session_context(expired_session);
 	if (session == NULL)
@@ -436,7 +428,7 @@ static int _packet_handler_for_session(const ipacket_t * ipacket, void * args) {
 static void _flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	packet_session_t *session = (packet_session_t *) get_user_session_context_from_packet(ipacket);
 
-	if( unlikely( session == NULL))
+	if( session == NULL )
 		_create_session (ipacket, user_args);
 }
 
