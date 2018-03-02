@@ -21,6 +21,8 @@
 #include <unistd.h> //alarm
 
 #include "dpdk_capture.h"
+#include "distributor.h"
+
 #include "../../lib/worker.h"
 #include "../../lib/alloc.h"
 
@@ -43,13 +45,13 @@ static uint8_t hash_key[52] = {
 
 //input parameter of each worker thread
 struct dpdk_worker_context_struct{
-	struct rte_distributor *distributor;
+	struct distributor *distributor;
 	sem_t semaphore;
 }__rte_cache_aligned;
 
 //input parameter of reader and distributor threads
 struct param{
-	struct rte_distributor *distributor;
+	struct distributor *distributor;
 	struct rte_ring  *rx_ring;
 	probe_context_t *probe_context;
 }__rte_cache_aligned;
@@ -122,7 +124,8 @@ static inline void _print_dpdk_stats( uint8_t port_number ){
 static int _worker_thread( void *arg ){
 	worker_context_t *worker_context    = (worker_context_t *)arg;
 	const probe_conf_t *config          = worker_context->probe_context->config;
-	struct rte_distributor *distributor = worker_context->dpdk->distributor;
+	//struct rte_distributor *distributor = worker_context->dpdk->distributor;
+	struct distributor *distributor = worker_context->dpdk->distributor;
 	int i;
 	struct pkthdr pkt_header __rte_cache_aligned;
 	const u_char* pkt_data;
@@ -142,24 +145,19 @@ static int _worker_thread( void *arg ){
 	uint32_t next_sample_ts = now + config->stat_period;
 	uint32_t next_stat_ts   = now + config->outputs.file->output_period;
 
-	bool is_continuous = true;
+	volatile bool is_continuous = true;
 	/* Run until the application is quit or killed. */
 	while ( likely( is_continuous )) {
 		// Get burst of RX packets, from first port
-		int nb_rx = rte_distributor_get_pkt( distributor, worker_id, bufs, NULL, 0 );
+//		int nb_rx = rte_distributor_get_pkt( distributor, worker_id, bufs, NULL, 0 );
+		int nb_rx = distributor_get_packets( distributor, worker_id, bufs );
 
 		if( nb_rx <= 0 ){
-//			nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
+			nanosleep( (const struct timespec[]){{0, 1000}}, NULL );
 		}else {
 
 			//last packet is special one to tell worker exist
-			if( unlikely( bufs[ nb_rx - 1 ]->udata64 == 0 )){
-
-				//confirm i-th worker is existing
-				bufs[ nb_rx - 1 ]->udata64 = worker_id;
-
-				//tell distributor that the worker is existing
-				rte_distributor_return_pkt( distributor, worker_id, &bufs[ nb_rx - 1 ], 1 );
+			if( unlikely( bufs[ nb_rx - 1 ] == NULL)){
 				is_continuous = false;
 				nb_rx --;
 			}
@@ -213,67 +211,17 @@ static int _worker_thread( void *arg ){
 	return 0;
 }
 
-
-static inline void _exit_worker( struct rte_distributor *distributor, uint16_t total_workers){
-	int i;
-	struct rte_mbuf *buf;
-
-	//create mempool and then, a dummy packet
-	struct rte_mempool *mempool = rte_pktmbuf_pool_create( "*", 1, 1, 0, 0, rte_socket_id() );
-	struct rte_mbuf *packet = rte_pktmbuf_alloc( mempool );
-
-	bool *alive_workers = alloc( sizeof( bool ) * total_workers );
-	//suppose that all workers are working
-	for( i=0; i<total_workers; i++ )
-		alive_workers[i] = true;
-
-	//===> send special packet to each worker to tell them to exit <=====
-	while( total_workers > 0 ){
-		rte_distributor_clear_returns( distributor );
-
-		packet->udata64  = 0; //this is a signal to tell workers to exit
-		//expect that the hash number is different
-		//=> the packet will be distributed to different worker on each iteration of while-loop
-		packet->hash.usr = rte_rand();
-
-		//distribute the packet
-		rte_distributor_process( distributor, &packet, 1 );
-		rte_distributor_process( distributor, NULL, 0);
-		//rte_distributor_flush( distributor );
-
-		//waiting for a worker exit
-		if( rte_distributor_returned_pkts( distributor, &buf, 1) > 0 ){
-			//when received a dummy packet, a worker will confirm by assigning its id to udata64
-			uint64_t confirmed_worker_id = buf->udata64;
-
-			//check if having a confirmation
-			if( confirmed_worker_id < total_workers && alive_workers[ confirmed_worker_id ]){
-				total_workers --;
-				alive_workers[ confirmed_worker_id ] = false;
-			}
-		}
-	}
-	//=====> all workers are informed to exit <========
-
-	//free b & p
-	rte_pktmbuf_free( packet );
-	rte_mempool_free( mempool );
-}
-
 static int _distributor_thread( void *arg ){
 	int i;
-	bool is_continuous = true;
+	volatile bool is_continuous = true;
 	struct rte_mbuf *bufs[DISTRIBUTOR_BURST_SIZE];
 
 	struct param *param = (struct param *) arg;
 
 	struct rte_ring *ring               = param->rx_ring;
-	struct rte_distributor *distributor = param->distributor;
+	struct distributor *distributor = param->distributor;
 
 	uint64_t drop_pkts = 0, total_pkts = 0;
-
-	time_t flush_time, now;
-	flush_time = time( &now );
 
 	/* Run until the distributor received a null packet. */
 	while ( likely( is_continuous )) {
@@ -281,15 +229,6 @@ static int _distributor_thread( void *arg ){
 		uint32_t nb_rx = rte_ring_sc_dequeue_burst( ring, (void *)bufs, DISTRIBUTOR_BURST_SIZE, NULL );
 		if( unlikely( nb_rx == 0 )){
 //			nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
-
-			//if there are no packets ==> wake up workers each second
-			time( &now );
-			if( now > flush_time ){
-				//Flush out all non-full cache-lines to workers
-				//rte_distributor_process( distributor, NULL, 0 );
-				rte_distributor_flush(distributor);
-				flush_time = now;
-			}
 		} else {
 			//received a null message => exit
 			if( unlikely( bufs[ nb_rx - 1 ] == NULL )){
@@ -297,26 +236,18 @@ static int _distributor_thread( void *arg ){
 				is_continuous = false; //exit while loop
 			}
 
-			total_pkts += nb_rx;
-
 			//give packets to distributor
-			int nb_proc = rte_distributor_process( distributor, bufs, nb_rx );
+			distributor_process_packets( distributor, bufs, nb_rx );
 
-			//cannot process all packets => free the ones being unprocessed
-			if( unlikely( nb_proc < nb_rx )){
-				drop_pkts += nb_rx - nb_proc;
-				while( nb_proc < nb_rx )
-					rte_pktmbuf_free( bufs[nb_proc ++] );
-			}
+			total_pkts += nb_rx;
 		}
 	}
 
 	log_write(LOG_INFO, "Distributor received %"PRIu64" pkt, dropped %"PRIu64" pkt (%6.3f %%)",
 				total_pkts, drop_pkts, (drop_pkts == 0? 0 : drop_pkts*100.0 / total_pkts ));
 
-	rte_distributor_flush( distributor );
-
-	_exit_worker( distributor, param->probe_context->config->thread->thread_count );
+//	_exit_worker( distributor, param->probe_context->config->thread->thread_count );
+	distributor_send_pkt_to_all_workers( distributor, NULL );
 
 	return 0;
 }
@@ -371,15 +302,15 @@ static int _reader_thread( void *arg ){
 					//cumulate total data this reader received
 					total_bytes += bufs[i]->data_len;
 
-					if( RTE_ETH_IS_IPV4_HDR( bufs[i]->packet_type )){
-						// Handle IPv4 header
-						ipv4_hdr = rte_pktmbuf_mtod_offset(bufs[i], struct ipv4_hdr *,
-								sizeof(struct ether_hdr));
-
-						//tell distributor uses rss hash as flow id
-						bufs[i]->hash.usr = ipv4_hdr->dst_addr;
-					}
-					else
+//					if( RTE_ETH_IS_IPV4_HDR( bufs[i]->packet_type )){
+//						// Handle IPv4 header
+//						ipv4_hdr = rte_pktmbuf_mtod_offset(bufs[i], struct ipv4_hdr *,
+//								sizeof(struct ether_hdr));
+//
+//						//tell distributor uses rss hash as flow id
+//						bufs[i]->hash.usr = ipv4_hdr->dst_addr;
+//					}
+//					else
 						bufs[i]->hash.usr = bufs[i]->hash.rss;
 //					bufs[i]->hash.usr = 0;
 
@@ -482,13 +413,18 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 				input_port, rte_strerror(ret) );
 
 	//init distributor
-	snprintf( name, sizeof( name), "distributor_%d", input_port );
-	param->distributor = rte_distributor_create( name, socket_id,
-			//The maximum number of workers that will request packets from this distributor
-			context->config->thread->thread_count,
-			//RTE_DIST_ALG_BURST
-			RTE_DIST_ALG_SINGLE
-			);
+//	snprintf( name, sizeof( name), "distributor_%d", input_port );
+//	param->distributor = rte_distributor_create( name, socket_id,
+//			//The maximum number of workers that will request packets from this distributor
+//			context->config->thread->thread_count,
+//			//RTE_DIST_ALG_BURST
+//			RTE_DIST_ALG_SINGLE
+//			);
+
+	param->distributor = distributor_create( socket_id,
+				//The maximum number of workers that will request packets from this distributor
+				context->config->thread->thread_count
+				);
 
 	if( param->distributor == NULL)
 		rte_exit_failure( "Cannot create distributor for port %d (%s)\n",

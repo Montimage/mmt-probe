@@ -148,7 +148,6 @@ void print_execution_trace () {
 	size_t i;
 	size    = backtrace (array, 10);
 	strings = backtrace_symbols (array, size);
-
 	//i=2: ignore 2 first elements in trace as they are: this fun, then mmt_log
 	for (i = 2; i < size; i++){
 		log_write( LOG_ERR, "%zu. %s\n", (i-1), strings[i]);
@@ -249,6 +248,10 @@ int main( int argc, char** argv ){
 	signal(SIGABRT, signal_handler);
 
 	log_open();
+
+#ifdef DEBUG_MODE
+	log_write( LOG_WARNING, "Must not run debug mode in production environment" );
+#endif
 
 #ifdef DPDK_MODULE
 	int ret = rte_eal_init(argc, argv);

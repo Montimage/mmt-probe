@@ -120,7 +120,7 @@ $(info - Use DPDK to capture packet $(RTE_SDK))
    
 	#DPDK variable
 	#SRCS-y := $(wildcard src/lib/*.c) $(MODULE_SRCS) $(wildcard src/modules/dpdk/*.c) $(MAIN_SRCS)
-   SRCS-y := src/lib/pcap_dump.c src/lib/system_info.c src/lib/configure.c src/lib/base64.c src/lib/valgrind.c src/lib/version.c src/lib/timer.c src/lib/worker.c src/modules/output/output.c src/modules/output/file/file_output.c src/modules/dpi/session_report.c src/modules/dpi/no_session_report.c src/modules/dpi/session_report_web.c src/modules/dpi/dump_data.c src/modules/dpi/dpi.c src/modules/dpi/event_based_report.c src/modules/dpi/session_report_ssl.c src/modules/dpdk/dpdk_capture.c src/main.c
+   SRCS-y := src/lib/pcap_dump.c src/lib/system_info.c src/lib/configure.c src/lib/base64.c src/lib/valgrind.c src/lib/version.c src/lib/timer.c src/lib/worker.c src/modules/output/output.c src/modules/output/file/file_output.c src/modules/dpi/session_report.c src/modules/dpi/no_session_report.c src/modules/dpi/session_report_web.c src/modules/dpi/dump_data.c src/modules/dpi/dpi.c src/modules/dpi/event_based_report.c src/modules/dpi/session_report_ssl.c src/modules/dpdk/dpdk_capture.c src/modules/dpdk/distributor.c src/main.c
    
    V      := $(VERBOSE)
    
