@@ -135,7 +135,8 @@ static int _worker_thread( void *arg ){
 	pkt_header.user_args = NULL;
 
 	//The mbufs pointer array to be filled in (up to 8 packets)
-	struct rte_mbuf *bufs[8] __rte_cache_aligned;
+	struct rte_mbuf *bufs[64] __rte_cache_aligned;
+	unsigned burst_size = 64;
 
 	unsigned int worker_id = worker_context->index;
 
@@ -150,10 +151,11 @@ static int _worker_thread( void *arg ){
 	while ( likely( is_continuous )) {
 		// Get burst of RX packets, from first port
 //		int nb_rx = rte_distributor_get_pkt( distributor, worker_id, bufs, NULL, 0 );
-		int nb_rx = distributor_get_packets( distributor, worker_id, bufs );
+		int nb_rx = distributor_get_packets( distributor, worker_id, bufs, burst_size );
 
 		if( nb_rx <= 0 ){
-			nanosleep( (const struct timespec[]){{0, 1000}}, NULL );
+			//nanosleep( (const struct timespec[]){{0, 1000}}, NULL );
+			dpdk_pause( 200 );
 		}else {
 
 			//last packet is special one to tell worker exist
@@ -176,9 +178,7 @@ static int _worker_thread( void *arg ){
 				worker_process_a_packet( worker_context, &pkt_header, pkt_data );
 
 				//do a small processing
-//				uint64_t x = rte_rdtsc() + 1000 + worker_id*200;
-//				while (rte_rdtsc() < x)
-//					rte_pause();
+//				dpdk_pause( 10000 );
 
 				//after processing packet, we need to free its memory in mempool
 				// to have place for others coming
@@ -221,15 +221,13 @@ static int _distributor_thread( void *arg ){
 	struct rte_ring *ring               = param->rx_ring;
 	struct distributor *distributor = param->distributor;
 
-	uint64_t drop_pkts = 0, total_pkts = 0;
-
 	/* Run until the distributor received a null packet. */
 	while ( likely( is_continuous )) {
-		// Get burst of RX packets, from first port
 		uint32_t nb_rx = rte_ring_sc_dequeue_burst( ring, (void *)bufs, DISTRIBUTOR_BURST_SIZE, NULL );
 		if( unlikely( nb_rx == 0 )){
-//			nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
+			dpdk_pause( 200 );
 		} else {
+
 			//received a null message => exit
 			if( unlikely( bufs[ nb_rx - 1 ] == NULL )){
 				nb_rx --;
@@ -238,15 +236,9 @@ static int _distributor_thread( void *arg ){
 
 			//give packets to distributor
 			distributor_process_packets( distributor, bufs, nb_rx );
-
-			total_pkts += nb_rx;
 		}
 	}
 
-	log_write(LOG_INFO, "Distributor received %"PRIu64" pkt, dropped %"PRIu64" pkt (%6.3f %%)",
-				total_pkts, drop_pkts, (drop_pkts == 0? 0 : drop_pkts*100.0 / total_pkts ));
-
-//	_exit_worker( distributor, param->probe_context->config->thread->thread_count );
 	distributor_send_pkt_to_all_workers( distributor, NULL );
 
 	return 0;
@@ -279,6 +271,8 @@ static int _reader_thread( void *arg ){
 
 	struct ipv4_hdr *ipv4_hdr;
 
+	const uint64_t nb_cycles_per_second = rte_get_timer_hz();
+
 	int q=0;
 	/* Run until the application is quit or killed. */
 	while ( likely( !probe_context->is_aborting )) {
@@ -292,9 +286,11 @@ static int _reader_thread( void *arg ){
 				total_pkts += nb_rx;
 
 				//timestamp of a packet is the moment we retrieve it from buffer of DPDK
-				gettimeofday(&time_now, NULL);
-
-				struct timeval64 *t;
+				//gettimeofday(&time_now, NULL) -> too heavy;
+				uint64_t t = rte_rdtsc();
+				struct timeval64 now;
+				now.tv_sec  = t / nb_cycles_per_second;
+				now.tv_usec = (t - now.tv_sec * nb_cycles_per_second * US_PER_S * 1.0 ) / nb_cycles_per_second;
 
 				//for each received packet,
 				// we remember the moment the packet is received
@@ -302,23 +298,10 @@ static int _reader_thread( void *arg ){
 					//cumulate total data this reader received
 					total_bytes += bufs[i]->data_len;
 
-//					if( RTE_ETH_IS_IPV4_HDR( bufs[i]->packet_type )){
-//						// Handle IPv4 header
-//						ipv4_hdr = rte_pktmbuf_mtod_offset(bufs[i], struct ipv4_hdr *,
-//								sizeof(struct ether_hdr));
-//
-//						//tell distributor uses rss hash as flow id
-//						bufs[i]->hash.usr = ipv4_hdr->dst_addr;
-//					}
-//					else
-						bufs[i]->hash.usr = bufs[i]->hash.rss;
-//					bufs[i]->hash.usr = 0;
-
-					//encode a timval into a number of 64bits
-					t = (struct timeval64 *) &bufs[i]->udata64;
-					t->tv_sec  = time_now.tv_sec;
+					struct timeval64 *t = ( struct timeval64 * )& bufs[i]->udata64;
+					t->tv_sec = now.tv_sec;
 					//suppose that each packet arrives after one microsecond
-					t->tv_usec = time_now.tv_usec + i;
+					t->tv_usec = now.tv_usec + i;
 				}
 
 				uint32_t sent = rte_ring_sp_enqueue_burst(ring, (void*)bufs, nb_rx, NULL);
@@ -352,6 +335,9 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 	char name[100];
 	unsigned socket_id = rte_eth_dev_socket_id( input_port );
 	uint16_t nb_rx_queues = 1; //context->config->thread->thread_count
+	uint16_t nb_workers = context->config->thread->thread_count;
+	uint32_t reader_queue_size = pow( 2, 20 );
+	uint32_t worker_queue_size = MBUF_CACHE_SIZE;
 
 	// Configure the Ethernet device: no tx
 	int ret = rte_eth_dev_configure(input_port, nb_rx_queues, 0 , &port_default_conf);
@@ -363,11 +349,10 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 	// Creates a new mempool in memory to hold the mbufs.
 	snprintf( name, sizeof( name), "pool_%d", input_port );
 	mbuf_pool = rte_pktmbuf_pool_create( name,
-			context->config->thread->thread_queue_packet_threshold //ring
 
 			+ nb_rx_queues*(nb_rxd*2)  //nic queue
-			+ READER_BURST_SIZE * 2   //reader
-			+ DISTRIBUTOR_BURST_SIZE * 2    //distributor
+			+ reader_queue_size * 2   //reader
+			+ worker_queue_size * nb_workers    //distributor
 			- 1,
 			MBUF_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE, socket_id);
 
@@ -404,7 +389,7 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 	snprintf( name, sizeof( name), "ring_%d", input_port );
 	//TODO: check context->config->thread->thread_queue_packet_threshold is power of 2
 	param->rx_ring = rte_ring_create( name,
-			context->config->thread->thread_queue_packet_threshold,
+			reader_queue_size,
 			socket_id, RING_F_SC_DEQ | RING_F_SP_ENQ);
 
 	if ( param->rx_ring == NULL )
@@ -413,17 +398,10 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 				input_port, rte_strerror(ret) );
 
 	//init distributor
-//	snprintf( name, sizeof( name), "distributor_%d", input_port );
-//	param->distributor = rte_distributor_create( name, socket_id,
-//			//The maximum number of workers that will request packets from this distributor
-//			context->config->thread->thread_count,
-//			//RTE_DIST_ALG_BURST
-//			RTE_DIST_ALG_SINGLE
-//			);
-
 	param->distributor = distributor_create( socket_id,
 				//The maximum number of workers that will request packets from this distributor
-				context->config->thread->thread_count
+				nb_workers,
+				worker_queue_size
 				);
 
 	if( param->distributor == NULL)

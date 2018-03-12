@@ -32,7 +32,7 @@ PORT=22
 rsync -e "ssh -i /Users/nhnghia/.ssh/id_rsa -p $PORT" -rca .git ./* $USER@$IP:$TARGET
 
 DEBUG="DEBUG=1 VALGRIND=1 VERBOSE=1 DPDK=1"
-DEBUG="VERBOSE=1 DPDK=1"
+#DEBUG="VERBOSE=1 DPDK=1"
 
 #EXPORT="export RTE_SDK=/home/server10g/huunghia/dpdk-stable-16.11.1/; export RTE_TARGET=x86_64-native-linuxapp-gcc"
 #RUN="$EXPORT;  make clean DPDK=1; make DPDK=1 -j2 && cp ./build/probe ./"

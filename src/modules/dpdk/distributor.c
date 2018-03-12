@@ -8,133 +8,87 @@
 #include "dpdk_capture.h"
 #include "distributor.h"
 
-distributor_t *distributor_create( unsigned int socket_id, uint16_t nb_workers ){
+distributor_t *distributor_create( unsigned int socket_id, uint16_t nb_workers, uint32_t worker_buffer_size ){
 	if( nb_workers > DIST_MAX_WORKERS )
 		rte_exit_failure("Cannot create distributor. Nb of workers is to big (must be less than %d", DIST_MAX_WORKERS );
 
-	distributor_t *d = malloc( sizeof( distributor_t ));
+	if( worker_buffer_size < DIST_BURST_SIZE )
+		rte_exit_failure("Size of worker's buffers must be at least %d", DIST_BURST_SIZE );
+
+	distributor_t *d = rte_malloc(NULL, sizeof( distributor_t ), RTE_CACHE_LINE_SIZE);
 	d->socket_id  = socket_id;
 	d->nb_workers = nb_workers;
 	d->nb_packets = 0;
-	d->efd        = rte_efd_create("efd_distributor", DIST_NB_CONCURRENT_FLOWS,
-			sizeof(uint32_t), 1 << socket_id, socket_id);
-	if( d->efd == NULL )
-		rte_exit_failure( "Cannot allocate EFD for distributor: %s (%d)", rte_strerror(rte_errno), rte_errno  );
+	d->packets             = rte_malloc(NULL, sizeof( void *) * DIST_BURST_SIZE, RTE_CACHE_LINE_SIZE);
+	d->unprocessed_packets = rte_malloc(NULL, sizeof( void *) * DIST_BURST_SIZE, RTE_CACHE_LINE_SIZE);
 
 	int i;
 	char ring_name[100];
 	//reset buffers of workers
 	for( i=0; i<nb_workers; i++ ){
+		d->worker_buffers[i] = rte_malloc( NULL, sizeof( struct worker_buffer ), RTE_CACHE_LINE_SIZE );
+		d->worker_buffers[i]->nb_packets = 0;
+
 		snprintf(ring_name, sizeof( ring_name ), "d_r_%d", i);
-		d->worker_buffers[i] = rte_ring_create( ring_name, DIST_BURST_SIZE * 2, socket_id,
+		d->worker_rings[i] = rte_ring_create( ring_name,
+				worker_buffer_size,
+				socket_id,
 				RING_F_SC_DEQ | RING_F_SP_ENQ );
-	}
-
-	//this ensures that no workers is assigned at the begining
-	efd_value_t val = nb_workers + 1;
-	uint32_t key;
-	for( key=0; key<DIST_NB_CONCURRENT_FLOWS; key++ ){
-		//
-//		val = key % nb_workers;
-
-		int ret = rte_efd_update( d->efd, socket_id, (void *)&key, (efd_value_t)val);
-		if (ret < 0)
-			rte_exit_failure( "Unable to add entry %u in EFD table\n", key);
+		if( d->worker_rings[i] == NULL )
+			rte_exit_failure("Cannot create buffer for worker %d", i );
 	}
 
 	return d;
 }
 
-static inline void _pause( uint16_t cycles ){
-	rte_pause();
-	uint64_t t = rte_rdtsc() + cycles;
-
-	while (rte_rdtsc() < t)
-		rte_pause();
+static inline bool _is_full( const struct worker_buffer *buf ){
+	return (buf->nb_packets == DIST_BURST_SIZE);
 }
 
 static inline void _process_packets( distributor_t *d ){
 	uint8_t target_worker_id;
-	struct rte_ring *buffer;
-	efd_value_t match[RTE_EFD_BURST_MAX];
-	const void *key_ptrs[RTE_EFD_BURST_MAX];
-	uint32_t    key_vals[RTE_EFD_BURST_MAX];
+	struct worker_buffer *buffer;
 	int i, j, k;
 
-	//the caller of this function ensures that
-	// d->nb_packets  <= RTE_EFD_BURST_MAX
-//	for( i=0; i<d->nb_packets; i++ ){
-//		key_vals[i] = d->packets[i]->hash.usr;
-//		key_ptrs[i] = (void *) &key_vals[i];
-//	}
-//
-//	rte_efd_lookup_bulk( d->efd, d->socket_id, d->nb_packets,
-//			(const void **) key_ptrs, match );
-
 	uint16_t nb_unprocessed_packets = 0;
-	struct rte_mbuf *unprocessed_packets[RTE_EFD_BURST_MAX];
 
 	//for each packet
 	for( i=0; i<d->nb_packets; i++ ){
-//		target_worker_id = match[i];
 		target_worker_id = d->packets[i]->hash.usr % d->nb_workers;
-
-		//a new flow => attribute it to the one is being free
-//		while( unlikely( target_worker_id >= d->nb_workers )){
-//
-//			//find a free worker
-//			for( j=0; j<d->nb_workers; j ++ )
-//				if( rte_ring_count( d->worker_buffers[ j ] ) == 0 ){ //< DIST_BURST_SIZE ){
-//					target_worker_id = j;
-//
-//					//==> found one free worker <===
-//
-//					//assign all packets having the same key_val to this worker
-//					for( k=i+1; k<d->nb_packets; k++ )
-//						if( key_vals[k] == key_vals[i] )
-//							match[k] = target_worker_id;
-//
-//					//update efd
-//					rte_efd_update( d->efd, d->socket_id, key_ptrs[i], (efd_value_t)target_worker_id );
-//
-//					//break for, while
-//					goto found_a_free_worker;
-//				}
-//
-//			//all workers are busy
-//			//=> waiting for a worker being free
-//			_pause( 200 );
-//			//break the loop by "goto found_a_free_worker"
-//		}
-
-		found_a_free_worker:
 
 		//assign to a worker
 		buffer = d->worker_buffers[ target_worker_id ];
 
 		//the worker is busy ???
-		if( unlikely( rte_ring_full( buffer ) )){
+		if( unlikely( _is_full( buffer )  ))
 			//remember the unprocessed packets
-			unprocessed_packets[ nb_unprocessed_packets++ ] = d->packets[i];
-		}else
-			rte_ring_enqueue( buffer, d->packets[i] );
+			d->unprocessed_packets[ nb_unprocessed_packets++ ] = d->packets[i];
+		else
+			buffer->packets[ buffer->nb_packets ++ ] = d->packets[i];
 	}
 
-	//tell workers their packets to process
-//	for( j=0; j<d->nb_workers; j++ )
-//		d->worker_buffers[j].worker_count = d->worker_buffers[j].distributor_count;
+	//push to workers
+	for( i=0; i<d->nb_workers; i++ )
+		//if all packets in buffer are enqueued
+		if( rte_ring_sp_enqueue_bulk(d->worker_rings[i],
+				(void *) d->worker_buffers[i]->packets, d->worker_buffers[i]->nb_packets, NULL ) != 0 )
+			//reset the buffer
+			d->worker_buffers[i]->nb_packets = 0;
+
+	//swap d->packets vs. d->unprocessed_packets
+	struct rte_mbuf **tmp = d->packets;
+	d->packets = d->unprocessed_packets;
+	d->unprocessed_packets = tmp;
 
 	//retain the unprocessed packets
-	for( i=0; i<nb_unprocessed_packets; i++ )
-		d->packets[i] = unprocessed_packets[i];
 	d->nb_packets = nb_unprocessed_packets;
 }
 
 void distributor_process_packets( distributor_t *d, struct rte_mbuf **bufs, uint16_t count ){
 	int i=0;
 	while( i<count ){
-		//copy bufs to data;
-		for( ; i<count && d->nb_packets < RTE_EFD_BURST_MAX; i++ ){
+		//copy bufs' pointers to data;
+		for( ; i<count && d->nb_packets < DIST_BURST_SIZE; i++ ){
 			d->packets[ d->nb_packets++ ] = bufs[i];
 		}
 		_process_packets( d );
@@ -144,5 +98,8 @@ void distributor_process_packets( distributor_t *d, struct rte_mbuf **bufs, uint
 void distributor_send_pkt_to_all_workers( distributor_t *d, struct rte_mbuf *buf ){
 	int i;
 	for( i=0; i<d->nb_workers; i++ )
-		rte_ring_enqueue( d->worker_buffers[i], buf );
+		//ensure the packet is sent to its worker
+		while( rte_ring_enqueue( d->worker_rings[i], buf ) ){
+			dpdk_pause( 1000 );
+		}
 }
