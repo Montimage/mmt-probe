@@ -1148,6 +1148,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 						strncpy(temp_condn->condition.location, file_location, 256);
 					}
 
+					if(strcmp(temp_condn->condition.condition, "GTP") == 0) mmt_conf->gtp_enable = 1;
+					else mmt_conf->gtp_enable = 0;
+
 					if(strcmp(temp_condn->condition.condition, "FTP") == 0) mmt_conf->ftp_enable = 1;
 					else mmt_conf->ftp_enable = 0;
 

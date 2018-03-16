@@ -8,6 +8,11 @@
 /* This function returns the function handler corresponding to a particular func_name.
  * If a func_name does not exist it returns 0.
  * */
+
+void gtp_teid_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void gtp_ip_src_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void gtp_ip_dst_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+
 void * get_handler_by_name(char * func_name){
 	if (strcmp(func_name,"ftp_session_connection_type_handle") == 0){
 		return ftp_session_connection_type_handle;
@@ -60,6 +65,15 @@ void * get_handler_by_name(char * func_name){
 	if (strcmp(func_name,"ssl_server_name_handle") == 0){
 		return ssl_server_name_handle;
 	}
+	if (strcmp(func_name,"gtp_teid_handle") == 0){
+		return gtp_teid_handle;
+	}
+	if (strcmp(func_name,"gtp_ip_src_handle") == 0){
+		return gtp_ip_src_handle;
+	}
+	if (strcmp(func_name,"gtp_ip_dst_handle") == 0){
+		return gtp_ip_dst_handle;
+	}
 #ifdef HTTP_RECONSTRUCT
 	//LN: HTTP reconstruct
 	// if (strcmp(func_name,"ip_new_session_handle") == 0){
@@ -102,10 +116,16 @@ int register_conditional_report_handle(void * args, mmt_condition_report_t * con
 		mmt_condition_attribute_t * handler_attribute = &condition_report->handlers[j];
 
 		protocol_id = get_protocol_id_by_name (condition_attribute->proto);
-		if (protocol_id == 0) return 0;
+		if (protocol_id == 0){
+			fprintf(stderr, "Protocol %s does not exist\n", condition_attribute->proto );
+			return 0;
+		}
 
 		attribute_id = get_attribute_id_by_protocol_and_attribute_names(condition_attribute->proto,condition_attribute->attribute);
-		if (attribute_id == 0) return 0;
+		if (attribute_id == 0){
+			fprintf(stderr, "Protocol %s has not attribute %s\n", condition_attribute->proto, condition_attribute->attribute );
+			return 0;
+		}
 
 		if (strcmp(handler_attribute->handler,"NULL") == 0){
 			if (is_registered_attribute(th->mmt_handler, protocol_id, attribute_id) == 0){
@@ -126,7 +146,7 @@ int register_conditional_report_handle(void * args, mmt_condition_report_t * con
 					// fprintf(stderr, "[error] cannot register_attribute_handler for report: %i\n",condition_report->id);
 					return 0;
 				}else{
-					// printf("[debug] register_attribute_handler: proto: %s ,attribute: %s, handler: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler,condition_report->id);
+					//printf("[debug] register_attribute_handler: proto: %s ,attribute: %s, handler: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler,condition_report->id);
 				}
 			}else{
 				fprintf(stderr,"[WARNING] Already registered register_attribute_handler (condition_report): proto: %s ,attribute: %s, handler: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler,condition_report->id);

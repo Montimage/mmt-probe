@@ -35,6 +35,7 @@ extern "C" {
 #define MMT_MICRO_FLOW_REPORT_FORMAT    0x8
 #define MMT_WEB_REPORT_FORMAT    0x1
 #define MMT_FTP_REPORT_FORMAT    0x4
+#define MMT_GTP_REPORT_FORMAT    0x5
 #define MMT_RTP_REPORT_FORMAT    0x3
 #define MMT_SSL_REPORT_FORMAT    0x2
 #define MMT_HTTP_RECONSTRUCT_REPORT_FORMAT    0xb
@@ -308,6 +309,7 @@ typedef struct mmt_probe_context_struct {
 	char ftp_reconstruct_output_location[256 + 1];
 	char dynamic_config_file[256 + 1];
 
+	uint32_t gtp_enable;
 	uint32_t ftp_enable;
 	uint32_t web_enable;
 	uint32_t rtp_enable;
@@ -517,6 +519,14 @@ typedef struct web_session_attr_struct {
 	uint32_t touched;
 	uint32_t state_http_request_response;
 } web_session_attr_t;
+
+
+typedef struct gtp_session_attr_struct{
+	uint32_t teid;
+	uint8_t ip_version;
+	mmt_ipv4_ipv6_id_t ip_src;
+	mmt_ipv4_ipv6_id_t ip_dst;
+}gtp_session_attr_t;
 
 typedef struct ssl_session_attr_struct {
 	char hostname[64];
@@ -904,6 +914,7 @@ void print_initial_web_report(const mmt_session_t * session,session_struct_t * t
 void print_initial_rtp_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
 void print_initial_ssl_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
 void print_initial_ftp_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
+void print_initial_gtp_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
 void print_initial_default_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
 
 int get_protocol_index_from_session(const proto_hierarchy_t * proto_hierarchy, uint32_t proto_id);
