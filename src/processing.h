@@ -521,8 +521,9 @@ typedef struct web_session_attr_struct {
 } web_session_attr_t;
 
 
+#define MAX_NB_TEID 2
 typedef struct gtp_session_attr_struct{
-	uint32_t teid;
+	uint32_t teids[ MAX_NB_TEID ];
 	uint8_t ip_version;
 	mmt_ipv4_ipv6_id_t ip_src;
 	mmt_ipv4_ipv6_id_t ip_dst;

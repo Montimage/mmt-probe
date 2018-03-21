@@ -9,9 +9,7 @@
  * If a func_name does not exist it returns 0.
  * */
 
-void gtp_teid_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void gtp_ip_src_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-void gtp_ip_dst_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 
 void * get_handler_by_name(char * func_name){
 	if (strcmp(func_name,"ftp_session_connection_type_handle") == 0){
@@ -65,14 +63,8 @@ void * get_handler_by_name(char * func_name){
 	if (strcmp(func_name,"ssl_server_name_handle") == 0){
 		return ssl_server_name_handle;
 	}
-	if (strcmp(func_name,"gtp_teid_handle") == 0){
-		return gtp_teid_handle;
-	}
 	if (strcmp(func_name,"gtp_ip_src_handle") == 0){
 		return gtp_ip_src_handle;
-	}
-	if (strcmp(func_name,"gtp_ip_dst_handle") == 0){
-		return gtp_ip_dst_handle;
 	}
 #ifdef HTTP_RECONSTRUCT
 	//LN: HTTP reconstruct
@@ -137,7 +129,7 @@ int register_conditional_report_handle(void * args, mmt_condition_report_t * con
 					// printf("[debug] register_extraction_attribute: proto: %s ,attribute: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,condition_report->id);
 				}
 			}else{
-				fprintf(stderr,"[WARNING] Already registered register_extraction_attribute (condition_report): proto: %s ,attribute: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,condition_report->id);
+				//fprintf(stderr,"[WARNING] Already registered register_extraction_attribute (condition_report): proto: %s ,attribute: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,condition_report->id);
 			}
 		}else{
 			if (is_registered_attribute_handler(th->mmt_handler, protocol_id, attribute_id, get_handler_by_name (handler_attribute->handler)) == 0){
@@ -149,7 +141,7 @@ int register_conditional_report_handle(void * args, mmt_condition_report_t * con
 					//printf("[debug] register_attribute_handler: proto: %s ,attribute: %s, handler: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler,condition_report->id);
 				}
 			}else{
-				fprintf(stderr,"[WARNING] Already registered register_attribute_handler (condition_report): proto: %s ,attribute: %s, handler: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler,condition_report->id);
+				//fprintf(stderr,"[WARNING] Already registered register_attribute_handler (condition_report): proto: %s ,attribute: %s, handler: %s (report: %i)\n",condition_attribute->proto,condition_attribute->attribute,handler_attribute->handler,condition_report->id);
 			}
 		}
 	}
