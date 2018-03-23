@@ -130,14 +130,14 @@ void gtp_update_data( const ipacket_t *ipacket, gtp_session_attr_t *gtp_data){
 	}
 }
 
-void gtp_teid_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
+void gtp_ip_src_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	int i;
 	gtp_session_attr_t *gtp_data = get_gtp_session_data(ipacket);
 	if( gtp_data == NULL ){
 		return;
 	}
 
-	const uint32_t teid = *( uint32_t *) attribute->data;
+	const uint32_t teid = *( uint32_t *) get_attribute_extracted_data( ipacket, PROTO_GTP, GTP_TEID );
 
 	//save all TEID appear in the session
 	for( i=0; i<MAX_NB_TEID; i++ )
