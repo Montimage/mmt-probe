@@ -520,15 +520,6 @@ typedef struct web_session_attr_struct {
 	uint32_t state_http_request_response;
 } web_session_attr_t;
 
-
-#define MAX_NB_TEID 2
-typedef struct gtp_session_attr_struct{
-	uint32_t teids[ MAX_NB_TEID ];
-	uint8_t ip_version;
-	mmt_ipv4_ipv6_id_t ip_src;
-	mmt_ipv4_ipv6_id_t ip_dst;
-}gtp_session_attr_t;
-
 typedef struct ssl_session_attr_struct {
 	char hostname[64];
 } ssl_session_attr_t;
@@ -915,7 +906,6 @@ void print_initial_web_report(const mmt_session_t * session,session_struct_t * t
 void print_initial_rtp_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
 void print_initial_ssl_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
 void print_initial_ftp_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
-void print_initial_gtp_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
 void print_initial_default_report(const mmt_session_t * session,session_struct_t * temp_session, char message [MAX_MESS + 1], int valid);
 
 int get_protocol_index_from_session(const proto_hierarchy_t * proto_hierarchy, uint32_t proto_id);

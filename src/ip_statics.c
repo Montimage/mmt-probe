@@ -16,6 +16,8 @@
 #include "processing.h"
 #include <unistd.h>
 
+#include "gtp_session_report.h"
+
 /* This function is for reporting session reports */
 void print_ip_session_report (const mmt_session_t * session, void *user_args){
 
@@ -37,7 +39,6 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 			proto_flag = 1;
 			break;
 		}
-
 	}
 	if (proto_flag == 0 && probe_context->session_report_proto.nb_protocols != 0) {
 		return;

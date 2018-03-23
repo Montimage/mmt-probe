@@ -8,17 +8,15 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#include <inttypes.h>
-#include "mmt_core.h"
-#include "tcpip/mmt_tcpip.h"
-#include "processing.h"
+
+#include "gtp_session_report.h"
 
 #define IP_ENCAP_INDEX_AFTER_GTP 1
 
 
 //session is based on IP after GTP, not on IP after ETHERNET
 #define _is_session_based_on_ip_after_gtp( ipacket  )\
-	(get_protocol_index_by_id(ipacket, PROTO_GTP) < get_session_protocol_index( ipacket->session ))
+	(get_protocol_index_by_id(ipacket, PROTO_GTP) + 1 ==  get_session_protocol_index( ipacket->session ))
 
 void print_initial_gtp_report(const mmt_session_t * session, session_struct_t * temp_session, char message [MAX_MESS + 1], int valid) {
 
@@ -48,13 +46,11 @@ void print_initial_gtp_report(const mmt_session_t * session, session_struct_t * 
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
 
 	snprintf(&message[valid], MAX_MESS-valid,
-			",%u,%u,%u," //common
-			"%d" //format
+			",%u,%u,%u," //common: format, app_class, content_class
 			"\"%s\",\"%s\",%u,%u", //ip_src, ip_dst, teid[0], teid[1]
-			temp_session->app_format_id,
+			temp_session->app_format_id, //format
 			get_application_class_by_protocol_id(proto_hierarchy->proto_path[(proto_hierarchy->len <= 16)?(proto_hierarchy->len - 1):(16 - 1)]),
 			temp_session->contentclass,
-			MMT_GTP_REPORT_FORMAT,
 			ip_src_str,
 			ip_dst_str,
 			gtp_data->teids[0],
@@ -70,7 +66,7 @@ void print_initial_gtp_report(const mmt_session_t * session, session_struct_t * 
 }
 
 
-static inline gtp_session_attr_t * _get_gtp_session_data( const ipacket_t *ipacket ){
+gtp_session_attr_t *get_gtp_session_data( const ipacket_t *ipacket ){
 	int i;
 
 	//must have a session
@@ -105,14 +101,43 @@ static inline gtp_session_attr_t * _get_gtp_session_data( const ipacket_t *ipack
 	return gtp_data;
 }
 
-void gtp_ip_src_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
+void gtp_update_data( const ipacket_t *ipacket, gtp_session_attr_t *gtp_data){
+	if( gtp_data == NULL )
+		return;
+
+	//ip was extracted
+	if( gtp_data->ip_version != 0 ){
+		//what happen when IP is changed
+		return;
+	}
+
+	//has IPv4 in protocol hierarchy ???
+	const unsigned has_proto_ipv4 = get_protocol_index_by_id(ipacket, PROTO_IP);
+
+	//IPv4
+	if ( has_proto_ipv4 ) {
+		gtp_data->ip_version = 4;
+		gtp_data->ip_src.ipv4 = *(uint32_t *) get_attribute_extracted_data_encap_index( ipacket, PROTO_IP, IP_SRC, IP_ENCAP_INDEX_AFTER_GTP );
+		gtp_data->ip_dst.ipv4 = *(uint32_t *) get_attribute_extracted_data_encap_index( ipacket, PROTO_IP, IP_DST, IP_ENCAP_INDEX_AFTER_GTP );
+	}else{
+		gtp_data->ip_version = 6;
+		memcpy(&gtp_data->ip_src.ipv6,
+				get_attribute_extracted_data_encap_index( ipacket, PROTO_IPV6, IP6_SRC, IP_ENCAP_INDEX_AFTER_GTP ),
+				16);
+		memcpy( gtp_data->ip_dst.ipv6,
+				get_attribute_extracted_data_encap_index( ipacket, PROTO_IPV6, IP6_DST, IP_ENCAP_INDEX_AFTER_GTP ),
+				16);
+	}
+}
+
+void gtp_teid_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	int i;
-	gtp_session_attr_t *gtp_data = _get_gtp_session_data(ipacket);
+	gtp_session_attr_t *gtp_data = get_gtp_session_data(ipacket);
 	if( gtp_data == NULL ){
 		return;
 	}
 
-	const uint32_t teid = *( uint32_t *) get_attribute_extracted_data(ipacket, PROTO_GTP, GTP_TEID);
+	const uint32_t teid = *( uint32_t *) attribute->data;
 
 	//save all TEID appear in the session
 	for( i=0; i<MAX_NB_TEID; i++ )
@@ -127,28 +152,5 @@ void gtp_ip_src_handle(const ipacket_t * ipacket, attribute_t * attribute, void 
 		}
 	if( i== MAX_NB_TEID ){
 		printf(">>> more than 2 TEID on a session\n");
-	}
-
-
-	//ip was extracted
-	if( gtp_data->ip_version != 0 ){
-		//what happen when IP is changed
-		return;
-	}
-
-	//has IPv4 in protocol hierarchy ???
-	const uint8_t has_proto_ipv4 = get_protocol_index_by_id(ipacket, PROTO_IP);
-
-	//IPv4
-	if ( has_proto_ipv4 ) {
-		gtp_data->ip_version = 4;
-		gtp_data->ip_src.ipv4 = *(uint32_t *) attribute->data;
-		gtp_data->ip_dst.ipv4 = *(uint32_t *) get_attribute_extracted_data_encap_index( ipacket, PROTO_IP, IP_DST, IP_ENCAP_INDEX_AFTER_GTP );
-	}else{
-		gtp_data->ip_version = 6;
-		memcpy(&gtp_data->ip_src.ipv6, attribute->data, 16);
-		memcpy( gtp_data->ip_dst.ipv6,
-				get_attribute_extracted_data_encap_index( ipacket, PROTO_IP, IP_DST, IP_ENCAP_INDEX_AFTER_GTP ),
-				16);
 	}
 }

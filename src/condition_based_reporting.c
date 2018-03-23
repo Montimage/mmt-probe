@@ -9,7 +9,7 @@
  * If a func_name does not exist it returns 0.
  * */
 
-void gtp_ip_src_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+void gtp_teid_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 
 void * get_handler_by_name(char * func_name){
 	if (strcmp(func_name,"ftp_session_connection_type_handle") == 0){
@@ -63,8 +63,8 @@ void * get_handler_by_name(char * func_name){
 	if (strcmp(func_name,"ssl_server_name_handle") == 0){
 		return ssl_server_name_handle;
 	}
-	if (strcmp(func_name,"gtp_ip_src_handle") == 0){
-		return gtp_ip_src_handle;
+	if (strcmp(func_name,"gtp_teid_handle") == 0){
+		return gtp_teid_handle;
 	}
 #ifdef HTTP_RECONSTRUCT
 	//LN: HTTP reconstruct

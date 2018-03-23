@@ -33,6 +33,7 @@
 #include <netinet/ip.h>
 #include "tcpip/mmt_tcpip.h"
 
+#include "gtp_session_report.h"
 
 #ifdef _WIN32
 #ifndef socklen_t
@@ -317,6 +318,10 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 #endif // End of HTTP_RECONSTRUCT	
 
 	set_user_session_context(session, temp_session);
+
+	gtp_session_attr_t *gtp_data = get_gtp_session_data(ipacket);
+	if( gtp_data != NULL )
+		gtp_update_data( ipacket, gtp_data );
 }
 
 /* This function is called by mmt-dpi for each incoming packet.
