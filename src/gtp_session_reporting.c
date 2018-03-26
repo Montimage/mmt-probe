@@ -93,7 +93,6 @@ gtp_session_attr_t *get_gtp_session_data( const ipacket_t *ipacket ){
 
 		temp_session->app_format_id = MMT_GTP_REPORT_FORMAT;
 		temp_session->app_data = gtp_data;
-
 	}
 	else
 		gtp_data = (gtp_session_attr_t *) temp_session->app_data;
@@ -112,12 +111,12 @@ void gtp_update_data( const ipacket_t *ipacket, gtp_session_attr_t *gtp_data){
 	}
 
 	//has IPv4 in protocol hierarchy ???
-	const unsigned has_proto_ipv4 = get_protocol_index_by_id(ipacket, PROTO_IP);
+	const uint32_t * ipv4_src = get_attribute_extracted_data_encap_index( ipacket, PROTO_IP, IP_SRC, IP_ENCAP_INDEX_AFTER_GTP );
 
 	//IPv4
-	if ( has_proto_ipv4 ) {
+	if ( ipv4_src != NULL ) {
 		gtp_data->ip_version = 4;
-		gtp_data->ip_src.ipv4 = *(uint32_t *) get_attribute_extracted_data_encap_index( ipacket, PROTO_IP, IP_SRC, IP_ENCAP_INDEX_AFTER_GTP );
+		gtp_data->ip_src.ipv4 = *(uint32_t *) ipv4_src;
 		gtp_data->ip_dst.ipv4 = *(uint32_t *) get_attribute_extracted_data_encap_index( ipacket, PROTO_IP, IP_DST, IP_ENCAP_INDEX_AFTER_GTP );
 	}else{
 		gtp_data->ip_version = 6;
@@ -130,6 +129,7 @@ void gtp_update_data( const ipacket_t *ipacket, gtp_session_attr_t *gtp_data){
 	}
 }
 
+//use this callback to process gtp.teid as gtp.teid is known before creating the IP session (as GTP.IP)
 void gtp_ip_src_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	int i;
 	gtp_session_attr_t *gtp_data = get_gtp_session_data(ipacket);
@@ -150,7 +150,12 @@ void gtp_ip_src_handle(const ipacket_t * ipacket, attribute_t * attribute, void 
 			gtp_data->teids[i] = teid;
 			break;
 		}
+
 	if( i== MAX_NB_TEID ){
-		printf(">>> more than 2 TEID on a session\n");
+		printf(">>> more than %d TEIDs on a session on packet id = %lu\n", MAX_NB_TEID, ipacket->packet_id);
 	}
+
+	//update IP if it is not done
+	if( gtp_data->ip_version == 0 )
+		gtp_update_data( ipacket, gtp_data );
 }
