@@ -58,15 +58,10 @@ void print_initial_gtp_report(const mmt_session_t * session, session_struct_t * 
 	);
 
 	//printf("%s\n", message );
-
-	temp_session->session_attr->touched = 1;
-
-	temp_session->app_data = NULL;
-	free( gtp_data );
 }
 
 
-gtp_session_attr_t *get_gtp_session_data( const ipacket_t *ipacket ){
+gtp_session_attr_t *get_gtp_session_data( const ipacket_t *ipacket, bool create_if_need ){
 	int i;
 
 	//must have a session
@@ -85,9 +80,7 @@ gtp_session_attr_t *get_gtp_session_data( const ipacket_t *ipacket ){
 
 	gtp_session_attr_t *gtp_data = NULL;
 	//if GTP data is not initialized
-	if( temp_session->app_data == NULL
-			//|| temp_session->app_format_id != MMT_GTP_REPORT_FORMAT
-	){
+	if( temp_session->app_data == NULL && create_if_need ){
 		gtp_data = (gtp_session_attr_t *) malloc( sizeof( gtp_session_attr_t ));
 		memset(gtp_data, '\0', sizeof (gtp_session_attr_t));
 
@@ -132,7 +125,7 @@ void gtp_update_data( const ipacket_t *ipacket, gtp_session_attr_t *gtp_data){
 //use this callback to process gtp.teid as gtp.teid is known before creating the IP session (as GTP.IP)
 void gtp_ip_src_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	int i;
-	gtp_session_attr_t *gtp_data = get_gtp_session_data(ipacket);
+	gtp_session_attr_t *gtp_data = get_gtp_session_data(ipacket, false);
 	if( gtp_data == NULL ){
 		return;
 	}
@@ -156,6 +149,8 @@ void gtp_ip_src_handle(const ipacket_t * ipacket, attribute_t * attribute, void 
 	}
 
 	//update IP if it is not done
-	if( gtp_data->ip_version == 0 )
-		gtp_update_data( ipacket, gtp_data );
+	if( gtp_data->ip_version == 0 ){
+		//gtp_update_data( ipacket, gtp_data );
+		printf(">>> impossible for packet %lu\n", ipacket->packet_id );
+	}
 }

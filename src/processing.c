@@ -319,9 +319,13 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 
 	set_user_session_context(session, temp_session);
 
-	gtp_session_attr_t *gtp_data = get_gtp_session_data(ipacket);
-	if( gtp_data != NULL )
-		gtp_update_data( ipacket, gtp_data );
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+
+	if( probe_context->gtp_enable ){
+		gtp_session_attr_t *gtp_data = get_gtp_session_data(ipacket, true);
+		if( gtp_data != NULL )
+			gtp_update_data( ipacket, gtp_data );
+	}
 }
 
 /* This function is called by mmt-dpi for each incoming packet.

@@ -12,7 +12,7 @@ typedef struct gtp_session_attr_struct{
 }gtp_session_attr_t;
 
 void gtp_ip_src_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
-gtp_session_attr_t * get_gtp_session_data( const ipacket_t *ipacket );
+gtp_session_attr_t * get_gtp_session_data( const ipacket_t *ipacket, bool create_if_need );
 
 void gtp_update_data( const ipacket_t *ipacket, gtp_session_attr_t *gtp_data);
 
