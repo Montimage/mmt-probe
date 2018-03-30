@@ -22,6 +22,7 @@
 +THE SOFTWARE.
  */
 
+#ifdef REDIS
 #include <errno.h>
 #include <hiredis/hiredis.h>
 #include <poll.h>
@@ -200,3 +201,4 @@ thredis_command(thredis_t* thredis, const char* format, ...)
     pthread_mutex_destroy(&wait.mutex);
     return wait.reply;
 }
+#endif

@@ -1,3 +1,4 @@
+#ifdef SECURITY_V1
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -100,7 +101,12 @@ void security_event( int prop_id, char *verdict, char *type, char *cause, char *
 	//printf("%s\n",message);
 	if (th == NULL) printf("Thread structure does not exists\n");
 	if (probe_context->output_to_file_enable && probe_context->security1_output_channel[0]) send_message_to_file_thread (message, th);
+	__IF_REDIS(
 	if (probe_context->redis_enable && probe_context->security1_output_channel[1]) send_message_to_redis ("security.report", message);
+	)
+	__IF_KAFKA(
 	if (probe_context->kafka_enable && probe_context->security1_output_channel[2])send_msg_to_kafka(probe_context->topic_object->rkt_security, message);
+	)
 }
 //END HN
+#endif

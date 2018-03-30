@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <sys/types.h>
+#include <stdarg.h>
 
 #ifdef linux
 #include <syscall.h>
@@ -118,12 +119,21 @@ int is_local_net(int addr) {
 }
 /* This function writes messages to a log file, including the msg level, time and code */
 
-void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char * log_msg) {
+void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char *format, ... ) {
 	if (level >= mmt_conf->log_level) {
 		struct timeval tv;
 		gettimeofday(&tv, NULL);
 		FILE * log_file = (mmt_conf->log_output != NULL) ? mmt_conf->log_output : stdout;
-		fprintf(log_file, "%i\t%lu\t%i\t[%s]\n", level, tv.tv_sec, code, log_msg);
+
+		fprintf(log_file, "%i\t%lu\t%i\t[", level, tv.tv_sec, code );
+		//print message
+		va_list args;
+		va_start(args, format);
+		vfprintf( log_file, format, args);
+		va_end( args );
+
+		fprintf( log_file, "]\n" ); //end of message
+
 		fflush(log_file);
 	}
 }

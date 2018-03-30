@@ -773,7 +773,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				mmt_conf->redis_enable = (uint32_t) cfg_getint(redis_output, "enabled");
 				strncpy(hostname, (char *) cfg_getstr(redis_output, "hostname"), 256);
 				if (mmt_conf->redis_enable) {
+					__IF_REDIS(
 					init_redis(hostname, port);
+					)
 				}
 			}
 		}
@@ -789,7 +791,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				if (mmt_conf->kafka_enable == 1){
 					int port = (uint32_t) cfg_getint(kafka_output, "port");
 					strncpy(hostname, (char *) cfg_getstr(kafka_output, "hostname"), 256);
+					__IF_KAFKA(
 					init_kafka(hostname, port);
+					)
 				}
 			}
 		}
