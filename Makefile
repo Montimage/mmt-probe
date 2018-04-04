@@ -23,7 +23,7 @@ endif
 
 #get git version abbrev
 GIT_VERSION := $(shell git log --format="%h" -n 1)
-VERSION     := 1.2.2
+VERSION     := 1.2.3
 
 $(info Building MMT-Probe version $(VERSION) $(GIT_VERSION))
 

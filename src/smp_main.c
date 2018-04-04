@@ -727,9 +727,15 @@ __IF_SECURITY(
 			return 1;
 	}
 )
-	_INFO("Versions: Probe v%s (%s), DPI v%s, Security v0.9b",
+	_INFO("Versions: Probe v%s (%s), DPI v%s"
+			__IF_SECURITY(", Security v%s"),
 			VERSION, GIT_VERSION, //these version information are given by Makefile
-			mmt_version());
+			mmt_version()
+#ifdef SECURITY
+			,
+			mmt_sec_get_version_number()
+#endif
+	);
 	_INFO("Modules: %s", __MODULES );
 	_INFO("Built %s %s", __DATE__, __TIME__);
 
