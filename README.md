@@ -10,8 +10,8 @@ See [Wiki](https://bitbucket.org/montimage/mmt-probe/wiki)
     make keygen
     #./keygen
     
-# Complile MMT-SDK and MMT-security
-    MMT-probe requires MMT-SDK and MMT-security to be installed before hand
+# Complile MMT-SDK
+    MMT-probe requires MMT-SDK to be installed before hand. See https://bitbucket.org/montimage/mmt-sdk/wiki/Compilation%20and%20Installation%20Instructions
 
 # Compile the probe
     #if need, remove old installation:
@@ -19,35 +19,61 @@ See [Wiki](https://bitbucket.org/montimage/mmt-probe/wiki)
     
     #if in PCAP mode
     #To clean
-    make clean PCAP=1
-    #To compile
-    make PCAP=1
+    make clean
+    #To compile using PCAP to capture packets
+    make
     #Compile with DEBUG
-    #make PCAP=1 DEBUG=1
+    #make DEBUG=1
+    sudo make install
+
+## Options Compile 
     
-    sudo make create PCAP=1
-    
-    #if in DPDK mode
-    make clean DPDK=1
-    #To compile
+### Packet capture using `PCAP` or `DPDK`
+
+MMT-Probe supports either `PCAP` or `DPDK` to capture packets.
+`PCAP` is selected if none of them are specified. 
+Use cannot use both `PCAP` and `DPDK` when compiling.
+
+    #Use DPDK
     make DPDK=1
-    #Compile with DEBUG
-    #make DPDK=1 DEBUG=1
+    #Use PCAP
+    make #or make PCAP=1
+    #Undefined:
+    #make PCAP=1 DPDK=1
     
-    sudo make create DPDK=1
+### Modules
+
+#### Output bus:  `REDIS` or `KAFKA`
+
+In addition to output reports to files, MMT-Probe can ouput to redis or kafka servers.
+Contrary to the packet capture options, both `REDIS` and `KAFKA` can enable when compiling. 
+
+    #support output to redis and kafka servers
+    make REDIS=1 KAFKA=1
+    
+#### Security: `SECURITY_V1` or `SECURITY`
+
+These compile options require `MMT-Security` version 1 or 2 to be installed respectively.
+
+    #support mmt-security
+    make SECURITY_V1=1 SECURITY=1
+
 # Execute locally (DPDK):
     #CORE_MASK: hexadecimal bit mask (eg. AAAAAAAAAB)
     sudo ./build/probe -c CORE_MASK -- -c mmt_online.conf
 # Execute locally:
     sudo ./probe -c mmt_online.conf
+    
 # Execute as service
-    sudo service probe_online_d start
+
+When executing as service, MMT-Probe uses the default configuration file located at `/opt/mmt/probe/mmt-probe.conf`
+
+    sudo service mmt-probe start
     #see status
-    sudo service probe_offline_d status
+    sudo service mmt-probe status
     #stop the service if need
-    sudo service probe_online_d stop
-    #if need, change probe_online_d by probe_offline_d to run offline
-    #if need, see the execution log at /opt/mmt/probe/log/online/
+    sudo service mmt-probe stop
+    
 # If view data by mmt_operator
     #redis-server
     #goto mmt-operator folder
@@ -55,18 +81,10 @@ See [Wiki](https://bitbucket.org/montimage/mmt-probe/wiki)
     sudo npm start
     firefox localhost
 
-# Simple probe:
-    gcc -o simple_probe src/main.c -lmmt_core -ldl -lpcap
-    #execute
-    ./simple_probe <pcap file>
-
 # This assumes that you have:
 
 ## MMT-SDK
-    git clone git@bitbucket.org:montimage/mmt-sdk.git
-    cd mmt-sdk/sdk
-    make -j4
-    sudo make install
+    https://bitbucket.org/montimage/mmt-sdk
     
 ## MMT-Security
     https://bitbucket.org/montimage/mmt-security

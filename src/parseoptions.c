@@ -1185,6 +1185,13 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					if(strcmp(temp_condn->condition.condition, "SSL") == 0) mmt_conf->ssl_enable = 1;
 					else mmt_conf->ssl_enable = 0;
 
+					if( mmt_conf->gtp_enable == 1 && (
+							mmt_conf->ftp_enable || mmt_conf->web_enable || mmt_conf->rtp_enable || mmt_conf->ssl_enable
+							) ){
+						fprintf(stderr, "GTP and other conditional reports (FTP, WEB, RTP, SSL) are together enable");
+						exit( 1 );
+					}
+
 					if(strcmp(temp_condn->condition.condition, "HTTP-RECONSTRUCT") == 0){
 #ifdef HTTP_RECONSTRUCT						
 						if (temp_condn->enable == 1) {
