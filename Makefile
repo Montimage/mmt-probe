@@ -316,10 +316,10 @@ keygen:
 --private-stop-and-remove-service: --private-check-root
 #check if file exists and not empty 
 	$(QUIET) [ -s $(ETC_SERVICE_FILE_PATH) ]                                   \
-		&& $(QUIET) update-rc.d -f mmt-probe remove                             \
-		&& $(QUIET) $(RM) -rf $(ETC_SERVICE_FILE_PATH)                          \
-		&& $(QUIET) systemctl daemon-reload                                     \
-		&& @echo "Removed MMT-Probe from service list $(ETC_SERVICE_FILE_PATH)" \
+		&& update-rc.d -f mmt-probe remove                             \
+		&& $(RM) -rf $(ETC_SERVICE_FILE_PATH)                          \
+		&& systemctl daemon-reload                                     \
+		&& echo "Removed MMT-Probe from service list $(ETC_SERVICE_FILE_PATH)" \
 		|| true
 	
 dist-clean: --private-stop-and-remove-service

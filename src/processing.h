@@ -29,6 +29,9 @@ extern "C" {
 #define MMT_RADIUS_REPORT_ALL 0x0
 #define MMT_RADIUS_REPORT_MSG 0x1
 
+#define OUTPUT_FORMAT_CSV   1
+#define OUTPUT_FORMAT_JSON  2
+
 //#define MMT_RADIUS_ANY_CONDITION 0x0
 #define MMT_RADIUS_IP_MSISDN_PRESENT 0x1
 
@@ -365,6 +368,7 @@ __IF_KAFKA(
 	uint32_t stats_reporting_period;
 	uint32_t sampled_report_period;
 	uint32_t sampled_report;
+	uint8_t output_format;
 	uint32_t event_reports_nb;
 	uint32_t condition_reports_nb;
 	uint32_t new_condition_reports_nb;

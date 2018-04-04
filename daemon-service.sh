@@ -1,11 +1,5 @@
 #!/bin/sh -e
 
-#Runlevel  0: System shutdown
-#Runlevel  1: Single-user, rescue mode
-#Runlevels 2, 3, 4: Multi-user, text mode with networking enabled
-#Runlevel  5: Multi-user, network enabled, graphical mode
-#Runlevel  6: System reboot
-
 ### BEGIN INIT INFO
 # Required-Start:    $remote_fs $syslog
 # Required-Stop:     $remote_fs $syslog

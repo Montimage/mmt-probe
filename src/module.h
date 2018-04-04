@@ -2,7 +2,7 @@
  * module.h
  *
  *  Created on: Mar 29, 2018
- *      Author: nhnghia
+ *  Created by: Huu-Nghia Nguyen <huunghia.nguyen@montimage.com>
  */
 
 #ifndef SRC_MODULE_H_
@@ -41,12 +41,12 @@
 #endif
 
 //a string contains list of compiled modules
-#define __MODULES              \
-	""                         \
-	__IF_DEBUG( "DEBUG " )     \
-	__IF_KAFKA( "KAFKA " )     \
-	__IF_REDIS( "REDIS " )     \
-	__IF_SECURITY("SECURITY ") \
+#define __MODULES                   \
+	""                              \
+	__IF_DEBUG( "DEBUG " )          \
+	__IF_KAFKA( "KAFKA " )          \
+	__IF_REDIS( "REDIS " )          \
+	__IF_SECURITY("SECURITY ")      \
 	__IF_SECURITY_V1("SECURITY_V1 ")
 
 #endif /* SRC_MODULE_H_ */

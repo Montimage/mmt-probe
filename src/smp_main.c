@@ -731,7 +731,7 @@ __IF_SECURITY(
 			VERSION, GIT_VERSION, //these version information are given by Makefile
 			mmt_version());
 	_INFO("Modules: %s", __MODULES );
-	_INFO(" built %s %s", __DATE__, __TIME__);
+	_INFO("Built %s %s", __DATE__, __TIME__);
 
 /*        if (strlen(mmt_conf->session_proto_include) == 0) {
             mmt_conf ->session_proto_id_include = -1;
