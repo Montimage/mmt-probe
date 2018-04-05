@@ -15,8 +15,8 @@
 #include <signal.h>
 #include <mmt_core.h>
 
-#include "alloc.h"
 #include "configure.h"
+#include "memory.h"
 #include "tools.h"
 
 //for each thread

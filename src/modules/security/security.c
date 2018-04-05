@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../../lib/alloc.h"
+#include "../../lib/memory.h"
 #include "../../lib/tools.h"
 
 #define SECURITY_DPI_PACKET_HANDLER_ID 10

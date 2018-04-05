@@ -15,7 +15,7 @@
 #include <signal.h>
 
 #include "../../lib/worker.h"
-#include "../../lib/alloc.h"
+#include "../../lib/memory.h"
 #include "../../lib/system_info.h"
 #include "data_spsc_ring.h"
 

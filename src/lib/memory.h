@@ -5,8 +5,8 @@
  *          by: Huu Nghia
  */
 
-#ifndef SRC_LIB_ALLOC_H_
-#define SRC_LIB_ALLOC_H_
+#ifndef SRC_LIB_MEMORY_H_
+#define SRC_LIB_MEMORY_H_
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -54,4 +54,4 @@ static inline void assign_6bytes( void *dest, void *source){
 #define EXPECT( expected, ret )\
 	while( unlikely( ! (expected) ) )\
 		return ret
-#endif /* SRC_LIB_ALLOC_H_ */
+#endif /* SRC_LIB_MEMORY_H_ */

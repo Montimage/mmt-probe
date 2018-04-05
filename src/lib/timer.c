@@ -13,8 +13,8 @@
 #include <sys/timerfd.h>
 
 #include "timer.h"
-#include "alloc.h"
 #include "log.h"
+#include "memory.h"
 #include "system_info.h"
 
 typedef struct timer_callback_node_struct{

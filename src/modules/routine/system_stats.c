@@ -10,9 +10,9 @@
 #include <stdbool.h>
 #include <unistd.h>
 
-#include "../../lib/alloc.h"
 #include "system_stats.h"
 #include "pthread.h"
+#include "../../lib/memory.h"
 
 
 struct system_stats_context_struct{

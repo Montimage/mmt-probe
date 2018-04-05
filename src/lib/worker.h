@@ -20,11 +20,11 @@
 
 #include "limit.h"
 #include "context.h"
-#include "alloc.h"
 #include "configure.h"
 
 #include "../modules/output/output.h"
 #include "../modules/dpi/dpi.h"
+#include "memory.h"
 
 struct security_context_struct;
 

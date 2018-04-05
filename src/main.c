@@ -18,12 +18,12 @@
 #include <limits.h>
 #include <mmt_core.h>
 
-#include "lib/alloc.h"
 #include "lib/log.h"
 #include "lib/context.h"
 #include "lib/version.h"
 #include "lib/tools.h"
 #include "lib/configure.h"
+#include "lib/memory.h"
 #include "lib/version.h"
 
 #ifdef DPDK_MODULE
@@ -87,9 +87,10 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 			printf("Version:\n");
 			printf( "- MMT-Probe %s\n", get_version());
 			printf( "- MMT-DPI %s\n", mmt_version() );
-#ifdef SECURITY_MODULE
-			printf( "- MMT-Security %s\n", mmt_sec_get_version_info() );
-#endif
+			IF_ENABLE_PCAP_MODULE(
+					printf( "- MMT-Security %s\n", mmt_sec_get_version_info() );
+			)
+			printf("- Modules: %s\n", MODULES_LIST );
 			exit( EXIT_SUCCESS );
 		case 'h':
 			usage(argv[0]);
@@ -136,9 +137,9 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 	return conf;
 }
 
-#ifdef DEBUG_MODE
-#warning "This compile option is reserved only for debugging"
-#endif
+IF_ENABLE_DEBUG(
+	#warning "This compile option is reserved only for debugging"
+)
 
 /* Obtain a backtrace */
 void print_execution_trace () {
@@ -182,9 +183,9 @@ void print_execution_trace () {
 
 static inline void _stop_modules( probe_context_t *context){
 
-#ifdef PCAP_MODULE
+IF_ENABLE_PCAP_MODULE(
 	pcap_capture_stop(context);
-#endif
+)
 
 }
 
@@ -249,9 +250,9 @@ int main( int argc, char** argv ){
 
 	log_open();
 
-#ifdef DEBUG_MODE
+IF_ENABLE_DEBUG(
 	log_write( LOG_WARNING, "Must not run debug mode in production environment" );
-#endif
+)
 
 #ifdef DPDK_MODULE
 	int ret = rte_eal_init(argc, argv);
@@ -275,7 +276,7 @@ int main( int argc, char** argv ){
 			get_version(),
 			getpid() );
 
-//	log_write( LOG_INFO, "MMT-Probe's modules: %s", MODULES_STRING );
+	log_write( LOG_INFO, "MMT-Probe's modules: %s", MODULES_LIST );
 
 	//DPI initialization
 	if( !init_extraction() ) { // general ixE initialization
@@ -296,9 +297,9 @@ int main( int argc, char** argv ){
 	close_extraction();
 
 
-#ifdef SECURITY_MODULE
-	security_close();
-#endif
+	IF_ENABLE_SECURITY_MODULE(
+		security_close();
+	)
 
 	log_close();
 	printf("Bye\n");

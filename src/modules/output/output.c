@@ -6,10 +6,11 @@
  */
 #include <stdarg.h>
 
-#include "../../lib/alloc.h"
 #include "../../lib/configure.h"
 
 #include "output.h"
+
+#include "../../lib/memory.h"
 #include "file/file_output.h"
 
 struct output_struct{

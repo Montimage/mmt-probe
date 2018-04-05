@@ -17,10 +17,10 @@
 #include <unistd.h>
 #include <sys/time.h>
 
-#include "../../../lib/alloc.h"
 #include "file_output.h"
 
 #include "../../../lib/limit.h"
+#include "../../../lib/memory.h"
 
 struct file_output_struct{
 	uint16_t id;

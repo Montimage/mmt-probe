@@ -24,7 +24,7 @@
 #include "distributor.h"
 
 #include "../../lib/worker.h"
-#include "../../lib/alloc.h"
+#include "../../lib/memory.h"
 
 #define RX_DESCRIPTORS         4096 	/* Size for RX ring*/
 #define READER_BURST_SIZE       256  	/* Burst size to receive packets from RX ring */
