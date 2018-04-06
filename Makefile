@@ -23,7 +23,7 @@ endif
 
 #get git version abbrev
 GIT_VERSION := $(shell git log --format="%h" -n 1)
-VERSION     := 1.2.3
+VERSION     := 1.3.0
 
 $(info Building MMT-Probe version $(VERSION) $(GIT_VERSION))
 
@@ -187,6 +187,7 @@ FACE_ROOT_DIR=/tmp/probe/$(INSTALL_DIR)
 		$(FACE_ROOT_DIR)/result/behaviour/offline \
 		$(FACE_ROOT_DIR)/result/security/online \
 		$(FACE_ROOT_DIR)/result/security/offline \
+		$(FACE_ROOT_DIR)/files \
       $(FACE_ROOT_DIR)/pcaps
 #copy probe to existing dir from buit in DPDK
 ifdef DPDK
