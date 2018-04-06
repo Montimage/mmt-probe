@@ -86,9 +86,11 @@ int license_expiry_check(int status){
 	char read_sum_license[20];
 	char license_message[MAX_MESS + 1];
 	char lg_msg[512];
-	char version_probe[15] = "v0.95-003fc92";
-	char version_sdk[15] = "v1.4-6e9fae9";
-	char ch;
+	//char version_probe[15] = "v0.95-003fc92";
+	//char version_sdk[15] = "v1.4-6e9fae9";
+	const char * version_probe = VERSION "-" GIT_VERSION; //these version information are given by Makefile
+	const char *version_sdk    = mmt_version();
+	int ch;
 	char license_decrypt_key[300];
 	int i = 0;
 
@@ -102,10 +104,12 @@ int license_expiry_check(int status){
 	//license_key= fopen("license.key", "r");
 
 	if(license_key == NULL) {
-		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d", 30, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, MMT_LICENSE_KEY_DOES_NOT_EXIST);
+		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d", MMT_LICENSE_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, MMT_LICENSE_KEY_DOES_NOT_EXIST);
 		license_message[ MAX_MESS ] = '\0';
 		if (probe_context->output_to_file_enable == 1 && status == 0) send_message_to_file (license_message);
 		if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
+		if (probe_context->kafka_enable == 1 && status == 0)send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
+
 
 		sprintf(lg_msg, "\n\t*************************************\n"
 				"\t*  MMT LICENSE KEY DOES-NOT EXIST   *\n"
@@ -135,15 +139,18 @@ int license_expiry_check(int status){
 	}
 	license_decrypt_key [i] = '\0';
 
+	fclose (license_key);
 	int length = strlen (license_decrypt_key);
 
 	if (length < 11){
 		//printf("modified \n");
-		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d", 30, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec,MMT_LICENSE_MODIFIED);
+		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d", MMT_LICENSE_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec,MMT_LICENSE_MODIFIED);
 
 		license_message[ MAX_MESS ] = '\0';
 		if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
 		if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
+		if (probe_context->kafka_enable == 1 && status == 0)send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
+
 
 		sprintf(lg_msg,"\n\t*************************************\n"
 				"\t*        MMT LICENSE MODIFIED       *\n"
@@ -169,11 +176,13 @@ int license_expiry_check(int status){
 	mac_length = no_of_mac * 12;
 
 	if (length - 11 <= mac_length){
-		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d", 30, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, MMT_LICENSE_MODIFIED);
+		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d", MMT_LICENSE_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, MMT_LICENSE_MODIFIED);
 
 		license_message[ MAX_MESS ] = '\0';
 		if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
 		if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
+		if (probe_context->kafka_enable == 1 && status == 0 )send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
+
 
 		sprintf(lg_msg,"\n\t*************************************\n"
 				"\t*        MMT LICENSE MODIFIED       *\n"
@@ -187,15 +196,23 @@ int license_expiry_check(int status){
 
 	}
 	read_mac_address=malloc(sizeof(char)* (mac_length+1));
-	strncpy(read_mac_address, &license_decrypt_key[11], mac_length);
-	read_mac_address[mac_length]='\0';
+	if (read_mac_address != NULL){
+		strncpy(read_mac_address, &license_decrypt_key[11], mac_length);
+		read_mac_address[mac_length]='\0';
+	}else {
+		mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating read_mac_address");
+		fprintf(stderr, "Out of memory error when creating read_mac_address!\n");
+		return 1;
+	}
 
 	if (length - 11 - mac_length <= 0){
-		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d", 30, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, MMT_LICENSE_MODIFIED);
+		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d", MMT_LICENSE_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, MMT_LICENSE_MODIFIED);
 
 		license_message[ MAX_MESS ] = '\0';
 		if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
 		if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
+		if (probe_context->kafka_enable == 1 && status == 0)send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
+
 
 		sprintf(lg_msg,"\n\t*************************************\n"
 				"\t*        MMT LICENSE MODIFIED       *\n"
@@ -205,6 +222,9 @@ int license_expiry_check(int status){
 				"\t**************************************\n\n");
 		mmt_log(probe_context, MMT_L_INFO, MMT_LICENSE, lg_msg);
 		return_ok = 1;
+
+		free(read_mac_address);
+		read_mac_address = NULL;
 		return return_ok;
 
 	}
@@ -228,24 +248,27 @@ int license_expiry_check(int status){
 
 	char * mac_address;
 	mac_address = malloc(sizeof(char) * no_of_mac * 13);
-
-	int j = 0;
-	int offset_mac_read = 0;
-	int offset_mac_write = 0;
-	for (j = 1; j <= no_of_mac; j++){
-		strncpy(&mac_address[offset_mac_write], &read_mac_address[offset_mac_read], 12);
-		if (j != no_of_mac){
-			mac_address[12 + offset_mac_write] = ',';
-			offset_mac_write += 13;
-			offset_mac_read += 12;
-		}else{
-			offset_mac_write += 12;
-			offset_mac_read += 12;
+	if (mac_address != NULL){
+		int j = 0;
+		int offset_mac_read = 0;
+		int offset_mac_write = 0;
+		for (j = 1; j <= no_of_mac; j++){
+			strncpy(&mac_address[offset_mac_write], &read_mac_address[offset_mac_read], 12);
+			if (j != no_of_mac){
+				mac_address[12 + offset_mac_write] = ',';
+				offset_mac_write += 13;
+				offset_mac_read += 12;
+			}else{
+				offset_mac_write += 12;
+				offset_mac_read += 12;
+			}
 		}
+		mac_address[offset_mac_write] = '\0';
+	}else {
+		mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating mac_address context");
+		fprintf(stderr, "Out of memory error when creating mac_address context!\n");
+		return 1;
 	}
-	mac_address[offset_mac_write] = '\0';
-
-	if(license_key != NULL) fclose (license_key);
 
 	//calculate difference in seconds between two dates
 	expiry_time = * localtime(&now);
@@ -268,11 +291,13 @@ int license_expiry_check(int status){
 		int valid_mac = gethostMACaddress(read_mac_address,no_of_mac);
 
 		if (valid_mac == 0){
-			snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d,%d,\"%s\",%lu.%06lu,\"%s\",\"%s\"", 30, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, BUY_MMT_LICENSE_FOR_THIS_DEVICE, no_of_mac, mac_address, expired_date.tv_sec, expired_date.tv_usec, version_probe, version_sdk);
+			snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d,%d,\"%s\",%lu.%06lu,\"%s\",\"%s\"", MMT_LICENSE_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, BUY_MMT_LICENSE_FOR_THIS_DEVICE, no_of_mac, mac_address, expired_date.tv_sec, expired_date.tv_usec, version_probe, version_sdk);
 
 			license_message[ MAX_MESS ] = '\0';
 			if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
-			if (probe_context->redis_enable == 1&& status == 0)send_message_to_redis ("license.stat", license_message);
+			if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
+			if (probe_context->kafka_enable == 1 && status == 0)send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
+
 
 			sprintf(lg_msg, "\n\t*************************************\n"
 					"\t*          BUY MMT LICENSE          *\n"
@@ -284,11 +309,13 @@ int license_expiry_check(int status){
 		}
 
 		if (seconds <= 0){
-			snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d,%d,\"%s\",%lu.%06lu,\"%s\",\"%s\"", 30, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec,MMT_LICENSE_EXPIRED, no_of_mac,mac_address, expired_date.tv_sec, expired_date.tv_usec, version_probe, version_sdk);
+			snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d,%d,\"%s\",%lu.%06lu,\"%s\",\"%s\"", MMT_LICENSE_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec,MMT_LICENSE_EXPIRED, no_of_mac,mac_address, expired_date.tv_sec, expired_date.tv_usec, version_probe, version_sdk);
 
 			license_message[ MAX_MESS ] = '\0';
 			if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
 			if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
+			if (probe_context->kafka_enable == 1 && status == 0)send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
+
 
 			sprintf(lg_msg, "\n\t*************************************\n"
 					"\t* MMT LICENSE EXPIRED ON %04d-%02d-%02d *\n"
@@ -303,10 +330,12 @@ int license_expiry_check(int status){
 
 		//Seven days =7*24*60*60
 		if ( seconds <= 604800 && seconds > 0){
-			snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d,%d,\"%s\",%lu.%06lu,\"%s\",\"%s\"", 30, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, MMT_LICENSE_WILL_EXPIRE_SOON, no_of_mac,mac_address, expired_date.tv_sec, expired_date.tv_usec, version_probe, version_sdk);
+			snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d,%d,\"%s\",%lu.%06lu,\"%s\",\"%s\"", MMT_LICENSE_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, MMT_LICENSE_WILL_EXPIRE_SOON, no_of_mac,mac_address, expired_date.tv_sec, expired_date.tv_usec, version_probe, version_sdk);
 			license_message[ MAX_MESS ] = '\0';
 			if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
 			if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
+			if (probe_context->kafka_enable == 1 && status ==0)send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
+
 
 			sprintf(lg_msg,"\n\t***********************************************\n"
 					"\t*  MMT LICENSE WILL EXPIRE ON %04d-%02d-%02d  *\n"
@@ -317,19 +346,21 @@ int license_expiry_check(int status){
 			mmt_log(probe_context, MMT_L_INFO, MMT_LICENSE, lg_msg);
 			return_ok = 0;
 		}else if (seconds > 604800 && valid_mac == 1){
-			snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu,%d,%d,\"%s\",%lu.%lu,\"%s\",\"%s\"", 30, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, MMT_LICENSE_INFO, no_of_mac, mac_address, expired_date.tv_sec, expired_date.tv_usec, version_probe, version_sdk);
+			snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d,%d,\"%s\",%lu.%06lu,\"%s\",\"%s\"", MMT_LICENSE_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, MMT_LICENSE_INFO, no_of_mac, mac_address, expired_date.tv_sec, expired_date.tv_usec, version_probe, version_sdk);
 			license_message[ MAX_MESS ] = '\0';
 			if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
 			if (probe_context->redis_enable== 1 && status == 0)send_message_to_redis ("license.stat", license_message);
+			if (probe_context->kafka_enable == 1 && status == 0)send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
 
 		}
 	}else{
 
-		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d,%d,\"%s\",%lu.%06lu,\"%s\",\"%s\"", 30, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, MMT_LICENSE_MODIFIED, no_of_mac, mac_address, expired_date.tv_sec, expired_date.tv_usec, version_probe, version_sdk);
+		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d,%d,\"%s\",%lu.%06lu,\"%s\",\"%s\"", MMT_LICENSE_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, MMT_LICENSE_MODIFIED, no_of_mac, mac_address, expired_date.tv_sec, expired_date.tv_usec, version_probe, version_sdk);
 
 		license_message[ MAX_MESS ] = '\0';
 		if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
 		if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
+		if (probe_context->kafka_enable == 1 && status == 0)send_msg_to_kafka(probe_context->topic_object->rkt_license, license_message);
 
 		sprintf(lg_msg,"\n\t*************************************\n"
 				"\t*        MMT LICENSE MODIFIED       *\n"
@@ -341,9 +372,9 @@ int license_expiry_check(int status){
 		return_ok = 1;
 	}
 
-	if(mac_address) free(mac_address);
+	free(mac_address);
 	mac_address = NULL;
-	if(read_mac_address) free(read_mac_address);
+	free(read_mac_address);
 	read_mac_address = NULL;
 	return return_ok;
 }

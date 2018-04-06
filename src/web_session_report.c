@@ -44,7 +44,7 @@ void mime_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user
 	if (temp_session == NULL || temp_session->app_data == NULL) {
 		return;
 	}
-	if (mime != NULL && temp_session->app_format_id == probe_context->web_id) {
+	if (mime != NULL && temp_session->app_format_id == MMT_WEB_REPORT_FORMAT) {
 		int max = (mime->len > 63) ? 63 : mime->len;
 
 		strncpy(((web_session_attr_t *) temp_session->app_data)->mimetype, (char *) mime->ptr, max);
@@ -68,7 +68,7 @@ void host_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user
 	if (temp_session == NULL || temp_session->app_data == NULL) {
 		return;
 	}
-	if (host != NULL && temp_session->app_format_id == probe_context->web_id) {
+	if (host != NULL && temp_session->app_format_id == MMT_WEB_REPORT_FORMAT) {
 		int max = (host->len > 95) ? 95 : host->len;
 
 		strncpy(((web_session_attr_t *) temp_session->app_data)->hostname, (char *) host->ptr, max);
@@ -99,18 +99,24 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 			web_session_attr_t * http_data = (web_session_attr_t *) malloc(sizeof (web_session_attr_t));
 			if (http_data != NULL) {
 				memset(http_data, '\0', sizeof (web_session_attr_t));
-				temp_session->app_format_id = probe_context->web_id;
+				temp_session->app_format_id = MMT_WEB_REPORT_FORMAT;
 				temp_session->app_data = (void *) http_data;
 				((web_session_attr_t *) temp_session->app_data)->touched = 0;
 			} else {
-				mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating HTTP reporting context");
+				mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating HTTP reporting inside http_method_handle()");
 				//fprintf(stderr, "Out of memory error when creating HTTP specific data structure!\n");
 				return;
 			}
 		}
 		if (temp_session->session_attr == NULL) {
 			temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
-			memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+			if (temp_session->session_attr != NULL){
+				memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+			}else {
+				mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session->session_attr inside http_method_handle()");
+				fprintf(stderr, "Out of memory error when creating temp_session->session_attr inside http_method_handle()!\n");
+				return;
+			}
 		}
 		if (probe_context->web_enable == 1){
 			if (((web_session_attr_t *) temp_session->app_data)->touched == 0){
@@ -128,7 +134,7 @@ void http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 			}
 		}
 		http_line_struct_t * method = (http_line_struct_t *) attribute->data;
-		if (method != NULL && temp_session->app_format_id == probe_context->web_id) {
+		if (method != NULL && temp_session->app_format_id == MMT_WEB_REPORT_FORMAT) {
 			int max = (method->len > 20) ? 20 : method->len;
 
 			strncpy(((web_session_attr_t *) temp_session->app_data)->method, (char *) method->ptr, max);
@@ -156,7 +162,7 @@ void referer_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	if (temp_session == NULL || temp_session->app_data == NULL) {
 		return;
 	}
-	if ((referer != NULL) && temp_session->app_format_id == probe_context->web_id && (((web_session_attr_t *) temp_session->app_data)->has_referer == 0)) {
+	if ((referer != NULL) && temp_session->app_format_id == MMT_WEB_REPORT_FORMAT && (((web_session_attr_t *) temp_session->app_data)->has_referer == 0)) {
 		int max = (referer->len > 63) ? 63 : referer->len;
 
 		strncpy(((web_session_attr_t *) temp_session->app_data)->referer, (char *) referer->ptr, max);
@@ -180,7 +186,7 @@ void useragent_handle(const ipacket_t * ipacket, attribute_t * attribute, void *
 	if (temp_session == NULL || temp_session->app_data == NULL) {
 		return;
 	}
-	if ((user_agent != NULL) && temp_session->app_format_id == probe_context->web_id && (((web_session_attr_t *) temp_session->app_data)->has_useragent == 0)) {
+	if ((user_agent != NULL) && temp_session->app_format_id == MMT_WEB_REPORT_FORMAT && (((web_session_attr_t *) temp_session->app_data)->has_useragent == 0)) {
 		int max = (user_agent->len > 63) ? 63 : user_agent->len;
 
 		strncpy(((web_session_attr_t *) temp_session->app_data)->useragent, (char *) user_agent->ptr, max);
@@ -196,7 +202,7 @@ void xcdn_seen_handle(const ipacket_t * ipacket, attribute_t * attribute, void *
 
 	uint8_t * xcdn_seen = (uint8_t *) attribute->data;
 	session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
-	if (xcdn_seen != NULL && temp_session != NULL && temp_session->app_data != NULL && temp_session->app_format_id == probe_context->web_id) {
+	if (xcdn_seen != NULL && temp_session != NULL && temp_session->app_data != NULL && temp_session->app_format_id == MMT_WEB_REPORT_FORMAT) {
 		((web_session_attr_t *) temp_session->app_data)->xcdn_seen = 1;
 	}
 }
@@ -209,7 +215,7 @@ void content_len_handle(const ipacket_t * ipacket, attribute_t * attribute, void
 	http_line_struct_t* content_len = (http_line_struct_t *) attribute->data;
 	session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
 
-	if (content_len != NULL && temp_session != NULL && temp_session->app_data != NULL && temp_session->app_format_id == probe_context->web_id) {
+	if (content_len != NULL && temp_session != NULL && temp_session->app_data != NULL && temp_session->app_format_id == MMT_WEB_REPORT_FORMAT) {
 		int max = (content_len->len > 20) ? 20 : content_len->len;
 		strncpy(((web_session_attr_t *) temp_session->app_data)->content_len, (char *) content_len->ptr, max);
 		((web_session_attr_t *) temp_session->app_data)->content_len[max] = '\0';
@@ -228,7 +234,7 @@ void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, vo
 			web_session_attr_t * http_data = (web_session_attr_t *) malloc(sizeof (web_session_attr_t));
 			if (http_data != NULL) {
 				memset(http_data, '\0', sizeof (web_session_attr_t));
-				temp_session->app_format_id = probe_context->web_id;
+				temp_session->app_format_id = MMT_WEB_REPORT_FORMAT;
 				temp_session->app_data = (void *) http_data;
 			} else {
 				mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating HTTP reporting context");
@@ -237,7 +243,7 @@ void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, vo
 			}
 		}
 
-		if(temp_session->app_format_id == probe_context->web_id) {
+		if(temp_session->app_format_id == MMT_WEB_REPORT_FORMAT) {
 			if (((web_session_attr_t *) temp_session->app_data)->trans_nb >= 1) { //Needed for response_time calculation
 				((web_session_attr_t *) temp_session->app_data)->response_time = mmt_time_diff(((web_session_attr_t *) temp_session->app_data)->method_time, ipacket->p_hdr->ts);
 				((web_session_attr_t *) temp_session->app_data)->seen_response = 1;
@@ -248,7 +254,7 @@ void http_response_handle(const ipacket_t * ipacket, attribute_t * attribute, vo
 
 		http_line_struct_t * response = (http_line_struct_t *) attribute->data;
 
-		if (response != NULL && temp_session->app_format_id == probe_context->web_id) {
+		if (response != NULL && temp_session->app_format_id == MMT_WEB_REPORT_FORMAT) {
 			int max = (response->len > 1024) ? 1024 : response->len;
 
 			strncpy(((web_session_attr_t *) temp_session->app_data)->response, (char *) response->ptr, max);
@@ -269,7 +275,7 @@ void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_
 		return;
 	}
 
-	if (uri != NULL && temp_session->app_format_id == probe_context->web_id) {
+	if (uri != NULL && temp_session->app_format_id == MMT_WEB_REPORT_FORMAT) {
 		int max = (uri->len > 1024) ? 1024 : uri->len;
 		strncpy(((web_session_attr_t *) temp_session->app_data)->uri, (char *) uri->ptr, max);
 		((web_session_attr_t *) temp_session->app_data)->uri[max] = '\0';
@@ -293,12 +299,18 @@ void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void
 	uint16_t * tcp_close = (uint16_t *) attribute->data;
 
 	if (tcp_close != NULL ) {
-		if(temp_session->app_format_id == probe_context->web_id){
+		if(temp_session->app_format_id == MMT_WEB_REPORT_FORMAT){
 			//printf ("HEERRER1, session_id = %lu\n", temp_session->session_id);
 			if (((web_session_attr_t *) temp_session->app_data)->state_http_request_response != 0)((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;
 			if (temp_session->session_attr == NULL) {
 				temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
-				memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+				if (temp_session->session_attr != NULL) {
+					memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+				} else {
+					mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session->session_attr inside tcp_closed_handler()");
+					fprintf(stderr, "Out of memory error when creating temp_session->session_attr inside tcp_closed_handler()!\n");
+					return;
+				}
 			}
 			temp_session->session_attr->last_activity_time.tv_sec =0;
 			temp_session->session_attr->last_activity_time.tv_usec =0;
@@ -333,7 +345,7 @@ void print_initial_web_report(const mmt_session_t * session,session_struct_t * t
 									((web_session_attr_t *) temp_session->app_data)->state_http_request_response
 	);
 
-	if(temp_session->app_format_id == probe_context->web_id ){
+	if(temp_session->app_format_id == MMT_WEB_REPORT_FORMAT ){
 		if (temp_session->app_data == NULL) return;
 		if (((web_session_attr_t *) temp_session->app_data)->state_http_request_response != 0)((web_session_attr_t *) temp_session->app_data)->state_http_request_response ++;
 	}

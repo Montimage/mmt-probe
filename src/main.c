@@ -170,7 +170,7 @@ void session_expiry_handle(const mmt_session_t * expired_session, void * args) {
     struct timeval end_time = get_session_last_activity_time(expired_session);
     const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(expired_session);
 
-    fprintf(out_file, "%"PRIu64",%lu.%lu,%lu.%lu,"
+    fprintf(out_file, "%"PRIu64",%lu.%06lu,%lu.%06lu,"
             "%u,%s,%s,%hu,%hu,%hu,"
             "%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%s,%s,%s"
             "\n", 
@@ -252,7 +252,7 @@ int main(int argc, const char **argv) {
             "RTT, TCP retransmissions, Application Class, Proto Path, Application\n");
     struct timeval tval;
     gettimeofday(&tval, NULL);
-    fprintf(stderr, "Time %lu.%lu\n", tval.tv_sec, tval.tv_usec);
+    fprintf(stderr, "Time %lu.%06lu\n", tval.tv_sec, tval.tv_usec);
     while ((data = pcap_next(pcap, &pkthdr))) {
         header.ts = pkthdr.ts;
         header.caplen = pkthdr.caplen;
@@ -268,7 +268,7 @@ int main(int argc, const char **argv) {
     mmt_close_handler(mmt_handler);
 
     gettimeofday(&tval, NULL);
-    fprintf(stderr, "Time %lu.%lu\n", tval.tv_sec, tval.tv_usec);
+    fprintf(stderr, "Time %lu.%06lu\n", tval.tv_sec, tval.tv_usec);
     close_extraction();
 
     pcap_close(pcap);

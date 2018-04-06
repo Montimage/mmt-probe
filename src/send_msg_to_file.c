@@ -22,6 +22,7 @@ static int load_filter( const struct dirent *entry ){
 	if( ext == NULL ) return 0;
 	return (strlen( ext ) == strlen( probe_context->data_out ));
 }
+
 /**
  * Remove old sampled files in #folder
  * Sample file name in format: xxxxxxxxxx_abc.csv and its semaphore in format: xxxxxxxxxx_abc.csv.sem
@@ -68,6 +69,55 @@ int remove_old_sampled_files(const char *folder, size_t retains){
 
 	return to_remove;
 }
+/*
+static int load_filter_pcap( const struct dirent *entry ){
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+
+	//must end by .pcap,
+	char *ext = strstr( entry->d_name, ".pcap" );
+	if( ext == NULL ) return 0;
+	return (strlen( ext ));
+}
+*/
+/**
+ * Remove old pcap files in #folder
+ * Sample file name in format: protocolname_sessionid.pcap
+ */
+/*
+int remove_old_dumped_pcap_files(const char *folder, size_t retains){
+	struct dirent **entries, *entry;
+	char file_name[256];
+	int i, n, ret, to_remove;
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+
+	n = scandir( folder, &entries, load_filter_pcap, alphasort );
+	if( n < 0 ) {
+		mmt_log(probe_context, MMT_L_ERROR, MMT_P_TERMINATION, "Cannot scan output_dir!");
+		exit( 1 );
+	}
+
+	to_remove = n - retains;
+	//printf("total file %d, retains: %zu, to remove %d\n", n, retains, to_remove );
+	if( to_remove < 0 ) to_remove = 0;
+
+	for( i = 0 ; i < to_remove ; ++i ) {
+		entry = entries[i];
+		ret = snprintf( file_name, 255, "%s/%s", folder, entry->d_name );
+		file_name[ ret ] = '\0';
+
+		ret = unlink( file_name );
+		if( ret ){
+			mmt_log(probe_context, MMT_L_WARNING, MMT_P_STATUS, "Cannot delete old dumped pcap files!");
+		}
+	}
+
+	for( i = 0; i < n; i++ )
+		free( entries[ i ] );
+	free( entries );
+
+	return to_remove;
+}
+*/
 
 /* This function exits a timer thread */
 void exit_timers(){
@@ -138,14 +188,13 @@ static void *wait_to_do_something( void *arg ){
 			return NULL;
 		}
 
-		//"missed" should always be >= 1, but just to be sure, check it is not 0 anyway
-
 		if (expirations > 1) {
-			printf("missed %lu", expirations - 1);
-			fflush( stdout );
+			sprintf(lg_msg, "Timer Missed %"PRIu64"", expirations - 1);
+			mmt_log(probe->mmt_conf, MMT_L_INFO, MMT_P_STATUS, lg_msg);
 		}
 
-		if( probe_context->retain_files > 0 ){
+
+		if( probe_context->retain_files > 0 && probe_context->output_to_file_enable == 1){
 
 			//-1 as this will create a new .csv as below
 			//=> if we need to retain only 2 files
@@ -156,10 +205,26 @@ static void *wait_to_do_something( void *arg ){
 			sprintf(lg_msg, "Removed %d sampled files", ret_val);
 			mmt_log(probe->mmt_conf, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
 		}
+
+		if( probe_context->behaviour_enable ==1 && probe_context->behaviour_retain_files > 0){
+
+			//-1 as this will create a new .csv as below
+			//=> if we need to retain only 2 files
+			// =>  at this moment we retain only 1 file
+			// and a new file will be created after this function
+
+			ret_val = remove_old_sampled_files( probe_context->behaviour_output_location, probe_context->behaviour_retain_files - 1 );
+
+			sprintf(lg_msg, "Removed %d behaviour sampled files", ret_val);
+			mmt_log(probe->mmt_conf, MMT_L_INFO, MMT_P_OPEN_OUTPUT, lg_msg);
+		}
+
 		for (i = 0; i < probe_context->thread_nb; i++){
 			//printf("thread number_wait_to_do_something = %d \n",probe->smp_threads[i].thread_number);
-			p_data->user_data = (void *) &probe->smp_threads[i];
-			(* p_data->callback)( p_data->user_data );
+			if (p_data != NULL){
+				p_data->user_data = (void *) &probe->smp_threads[i];
+				if (p_data->user_data != NULL)(* p_data->callback)( p_data->user_data );
+			}
 
 		}
 
@@ -182,6 +247,12 @@ int start_timer( uint32_t period, void *callback, void *user_data){
 	int ret;
 	pthread_user_data_t *data = malloc( sizeof( pthread_user_data_t ));
 	//pthread_t pthread;
+
+	if (data == NULL){
+		mmt_log(mmt_probe.mmt_conf, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating pthread_user_data_t in start_timer context");
+		fprintf(stderr, "Out of memory error when creating pthread_user_data_t in start_timer!\n");
+		exit(0);
+	}
 	data->period   = period;
 	data->callback = callback;
 	data->user_data = user_data;
@@ -202,7 +273,6 @@ int start_timer( uint32_t period, void *callback, void *user_data){
 /* This function writes messages from each thread queue to a separate file.
  * A semaphore is created to indicate writing is finished.
  * */
-#define MAX_FILE_NAME 500
 void flush_messages_to_file_thread( void *arg){
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -215,7 +285,7 @@ void flush_messages_to_file_thread( void *arg){
 	char lg_msg[1024];
 	int valid = 0;
 	int i = 0;
-	char command_str [500+1] = {0};
+	char command_str [MAX_FILE_NAME+1] = {0};
 	char message[MAX_MESS + 1];
 
 	struct timeval ts;
@@ -225,10 +295,9 @@ void flush_messages_to_file_thread( void *arg){
 	gettimeofday(&ts, NULL);
 	struct smp_thread *th = (struct smp_thread *) arg;
 	double drop_percent = 0, drop_percent_NIC = 0, drop_percent_kernel =0;
-
 	//dummy report
-	if (th->thread_number == 0){
-		valid = snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%lu",
+	if (th->thread_index == 0){
+		valid = snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu",
 				200, probe_context->probe_id_number,
 				probe_context->input_source, ts.tv_sec, ts.tv_usec);
 
@@ -238,13 +307,12 @@ void flush_messages_to_file_thread( void *arg){
 				drop_percent_NIC = th->nb_dropped_packets_NIC * 100 / th->nb_packets;
 				drop_percent_kernel = th->nb_dropped_packets_kernel * 100 / th->nb_packets;
 			}*/
-			valid += snprintf(&message[valid], MAX_MESS, ",%3.2Lf%%, %3.2Lf%% \n",
+			valid += snprintf(&message[valid], MAX_MESS, ",%3.2Lf%%,%3.2Lf%% \n",
 					probe_context->cpu_reports->cpu_usage_avg, probe_context->cpu_reports->mem_usage_avg);
 		}
 		message[ valid] = '\0';
 
-		if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message, (void *)th);
-		if (probe_context->redis_enable == 1)send_message_to_redis ("session.cpu.report", message);
+		if (probe_context->output_to_file_enable) send_message_to_file_thread (message, (void *)th);
 	}
 
 	if( th->cache_count == 0 ){
@@ -252,9 +320,8 @@ void flush_messages_to_file_thread( void *arg){
 		//pthread_spin_unlock(&th->lock);
 		return;
 	}
-	valid = 0;
 	//open a file
-	valid = snprintf(file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s", probe_context->output_location, present_time, th->thread_number, probe_context->data_out);
+	valid = snprintf(file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s", probe_context->output_location, present_time, th->thread_index, probe_context->data_out);
 	file_name_str[valid] = '\0';
 
 	file = fopen(file_name_str, "w");
@@ -314,7 +381,7 @@ void flush_messages_to_file_thread( void *arg){
 			}else {
 
 				//create semaphore
-				valid = snprintf(sem_file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s.sem", probe_context->behaviour_output_location, present_time, th->thread_number, probe_context->data_out);
+				valid = snprintf(sem_file_name_str, MAX_FILE_NAME, "%s%lu_%d_%s.sem", probe_context->behaviour_output_location, present_time, th->thread_index, probe_context->data_out);
 				sem_file_name_str[ valid ] = '\0';
 				file= fopen(sem_file_name_str, "w");
 

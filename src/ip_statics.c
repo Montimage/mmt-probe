@@ -18,12 +18,28 @@
 
 /* This function is for reporting session reports */
 void print_ip_session_report (const mmt_session_t * session, void *user_args){
+
+	session_struct_t * temp_session = (session_struct_t *) get_user_session_context(session);
+	if (temp_session == NULL) {
+		return;
+	}
 	if (is_microflow(session)) {
 		return;
 	}
-	session_struct_t * temp_session = (session_struct_t *) get_user_session_context(session);
 	mmt_probe_context_t * probe_context = get_probe_context_config();
-	if (temp_session == NULL) {
+
+	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
+	int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
+
+	int z = 0, proto_flag = 0;
+	for( z = 0; z < probe_context->session_report_proto.nb_protocols; z++){
+		if (probe_context->session_report_proto.protocols[z] == proto_id) {
+			proto_flag = 1;
+			break;
+		}
+
+	}
+	if (proto_flag == 0 && probe_context->session_report_proto.nb_protocols != 0) {
 		return;
 	}
 
@@ -37,17 +53,22 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 
 	if (temp_session->session_attr == NULL) {
 		temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
-		memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+		if (temp_session->session_attr != NULL){
+			memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+		}else {
+			mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session->session_attr inside print_ip_session_report ()");
+			fprintf(stderr, "Out of memory error when creating temp_session->session_attr inside print_ip_session_report()!\n");
+			exit(0);
+		}
 	}
 
 	// To  check whether the session activity occurs between the reporting time interval
 	if (TIMEVAL_2_USEC(mmt_time_diff(temp_session->session_attr->last_activity_time, get_session_last_activity_time(session))) == 0)return; // check the condition if in the last interval there was a protocol activity or not
-	//if (get_session_byte_count(session) - temp_session->session_attr->total_byte_count == 0)return;
 
 	// The report number is maintain to synchronize between the reporting time of the probe and MMT-operator report display time.
 	if (temp_session->report_counter == th->report_counter){
 		report_number = temp_session->report_counter + 1;
-        temp_session->report_counter = 0;
+		temp_session->report_counter = 0;
 	}else {
 		report_number = th->report_counter;
 	}
@@ -68,14 +89,13 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 		keep_direction = is_localv6_net(ip_src_str);//add more condition if any in is_localv6_net function
 
 	}
-	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(session);
-	int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
+
 	temp_session->session_attr->last_activity_time = get_session_last_activity_time(session);
 	temp_session->session_attr->start_time = get_session_init_time(session);
 	proto_hierarchy_ids_to_str(get_session_protocol_hierarchy(session), temp_session->path);
 
 	int sslindex;
-
+///ask huugia
 	const proto_hierarchy_t * proto_path_0 =  get_session_proto_path_direction(session,1);
 	proto_hierarchy_ids_to_str(get_session_proto_path_direction(session,1), temp_session->path_ul);
 
@@ -90,6 +110,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	if (proto_path_1->len == 0){
 		temp_session->path_dl[0] = '\0';
 	}
+////////
 	// Data transfer time calculation
 	if (temp_session->dtt_seen == 1){
 		struct timeval t1;
@@ -101,6 +122,10 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 		temp_session->dtt_start_time.tv_usec = t1.tv_usec;
 	}
 	uint64_t active_session_count = get_active_session_count(th->mmt_handler);
+	uint64_t rtt_handshake_usec = 0;
+	if (probe_context->enable_RTT_at_handshake == 1) {
+		rtt_handshake_usec = (temp_session->rtt_at_handshake == 0)?TIMEVAL_2_USEC(get_session_rtt(session)):0;
+	}
 	if (keep_direction == 1){
 		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%"PRIu64",%u,\"%s\",\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%06lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u",
 				MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec, report_number,
@@ -121,15 +146,15 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 				ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,temp_session ->session_id,
 				temp_session->serverport, temp_session->clientport,
 				temp_session->thread_number,
-			    (temp_session->rtt_at_handshake == 0)?TIMEVAL_2_USEC(get_session_rtt(session)):0,
-				temp_session->session_attr->rtt_min_usec[1],
-				temp_session->session_attr->rtt_min_usec[0],
-				temp_session->session_attr->rtt_max_usec[1],
-				temp_session->session_attr->rtt_max_usec[0],
-				temp_session->session_attr->rtt_avg_usec[1],
-				temp_session->session_attr->rtt_avg_usec[0],
-				temp_session->data_transfer_time,
-				get_session_retransmission_count (session)-temp_session->session_attr->retransmission_count);
+				rtt_handshake_usec,
+						temp_session->session_attr->rtt_min_usec[1],
+						temp_session->session_attr->rtt_min_usec[0],
+						temp_session->session_attr->rtt_max_usec[1],
+						temp_session->session_attr->rtt_max_usec[0],
+						temp_session->session_attr->rtt_avg_usec[1],
+						temp_session->session_attr->rtt_avg_usec[0],
+						temp_session->data_transfer_time,
+						get_session_retransmission_count (session)-temp_session->session_attr->retransmission_count);
 	}else{
 		snprintf(message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%"PRIu64",%u,\"%s\",\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%lu.%06lu,\"%s\",\"%s\",\"%s\",\"%s\",%"PRIu64",%hu,%hu,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u",
 				MMT_STATISTICS_FLOW_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, temp_session->session_attr->last_activity_time.tv_sec, temp_session->session_attr->last_activity_time.tv_usec, report_number,
@@ -150,34 +175,35 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 				ip_src_str, ip_dst_str, src_mac_pretty, dst_mac_pretty,temp_session ->session_id,
 				temp_session->serverport, temp_session->clientport,
 				temp_session->thread_number,
-			    (temp_session->rtt_at_handshake == 0)?TIMEVAL_2_USEC(get_session_rtt(session)):0,
-				temp_session->session_attr->rtt_min_usec[1],
-				temp_session->session_attr->rtt_min_usec[0],
-				temp_session->session_attr->rtt_max_usec[1],
-				temp_session->session_attr->rtt_max_usec[0],
-				temp_session->session_attr->rtt_avg_usec[1],
-				temp_session->session_attr->rtt_avg_usec[0],
-				temp_session->data_transfer_time,
-				get_session_retransmission_count (session)-temp_session->session_attr->retransmission_count);
+				rtt_handshake_usec,
+						temp_session->session_attr->rtt_min_usec[1],
+						temp_session->session_attr->rtt_min_usec[0],
+						temp_session->session_attr->rtt_max_usec[1],
+						temp_session->session_attr->rtt_max_usec[0],
+						temp_session->session_attr->rtt_avg_usec[1],
+						temp_session->session_attr->rtt_avg_usec[0],
+						temp_session->data_transfer_time,
+						get_session_retransmission_count (session)-temp_session->session_attr->retransmission_count);
 	}
 	valid = strlen(message);
 
-	if (temp_session->app_format_id == probe_context->web_id && probe_context->web_enable == 1) print_initial_web_report(session, temp_session, message,valid);
-	else if (temp_session->app_format_id == probe_context->rtp_id && probe_context->rtp_enable == 1) print_initial_rtp_report(session, temp_session, message,valid);
-	else if (temp_session->app_format_id == probe_context->ssl_id && temp_session->session_attr->touched == 0 && probe_context->ssl_enable == 1) print_initial_ssl_report(session, temp_session, message, valid);
-	else if (temp_session->app_format_id == probe_context->ftp_id && probe_context->ftp_enable == 1) print_initial_ftp_report(session, temp_session, message, valid);
+	if (temp_session->app_format_id == MMT_WEB_REPORT_FORMAT && probe_context->web_enable == 1) print_initial_web_report(session, temp_session, message,valid);
+	else if (temp_session->app_format_id == MMT_RTP_REPORT_FORMAT && probe_context->rtp_enable == 1) print_initial_rtp_report(session, temp_session, message,valid);
+	else if (temp_session->app_format_id == MMT_SSL_REPORT_FORMAT && temp_session->session_attr->touched == 0 && probe_context->ssl_enable == 1) print_initial_ssl_report(session, temp_session, message, valid);
+	else if (temp_session->app_format_id == MMT_FTP_REPORT_FORMAT && probe_context->ftp_enable == 1) print_initial_ftp_report(session, temp_session, message, valid);
 	else if(temp_session->session_attr->touched == 0){
 		sslindex = get_protocol_index_from_session(proto_hierarchy, PROTO_SSL);
 		if (sslindex != -1 && probe_context->ssl_enable == 1 ){
-			temp_session->app_format_id = probe_context->ssl_id;
+			temp_session->app_format_id = MMT_SSL_REPORT_FORMAT;
 			print_initial_ssl_report(session, temp_session, message, valid);
 		}else print_initial_default_report(session, temp_session, message, valid);
 	}
 	valid = strlen(message);
 	message[ valid ] = '\0'; // correct end of string in case of truncated message
 
-	if (probe_context->output_to_file_enable == 1)send_message_to_file_thread (message, (void *)user_args);
-	if (probe_context->redis_enable == 1)send_message_to_redis ("session.flow.report", message);
+	if (probe_context->output_to_file_enable && probe_context->session_output_channel[0])send_message_to_file_thread (message, (void *)user_args);
+	if (probe_context->redis_enable && probe_context->session_output_channel[1])send_message_to_redis ("session.flow.report", message);
+	if (probe_context->kafka_enable && probe_context->session_output_channel[2])send_msg_to_kafka(probe_context->topic_object->rkt_session, message);
 
 	temp_session->session_attr->retransmission_count = get_session_retransmission_count (session);
 
@@ -219,7 +245,13 @@ void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	}
 	if (temp_session->session_attr == NULL) {
 		temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
-		memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+		if (temp_session->session_attr != NULL){
+			memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+		}else {
+			mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session->session_attr inside ip_rtt_handler()");
+			fprintf(stderr, "Out of memory error when creating temp_session->session_attr inside ip_rtt_handler()!\n");
+			exit(0);
+		}
 	}
 	uint8_t * proto_id = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_PROTO_ID);
 
@@ -269,5 +301,5 @@ void throughput(const mmt_session_t * session,session_struct_t * temp_session, i
 	}
 
 }
-*/
+ */
 

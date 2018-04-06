@@ -49,6 +49,7 @@ int data_spsc_ring_init( data_spsc_ring_t *q, uint32_t size, uint32_t element_si
 
 	queue_init( q->_fifo_index, q->_size );
 	q->_data = malloc( sizeof( void *) * q->_size );
+	if (q->_data == NULL) return 2;
 	for( i=0; i<q->_size; i++){
 		q->_data[ i ] = malloc( element_size );
 		//not enough memory

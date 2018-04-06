@@ -9,15 +9,37 @@ See [Wiki](https://bitbucket.org/montimage/mmt-probe/wiki)
 # Compile the key generator if need
     make keygen
     #./keygen
+    
+# Complile MMT-SDK and MMT-security
+    MMT-probe requires MMT-SDK and MMT-security to be installed before hand
+
 # Compile the probe
     #if need, remove old installation:
     #sudo make dist-clean
-    make
-    #tobe debuged with gdb
-    #make DEBUG=1
-    sudo make install
+    
+    #if in PCAP mode
+    #To clean
+    make clean PCAP=1
+    #To compile
+    make PCAP=1
+    #Compile with DEBUG
+    #make PCAP=1 DEBUG=1
+    
+    sudo make create PCAP=1
+    
+    #if in DPDK mode
+    make clean DPDK=1
+    #To compile
+    make DPDK=1
+    #Compile with DEBUG
+    #make DPDK=1 DEBUG=1
+    
+    sudo make create DPDK=1
+# Execute locally (DPDK):
+    #CORE_MASK: hexadecimal bit mask (eg. AAAAAAAAAB)
+    sudo ./build/probe -c CORE_MASK -- -c mmt_online.conf
 # Execute locally:
-    sudo ./probe -c ./mmt_online.conf
+    sudo ./probe -c mmt_online.conf
 # Execute as service
     sudo service probe_online_d start
     #see status
@@ -45,6 +67,9 @@ See [Wiki](https://bitbucket.org/montimage/mmt-probe/wiki)
     cd mmt-sdk/sdk
     make -j4
     sudo make install
+    
+## MMT-Security
+    https://bitbucket.org/montimage/mmt-security
     
 ## MMT-Operator
     git clone git@bitbucket.org:montimage/mmt-operator.git

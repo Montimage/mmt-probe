@@ -49,7 +49,7 @@ void todo_when_property_is_satisfied_or_not (int prop_id, char *verdict, char *t
         struct timeval ts;
         gettimeofday( &ts, NULL );
 
-        fprintf( OutputFile, "{\"timestamp\":%lu.%lu,\"pid\":%d,\"verdict\":\"%s\",\"type\":\"%s\",\"cause\":\"%s\",\"history\":%s},\n",
+        fprintf( OutputFile, "{\"timestamp\":%lu.%06lu,\"pid\":%d,\"verdict\":\"%s\",\"type\":\"%s\",\"cause\":\"%s\",\"history\":%s},\n",
                 ts.tv_sec, ts.tv_usec,
                 prop_id, verdict, type, cause, history);
     }
@@ -90,7 +90,7 @@ void security_event( int prop_id, char *verdict, char *type, char *cause, char *
     if(xhistory == NULL) xhistory = x;
 
 	snprintf( message, MAX_MESS,
-            "%u,%u,\"%s\",%lu.%lu,%d,\"%s\",\"%s\",\"%s\",%s",
+            "%u,%u,\"%s\",%lu.%06lu,%d,\"%s\",\"%s\",\"%s\",%s",
 			MMT_SECURITY_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source,
 			packet_timestamp.tv_sec, packet_timestamp.tv_usec,
 			prop_id, xverdict, xtype, xcause, xhistory);
@@ -99,7 +99,8 @@ void security_event( int prop_id, char *verdict, char *type, char *cause, char *
 	message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
 	//printf("%s\n",message);
 	if (th == NULL) printf("Thread structure does not exists\n");
-    if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message, th);
-    if (probe_context->redis_enable == 1) send_message_to_redis ("security.report", message);
+	if (probe_context->output_to_file_enable && probe_context->security1_output_channel[0]) send_message_to_file_thread (message, th);
+	if (probe_context->redis_enable && probe_context->security1_output_channel[1]) send_message_to_redis ("security.report", message);
+	if (probe_context->kafka_enable && probe_context->security1_output_channel[2])send_msg_to_kafka(probe_context->topic_object->rkt_security, message);
 }
 //END HN

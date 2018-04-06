@@ -126,6 +126,18 @@ void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char * l
 	}
 }
 
+#ifdef HTTP_RECONSTRUCT
+uint8_t is_http_packet(const ipacket_t * ipacket){
+	uint16_t http_index = get_protocol_index_by_id(ipacket, PROTO_HTTP);
+    // META->ETH->IP->TCP->HTTP
+    if(http_index < 4){
+        fprintf(stderr, "[error] %lu: PROTO_HTTP has index smaller than 4\n", ipacket->packet_id);
+        return 0;
+    }
+    return 1;
+}
+
+#endif // End of HTTP_RECONSTRUCT
 /* This function puts the protocol path as a string (for example, 99.178.376,
  * where,99-Ethernet, 178-IP and 376-UDP), in a variable dest and
  * returns its length as a offset.
@@ -189,9 +201,9 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 	memset(temp_session, '\0', sizeof (session_struct_t));
 
 	temp_session->session_id = get_session_id(session);
-	temp_session->thread_number = th->thread_number;
+	temp_session->thread_number = th->thread_index;
 
-	temp_session->format_id = MMT_FLOW_REPORT_FORMAT;
+	temp_session->format_id = MMT_STATISTICS_FLOW_REPORT_FORMAT;
 	temp_session->app_format_id = MMT_DEFAULT_APP_REPORT_FORMAT;
 
 	if (temp_session->isFlowExtracted){
@@ -273,200 +285,39 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 		}
 	}
 	temp_session->isFlowExtracted = 1;
+#ifdef HTTP_RECONSTRUCT
+	if(probe_context.http_reconstruct_enable == 1){
+		if(is_http_packet(ipacket) == 1){
+			// printf("[debug] %lu: flow_nb_handle\n", ipacket->packet_id);
+		    // printf("[debug] %lu: new_session_handle - 2\n", ipacket->packet_id);
+		    http_content_processor_t * http_content_processor = init_http_content_processor();
+
+		    if (http_content_processor == NULL) {
+		    	fprintf(stderr, "[error] %lu: Cannot create http_content_processor\n", ipacket->packet_id);
+		    	free(temp_session);
+		        return;
+		    }
+		    // printf("[debug] %lu: new_session_handle - 3\n", ipacket->packet_id);
+		    temp_session->http_content_processor = http_content_processor;
+		    // printf("[debug] %lu: new_session_handle - 4\n", ipacket->packet_id);
+		    http_session_data_t * http_session_data = get_http_session_data_by_id(get_session_id(session), th->list_http_session_data);
+		    if (http_session_data == NULL) {
+		        http_session_data = new_http_session_data();
+		        if (http_session_data) {
+		            http_session_data->session_id = get_session_id(session);
+		            http_session_data->http_session_status = HSDS_START;
+		            add_http_session_data(http_session_data,th);
+		        } else {
+		            fprintf(stderr, "[error] Cannot create http session data for session %lu - packet: %lu\n", get_session_id(session), ipacket->packet_id);
+		        }
+		    }
+	    }
+	}
+#endif // End of HTTP_RECONSTRUCT
+
 	set_user_session_context(session, temp_session);
 }
-/* This function extracts the required information from the #ipacket, which is required to create
- * a security report and then sends the message/report to mmt-security through socket.
- * */
-void get_security_report(const ipacket_t * ipacket,void * args){
 
-	mmt_probe_context_t * probe_context = get_probe_context_config();
-	attribute_t * attr_extract;
-	struct smp_thread *th = (struct smp_thread *) args;
-	int MAX_LEN = 1024;
-	int i = 0, j = 0, k = 0, condition1 = 0, condition2 = 0, condition3 = 0;
-	int retval =0;
-
-
-	for(i = 0; i < probe_context->security_reports_nb; i++) {
-		//p = 0;
-		if (probe_context->security_reports[i].enable == 0)
-			continue;
-		int initial_buffer_size =10000;
-		security_report_buffer_t *report_ptr = &( th->report[i] );
-
-		report_ptr->length = 0;
-		//memset(report_ptr->data[report_ptr->security_report_counter], '\0', 10000);
-		memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length + 5], &ipacket->p_hdr->ts,sizeof(struct timeval));
-		report_ptr->length += sizeof(struct timeval) + 5; //4 bytes are reserved to assign the total length of the report and 1 byte for the number of attributes
-		k = 0, condition1 = 0, condition2 = 0, condition3 = 0;
-
-		for(j = 0; j < probe_context->security_reports[i].attributes_nb; j++) {
-			mmt_security_attribute_t * security_attribute = &probe_context->security_reports[i].attributes[j];
-			attr_extract   = get_extracted_attribute( ipacket,security_attribute->proto_id, security_attribute->attribute_id );
-
-			int rem_buffer = initial_buffer_size - (report_ptr->length+10);
-
-			if(attr_extract != NULL) {
-				if( unlikely( attr_extract->data_len > rem_buffer )){
-					printf("Buffer_overflow\n");
-					break;
-				}
-				//condition for reporting
-				if (probe_context->security_reports[i].event_id[0] == 0){
-					if (attr_extract->proto_id == 178 && attr_extract->field_id == 7) {
-						uint8_t ms_flag_data = 0;
-						memcpy(&ms_flag_data, attr_extract->data, attr_extract->data_len);
-						if (ms_flag_data > 0) condition1++;
-					}
-					if (attr_extract->proto_id == 30) condition2++;
-					//if (attr_extract->proto_id == 137)condition3++;
-
-					if (attr_extract->proto_id == 354 && attr_extract->field_id == 6) {
-						uint8_t tcp_flag_data = 0;
-						memcpy(&tcp_flag_data, attr_extract->data, attr_extract->data_len);
-						if (tcp_flag_data == 2) condition3++;
-					}
-
-				} else if (attr_extract->proto_id == probe_context->security_reports[i].event_id[0]) {
-					if (attr_extract->proto_id == 153 && attr_extract->field_id == 1)condition1++;
-					if (attr_extract->proto_id == 153 && attr_extract->field_id == 4) condition2++;
-					if (attr_extract->proto_id == 153 && attr_extract->field_id == 7) condition3++;
-				}
-
-				memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length], &attr_extract->proto_id, 4);
-				report_ptr->length += 4;
-				memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length], &attr_extract->field_id, 4);
-				report_ptr->length += 4;
-
-				if (attr_extract->data_type == MMT_HEADER_LINE
-						|| attr_extract->data_type == MMT_DATA_PATH
-						|| attr_extract->data_type == MMT_BINARY_DATA
-						|| attr_extract->data_type == MMT_BINARY_VAR_DATA
-						|| attr_extract->data_type == MMT_STRING_DATA
-						|| attr_extract->data_type == MMT_STRING_LONG_DATA
-						|| attr_extract->data_type == MMT_STRING_DATA_POINTER){
-
-					report_ptr->length += 2;
-					int valid = mmt_attr_sprintf((char *)&report_ptr->data[report_ptr->security_report_counter][report_ptr->length], MAX_LEN, attr_extract);
-					memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length - 2], &valid, 2);
-					report_ptr->length +=  valid;
-
-				} else if (attr_extract->data_type == MMT_DATA_POINTER){
-					if (attr_extract->field_id == PROTO_PAYLOAD)payload_extraction(ipacket,th,attr_extract, i);
-					if (attr_extract->field_id == PROTO_DATA)data_extraction(ipacket,th,attr_extract, i);
-					if (attr_extract->proto_id == PROTO_FTP && attr_extract->field_id == FTP_LAST_COMMAND)ftp_last_command(ipacket,th,attr_extract, i);
-					if (attr_extract->proto_id == PROTO_FTP && attr_extract->field_id == FTP_LAST_RESPONSE_CODE)ftp_last_response_code(ipacket,th,attr_extract, i);
-					//if (attr_extract->proto_id == PROTO_IP && attr_extract->field_id == IP_OPTS)ip_opts(ipacket,th,attr_extract, i);
-
-				} else {
-					memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length], &attr_extract->data_len, 2);
-					report_ptr->length += 2;
-					memcpy(&report_ptr->data[report_ptr->security_report_counter][report_ptr->length], attr_extract->data, attr_extract->data_len);
-					report_ptr->length +=  attr_extract->data_len;
-				}
-				k++;
-
-			}
-		}
-		if (condition1 == 0 && probe_context->security_reports[i].rule_type == 1) {
-			continue;
-		}
-		else if ((condition1 == 0 && condition2 == 0 && condition3 == 0) && probe_context->security_reports[i].rule_type == 2){
-			continue;
-		}
-
-		//all attribute data are NULL
-
-		if (unlikely( k == 0 )) continue;
-
-		//First 4 bytes contains the total length of the report
-		memcpy(&report_ptr->data[report_ptr->security_report_counter][0], &report_ptr->length, 4);
-		//number of attributes
-		report_ptr->data[report_ptr->security_report_counter][4] = k;
-		//safe string
-		report_ptr->data[report_ptr->security_report_counter][report_ptr->length] = '\0';
-
-		if (probe_context->socket_enable == 1){
-			th->packet_send ++;
-
-			report_ptr->msg[report_ptr->security_report_counter].iov_base = report_ptr->data[report_ptr->security_report_counter];
-			report_ptr->msg[report_ptr->security_report_counter].iov_len  = report_ptr->length;
-			report_ptr->security_report_counter ++;
-
-			if (report_ptr->security_report_counter == probe_context->nb_of_report_per_msg){
-				report_ptr->grouped_msg.msg_hdr.msg_iov    = report_ptr->msg;
-				report_ptr->grouped_msg.msg_hdr.msg_iovlen = probe_context->nb_of_report_per_msg;
-				if (probe_context->socket_domain == 1 || probe_context->socket_domain == 2)
-					retval = sendmmsg(th->sockfd_internet[i], &report_ptr->grouped_msg, 1, 0);
-				if (probe_context->socket_domain == 0 || probe_context->socket_domain == 2)
-					retval = sendmmsg(th->sockfd_unix, &report_ptr->grouped_msg, 1, 0);
-
-				if ( unlikely( retval == -1))
-					perror("sendmmsg()");
-
-				report_ptr->security_report_counter = 0;
-				memset(report_ptr->msg, 0, sizeof(struct iovec) *probe_context->nb_of_report_per_msg);
-			}
-		}
-	}
-}
-
-/* This function extracts the required information from the #ipacket, which is required to create
- * a multi_session report and then sends the message/report through redis in a particular channel.
- * */
-void get_security_multisession_report(const ipacket_t * ipacket,void * args){
-	int i = 0, j = 0, offset = 0, valid = 0, k = 0;
-	int LEN = 10000;
-	char message[LEN + 1];
-	//char attribute_value [MAX_MESS +1];
-	attribute_t * attr_extract;
-	mmt_probe_context_t * probe_context = get_probe_context_config();
-	int attr_len =0;
-
-	struct smp_thread *th = (struct smp_thread *) args;
-	struct timeval current_time;
-	gettimeofday (&current_time, NULL);
-
-	for(i = 0; i < probe_context->security_reports_multisession_nb; i++) {
-		j=0, offset = 0, valid = 0;
-
-		if (probe_context->security_reports_multisession[i].enable == 0)
-			continue;
-		valid= snprintf(message, LEN,
-				"%u,%lu.%lu",
-				probe_context->probe_id_number, current_time.tv_sec,current_time.tv_usec);
-		if(valid > 0) {
-			offset += valid;
-		}else {
-			printf ("ERROR: In function get_security_multisession_report, valid1 < 0 \n ");
-		}
-
-		for(j = 0; j < probe_context->security_reports_multisession[i].attributes_nb; j++) {
-			mmt_security_attribute_t * security_attribute_multisession   = &probe_context->security_reports_multisession[i].attributes[j];
-			attr_extract = get_extracted_attribute(ipacket,security_attribute_multisession->proto_id, security_attribute_multisession->attribute_id);
-			message[offset] = ',';
-			if(attr_extract != NULL) {
-				valid = mmt_attr_sprintf(&message[offset + 1], LEN - offset + 1, attr_extract);
-				if(valid > 0) {
-					offset += valid + 1;
-					k++;
-				}else {
-					printf ("ERROR: In function get_security_multisession_report, valid2 < 0 \n ");
-				}
-			}else {
-				message[offset + 1] = ' ';
-				offset += 2;
-			}
-		}
-		message[ offset ] = '\0';
-		if (k == 0)return;
-		if (probe_context->output_to_file_enable == 1) send_message_to_file_thread (message, th);
-		if (probe_context->redis_enable == 1) send_message_to_redis ("multisession.report", message);
-
-	}
-
-}
 /* This function is called by mmt-dpi for each incoming packet.
  * It extracts packet information from a #ipacket for creating messages/reports.
  * */
@@ -474,6 +325,9 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 	struct smp_thread *th = (struct smp_thread *) args;
+	int valid = 0;
+	char file_name_str [MAX_FILE_NAME+1] = {0};
+
 	if(probe_context->enable_session_report == 1){
 		session_struct_t *temp_session = (session_struct_t *) get_user_session_context_from_packet(ipacket);
 
@@ -482,7 +336,7 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 		}
 		th->pcap_current_packet_time = ipacket->p_hdr->ts.tv_sec;
 
-		if (temp_session != NULL) {
+		if (temp_session != NULL && probe_context->enable_DTT == 1) {
 			// only for packet based on TCP
 			if (temp_session->dtt_seen == 0){
 				//this will exclude all the protocols except TCP
@@ -509,7 +363,41 @@ int packet_handler(const ipacket_t * ipacket, void * args) {
 	if (probe_context->enable_security_report_multisession == 1){
 		get_security_multisession_report(ipacket,args);
 	}
+	// LN - dumping unknown session
+	if (probe_context->mmt_dump.enable == 1){
+		uint64_t last_proto = ipacket->proto_hierarchy->proto_path[ipacket->proto_hierarchy->len-1];
+		int z = 0;
+		for( z = 0 ; z < probe_context->mmt_dump.nb_protocols; z++){
+			int current_proto_id = probe_context->mmt_dump.protocols[z];
+			int w = 0;
+			int found = 0;
+			for(w = ipacket->proto_hierarchy->len - 1; w > 1; w--){
+				if(ipacket->proto_hierarchy->proto_path[w] == current_proto_id){
+					found = 1;
+					if (th->pcap_current_packet_time - th->last_pcap_dump_time >= probe_context->mmt_dump.time){
+						if (th->last_pcap_dump_time != 0)pd_close(th->fd);
+						valid = snprintf(file_name_str, MAX_FILE_NAME, "%s%lu_thread_%d.pcap", probe_context->mmt_dump.location, th->pcap_current_packet_time, th->thread_index);
+						file_name_str[valid] = '\0';
 
+						th->fd = pd_open(file_name_str);
+						if (th->fd == -1){
+							fprintf ( stderr , "\n packet_handler Error: %d creation of dump_file \"%s\" failed: %s\n" , errno , file_name_str , strerror( errno ) );
+							//exit(1);
+						}
+						th->last_pcap_dump_time = th->pcap_current_packet_time;
+					}
+					if(th->fd){
+						pd_write(th->fd,(char*)ipacket->data,ipacket->p_hdr->caplen,ipacket->p_hdr->ts);
+					}
+					break;
+				}
+			}
+			if(found == 1){
+				break;
+			}
+		}
+	}
+	// End of LN
 	return 0;
 }
 /* This function registers the packet handler for each threads */
@@ -522,120 +410,6 @@ void proto_stats_cleanup(void * handler) {
 	(void) unregister_packet_handler((mmt_handler_t *) handler, 1);
 }
 
-/* This function returns the function handler corresponding to a particular func_name.
- * If a func_name does not exist it returns 0.
- * */
-void * get_handler_by_name(char * func_name){
-	if (strcmp(func_name,"ftp_session_connection_type_handle") == 0){
-		return ftp_session_connection_type_handle;
-	}
-	if (strcmp(func_name,"ftp_response_value_handle") == 0){
-		return ftp_response_value_handle;
-	}
-	if (strcmp(func_name,"http_method_handle") == 0){
-		return http_method_handle;
-	}
-	if (strcmp(func_name,"http_response_handle") == 0){
-		return http_response_handle;
-	}
-	if (strcmp(func_name,"mime_handle") == 0){
-		return mime_handle;
-	}
-	if (strcmp(func_name,"host_handle") == 0){
-		return host_handle;
-	}
-	if (strcmp(func_name,"uri_handle") == 0){
-		return uri_handle;
-	}
-	if (strcmp(func_name,"useragent_handle") == 0){
-		return useragent_handle;
-	}
-	if (strcmp(func_name,"referer_handle") == 0){
-		return referer_handle;
-	}
-	if (strcmp(func_name,"xcdn_seen_handle") == 0){
-		return xcdn_seen_handle;
-	}
-	if (strcmp(func_name,"content_len_handle") == 0){
-		return content_len_handle;
-	}
-	if (strcmp(func_name,"rtp_version_handle") == 0){
-		return rtp_version_handle;
-	}
-	if (strcmp(func_name,"rtp_jitter_handle") == 0){
-		return rtp_jitter_handle;
-	}
-	if (strcmp(func_name,"rtp_loss_handle") == 0){
-		return rtp_loss_handle;
-	}
-	if (strcmp(func_name,"rtp_order_error_handle") == 0){
-		return rtp_order_error_handle;
-	}
-	if (strcmp(func_name,"rtp_burst_loss_handle") == 0){
-		return rtp_burst_loss_handle;
-	}
-	if (strcmp(func_name,"ssl_server_name_handle") == 0){
-		return ssl_server_name_handle;
-	}
-	// LN: Reconstruct TCP payload on attribute handler
-	if (strcmp(func_name,"tcp_payload_handler") == 0){
-		// printf("[debug] link tcp_payload_handler function\n");
-		return tcp_payload_handler;
-	}
-	return 0;
-}
-
-/* This function registers attributes and attribute handlers for different condition_reports (if enabled in a configuration file).
- * */
-int register_conditional_report_handle(void * args, mmt_condition_report_t * condition_report) {
-	int i = 1,j;
-	uint32_t protocol_id;
-	uint32_t attribute_id;
-	mmt_probe_context_t * probe_context = get_probe_context_config();
-	struct smp_thread *th = (struct smp_thread *) args;
-
-	for(j = 0; j < condition_report->attributes_nb; j++) {
-		protocol_id = 0;
-		attribute_id = 0;
-		mmt_condition_attribute_t * condition_attribute = &condition_report->attributes[j];
-		mmt_condition_attribute_t * handler_attribute = &condition_report->handlers[j];
-
-		i = protocol_id = get_protocol_id_by_name (condition_attribute->proto);
-		if (i == 0) return i;
-
-		i = attribute_id = get_attribute_id_by_protocol_and_attribute_names(condition_attribute->proto,condition_attribute->attribute);
-		if (i == 0) return i;
-
-		if (strcmp(handler_attribute->handler,"NULL") == 0){
-			if (is_registered_attribute(th->mmt_handler, protocol_id, attribute_id) == 0){
-				i = register_extraction_attribute_by_name(th->mmt_handler, condition_attribute->proto, condition_attribute->attribute);
-				if (i == 0) return i;
-			}
-		}else{
-			if (is_registered_attribute_handler(th->mmt_handler, protocol_id, attribute_id, get_handler_by_name (handler_attribute->handler)) == 0){
-				i = register_attribute_handler_by_name(th->mmt_handler, condition_attribute->proto, condition_attribute->attribute, get_handler_by_name (handler_attribute->handler), NULL, args);
-				if (i == 0) return i;
-			}
-		}
-	}
-	return i;
-}
-
-/* This function initializes condition_reports (if enabled in a configuration file).
- * */
-void conditional_reports_init(void * args) {
-	int i;
-	mmt_probe_context_t * probe_context = get_probe_context_config();
-
-	for(i = 0; i < probe_context->condition_reports_nb; i++) {
-		mmt_condition_report_t * condition_report = &probe_context->condition_reports[i];
-		if(register_conditional_report_handle(args, condition_report) == 0) {
-			fprintf(stderr, "Error while initializing condition report number %i!\n", condition_report->id);
-			exit(1);
-		}
-	}
-
-}
 /* This function registers the required attributes for a flow (session)
  * */
 void flowstruct_init(void * args) {
@@ -663,15 +437,15 @@ void flowstruct_init(void * args) {
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_SERVER_PORT);
 	i &= register_extraction_attribute(th->mmt_handler, PROTO_IPV6, IP6_CLIENT_PORT);
 	if (probe_context->enable_IP_fragmentation_report == 1){
-		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_IP_FRAG_PACKET_COUNT);
-		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_IP_FRAG_DATA_VOLUME);
-		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_IP_DF_PACKET_COUNT);
-		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, PROTO_IP_DF_DATA_VOLUME);
+		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, IP_FRAG_PACKET_COUNT);
+		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, IP_FRAG_DATA_VOLUME);
+		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, IP_DF_PACKET_COUNT);
+		i &= register_extraction_attribute(th->mmt_handler, PROTO_IP, IP_DF_DATA_VOLUME);
 	}
 
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
 	i &= register_attribute_handler(th->mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle, NULL, (void *)args);
-	i &= register_attribute_handler(th->mmt_handler, PROTO_IP, IP_RTT, ip_rtt_handler, NULL, (void *)args);
+	if (probe_context->enable_RTT == 1)i &= register_attribute_handler(th->mmt_handler, PROTO_IP, IP_RTT, ip_rtt_handler, NULL, (void *)args);
 	i &=register_attribute_handler(th->mmt_handler, PROTO_TCP,TCP_CONN_CLOSED, tcp_closed_handler, NULL, (void *)args);
 	/*if(probe_context->ftp_enable == 1){
 		register_ftp_attributes(th->mmt_handler);
@@ -684,8 +458,6 @@ void flowstruct_init(void * args) {
 
 void flowstruct_cleanup(void * handler) {
 }
-
-
 
 /*
  ** encodeblock
@@ -807,11 +579,20 @@ mmt_dev_properties_t get_dev_properties_from_user_agent(char * user_agent, uint3
  * It provides the expired session information and frees the memory allocated.
  * */
 void classification_expiry_session(const mmt_session_t * expired_session, void * args) {
+//	debug("classification_expiry_session : %lu",get_session_id(expired_session));
 	session_struct_t * temp_session = get_user_session_context(expired_session);
 	struct smp_thread *th = (struct smp_thread *) args;
 	if (temp_session == NULL) {
 		return;
 	}
+
+#ifdef HTTP_RECONSTRUCT
+    // printf("[debug] cleaning HTTP_RECONSTRUCT ... %lu \n",get_session_id(expired_session));
+    if (temp_session->http_content_processor != NULL) {
+    	close_http_content_processor(temp_session->http_content_processor);
+    }
+    clean_http_session_data(get_session_id(expired_session),th);
+#endif
 
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 
@@ -822,21 +603,27 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 			report_microflows_stats(mf_stats, args);
 		}
 	}else{
-		if(temp_session->app_format_id == probe_context->web_id ){
+		if(temp_session->app_format_id == MMT_WEB_REPORT_FORMAT){
 			if (temp_session->app_data == NULL) {
 				if (temp_session->session_attr != NULL) {
 					//Free the application specific data
-					if (temp_session->session_attr) free(temp_session->session_attr);
+					free(temp_session->session_attr);
 					temp_session->session_attr = NULL;
 				}
-				if(temp_session) free(temp_session);
+				free(temp_session);
 				temp_session = NULL;
 				return;
 			}
 			if (((web_session_attr_t *) temp_session->app_data)->state_http_request_response != 0)((web_session_attr_t *) temp_session->app_data)->state_http_request_response = 0;
 			if (temp_session->session_attr == NULL) {
 				temp_session->session_attr = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
-				memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+				if (temp_session->session_attr != NULL){
+					memset(temp_session->session_attr, 0, sizeof (temp_session_statistics_t));
+				}else {
+					mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating temp_session->session_attr inside classification_expiry_session()");
+					fprintf(stderr, "Out of memory error when creating temp_session->session_attr inside classification_expiry_session()!\n");
+					exit(0);
+				}
 			}
 			temp_session->report_counter = th->report_counter;
 			print_ip_session_report (expired_session, th);
@@ -848,7 +635,7 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 
 	if (temp_session->app_data != NULL) {
 		//Free the application specific data
-		if (temp_session->app_format_id == probe_context->ftp_id){
+		if (temp_session->app_format_id == MMT_FTP_REPORT_FORMAT){
 			if (((ftp_session_attr_t*) temp_session->app_data)->filename != NULL)free (((ftp_session_attr_t*) temp_session->app_data)->filename);
 			if (((ftp_session_attr_t*) temp_session->app_data)->response_value != NULL)free(((ftp_session_attr_t*) temp_session->app_data)->response_value);
 			if (((ftp_session_attr_t*) temp_session->app_data)->session_username != NULL)free(((ftp_session_attr_t*) temp_session->app_data)->session_username);
@@ -858,16 +645,16 @@ void classification_expiry_session(const mmt_session_t * expired_session, void *
 			((ftp_session_attr_t*) temp_session->app_data)->session_username = NULL;
 			((ftp_session_attr_t*) temp_session->app_data)->session_password = NULL;
 		}
-		if(temp_session->app_data) free(temp_session->app_data);
+		free(temp_session->app_data);
 		temp_session->app_data = NULL;
 	}
 	if (temp_session->session_attr != NULL) {
 		//Free the application specific data
-		if (temp_session->session_attr) free(temp_session->session_attr);
+		free(temp_session->session_attr);
 		temp_session->session_attr = NULL;
 	}
 
-	if(temp_session) free(temp_session);
+	free(temp_session);
 	temp_session = NULL;
 }
 
@@ -891,7 +678,7 @@ void write_data_to_file (char * path,  char * content, int len) {
 void tcp_payload_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	// printf("[debug] tcp_payload_handler: %lu\n", ipacket->packet_id);
 
-	
+
 
 	if (ipacket->session == NULL) {
 		debug("[tcp_payload_handler: %lu] Cannot find IP session\n", ipacket->packet_id);
@@ -912,7 +699,7 @@ void tcp_payload_handler(const ipacket_t * ipacket, attribute_t * attribute, voi
 			return;
 		}
 
-		uint32_t * payload_len = (uint32_t *)get_attribute_extracted_data(ipacket,PROTO_TCP,TCP_PAYLOAD_LEN); 
+		uint32_t * payload_len = (uint32_t *)get_attribute_extracted_data(ipacket,PROTO_TCP,TCP_PAYLOAD_LEN);
 		char * tcp_payload = (char*)get_attribute_extracted_data(ipacket,PROTO_TCP,PROTO_PAYLOAD);
 		if(payload_len != NULL && tcp_payload != NULL){
 			// printf("[debug] tcp_payload_handler going to reconstruct the payload: %lu\n", ipacket->packet_id);
@@ -922,7 +709,7 @@ void tcp_payload_handler(const ipacket_t * ipacket, attribute_t * attribute, voi
 			if (temp_session->ipversion == 4) {
 				inet_ntop(AF_INET, (void *) &temp_session->ipclient.ipv4, ip_src_str, INET_ADDRSTRLEN);
 				inet_ntop(AF_INET, (void *) &temp_session->ipserver.ipv4, ip_dst_str, INET_ADDRSTRLEN);
-				uint32_t * ip_src = (uint32_t *)get_attribute_extracted_data(ipacket,PROTO_IP,IP_SRC); 
+				uint32_t * ip_src = (uint32_t *)get_attribute_extracted_data(ipacket,PROTO_IP,IP_SRC);
 				if(*ip_src == temp_session->ipclient.ipv4){
 					direction = 1;
 				}
@@ -944,6 +731,6 @@ void tcp_payload_handler(const ipacket_t * ipacket, attribute_t * attribute, voi
 			}
 			write_data_to_file(path,tcp_payload,*payload_len);
 			free(path);
-		}	
+		}
 	}
 }

@@ -71,8 +71,8 @@ int *check_ip_options(void *op2,void *op1){
   *handle = 0;
   int i2 = *((int*)op2);
   int i1 = *((int*)op1);
-  int bit2 = (i2 >> 1) & 1;
-  int bit1 = (i1 >> 1) & 1;
+  // int bit2 = (i2 >> 1) & 1;
+  // int bit1 = (i1 >> 1) & 1;
 //  if(bit2 == 1 || bit1 == 1){
       if(i2 != i1) *handle = 1;
 //  }
@@ -207,8 +207,8 @@ int *check_URI(void *URI){
   s3 = strstr(uri_str, "/."); //find the first occurrence of string "//" in string
   if ((s0 !=NULL) || (s1 !=NULL) || (s2 !=NULL) || (s3 !=NULL))  *handle = 1;
 #ifdef DEBUG
-  fprintf(stderr, "executing ceck_URI with parameters:h=%d:nb=%u:a1=%o:a2=%o\n", 
-                                           *handle, *(char*)(BLOC3+6),*(char*)(BLOC3+9));
+  fprintf(stderr, "executing check_URI with parameters:h=%d:nb=%u:a1=%o:a2=%o\n", 
+                                           *handle, *(char*)(BLOC3+6),*(char*)(BLOC3+9),*(char*)(BLOC3+12));
 #endif
   if (uri_str != NULL) free(uri_str);
   return handle;
@@ -249,7 +249,7 @@ int *check_sql_injection(void *p, void *pl){
   *handle = 0;
  
   if( (p == NULL) || (pl == NULL) ){
-    *handle = 1;
+    *handle = 2;
     return handle;
   }
   uint16_t len = *((uint16_t *)pl);
@@ -377,46 +377,46 @@ int *check_nfs_redis(void *p_payload, void *payload_len){
     /* Let's check what we have inside the list */
     reply = redisCommand(c,"LRANGE multisession.report 0 -1");
     if (reply->type == REDIS_REPLY_ARRAY) {
-		int j=0;
+ 		int j=0;
         for (j = 0; j < reply->elements; j++) {
 			//printf("report: %s\n", reply->element[j]->str);
-            char f_name[30], probe_report[256];
+            char probe_report[256];
             char *token;
             strcpy(probe_report, reply->element[j]->str);
             token = strtok(reply->element[j]->str, ",");
             int i = 0;
 			while (token != NULL) {
+				//printf("Token:%s\n", token);
 				if (i==1) {
 					//check the validity of the report
 					struct timeval now;
 					gettimeofday(&now, NULL);
-					char *_token;
-					char timestamp[30];
-					strcpy(timestamp, token);
-					token = strtok(NULL, ",");
-					_token = strtok(timestamp, ".");
-					i++;
-					if (_token != NULL){
-						//printf("Timestamp: %s\n", _token);
-						if (now.tv_sec - atoi(_token) > 300) {
+					double element_ts = atof(token);
+					//printf("Timestamp: %4.4f\n", element_ts);
+					if (now.tv_sec - element_ts > 300) {
 							redisCommand(c,"LREM multisession.report 1 %s", probe_report);
 							//printf("Delete the outdated report %s\n", probe_report);
-							continue;
+							i++;
+							break;
 							}
-						}
 					}
 				if (i==2){
-					strcpy(f_name, token);
-					//printf("%s\n", f_name);
+					if (token[0] == ' '){
+					//printf("NULL report\n");
+					break;
+					}
+					//printf("Filename: %s\n", token);
+					if (strstr(p_payload, token) != NULL){
+					//printf ("Detected\n");
+					redisFree(c);
+                    free(tcp_payload);
+					return 1;
+					}        
 					}
 				token = strtok(NULL, ",");
 				i++;
 				}
-			if (strstr(tcp_payload, f_name) != NULL){
-			//printf ("Detected\n");
-			*handle = 1;
-			return handle;
-			}            
+			    
         }
     }
   redisFree(c);
