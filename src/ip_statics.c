@@ -16,6 +16,8 @@
 #include "processing.h"
 #include <unistd.h>
 
+#include "gtp_session_report.h"
+
 /* This function is for reporting session reports */
 void print_ip_session_report (const mmt_session_t * session, void *user_args){
 
@@ -37,7 +39,6 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 			proto_flag = 1;
 			break;
 		}
-
 	}
 	if (proto_flag == 0 && probe_context->session_report_proto.nb_protocols != 0) {
 		return;
@@ -191,6 +192,7 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	else if (temp_session->app_format_id == MMT_RTP_REPORT_FORMAT && probe_context->rtp_enable == 1) print_initial_rtp_report(session, temp_session, message,valid);
 	else if (temp_session->app_format_id == MMT_SSL_REPORT_FORMAT && temp_session->session_attr->touched == 0 && probe_context->ssl_enable == 1) print_initial_ssl_report(session, temp_session, message, valid);
 	else if (temp_session->app_format_id == MMT_FTP_REPORT_FORMAT && probe_context->ftp_enable == 1) print_initial_ftp_report(session, temp_session, message, valid);
+	else if (temp_session->app_format_id == MMT_GTP_REPORT_FORMAT && probe_context->gtp_enable == 1) print_initial_gtp_report(session, temp_session, message, valid);
 	else if(temp_session->session_attr->touched == 0){
 		sslindex = get_protocol_index_from_session(proto_hierarchy, PROTO_SSL);
 		if (sslindex != -1 && probe_context->ssl_enable == 1 ){
@@ -202,9 +204,12 @@ void print_ip_session_report (const mmt_session_t * session, void *user_args){
 	message[ valid ] = '\0'; // correct end of string in case of truncated message
 
 	if (probe_context->output_to_file_enable && probe_context->session_output_channel[0])send_message_to_file_thread (message, (void *)user_args);
+	__IF_REDIS(
 	if (probe_context->redis_enable && probe_context->session_output_channel[1])send_message_to_redis ("session.flow.report", message);
+	)
+	__IF_KAFKA(
 	if (probe_context->kafka_enable && probe_context->session_output_channel[2])send_msg_to_kafka(probe_context->topic_object->rkt_session, message);
-
+	)
 	temp_session->session_attr->retransmission_count = get_session_retransmission_count (session);
 
 	temp_session->session_attr->total_byte_count = get_session_data_cap_volume(session);

@@ -297,7 +297,7 @@ void cleanup_report_allocated_memory(){
 		mmt_probe.smp_threads = NULL;
 	}
 
-
+	__IF_KAFKA(
 	/* Destroy the producer instance */
 	if (mmt_conf->kafka_producer_instance != NULL){
 		fprintf(stderr, "Flushing final messages..\n");
@@ -317,8 +317,10 @@ void cleanup_report_allocated_memory(){
 			if (mmt_conf->topic_object->rkt_frag != NULL) rd_kafka_topic_destroy(mmt_conf->topic_object->rkt_frag);
 			free (mmt_conf->topic_object);
 		}
+
 		rd_kafka_destroy(mmt_conf->kafka_producer_instance);
 	}
+	)
 
 }
 /* This function is executed before exiting the program,
@@ -331,7 +333,9 @@ void terminate_probe_processing(int wait_thread_terminate) {
 
 	//For MMT_Security
 	//To finish results file (e.g. write summary in the XML file)
+__IF_SECURITY_V1(
 	todo_at_end();
+)
 	//End for MMT_Security
 
 	//Cleanup
@@ -339,7 +343,9 @@ void terminate_probe_processing(int wait_thread_terminate) {
 		//One thread for processing packets
 		//Cleanup the MMT handler
 #ifdef PCAP		
+__IF_SECURITY(
 		clean_up_security2(&mmt_probe);
+)
 		if (cleanup_registered_handlers (mmt_probe.smp_threads) == 0){
 			fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",mmt_probe.smp_threads->thread_index);
 		}
@@ -451,10 +457,10 @@ void terminate_probe_processing(int wait_thread_terminate) {
 
 	}
 	cleanup_report_allocated_memory ();
-
+__IF_SECURITY(
 	if( mmt_conf->security2_enable )
 		close_security();
-
+)
 
 	//printf("close_extraction_start\n");
 	close_extraction();
@@ -613,9 +619,12 @@ void *cpu_ram_usage_routine(void * args){
 						probe_context->cpu_reports->cpu_usage_avg, probe_context->cpu_reports->mem_usage_avg);
 			}
 			message[ valid] = '\0';
-
+			__IF_REDIS(
 			if (probe_context->redis_enable && probe_context->cpu_mem_output_channel[1] )send_message_to_redis ("cpu.report", message);
+			)
+			__IF_KAFKA(
 			if (probe_context->kafka_enable && probe_context->cpu_mem_output_channel[2] )send_msg_to_kafka(probe_context->topic_object->rkt_cpu, message);
+			)
 			//printf("The current CPU utilization is : %Lf percent\n",cpu_usage_avg);
 			//printf("Memory usage : %Lf percent (%Lf/%Lf)\n",((t2[6]+t1[6])*100/(2*t1[4])),(t2[6]+t1[6])/2, t1[4]);
 		}
@@ -623,6 +632,11 @@ void *cpu_ram_usage_routine(void * args){
 
 	return(0);
 }
+
+#define _INFO( ... ) \
+	printf("[INFO] " __VA_ARGS__ ); \
+	printf("\n"); \
+	mmt_log(mmt_conf, MMT_L_INFO, MMT_P_INIT, __VA_ARGS__ );
 
 int main(int argc, char **argv) {
 	int i, j, l = 0;
@@ -705,17 +719,26 @@ int main(int argc, char **argv) {
 		pthread_create(&mmt_conf->cpu_ram_usage_thr, NULL, cpu_ram_usage_routine, NULL);
 	}
 
+__IF_SECURITY(
 	//config security2
 	if( mmt_conf->security2_enable ){
 		//initialize security rules
 		if( init_security() != 0 )
 			return 1;
 	}
-	printf("[info] Versions: Probe v%s (%s), DPI v%s, Security v0.9b \n",
+)
+	_INFO("Versions: Probe v%s (%s), DPI v%s"
+			__IF_SECURITY(", Security v%s"),
 			VERSION, GIT_VERSION, //these version information are given by Makefile
-			mmt_version());
+			mmt_version()
+#ifdef SECURITY
+			,
+			mmt_sec_get_version_number()
+#endif
+	);
+	_INFO("Modules: %s", __MODULES );
+	_INFO("Built %s %s", __DATE__, __TIME__);
 
-	printf("[info] built %s %s\n", __DATE__, __TIME__);
 /*        if (strlen(mmt_conf->session_proto_include) == 0) {
             mmt_conf ->session_proto_id_include = -1;
             printf ("proto_include = %d\n", mmt_conf->session_proto_id_include);

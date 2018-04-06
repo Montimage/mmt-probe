@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include "processing.h"
 
+#ifdef KAFKA
 rd_kafka_conf_t *conf = NULL;
 char *topic;      /* Argument: topic to produce to */
 
@@ -204,3 +205,4 @@ void send_msg_to_kafka(rd_kafka_topic_t *rkt, char *message){
 		 * you register). */
 		 rd_kafka_poll(probe_context->kafka_producer_instance, 0/*non-blocking*/);
 }
+#endif

@@ -342,7 +342,11 @@ void flush_messages_to_file_thread( void *arg){
 			if( th->cache_message_list[ i ] == NULL ){
 				perror("this message should not be NULL");
 			}else{
-				fprintf ( file, "%s\n", th->cache_message_list[ i ]);
+				if( probe_context->output_format == OUTPUT_FORMAT_CSV )
+					fprintf ( file, "%s\n", th->cache_message_list[ i ]);
+				else
+					fprintf ( file, "[%s]\n", th->cache_message_list[ i ]);
+
 				//printf("message ,th->nd =%d,= %s\n",th->thread_number,th->cache_message_list[ i ]);
 				if (th->cache_message_list[ i ]) free( th->cache_message_list[ i ] );
 				th->cache_message_list[ i ] = NULL;
@@ -456,7 +460,12 @@ void send_message_to_file_thread (char * message, void *args) {
 		}
 		pthread_spin_unlock(&th->lock);
 	}else if (probe_context->sampled_report == 0) {
-		fprintf (probe_context->data_out_file, "%s\n", message);
+		if( probe_context->output_format == OUTPUT_FORMAT_CSV )
+			fprintf (probe_context->data_out_file, "%s\n", message);
+		else
+			fprintf (probe_context->data_out_file, "[%s]\n", message);
+		//force to flush the cache: write message to file immediately
+		fflush( probe_context->data_out_file );
 	}
 
 }
@@ -485,7 +494,10 @@ void send_message_to_file (char * message) {
 		fprintf ( stderr , "\n Error: %d creation of \"%s\" failed: %s\n" , errno , file_name_str , strerror( errno ) );
 		//exit(1);
 	}else{
-		fprintf ( file, "%s\n", message);
+		if( probe_context->output_format == OUTPUT_FORMAT_CSV )
+			fprintf ( file, "%s\n", message);
+		else
+			fprintf ( file, "[%s]\n", message);
 
 		i = fclose( file );
 

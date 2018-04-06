@@ -21,7 +21,7 @@
 +OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 +THE SOFTWARE.
  */
-
+#ifdef REDIS
 #ifndef THREDIS_H
 #define THREDIS_H
 #include <hiredis/hiredis.h>
@@ -33,4 +33,5 @@ void
 thredis_close(thredis_t* thredis);
 redisReply*
 thredis_command(thredis_t* thredis, const char* format, ...);
+#endif
 #endif

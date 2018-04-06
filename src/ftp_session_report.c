@@ -13,22 +13,6 @@
 #include "tcpip/mmt_tcpip.h"
 #include "processing.h"
 
-/* This function writes FTP data to a file */
-void write_data_to_file (char * path,  char * content, int len) {
-	int fd = 0;
-	if ( (fd = open ( path , O_CREAT | O_WRONLY | O_APPEND | O_NOFOLLOW , S_IRWXU | S_IRWXG | S_IRWXO )) < 0 )
-	{
-		fprintf ( stderr , "\n[e] Error %d writting data to \"%s\": %s" , errno , path , strerror( errno ) );
-		return;
-	}
-
-	if (len > 0) {
-		debug("[FTP_RECONSTRUCT] Going to write to file: %s\n", path);
-		int buf_len = write ( fd , content , len );
-		debug("[FTP_RECONSTRUCT] %d bytes have been written\n", buf_len);
-	}
-	close ( fd );
-}
 /* This function resets FTP session attributes */
 void reset_ftp_parameters(const ipacket_t * ipacket, session_struct_t *temp_session ) {
 	((ftp_session_attr_t*) temp_session->app_data)->file_download_starttime_sec = 0;
@@ -298,9 +282,12 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
 			message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
 
 			if (probe_context->output_to_file_enable && probe_context->ftp_reconstruct_output_channel[0])send_message_to_file_thread (message, (void *)user_args);
+			__IF_REDIS(
 			if (probe_context->redis_enable && probe_context->ftp_reconstruct_output_channel[1])send_message_to_redis ("ftp.download.report", message);
+			)
+			__IF_KAFKA(
 			if (probe_context->kafka_enable && probe_context->ftp_reconstruct_output_channel[2] == 1)send_msg_to_kafka(probe_context->topic_object->rkt_ftp_download, message);
-
+			)
 			reset_ftp_parameters(ipacket, temp_session);
 			break;
 		}
@@ -315,7 +302,7 @@ void print_initial_ftp_report(const mmt_session_t * session, session_struct_t * 
 		debug("[FTP_REPORT] Cannot get probe context\n");
 		return;
 	}
-	
+
 	if(session == NULL || temp_session == NULL || temp_session->app_data == NULL || temp_session->app_format_id != MMT_FTP_REPORT_FORMAT){
 		debug("[FTP_REPORT] Does not have data, or not FTP report\n");
 		return;

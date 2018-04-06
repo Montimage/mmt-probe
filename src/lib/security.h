@@ -9,8 +9,14 @@
 #define SRC_LIB_SECURITY_H_
 
 #include <mmt_core.h>
-#include <mmt_security.h>
+#ifdef SECURITY
 
+#ifdef DEBUG
+	//this flag is conflict with the one of mmt-security
+	#undef DEBUG
+	#define DEBUG_MODE
+#endif
+#include <mmt_security.h>
 #include "../processing.h"
 
 typedef struct sec_wrapper_struct{
@@ -89,3 +95,4 @@ static inline const char* security_get_version(){
 }
 
 #endif /* SRC_LIB_SECURITY_H_ */
+#endif

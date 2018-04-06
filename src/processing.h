@@ -4,6 +4,9 @@
 extern "C" {
 #endif
 //#define _GNU_SOURCE
+#include <inttypes.h>
+
+#include "module.h"
 
 #include "lib/data_spsc_ring.h"
 #include "mmt_core.h"
@@ -11,7 +14,10 @@ extern "C" {
 #include "lib/pcap_dump.h"
 
 #include <semaphore.h>
-#include "rdkafka.h"
+
+#ifdef KAFKA
+	#include <rdkafka.h>
+#endif
 
 #ifndef __USE_GNU
 #define __USE_GNU
@@ -22,6 +28,9 @@ extern "C" {
 #define OFFLINE_ANALYSIS 0x2
 #define MMT_RADIUS_REPORT_ALL 0x0
 #define MMT_RADIUS_REPORT_MSG 0x1
+
+#define OUTPUT_FORMAT_CSV   1
+#define OUTPUT_FORMAT_JSON  2
 
 //#define MMT_RADIUS_ANY_CONDITION 0x0
 #define MMT_RADIUS_IP_MSISDN_PRESENT 0x1
@@ -35,6 +44,7 @@ extern "C" {
 #define MMT_MICRO_FLOW_REPORT_FORMAT    0x8
 #define MMT_WEB_REPORT_FORMAT    0x1
 #define MMT_FTP_REPORT_FORMAT    0x4
+#define MMT_GTP_REPORT_FORMAT    0x5
 #define MMT_RTP_REPORT_FORMAT    0x3
 #define MMT_SSL_REPORT_FORMAT    0x2
 #define MMT_HTTP_RECONSTRUCT_REPORT_FORMAT    0xb
@@ -216,7 +226,7 @@ typedef struct ip_port_struct {
 /**
  * HTTP content processing structure
  */
-typedef struct 
+typedef struct
 {
 	int status; //indicates if we can process data or not, not used but can be if we wish to limit processing to one direction client-> server or server->client
 	int interaction_count; //number of HTTP messages seen on the same session
@@ -248,6 +258,7 @@ typedef struct mmt_cpu_perf_struct {
 	long double mem_usage_avg;
 } mmt_cpu_perf_t;
 
+__IF_KAFKA(
 typedef struct kafka_topic_object_struct{
 	rd_kafka_topic_t * rkt_session;
 	rd_kafka_topic_t * rkt_event;
@@ -262,7 +273,7 @@ typedef struct kafka_topic_object_struct{
 	rd_kafka_topic_t * rkt_frag;
 
 }kafka_topic_object_t;
-
+)
 
  /* Structure contains information of session-report protocols
  */
@@ -306,8 +317,10 @@ typedef struct mmt_probe_context_struct {
 	char license_location[256 + 1];
 	char behaviour_output_location[256 + 1];
 	char ftp_reconstruct_output_location[256 + 1];
+	char tcp_reconstruct_output_location[256 + 1];
 	char dynamic_config_file[256 + 1];
 
+	uint32_t gtp_enable;
 	uint32_t ftp_enable;
 	uint32_t web_enable;
 	uint32_t rtp_enable;
@@ -317,6 +330,8 @@ typedef struct mmt_probe_context_struct {
 	uint32_t event_based_reporting_enable;
 	uint32_t condition_based_reporting_enable;
 	uint32_t enable_security_report;
+
+	uint32_t tcp_reconstruct_enable;
 	uint32_t ftp_reconstruct_enable;
 	uint32_t radius_enable;
 	uint32_t default_session_timeout;
@@ -328,9 +343,9 @@ typedef struct mmt_probe_context_struct {
 	uint32_t redis_enable;
 	uint32_t kafka_enable;
 	//rd_kafka_topic_conf_t * topic_old;
-
+__IF_KAFKA(
 	kafka_topic_object_t * topic_object;
-
+)
 	char out_f_name_index[256 + 1];
 	FILE * data_out_file;
 	int combine_radius;
@@ -356,6 +371,7 @@ typedef struct mmt_probe_context_struct {
 	uint32_t stats_reporting_period;
 	uint32_t sampled_report_period;
 	uint32_t sampled_report;
+	uint8_t output_format;
 	uint32_t event_reports_nb;
 	uint32_t condition_reports_nb;
 	uint32_t new_condition_reports_nb;
@@ -416,9 +432,9 @@ typedef struct mmt_probe_context_struct {
 	uint8_t enable_RTT;
 	uint8_t enable_RTT_at_handshake;
 
-
+__IF_KAFKA(
 	rd_kafka_t *kafka_producer_instance;         /* Producer instance handle */
-
+)
 
 	//hn - new security
 	bool security2_enable;
@@ -531,7 +547,7 @@ typedef struct session_struct {
 	uint8_t isClassified;
 #ifdef HTTP_RECONSTRUCT
 	http_content_processor_t * http_content_processor;
-#endif // End of HTTP_RECONSTRUCT   
+#endif // End of HTTP_RECONSTRUCT
 	uint16_t format_id;
 	uint16_t app_format_id;
 	int proto_path;
@@ -686,7 +702,7 @@ struct smp_thread {
 	sem_t sem_wait;
 #ifdef HTTP_RECONSTRUCT
 	http_session_data_t * list_http_session_data;
-#endif	
+#endif
 
 	int fd;
 	time_t last_pcap_dump_time;
@@ -710,8 +726,11 @@ struct sockaddr_un {
 	unsigned short sun_family;  /* AF_UNIX */
 	char sun_path[108];
 };
-void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char * log_msg);
+void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char *format, ...);
+
+__IF_REDIS(
 void init_redis (char * hostname, int port);
+)
 void proto_stats_cleanup(void * handler);
 void flowstruct_init(void * handler);
 void flowstruct_cleanup(void * handler);
@@ -723,7 +742,9 @@ void security_event( int prop_id, char *verdict, char *type, char *cause, char *
 void protocols_stats_iterator(uint32_t proto_id, void * args);
 void send_message_to_file (char * message);
 void send_message_to_file_thread (char * message, void *args);
+__IF_REDIS(
 void send_message_to_redis (char *channel, char * message);
+)
 int proto_hierarchy_ids_to_str(const proto_hierarchy_t * proto_hierarchy, char * dest);
 int is_local_net(int addr);
 int is_localv6_net(char * addr);
@@ -772,6 +793,14 @@ void rtp_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * 
 void rtp_order_error_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+/**
+ * LN
+ * Handler to write the tcp payload to the file
+ * @param ipacket   packet file
+ * @param attribute [description]
+ * @param user_args [description]
+ */
+void tcp_payload_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void content_len_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
@@ -780,6 +809,14 @@ void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void
 int file_is_modified(const char *path);
 void write_to_socket_internet(struct smp_thread *th);
 void write_to_socket_unix(struct smp_thread *th);
+/**
+ * LN
+ * Write some data to file
+ * @param path    path to reconstructed file
+ * @param content content to write to the file
+ * @param len     length of the data will be written on the file
+ */
+void write_data_to_file (char * path,  char * content, int len);
 void create_socket(mmt_probe_context_t * mmt_conf, void *args);
 int packet_handler(const ipacket_t * ipacket, void * args);
 void security_reports_init(void * args);
@@ -804,7 +841,9 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe);
 
 
 void init_kafka(char * hostname, int port);
+__IF_KAFKA(
 void send_msg_to_kafka(rd_kafka_topic_t *rkt, char *message);
+)
 /** Luong NGUYEN: HTTP reconstruct */
 #ifdef HTTP_RECONSTRUCT
 /**
