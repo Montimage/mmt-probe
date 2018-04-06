@@ -108,6 +108,7 @@ typedef struct data_dump_conf_struct{
 	uint16_t retained_files_count; //retains the last x sampled files,
 									//set to 0 to retain all files
 									// ( note that the value of retain-files must be greater than the value of thread_nb + 1)
+	uint16_t snap_len;
 }data_dump_conf_t;
 
 typedef struct reconstruct_ftp_conf_struct{

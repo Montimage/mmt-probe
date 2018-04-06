@@ -10,7 +10,7 @@
 #include "dpi.h"
 
 typedef struct data_dump_context_struct{
-	int dump_file_handler;
+	pcap_dump_t *dump_handler;
 	const data_dump_conf_t *config;
 	struct timeval last_dump_ts;
 	int worker_index;
@@ -21,9 +21,12 @@ typedef struct data_dump_context_struct{
 static int _packet_handler_to_dump_data(const ipacket_t * ipacket, void * args) {
 	data_dump_context_t *context = (data_dump_context_t *)args;
 	char file_name[MAX_LENGTH_FULL_PATH_FILE_NAME ];
+
 	uint64_t last_proto = ipacket->proto_hierarchy->proto_path[ipacket->proto_hierarchy->len-1];
 	int i, j;
+
 	//for each protocol need to be dump
+	//=> need to check if it exists inside protocol hierarchy of packet
 	for( i = 0; i < context->config->protocols_size; i++ ){
 		int proto_to_check = context->proto_ids_lst[i];
 
@@ -34,12 +37,14 @@ static int _packet_handler_to_dump_data(const ipacket_t * ipacket, void * args) 
 			//found one protocol
 
 			//check periodically
-			if( context->dump_file_handler <= 0
+			if( context->dump_handler == NULL
 					|| u_second_diff( &ipacket->p_hdr->ts, &context->last_dump_ts) >= context->config->frequency * 1000000L ){
 
 				//close old file
-				if( context->dump_file_handler > 0 )
-					pd_close( context->dump_file_handler );
+				if( context->dump_handler != NULL ){
+					pcap_dump_release( context->dump_handler );
+					context->dump_handler = NULL;
+				}
 
 				//set new file name
 				(void)snprintf(file_name, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s%lu_thread_%d.pcap",
@@ -48,8 +53,8 @@ static int _packet_handler_to_dump_data(const ipacket_t * ipacket, void * args) 
 						context->worker_index);
 
 				//open new file
-				context->dump_file_handler = pd_open( file_name );
-				if( context->dump_file_handler == -1){
+				context->dump_handler = pcap_dump_create( file_name, DLT_EN10MB, 0, context->config->snap_len );
+				if( context->dump_handler == NULL){
 					log_write( LOG_ERR, "Cannot open file %s for dumping pcap: %s",
 							file_name,
 							strerror( errno )
@@ -60,8 +65,11 @@ static int _packet_handler_to_dump_data(const ipacket_t * ipacket, void * args) 
 				context->last_dump_ts = ipacket->p_hdr->ts;
 			}
 
-			pd_write( context->dump_file_handler, (char*)ipacket->data,
-					ipacket->p_hdr->caplen, &(ipacket->p_hdr->ts));
+			pcap_dump_write( context->dump_handler, (char*)ipacket->data,
+					ipacket->p_hdr->len,
+					//real length of packet to write to file
+					MIN( ipacket->p_hdr->caplen, context->config->snap_len ),
+					&(ipacket->p_hdr->ts));
 
 			return 0;
 		}
@@ -75,7 +83,7 @@ void data_dump_start( dpi_context_t *dpi_context ){
 		return;
 
 	data_dump_context_t *context = alloc( sizeof( data_dump_context_t ));
-	context->dump_file_handler = 0;
+	context->dump_handler = NULL;
 	context->config = dpi_context->probe_config->reports.data_dump;
 	context->worker_index = dpi_context->worker_index;
 

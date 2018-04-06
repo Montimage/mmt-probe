@@ -93,6 +93,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_STR_LIST("protocols", "{}", CFGF_NONE),
 			CFG_INT("period", 0, CFGF_NONE),
 			CFG_INT("retain-files", 0, CFGF_NONE),
+			CFG_INT("snap-len", 0, CFGF_NONE),
 			CFG_END()
 		};
 
@@ -339,6 +340,7 @@ static inline data_dump_conf_t *_parse_dump_to_file( cfg_t *cfg ){
 	if( ret->frequency == 0 )
 		ret->frequency = 3600;
 	ret->retained_files_count = cfg_getint( cfg, "retain-files" );
+	ret->snap_len = cfg_getint( cfg, "snap-len" );
 
 	ret->protocols_size = cfg_size( cfg, "protocols");
 
