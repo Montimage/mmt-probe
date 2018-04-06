@@ -20,7 +20,7 @@ VERSION     := 1.2.2
 
 
 #set of library
-LIBS     := -L/opt/mmt/dpi/lib -L/opt/mmt/security/lib -lmmt_core -lmmt_tcpip -lmmt_security2 -lxml2 -lconfuse -lhiredis -lpthread -lrdkafka -lrt
+LIBS     := -L/opt/mmt/dpi/lib -L/opt/mmt/security/lib -lmmt_core -lmmt_tcpip -lmmt_security -lmmt_security2 -lxml2 -lconfuse -lhiredis -lpthread -lrdkafka -lrt
 
 #for debuging
 ifdef DEBUG
@@ -45,6 +45,10 @@ include $(RTE_SDK)/mk/rte.vars.mk
 ifdef HTTP_RECONSTRUCT
 LIBS     += -lhtmlstreamparser -lz
 CFLAGS   += -DHTTP_RECONSTRUCT
+endif
+
+ifdef TCP_RECONSTRUCT
+CFLAGS   += -DTCP_RECONSTRUCT
 endif
 
 # For showing message from debug(...)
@@ -89,6 +93,10 @@ ifdef PCAP
 ifdef HTTP_RECONSTRUCT
 LIBS     += -lhtmlstreamparser -lz
 CFLAGS   += -DHTTP_RECONSTRUCT
+endif
+
+ifdef TCP_RECONSTRUCT
+CFLAGS   += -DTCP_RECONSTRUCT
 endif
 
 # For showing message from debug(...)
