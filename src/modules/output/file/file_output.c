@@ -171,6 +171,7 @@ int file_output_write( file_output_t *output, const char *message ){
 	EXPECT( output != NULL && output->file != NULL && message != NULL, 0 );
 
 	int ret = fprintf( output->file, "%s\n", message );
+	//int ret = fwrite( message, strlen( message ), 1, output->file );
 	//printf( "%s\n", message );
 	return ret;
 }

@@ -203,6 +203,7 @@ struct output_conf_struct{
 	file_output_conf_t  *file;
 	redis_output_conf_t *redis;
 	kafka_output_conf_t *kafka;
+	enum {OUTPUT_FORMAT_CSV, OUTPUT_FORMAT_JSON} format;
 };
 
 /**

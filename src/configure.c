@@ -28,6 +28,19 @@ static int _conf_parse_input_mode(cfg_t *cfg, cfg_opt_t *opt, const char *value,
 	return 0;
 }
 
+/* parse values for the output format option */
+int conf_parse_output_format(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
+	if( value == NULL || value[0] == '\0' || strcasecmp(value, "CSV") == 0)
+		*(int *) result = OUTPUT_FORMAT_CSV;
+	else if (strcasecmp(value, "JSON") == 0)
+		*(int *) result = OUTPUT_FORMAT_JSON;
+	else {
+		cfg_error(cfg, "Invalid '%s' for option '%s'. Use either CSV or JSON.", value, cfg_opt_name(opt));
+		return -1;
+	}
+	return 0;
+}
+
 static inline cfg_t *_load_cfg_from_file(const char *filename) {
 	cfg_opt_t micro_flows_opts[] = {
 			CFG_BOOL("enable", false, CFGF_NONE),
@@ -208,6 +221,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_SEC("security-report-multisession", security_report_multisession_opts, CFGF_TITLE | CFGF_MULTI),
 			CFG_SEC("session-report", session_report_opts, CFGF_NONE),
 			CFG_SEC("dynamic-config", dynamic_conf_opts, CFGF_NONE),
+			CFG_INT_CB("output-format", 0, CFGF_NONE, conf_parse_output_format),
 			CFG_END()
 	};
 
@@ -624,13 +638,14 @@ probe_conf_t* load_configuration_from_file( const char* filename ){
 	int i;
 	cfg_t *cfg = _load_cfg_from_file( filename );
 	if( cfg == NULL ){
-		exit( EXIT_FAILURE );
+		return NULL;
 	}
 
 	probe_conf_t *conf = alloc( sizeof( probe_conf_t ) );
 
 	conf->probe_id     = cfg_getint(cfg, "probe-id");
 	conf->stat_period  = cfg_getint(cfg, "stats-period");
+	conf->outputs.format  = cfg_getint(cfg, "output-format");
 	conf->license_file = _cfg_get_str(cfg, "license" );
 	conf->is_enable_proto_no_session_stat = cfg_getbool(cfg, "enable-proto-without-session-report");
 	conf->is_enable_ip_fragementation     = cfg_getbool(cfg, "enable-ip-fragmentation-report");

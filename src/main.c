@@ -42,7 +42,7 @@
 
 
 //#define DEFAULT_CONFIG_FILE "/opt/mmt/probe/mmt-probe.conf"
-#define DEFAULT_CONFIG_FILE "./probe.conf"
+#define DEFAULT_CONFIG_FILE "./mmt-probe.conf"
 
 void usage(const char * prg_name) {
 	printf("%s [<option>]\n", prg_name);
@@ -52,7 +52,7 @@ void usage(const char * prg_name) {
 	printf("\t-t <trace file>  : Gives the trace file to analyse.\n");
 	printf("\t-i <interface>   : Gives the interface name for live traffic analysis.\n");
 	printf("\t-o <output file> : Gives the output file name. \n");
-	printf("\t-R <output dir>  : Gives the security output folder name. \n");
+	printf("\t-r <output dir>  : Gives the security output folder name. \n");
 	printf("\t-p <period>      : Gives the period (in seconds) for statistics reporting. \n");
 	printf("\t-n <number>      : Give the unique probe id number. \n");
 	printf("\t-T <number>      : Give the number of threads. \n");
@@ -72,18 +72,21 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 	int opt, optcount = 0;
 	int val;
 
-	const char *options = "c:t:T:i:o:R:P:p:s:n:f:vh";
+	const char *options = "c:t:T:i:o:r:P:p:s:n:f:vh";
 	const char *config_file = DEFAULT_CONFIG_FILE;
 	probe_conf_t *conf = NULL;
 
 	extern char *optarg;
 	extern int optind;
 
+	bool is_user_gives_conf_file = false;
+
 	//first parser round to get configuration file
 	while ((opt = getopt(argc, argv, options )) != EOF) {
 		switch (opt) {
 		case 'c':
 			config_file = optarg;
+			is_user_gives_conf_file = true;
 			break;
 		case 'v':
 			printf("Version:\n");
@@ -100,6 +103,20 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 	}
 
 	conf = load_configuration_from_file( config_file );
+	if( conf == NULL ){
+		//config_file is indicated by user by -c parameter
+		if( is_user_gives_conf_file ){
+			fprintf(stderr, "Cannot read configuration file from %s\n", config_file );
+			abort();
+		}else{
+			//try again to read config from /opt/mmt/probe/mmt-probe.conf
+			config_file = "/opt/mmt/probe/mmt-probe.conf";
+			conf = load_configuration_from_file( config_file );
+			if( conf == NULL )
+				abort();
+		}
+	}
+
 	//reset getopt function
 	optind = 0;
 	//override some options inside the configuration
@@ -120,6 +137,10 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 			//stat period
 		case 'p':
 			conf->stat_period = mmt_atoi(optarg, 1, 60, 5);
+			break;
+
+		case 'r':
+			_override_string_conf( &conf->outputs.file->directory, optarg );
 			break;
 			//enable/disable no-session protocol statistic
 		case 's':
@@ -185,15 +206,16 @@ void print_execution_trace () {
 
 static inline void _stop_modules( probe_context_t *context){
 
-IF_ENABLE_PCAP_MODULE(
-	pcap_capture_stop(context);
-)
+	IF_ENABLE_PCAP_MODULE(
+		pcap_capture_stop(context);
+	)
 
 }
 
 
 
-probe_context_t context;
+static probe_context_t context;
+
 /* This signal handler ensures clean exits */
 void signal_handler(int type) {
 	switch (type) {
@@ -225,7 +247,6 @@ void signal_handler(int type) {
 		log_write(LOG_ERR, "Termination signal received! Cleaning up before exiting!");
 		break;
 	case SIGABRT:
-		print_execution_trace();
 #ifdef DPDK_MODULE
 		rte_exit_failure( "Abort signal received! Cleaning up before exiting!" );
 #else
@@ -277,8 +298,6 @@ IF_ENABLE_DEBUG(
 	log_write( LOG_INFO, "MMT-Probe v%s is running on pid %d",
 			get_version(),
 			getpid() );
-
-	log_write( LOG_INFO, "MMT-Probe's modules: %s", MODULES_LIST );
 
 	//DPI initialization
 	if( !init_extraction() ) { // general ixE initialization

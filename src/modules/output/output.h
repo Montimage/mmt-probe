@@ -34,9 +34,6 @@ output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct
 
 int output_write( output_t *output, const output_channel_conf_t *channels, const char *message );
 
-int output_write_report( output_t *output, const output_channel_conf_t *channels,
-		report_type_t report_type, const struct timeval *ts,
-		const char* message);
 /**
  * Write output to a set of channels: file/redis/kafka
  * @param output
@@ -51,6 +48,15 @@ int output_write_report_with_format( output_t *output, const output_channel_conf
 		report_type_t report_type, const struct timeval *ts,
 		const char* format, ...)
 __attribute__((format (printf, 5, 6)));
+
+static inline int output_write_report( output_t *output, const output_channel_conf_t *channels,
+		report_type_t report_type, const struct timeval *ts,
+		const char* message_body){
+	if( message_body == NULL )
+		return output_write_report_with_format( output, channels, report_type, ts, NULL );
+	else
+		return output_write_report_with_format( output, channels, report_type, ts, "%s", message_body );
+}
 
 void output_flush( output_t *output );
 

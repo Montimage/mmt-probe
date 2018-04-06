@@ -41,9 +41,9 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 
 	message[offset] = '\0';
 
-	output_write_report_with_format( context->output, &context->config->output_channels,
+	output_write_report( context->output, &context->config->output_channels,
 			EVENT_REPORT_TYPE,
-			&packet->p_hdr->ts, "%s", message );
+			&packet->p_hdr->ts, message );
 }
 
 

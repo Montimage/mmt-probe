@@ -21,7 +21,7 @@ VERSION     := 1.2.2
 $(info Building MMT-Probe version $(VERSION) $(GIT_VERSION))
 
 #set of library
-LIBS     := -L/opt/mmt/dpi/lib -lmmt_core -lmmt_tcpip -lmmt_security -lconfuse -lpthread 
+LIBS     := -L/opt/mmt/dpi/lib -lmmt_core -lmmt_tcpip -lconfuse -lpthread 
 CFLAGS   := -I /opt/mmt/dpi/include -Wall -Wno-unused-variable\
 			   -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"
 
