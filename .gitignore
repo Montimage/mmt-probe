@@ -39,3 +39,4 @@ src/examples/proto_attributes_iterator
 /.cproject
 /.project
 /rsync.sh
+/rrrsync.sh

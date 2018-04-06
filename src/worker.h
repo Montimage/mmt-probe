@@ -27,8 +27,8 @@
 #include "lib/memory.h"
 
 
-#include "../modules/output/output.h"
-#include "../modules/dpi/dpi.h"
+#include "modules/output/output.h"
+#include "modules/dpi/dpi.h"
 
 
 struct security_context_struct;

@@ -8,7 +8,7 @@
 #ifndef SRC_MODUELS_ROUTINE_SYSTEM_STATS_H_
 #define SRC_MODUELS_ROUTINE_SYSTEM_STATS_H_
 
-#include "../../lib/configure.h"
+#include "../../configure.h"
 #include "../output/output.h"
 
 typedef struct system_stats_context_struct system_stats_context_t;
