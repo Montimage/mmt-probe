@@ -226,7 +226,7 @@ typedef struct ip_port_struct {
 /**
  * HTTP content processing structure
  */
-typedef struct 
+typedef struct
 {
 	int status; //indicates if we can process data or not, not used but can be if we wish to limit processing to one direction client-> server or server->client
 	int interaction_count; //number of HTTP messages seen on the same session
@@ -317,6 +317,7 @@ typedef struct mmt_probe_context_struct {
 	char license_location[256 + 1];
 	char behaviour_output_location[256 + 1];
 	char ftp_reconstruct_output_location[256 + 1];
+	char tcp_reconstruct_output_location[256 + 1];
 	char dynamic_config_file[256 + 1];
 
 	uint32_t gtp_enable;
@@ -329,6 +330,8 @@ typedef struct mmt_probe_context_struct {
 	uint32_t event_based_reporting_enable;
 	uint32_t condition_based_reporting_enable;
 	uint32_t enable_security_report;
+
+	uint32_t tcp_reconstruct_enable;
 	uint32_t ftp_reconstruct_enable;
 	uint32_t radius_enable;
 	uint32_t default_session_timeout;
@@ -544,7 +547,7 @@ typedef struct session_struct {
 	uint8_t isClassified;
 #ifdef HTTP_RECONSTRUCT
 	http_content_processor_t * http_content_processor;
-#endif // End of HTTP_RECONSTRUCT   
+#endif // End of HTTP_RECONSTRUCT
 	uint16_t format_id;
 	uint16_t app_format_id;
 	int proto_path;
@@ -699,7 +702,7 @@ struct smp_thread {
 	sem_t sem_wait;
 #ifdef HTTP_RECONSTRUCT
 	http_session_data_t * list_http_session_data;
-#endif	
+#endif
 
 	int fd;
 	time_t last_pcap_dump_time;
@@ -790,6 +793,14 @@ void rtp_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * 
 void rtp_order_error_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void rtp_burst_loss_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
+/**
+ * LN
+ * Handler to write the tcp payload to the file
+ * @param ipacket   packet file
+ * @param attribute [description]
+ * @param user_args [description]
+ */
+void tcp_payload_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
 void content_len_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args);
@@ -798,6 +809,14 @@ void tcp_closed_handler(const ipacket_t * ipacket, attribute_t * attribute, void
 int file_is_modified(const char *path);
 void write_to_socket_internet(struct smp_thread *th);
 void write_to_socket_unix(struct smp_thread *th);
+/**
+ * LN
+ * Write some data to file
+ * @param path    path to reconstructed file
+ * @param content content to write to the file
+ * @param len     length of the data will be written on the file
+ */
+void write_data_to_file (char * path,  char * content, int len);
 void create_socket(mmt_probe_context_t * mmt_conf, void *args);
 int packet_handler(const ipacket_t * ipacket, void * args);
 void security_reports_init(void * args);
