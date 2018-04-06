@@ -59,8 +59,12 @@ void get_security_multisession_report(const ipacket_t * ipacket,void * args){
 	}
 
 		if (probe_context->output_to_file_enable && probe_context->multisession_output_channel[0]) send_message_to_file_thread (message, th);
+		__IF_REDIS(
 		if (probe_context->redis_enable && probe_context->multisession_output_channel[1]) send_message_to_redis ("multisession.report", message);
+		)
+		__IF_KAFKA(
 		if (probe_context->kafka_enable && probe_context->multisession_output_channel[2])send_msg_to_kafka(probe_context->topic_object->rkt_multisession, message);
+		)
 }
 
 /* This function registers extraction attribute for multisession reports.

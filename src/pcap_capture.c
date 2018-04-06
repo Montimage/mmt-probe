@@ -27,8 +27,9 @@ uint64_t nb_packets_processed_by_mmt = 0;
 pcap_t *handle = 0; /* packet capture handle */
 int volatile reader_ready = 0; /* reader thread no longer needs root */
 int push, stop; /* flags for inter-thread communication */
-sec_wrapper_t * security2_single_thread = NULL;
 
+#ifdef SECURITY
+sec_wrapper_t * security2_single_thread = NULL;
 void clean_up_security2(mmt_probe_struct_t * mmt_probe){
 	if( mmt_probe->mmt_conf->security2_enable){
 		//get number of packets being processed by security
@@ -39,6 +40,7 @@ void clean_up_security2(mmt_probe_struct_t * mmt_probe){
 		printf ("[mmt-probe-1]{%3d,%9"PRIu64",%9"PRIu64",%7zu}\n",mmt_probe->smp_threads->thread_index, nb_packets_processed_by_mmt, msg_count, alerts_count );
 	}
 }
+#endif
 
 #ifdef PCAP
  /*This function initializes/registers different handlers, functions and reports for each thread and
@@ -54,8 +56,9 @@ void * smp_thread_routine(void *arg) {
 	uint32_t tail;
 	long avail_processors;
 	int size;
+__IF_SECURITY(
 	sec_wrapper_t * security2 = NULL;
-
+)
 	mmt_probe_context_t * probe_context = get_probe_context_config();
 
 	sprintf(lg_msg, "Starting thread %i", th->thread_index);
@@ -121,6 +124,7 @@ void * smp_thread_routine(void *arg) {
 	if (probe_context->enable_security_report_multisession == 1)security_reports_multisession_init(th);// should be defined before proto_stats_init
 
 
+#ifdef SECURITY
 	//security2
 	if( probe_context->security2_enable ){
 
@@ -156,7 +160,6 @@ void * smp_thread_routine(void *arg) {
 					|| ( probe_context->redis_enable &&  probe_context->security2_output_channel[1] )
 					|| ( probe_context->kafka_enable &&  probe_context->security2_output_channel[2] ) ? security_print_verdict : NULL,th
 			);
-
 			free( sec_cores_mask );
 		} else {
 			mmt_log(probe_context, MMT_L_WARNING, MMT_P_MEM_ERROR, "Memory error while creating sec_cores_mask inside smp_thread_routine()");
@@ -164,7 +167,7 @@ void * smp_thread_routine(void *arg) {
 			exit(0);
 		}
 	}
-
+#endif
 
 	th->nb_packets = 0;
 	data_spsc_ring_t *fifo     = &th->fifo;
@@ -219,13 +222,16 @@ void * smp_thread_routine(void *arg) {
 	//printf("thread %d : %"PRIu64" \n", th->thread_index, th->nb_packets );
 
 	if(th->mmt_handler != NULL){
+
 		if( probe_context->security2_enable ){
+#ifdef SECURITY
 			//get number of packets being processed by security
 			uint64_t msg_count  = security2->msg_count;
 			//free security
 			size_t alerts_count = unregister_security( security2 );
 
 			printf ("[mmt-probe-1]{%3d,%9"PRIu64",%9"PRIu64",%7zu}\n",th->thread_index, th->nb_packets, msg_count, alerts_count );
+#endif
 		}else
 			printf ("[mmt-probe-1]{%3d,%9"PRIu64"}\n",th->thread_index, th->nb_packets );
 
@@ -242,7 +248,7 @@ void * smp_thread_routine(void *arg) {
 		th->mmt_handler = NULL;
 	}
 
-	sprintf(lg_msg, "Thread %i ended (%"PRIu64" packets)", th->thread_index, th->nb_packets);
+	sprintf(lg_msg, "Thread %d ended (%"PRIu64" packets)", th->thread_index, th->nb_packets);
 	//printf("Thread %i ended (%"PRIu64" packets)\n", th->thread_number, nb_pkts);
 	mmt_log(probe_context, MMT_L_INFO, MMT_T_END, lg_msg);
 	//fprintf(stdout, "Thread %i ended (%u packets)\n", th->thread_number, nb_pkts);
@@ -274,14 +280,15 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 	static uint32_t p_hash = 0;
 	static struct packet_element *pkt;
 	static void *pdata;
-	long avail_processors;
 
-	avail_processors = get_number_of_online_processors();
+
 	(void) move_the_current_thread_to_a_core( 0, -10 );
 
 	//Initialise MMT_Security
+__IF_SECURITY_V1(
 	if(mmt_probe->mmt_conf->security_enable == 1)
 		init_mmt_security(mmt_probe->smp_threads->mmt_handler, mmt_probe->mmt_conf->properties_file,(void *)mmt_probe->smp_threads );
+)
 	//End initialise MMT_Security
 
 
@@ -292,7 +299,11 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 
 		//security2
 
+#ifdef SECURITY
 		if( mmt_probe->mmt_conf->security2_enable ){
+			long avail_processors;
+
+			avail_processors = get_number_of_online_processors();
 			mmt_probe->smp_threads->security2_lcore_id = (mmt_probe->mmt_conf->thread_nb) + mmt_probe->smp_threads->thread_index * mmt_probe->mmt_conf->security2_threads_count;
 
 			if ((mmt_probe->smp_threads->security2_lcore_id + mmt_probe->mmt_conf->security2_threads_count) > get_number_of_online_processors()){
@@ -332,7 +343,7 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 				exit(0);
 			}
 		}
-
+#endif
 		//security2
 
 		pcap = pcap_open_offline(filename, errbuf); // open offline trace
@@ -512,10 +523,6 @@ void *Reader(void *arg) {
 	//int num_packets = 1000000; /* number of packets to capture */
 	int i = 0;
 
-	long avail_processors;
-
-	avail_processors = get_number_of_online_processors();
-
 	(void) move_the_current_thread_to_a_core(0, -15);
 
 	/*
@@ -566,11 +573,19 @@ void *Reader(void *arg) {
 	//	exit(EXIT_FAILURE);
 	//}
 	//Initialise MMT_Security
+__IF_SECURITY_V1(
 	if(mmt_probe->mmt_conf->security_enable == 1)
 		init_mmt_security( mmt_probe->smp_threads->mmt_handler, mmt_probe->mmt_conf->properties_file, (void *)mmt_probe->smp_threads );
+)
 	//End initialise MMT_Security
 
 	//security2
+#ifdef SECURITY
+
+	long avail_processors;
+
+	avail_processors = get_number_of_online_processors();
+
 	if( mmt_probe->mmt_conf->security2_enable && mmt_probe->mmt_conf->thread_nb == 1 ){
 		mmt_probe->smp_threads->security2_lcore_id = (mmt_probe->mmt_conf->thread_nb) + mmt_probe->smp_threads->thread_index * mmt_probe->mmt_conf->security2_threads_count;
 
@@ -612,7 +627,7 @@ void *Reader(void *arg) {
 		}
 	}
 	//security2
-
+#endif
 
 
 
@@ -692,8 +707,10 @@ int pcap_capture(struct mmt_probe_struct * mmt_probe){
 	char lg_msg[1024];
 
 	//For MMT_Security
+__IF_SECURITY_V1(
 	if (mmt_probe->mmt_conf->security_enable == 1)
 		todo_at_start(mmt_probe->mmt_conf->dir_out);
+)
 	//End for MMT_Security
 	mmt_probe->mmt_conf->file_modified_time = time (0);
 	//Initialization

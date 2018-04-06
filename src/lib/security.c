@@ -5,7 +5,7 @@
  *  Created by: Huu Nghia NGUYEN <huunghia.nguyen@montimage.com>
  */
 
-
+#ifdef SECURITY
 #include "security.h"
 
 #include <mmt_smp_security.h>
@@ -120,11 +120,14 @@ void security_print_verdict(
 
 	if( mmt_conf->output_to_file_enable && mmt_conf->security2_output_channel[0])
 		send_message_to_file_thread ( message, user_data );
+	__IF_REDIS(
 	if ( mmt_conf->redis_enable && mmt_conf->security2_output_channel[1])
 		send_message_to_redis ( "security.report", message );
+	)
+	__IF_KAFKA(
 	if ( mmt_conf->kafka_enable && mmt_conf->security2_output_channel[2])
 		send_msg_to_kafka( mmt_conf->topic_object->rkt_security, message );
-
+	)
 	//	printf("%s", message );
 }
 
@@ -207,3 +210,4 @@ size_t unregister_security( sec_wrapper_t* ret ){
 
 	return alerts_count;
 }
+#endif

@@ -52,6 +52,19 @@ int conf_parse_input_mode(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *r
 	return 0;
 }
 
+/* parse values for the output format option */
+int conf_parse_output_format(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
+	if( value == NULL || value[0] == '\0' || strcasecmp(value, "CSV") == 0)
+		*(int *) result = OUTPUT_FORMAT_CSV;
+	else if (strcasecmp(value, "JSON") == 0)
+		*(int *) result = OUTPUT_FORMAT_JSON;
+	else {
+		cfg_error(cfg, "Invalid '%s' for option '%s'. Use either CSV or JSON.", value, cfg_opt_name(opt));
+		return -1;
+	}
+	return 0;
+}
+
 cfg_t * parse_conf(const char *filename) {
 	cfg_opt_t micro_flows_opts[] = {
 			CFG_INT("enable", 0, CFGF_NONE),
@@ -102,6 +115,7 @@ cfg_t * parse_conf(const char *filename) {
 			CFG_STR("location", 0, CFGF_NONE),
 			CFG_INT("retain-files", 0, CFGF_NONE),
 			CFG_INT("sampled_report", 0, CFGF_NONE),
+			CFG_INT_CB("format", 0, CFGF_NONE, conf_parse_output_format),
 
 			CFG_END()
 	};
@@ -262,11 +276,14 @@ cfg_t * parse_conf(const char *filename) {
 
 	switch (cfg_parse(cfg, filename)) {
 	case CFG_FILE_ERROR:
-		//fprintf(stderr, "warning: configuration file '%s' could not be read: %s\n", filename, strerror(errno));
+		fprintf(stderr, "Configuration file not found. Use -c <config file> or create default file at /opt/mmt/probe/mmt-probe.conf\n");
+		exit( 1 );
 		return 0;
 	case CFG_SUCCESS:
 		break;
 	case CFG_PARSE_ERROR:
+		fprintf(stderr, "ERROR: configuration file '%s' could not be read.\n", filename);
+		exit( 1 );
 		return 0;
 	}
 
@@ -528,6 +545,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				strncpy(mmt_conf->output_location, (char *) cfg_getstr(output, "location"), 256);
 				mmt_conf->retain_files = (int) cfg_getint(output, "retain-files");
 				mmt_conf->sampled_report = (uint32_t) cfg_getint(output, "sampled_report");
+				mmt_conf->output_format = cfg_getint(output, "format");
 				if (mmt_conf->sampled_report > 1){
 					printf("Error: Sample_report inside the output section in the configuration file has a value either 1 or 0, 1 for sampled output and 0 for single output\n");
 					exit(0);
@@ -773,7 +791,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				mmt_conf->redis_enable = (uint32_t) cfg_getint(redis_output, "enabled");
 				strncpy(hostname, (char *) cfg_getstr(redis_output, "hostname"), 256);
 				if (mmt_conf->redis_enable) {
+					__IF_REDIS(
 					init_redis(hostname, port);
+					)
 				}
 			}
 		}
@@ -789,7 +809,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 				if (mmt_conf->kafka_enable == 1){
 					int port = (uint32_t) cfg_getint(kafka_output, "port");
 					strncpy(hostname, (char *) cfg_getstr(kafka_output, "hostname"), 256);
+					__IF_KAFKA(
 					init_kafka(hostname, port);
+					)
 				}
 			}
 		}
@@ -1148,6 +1170,9 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 						strncpy(temp_condn->condition.location, file_location, 256);
 					}
 
+					if(strcmp(temp_condn->condition.condition, "GTP") == 0) mmt_conf->gtp_enable = 1;
+					else mmt_conf->gtp_enable = 0;
+
 					if(strcmp(temp_condn->condition.condition, "FTP") == 0) mmt_conf->ftp_enable = 1;
 					else mmt_conf->ftp_enable = 0;
 
@@ -1160,7 +1185,14 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					if(strcmp(temp_condn->condition.condition, "SSL") == 0) mmt_conf->ssl_enable = 1;
 					else mmt_conf->ssl_enable = 0;
 
-					if(strncmp(temp_condn->condition.condition, "HTTP-RECONSTRUCT",16) == 0){
+					if( mmt_conf->gtp_enable == 1 && (
+							mmt_conf->ftp_enable || mmt_conf->web_enable || mmt_conf->rtp_enable || mmt_conf->ssl_enable
+							) ){
+						fprintf(stderr, "GTP and other conditional reports (FTP, WEB, RTP, SSL) are together enable");
+						exit( 1 );
+					}
+
+					if(strcmp(temp_condn->condition.condition, "HTTP-RECONSTRUCT") == 0){
 #ifdef HTTP_RECONSTRUCT
 						if (temp_condn->enable == 1) {
 							strncpy(mmt_conf->http_reconstruct_output_location, temp_condn->condition.location, 256);
@@ -1290,11 +1322,20 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 		case 'v':
 			versions_only = 1;
 
-
-			//fprintf(stderr,"Versions: \n Probe v1.0.0 \n DPI v%s \n Security v0.9b \n Compatible with Operator v1.5 \n",mmt_version());
-			fprintf(stderr,"Versions: \n Probe v%s (%s) \n DPI v%s \n Security v0.9b \n Compatible with Operator v1.5 \n",
+			printf("Versions: Probe v%s (%s), DPI v%s"
+					__IF_SECURITY(", Security v%s"),
 					VERSION, GIT_VERSION, //these version information are given by Makefile
-					mmt_version());
+					mmt_version()
+		#ifdef SECURITY
+					,
+					mmt_sec_get_version_number()
+		#endif
+			);
+
+//			//fprintf(stderr,"Versions: \n Probe v1.0.0 \n DPI v%s \n Security v0.9b \n Compatible with Operator v1.5 \n",mmt_version());
+//			fprintf(stderr,"Versions: \n Probe v%s (%s) \n DPI v%s \n Security v0.9b \n Compatible with Operator v1.5 \n",
+//					VERSION, GIT_VERSION, //these version information are given by Makefile
+//					mmt_version());
 
 			break;
 		case 'h':
@@ -1304,7 +1345,6 @@ void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 
 	cfg_t *cfg = parse_conf(config_file);
 	if(cfg == NULL) {
-		if(versions_only != 1) fprintf(stderr, "Configuration file not found: use -c <config file> or create default file /etc/mmtprobe/mmt.conf\n");
 		exit(0);
 	}
 	process_conf_result(cfg, mmt_conf);

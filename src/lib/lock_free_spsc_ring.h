@@ -17,6 +17,17 @@
 #define QUEUE_FULL   -2
 #define QUEUE_SUCCESS 0
 
+//this lib needs to be compiled by gcc >= 4.9
+#define GCC_VERSION (__GNUC__ * 10000        \
+                     + __GNUC_MINOR__ * 100  \
+                     + __GNUC_PATCHLEVEL__)
+
+// Test for GCC < 4.9.0
+#if GCC_VERSION < 40900
+	#error Need gcc >= 4.9
+#endif
+
+
 typedef struct lock_free_spsc_ring_struct
 {
     volatile uint32_t _head __attribute__ ((aligned(64)));

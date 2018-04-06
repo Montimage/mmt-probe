@@ -1,12 +1,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <hiredis/hiredis.h>
-#include <hiredis/async.h>
-#include "thredis.h"
 #include "mmt_core.h"
 #include "processing.h"
 
+#ifdef REDIS
+#include <hiredis/hiredis.h>
+#include <hiredis/async.h>
+#include "thredis.h"
 static redisContext *redis = NULL;
 static thredis_t* thredis = NULL;
 
@@ -75,3 +76,4 @@ void send_message_to_redis (char *channel, char * message) {
 
 }
 
+#endif

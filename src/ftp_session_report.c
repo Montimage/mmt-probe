@@ -282,9 +282,12 @@ void ftp_response_value_handle(const ipacket_t * ipacket, attribute_t * attribut
 			message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
 
 			if (probe_context->output_to_file_enable && probe_context->ftp_reconstruct_output_channel[0])send_message_to_file_thread (message, (void *)user_args);
+			__IF_REDIS(
 			if (probe_context->redis_enable && probe_context->ftp_reconstruct_output_channel[1])send_message_to_redis ("ftp.download.report", message);
+			)
+			__IF_KAFKA(
 			if (probe_context->kafka_enable && probe_context->ftp_reconstruct_output_channel[2] == 1)send_msg_to_kafka(probe_context->topic_object->rkt_ftp_download, message);
-
+			)
 			reset_ftp_parameters(ipacket, temp_session);
 			break;
 		}

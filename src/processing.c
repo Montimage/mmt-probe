@@ -26,12 +26,14 @@
 #include <errno.h>
 #include <pthread.h>
 #include <sys/types.h>
-#include <netinet/tcp.h>
+#include <stdarg.h>
+
 #ifdef linux
 #include <syscall.h>
 #endif
 #include "tcpip/mmt_tcpip.h"
 
+#include "gtp_session_report.h"
 
 #ifdef _WIN32
 #ifndef socklen_t
@@ -116,12 +118,21 @@ int is_local_net(int addr) {
 }
 /* This function writes messages to a log file, including the msg level, time and code */
 
-void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char * log_msg) {
+void mmt_log(mmt_probe_context_t * mmt_conf, int level, int code, const char *format, ... ) {
 	if (level >= mmt_conf->log_level) {
 		struct timeval tv;
 		gettimeofday(&tv, NULL);
 		FILE * log_file = (mmt_conf->log_output != NULL) ? mmt_conf->log_output : stdout;
-		fprintf(log_file, "%i\t%lu\t%i\t[%s]\n", level, tv.tv_sec, code, log_msg);
+
+		fprintf(log_file, "%i\t%lu\t%i\t[", level, tv.tv_sec, code );
+		//print message
+		va_list args;
+		va_start(args, format);
+		vfprintf( log_file, format, args);
+		va_end( args );
+
+		fprintf( log_file, "]\n" ); //end of message
+
 		fflush(log_file);
 	}
 }
@@ -316,6 +327,14 @@ void flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * u
 #endif // End of HTTP_RECONSTRUCT
 
 	set_user_session_context(session, temp_session);
+
+	mmt_probe_context_t * probe_context = get_probe_context_config();
+
+	if( probe_context->gtp_enable ){
+		gtp_session_attr_t *gtp_data = get_gtp_session_data(ipacket, true);
+		if( gtp_data != NULL )
+			gtp_update_data( ipacket, gtp_data );
+	}
 }
 
 /* This function is called by mmt-dpi for each incoming packet.

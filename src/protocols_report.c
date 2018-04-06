@@ -43,9 +43,12 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 
 				ip_message[ MAX_MESS ] = '\0';
 				if (probe_context->output_to_file_enable == 1)send_message_to_file_thread (ip_message, th);
+				__IF_REDIS(
 				if (probe_context->redis_enable == 1)send_message_to_redis ("frag.stat", ip_message);
+				)
+				__IF_KAFKA(
 				if (probe_context->kafka_enable == 1)send_msg_to_kafka(probe_context->topic_object->rkt_frag, ip_message);
-
+				)
 			}
 		}
 
@@ -60,9 +63,12 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 
 				message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
 				if (probe_context->output_to_file_enable == 1)send_message_to_file_thread (message, th);
+				__IF_REDIS(
 				if (probe_context->redis_enable == 1)send_message_to_redis ("protocol.stat", message);
+				)
+				__IF_KAFKA(
 				if (probe_context->kafka_enable == 1)send_msg_to_kafka(probe_context->topic_object->rkt_protocol_stat, message);
-
+				)
 			}
 		} else if (probe_context->enable_proto_without_session_stats == 1){
 			int skip = 0;
@@ -91,9 +97,12 @@ void protocols_stats_iterator(uint32_t proto_id, void * args) {
 
 				message[ MAX_MESS ] = '\0'; // correct end of string in case of truncated message
 				if (probe_context->output_to_file_enable == 1)send_message_to_file_thread (message, th);
+				__IF_REDIS(
 				if (probe_context->redis_enable == 1)send_message_to_redis ("protocol.stat", message);
+				)
+				__IF_KAFKA(
 				if (probe_context->kafka_enable == 1)send_msg_to_kafka(probe_context->topic_object->rkt_protocol_stat, message);
-
+				)
 			}
 		}
 
