@@ -28,7 +28,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	if( unlikely( total_volumes == 0 ))
 		return;
 
-	uint64_t	 total_payload = get_session_byte_count(dpi_session),
+	uint64_t total_payload = get_session_byte_count(dpi_session),
 			total_packets = get_session_packet_cap_count(dpi_session);
 
 	uint64_t ul_volumes = get_session_ul_cap_byte_count(dpi_session),

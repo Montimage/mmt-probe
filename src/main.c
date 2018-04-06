@@ -19,19 +19,21 @@
 #include <mmt_core.h>
 
 #include "lib/log.h"
-#include "lib/context.h"
 #include "lib/version.h"
 #include "lib/tools.h"
-#include "lib/configure.h"
 #include "lib/memory.h"
 #include "lib/version.h"
+#include "lib/limit.h"
+
+#include "context.h"
+#include "configure.h"
 
 #ifdef DPDK_MODULE
-#include "modules/dpdk/dpdk_capture.h"
+#include "modules/packet_capture/dpdk/dpdk_capture.h"
 #endif
 
 #ifdef PCAP_MODULE
-#include "modules/pcap/pcap_capture.h"
+#include "modules/packet_capture/pcap/pcap_capture.h"
 #endif
 
 #ifdef SECURITY_MODULE
@@ -87,8 +89,8 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 			printf("Version:\n");
 			printf( "- MMT-Probe %s\n", get_version());
 			printf( "- MMT-DPI %s\n", mmt_version() );
-			IF_ENABLE_PCAP_MODULE(
-					printf( "- MMT-Security %s\n", mmt_sec_get_version_info() );
+			IF_ENABLE_SECURITY_MODULE(
+					printf( "- MMT-Security %s\n", security_get_version() );
 			)
 			printf("- Modules: %s\n", MODULES_LIST );
 			exit( EXIT_SUCCESS );
@@ -138,7 +140,7 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 }
 
 IF_ENABLE_DEBUG(
-	#warning "This compile option is reserved only for debugging"
+	#warning "The debug compile option is reserved only for debugging"
 )
 
 /* Obtain a backtrace */

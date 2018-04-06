@@ -9,7 +9,7 @@
 #define SRC_MODULES_DPI_STAT_H_
 
 #include <mmt_core.h>
-#include "../../lib/configure.h"
+#include "../../configure.h"
 #include "../output/output.h"
 
 

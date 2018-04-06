@@ -16,8 +16,8 @@
 #include <mmt_core.h>
 
 #include "configure.h"
-#include "memory.h"
-#include "tools.h"
+#include "lib/memory.h"
+#include "lib/tools.h"
 
 //for each thread
 typedef struct worker_context_struct worker_context_t;

@@ -14,9 +14,7 @@
 #include <unistd.h>
 #include <signal.h>
 
-#include "../../lib/worker.h"
-#include "../../lib/memory.h"
-#include "../../lib/system_info.h"
+#include "../../../worker.h"
 #include "data_spsc_ring.h"
 
 #define BREAK_PCAP_NUMBER 0

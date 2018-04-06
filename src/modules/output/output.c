@@ -6,7 +6,7 @@
  */
 #include <stdarg.h>
 
-#include "../../lib/configure.h"
+#include "../../configure.h"
 
 #include "output.h"
 

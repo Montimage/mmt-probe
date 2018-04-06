@@ -29,20 +29,30 @@
 //#define NETCONF_MODULE
 
 
+/**
+ * Allocate a memory segment.
+ * Abort when not enough memory to allocate
+ * @param size
+ */
 static inline void* alloc( size_t size ){
 	void *ret = malloc( size );
 	if( unlikely( ret == NULL )){
 		log_write( LOG_EMERG, "Not enough memory to allocate %zu bytes", size );
-		exit( 1 );
+		abort();
 	}
 	return ret;
 }
+
 
 static inline void xfree( void *x ){
 	free( x );
 }
 
-
+/**
+ * Assign 6 bytes from #source to #dest
+ * @param dest
+ * @param source
+ */
 static inline void assign_6bytes( void *dest, void *source){
 	uint16_t *s = (uint16_t *)source;
 	uint16_t *d = (uint16_t *)dest;

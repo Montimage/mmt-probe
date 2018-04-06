@@ -9,7 +9,7 @@
 #define SRC_MODULES_DPI_DPI_TOOL_H_
 
 #include <mmt_core.h>
-#include "../../lib/configure.h"
+#include "../../configure.h"
 #include "../../lib/memory.h"
 
 static inline bool dpi_get_proto_id_and_att_id( const dpi_protocol_attribute_t *att, uint32_t *proto_id, uint32_t *att_id ){

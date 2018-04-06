@@ -21,7 +21,7 @@
 #include <errno.h>
 
 
-#include "../../lib/context.h"
+#include "../../../lib/context.h"
 
 #define rte_exit_failure( ... ) \
 do{\

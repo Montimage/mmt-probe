@@ -198,6 +198,13 @@ typedef struct session_report_conf_struct{
 	bool is_rtp;
 }session_report_conf_t;
 
+struct output_conf_struct{
+	bool is_enable;
+	file_output_conf_t  *file;
+	redis_output_conf_t *redis;
+	kafka_output_conf_t *kafka;
+};
+
 /**
  * Configuration of MMT-Probe
  */
@@ -207,12 +214,7 @@ typedef struct probe_conf_struct{
 
 	uint32_t probe_id;
 
-	struct output_conf_struct{
-		bool is_enable;
-		file_output_conf_t  *file;
-		redis_output_conf_t *redis;
-		kafka_output_conf_t *kafka;
-	}outputs;
+	struct output_conf_struct outputs;
 
 	multi_thread_conf_t *thread;
 

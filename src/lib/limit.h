@@ -8,7 +8,7 @@
 #ifndef SRC_LIB_LIMIT_H_
 #define SRC_LIB_LIMIT_H_
 //maximal length of an absolute path
-#define MAX_LENGTH_FULL_PATH_FILE_NAME 256
+#define MAX_LENGTH_FULL_PATH_FILE_NAME  256
 #define MAX_LENGTH_REPORT_MESSAGE      3000
 
 #ifdef DEBUG_MODE
@@ -50,5 +50,8 @@
 	IF_ENABLE_DPDK_MODULE( "DPDK " )                   \
 	IF_ENABLE_DYNAMIC_CONFIG_MODULE( "DYNAMIC_CONF " ) \
 	IF_ENABLE_SECURITY_MODULE("SECURITY ")
+
+
+#define ALWAYS_INLINE __attribute__((always_inline))
 
 #endif /* SRC_LIB_LIMIT_H_ */

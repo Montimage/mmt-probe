@@ -10,6 +10,8 @@
 #include <locale.h>
 #include "worker.h"
 
+#include "modules/output/output.h"
+
 #ifdef SECURITY_MODULE
 	#include "../modules/security/security.h"
 #endif

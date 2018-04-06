@@ -10,9 +10,10 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
-#include "log.h"
+#include "lib/log.h"
+#include "lib/memory.h"
+
 #include "configure.h"
-#include "memory.h"
 
 /* parse values for the input-mode option */
 static int _conf_parse_input_mode(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {

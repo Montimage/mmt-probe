@@ -8,7 +8,7 @@
 #ifndef SRC_MODULES_PCAP_PCAP_CAPTURE_H_
 #define SRC_MODULES_PCAP_PCAP_CAPTURE_H_
 
-#include "../../lib/context.h"
+#include "../../../context.h"
 
 void pcap_capture_start( probe_context_t *context );
 

@@ -71,4 +71,7 @@ security_context_t* security_worker_alloc_init( const security_conf_t *config,
  */
 size_t security_worker_release( security_context_t* );
 
+static inline const char *security_get_version(){
+	return mmt_sec_get_version_number();
+}
 #endif /* SRC_LIB_SECURITY_H_ */

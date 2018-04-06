@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <stdatomic.h>
 #include <stdio.h>
-#include "../../lib/valgrind.h"
+#include "../../../lib/valgrind.h"
 
 #define QUEUE_EMPTY  -1
 #define QUEUE_FULL   -2

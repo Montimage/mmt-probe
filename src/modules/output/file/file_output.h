@@ -8,7 +8,7 @@
 #ifndef SRC_MODULES_OUTPUT_FILE_FILE_OUTPUT_H_
 #define SRC_MODULES_OUTPUT_FILE_FILE_OUTPUT_H_
 
-#include "../../../lib/configure.h"
+#include "../../../configure.h"
 
 typedef struct file_output_struct file_output_t;
 

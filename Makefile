@@ -30,6 +30,7 @@ CFLAGS   := -I /opt/mmt/dpi/include -Wall -Wno-unused-variable\
 #################################################
 #for debuging
 ifdef DEBUG
+$(warning - Enable DEBUG)
 	CFLAGS   += -g -O0 -DDEBUG_MODE
 else
 	CFLAGS   += -O3
@@ -55,44 +56,54 @@ MODULE_SRCS += $(wildcard src/modules/dpi/*.c)
 
 # For HTTP reconstruction option
 ifdef HTTP_RECONSTRUCT_MODULE
-$(info - Enable HTTP reconstruction)
+$(info - Enable HTTP_RECONSTRUCT_MODULE)
 	LIBS        += -lhtmlstreamparser -lz
 	CFLAGS      += -DHTTP_RECONSTRUCT_MODULE
 	MODULE_SRCS += $(wildcard src/modules/construct_http/*.c)
+$(info -> Disable HTTP_RECONSTRUCT_MODULE)
 endif
 
 ifdef KAFKA_MODULE
-$(info - Enable Kafka output)
+$(info - Enable KAFKA_MODULE)
 	LIBS        += -lrdkafka
 	CFLAGS      += -I /usr/local/include/librdkafka -DKAFKA_MODULE
 	MODULE_SRCS += $(wildcard src/modules/output/kafka /*.c)
+$(info -> Disable KAFKA_MODULE)
 endif
 
 ifdef REDIS_MODULE
-$(info - Enable Redis output)
+$(info - Enable REDIS_MODULE)
 	LIBS        += -lhiredis
 	CFLAGS      += -DREDIS_MODULE
 	MODULE_SRCS += $(wildcard src/modules/output/redis/*.c)
+else
+$(info -> Disable REDIS_MODULE)
 endif
 
 ifdef NETCONF_MODULE
-$(info - Enable dynamic configuration using Netconf)
+$(info - Enable NETCONF_MODULE)
 	LIBS        += -lrt -lsysrepo -lxml2
 	CFLAGS      += -DNETCONF_MODULE
 	MODULE_SRCS += $(wildcard src/modules/netconf/*.c)
+else
+$(info -> Disable NETCONF_MODULE)
 endif
 
 ifdef DYNAMIC_CONFIG_MODULE
-$(info - Enable dynamic configuration)
+$(info - Enable DYNAMIC_CONFIG_MODULE)
 	CFLAGS      += -DDYNAMIC_CONFIG_MODULE
 	MODULE_SRCS += $(wildcard src/modules/dynamic_conf/*.c)
+else
+$(info -> Disable DYNAMIC_CONFIG_MODULE)
 endif
 
 ifdef SECURITY_MODULE
-$(info - Enable Security analysis)
+$(info - Enable SECURITY_MODULE)
 	LIBS        += -L/opt/mmt/security/lib -lmmt_security2 -lxml2
 	CFLAGS      += -I /opt/mmt/security/include -DSECURITY_MODULE
 	MODULE_SRCS += $(wildcard src/modules/security/*.c)
+else
+$(info -> Disable SECURITY_MODULE)
 endif
 
 
@@ -119,8 +130,8 @@ $(info - Use DPDK to capture packet $(RTE_SDK))
    LDLIBS += $(LIBS) 
    
 	#DPDK variable
-	#SRCS-y := $(wildcard src/lib/*.c) $(MODULE_SRCS) $(wildcard src/modules/dpdk/*.c) $(MAIN_SRCS)
-   SRCS-y := src/lib/pcap_dump.c src/lib/system_info.c src/lib/configure.c src/lib/base64.c src/lib/valgrind.c src/lib/version.c src/lib/timer.c src/lib/worker.c src/modules/output/output.c src/modules/output/file/file_output.c src/modules/dpi/session_report.c src/modules/dpi/no_session_report.c src/modules/dpi/session_report_web.c src/modules/dpi/dump_data.c src/modules/dpi/dpi.c src/modules/dpi/event_based_report.c src/modules/dpi/session_report_ssl.c src/modules/dpdk/dpdk_capture.c src/modules/dpdk/distributor.c src/main.c
+	#SRCS-y := $(wildcard src/lib/*.c) $(MODULE_SRCS) $(wildcard src/modules/packet_capture/dpdk/*.c) $(MAIN_SRCS)
+   SRCS-y := src/lib/pcap_dump.c src/lib/system_info.c src/lib/configure.c src/lib/base64.c src/lib/valgrind.c src/lib/version.c src/lib/timer.c src/lib/worker.c src/modules/output/output.c src/modules/output/file/file_output.c src/modules/dpi/session_report.c src/modules/dpi/no_session_report.c src/modules/dpi/session_report_web.c src/modules/dpi/dump_data.c src/modules/dpi/dpi.c src/modules/dpi/event_based_report.c src/modules/dpi/session_report_ssl.c src/modules/packet_capture/dpdk/dpdk_capture.c src/modules/packet_capture/dpdk/distributor.c src/main.c
    
    V      := $(VERBOSE)
    
@@ -134,11 +145,15 @@ else #for PCAP
 $(info - Use PCAP to capture packet)
 	CFLAGS      += -DPCAP_MODULE
 	LIBS        += -lpcap -ldl
-	MODULE_SRCS += $(wildcard src/modules/pcap/*.c)
+	MODULE_SRCS += $(wildcard src/modules/packet_capture/pcap/*.c)
 
 # PCAP COMPILE
+
+LIB_SRCS    := $(wildcard src/lib/*.c)
+LIB_SRCS    += src/configure.c src/worker.c
+
 MODULE_OBJS := $(patsubst %.c,%.o, $(MODULE_SRCS))
-LIB_OBJS    := $(patsubst %.c,%.o, $(wildcard src/lib/*.c))
+LIB_OBJS    := $(patsubst %.c,%.o, $(LIB_SRCS))
 MAIN_OBJS   := $(patsubst %.c,%.o, $(MAIN_SRCS))
 
 all: $(LIB_OBJS) $(MODULE_OBJS) $(MAIN_OBJS)
