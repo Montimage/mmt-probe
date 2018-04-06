@@ -86,6 +86,12 @@ void * get_handler_by_name(char * func_name){
 	}
 	// END of HTTP reconstruct
 #endif // end of HTTP_RECONSTRUCT
+#ifdef TCP_RECONSTRUCT
+	// printf("[TCP_RECONSTRUCT] enabled!");
+	if (strcmp(func_name,"tcp_payload_handler") == 0){
+		return tcp_payload_handler;
+	}
+#endif // end of TCP_RECONSTRUCT
 	return 0;
 }
 

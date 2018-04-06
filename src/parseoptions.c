@@ -1160,7 +1160,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 					if(strcmp(temp_condn->condition.condition, "SSL") == 0) mmt_conf->ssl_enable = 1;
 					else mmt_conf->ssl_enable = 0;
 
-					if(strcmp(temp_condn->condition.condition, "HTTP-RECONSTRUCT") == 0){
+					if(strncmp(temp_condn->condition.condition, "HTTP-RECONSTRUCT",16) == 0){
 #ifdef HTTP_RECONSTRUCT
 						if (temp_condn->enable == 1) {
 							strncpy(mmt_conf->http_reconstruct_output_location, temp_condn->condition.location, 256);
@@ -1173,16 +1173,14 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 #endif // End of HTTP_RECONSTRUCT
 					}
 					// LN: Add condition for reconstruct TCP
-					if(strcmp(temp_condn->condition.condition, "TCP-RECONSTRUCT") == 0){
+					if(strncmp(temp_condn->condition.condition, "TCP-RECONSTRUCT",15) == 0){
 #ifdef TCP_RECONSTRUCT
-						if(temp_condn->enable == 1){
-							if(temp_condn->condition.location!=NULL){
-								strcpy(mmt_conf->tcp_reconstruct_output_location,temp_condn->condition.location);
-							}
-							mmt_conf->tcp_reconstruct_enable = 1
-						}else{
-							mmt_conf->tcp_reconstruct_enable = 0;
+						if (temp_condn->enable == 1) {
+							strncpy(mmt_conf->tcp_reconstruct_output_location, temp_condn->condition.location, 256);
+							mmt_conf->tcp_reconstruct_enable = 1;
+							// printf("[debug] Enable tcp reconstruction\n");
 						}
+						if (temp_condn->enable == 0) mmt_conf->tcp_reconstruct_enable = 0;
 #else
 						temp_condn->enable = 0;
 #endif // End of TCP_RECONSTRUCT
