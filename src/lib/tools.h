@@ -9,6 +9,8 @@
 #define SRC_LIB_TOOLS_H_
 #include <sys/time.h>
 
+#include "optimization.h"
+
 #define MIN( a, b ) (a>b? b : a )
 #define MAX( a, b ) (a<b? b : a )
 
@@ -23,7 +25,7 @@
  * @param def
  * @return
  */
-static inline int mmt_atoi( const char*string, int low, int high, int def ){
+static ALWAYS_INLINE int mmt_atoi( const char*string, int low, int high, int def ){
 	int ret = atoi( string );
 	if( ret > high || ret < low ){
 		ret = def;
@@ -36,7 +38,7 @@ static inline int mmt_atoi( const char*string, int low, int high, int def ){
  * @param end
  * @param start
  */
-static inline long u_second_diff( const struct timeval *end, const struct timeval *start ){
+static ALWAYS_INLINE long u_second_diff( const struct timeval *end, const struct timeval *start ){
 	return ( end->tv_sec - start->tv_sec ) * MICRO_PER_SEC + ( end->tv_usec - start->tv_usec );
 }
 
@@ -45,7 +47,7 @@ static inline long u_second_diff( const struct timeval *end, const struct timeva
  * @param ts
  * @return
  */
-static inline size_t u_second( const struct timeval *ts ){
+static ALWAYS_INLINE size_t u_second( const struct timeval *ts ){
 	return ts->tv_sec  * MICRO_PER_SEC + ts->tv_usec;
 }
 
@@ -54,8 +56,24 @@ static inline size_t u_second( const struct timeval *ts ){
  * @param ts
  * @return
  */
-static inline size_t m_second( const struct timeval *ts ){
+static ALWAYS_INLINE size_t m_second( const struct timeval *ts ){
 	return (ts->tv_sec  << 10) + (ts->tv_usec >> 10);
+}
+
+
+/**
+ * Check whether a string has a prefix
+ * @param string
+ * @param prefix
+ * @param prefix_len
+ * @return
+ */
+static bool ALWAYS_INLINE is_started_by( const char *string, const char *prefix, size_t prefix_len ){
+	int i;
+	for( i=0; i<prefix_len; i++ )
+		if( string[i] != prefix[i] )
+			return false;
+	return true;
 }
 
 #endif /* SRC_LIB_TOOLS_H_ */

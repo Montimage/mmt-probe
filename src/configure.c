@@ -247,7 +247,7 @@ static inline char * _cfg_get_str( cfg_t *cfg, const char *header ){
 	const char *str = cfg_getstr( cfg, header );
 	if (str == NULL)
 		return NULL;
-	return strdup( str );
+	return mmt_strdup( str );
 }
 
 static inline cfg_t* _get_first_cfg_block( cfg_t *cfg, const char* block_name ){
@@ -349,7 +349,7 @@ static inline data_dump_conf_t *_parse_dump_to_file( cfg_t *cfg ){
 	char *str;
 	for( i=0; i<ret->protocols_size; i++) {
 		str = cfg_getnstr(cfg, "protocols", i);
-		ret->protocols[i] = strdup( str );
+		ret->protocols[i] = mmt_strdup( str );
 	}
 	return ret;
 }
@@ -455,8 +455,8 @@ static inline void _parse_dpi_protocol_attribute( dpi_protocol_attribute_t * out
 	int index = 0;
 	while( str[index] != '.' )
 		index ++;
-	out->proto_name     = strndup( str, index );
-	out->attribute_name = strdup( str+index+1 ); //+1 to jump over .
+	out->proto_name     = mmt_strndup( str, index );
+	out->attribute_name = mmt_strdup( str+index+1 ); //+1 to jump over .
 
 }
 
@@ -483,7 +483,7 @@ static inline void _parse_event_block( event_report_conf_t *ret, cfg_t *cfg ){
 	int i;
 	assert( cfg != NULL );
 	ret->is_enable = cfg_getbool( cfg, "enable" );
-	ret->title     = strdup( cfg_title(cfg) );
+	ret->title     = mmt_strdup( cfg_title(cfg) );
 	ret->event = mmt_alloc( sizeof( dpi_protocol_attribute_t ));
 	_parse_dpi_protocol_attribute( ret->event, cfg_getstr( cfg, "event" ) );
 
@@ -635,7 +635,7 @@ static inline reconstruct_data_conf_t *_parse_reconstruct_data_block( cfg_t *cfg
  * @param filename
  * @return
  */
-probe_conf_t* load_configuration_from_file( const char* filename ){
+probe_conf_t* conf_load_from_file( const char* filename ){
 	const char *str;
 	int i;
 	cfg_t *cfg = _load_cfg_from_file( filename );
@@ -716,7 +716,7 @@ static inline void _free_event_report( event_report_conf_t *ret ){
  * Free all memory allocated by @load_configuration_from_file
  * @param
  */
-void release_probe_configuration( probe_conf_t *conf){
+void conf_release( probe_conf_t *conf){
 	if( conf == NULL )
 		return;
 
@@ -791,4 +791,150 @@ void release_probe_configuration( probe_conf_t *conf){
 
 	mmt_probe_free( conf->license_file );
 	mmt_probe_free( conf );
+}
+
+//sizeof of a string takes into account also '\0'
+#define LENGTH( string ) (sizeof( string ) - 1 )
+#define IS_STARTED_BY( a, b ) is_started_by( a, b, LENGTH( b ))
+
+config_attribute_t conf_get_ident_att_from_string( const char *ident ){
+	int i;
+	const char *ch;
+	switch( ident[0] ){
+	//behaviour
+	case 'b':
+		if( ! IS_STARTED_BY(ident, "behaviour."))
+			break;
+
+		ident += LENGTH( "behaviour.");
+
+		switch( ident[0] ){
+		//behaviour.enable
+		case 'e':
+			if( IS_STARTED_BY( ident, "enable" ))
+				return CONF_ATT__BEHAVIOUR__ENABLE;
+			break;
+		//behaviour.output-dir
+		case 'o':
+			if( IS_STARTED_BY( ident, "output-dir" ))
+				return CONF_ATT__BEHAVIOUR__OUTPUT_DIR;
+			break;
+		}
+		break;
+
+		//dump-pcap, dynamic-config, data-output,
+	case 'd':
+		switch( ident[1] ){
+		case 'a':
+			if( ! IS_STARTED_BY( ident, "data-output." ))
+				break;
+			break;
+		//dump-pcap
+		case 'u':
+			if( ! IS_STARTED_BY( ident, "dump-pcap." ))
+				break;
+			ident += LENGTH( "dump-pcap." );
+			switch( ident[0] ){
+			case 'e':
+				if( IS_STARTED_BY( ident, "enable" ))
+					return CONF_ATT__DUMP_PCAP__ENABLE;
+				break;
+			case 'o':
+				if( IS_STARTED_BY( ident, "output-dir" ))
+					return CONF_ATT__DUMP_PCAP__OUTPUT_DIR;
+				break;
+			case 'p':
+				if( IS_STARTED_BY( ident, "protocols" ))
+					return CONF_ATT__DUMP_PCAP__PROTOCOLS;
+				if( IS_STARTED_BY( ident, "period" ))
+					return CONF_ATT__DUMP_PCAP__PERIOD;
+				break;
+			case 'r':
+				if( IS_STARTED_BY( ident, "retain-files" ))
+					return CONF_ATT__DUMP_PCAP__RETAIN_FILES;
+				break;
+			case 's':
+				if( IS_STARTED_BY( ident, "snap-len" ))
+					return CONF_ATT__DUMP_PCAP__SNAP_LEN;
+				break;
+			}
+			break;
+		case 'y':
+			break;
+		}
+		break;
+		//enable-proto-without-session-report, enable-ip-fragmentation-report, event-report
+	case 'e':
+		break;
+		//file-output
+	case 'f':
+		if( ! IS_STARTED_BY( ident, "file-output." ))
+			break;
+		ident += LENGTH( "file-output." );
+		switch( ident[0] ){
+		case 'e':
+			if( IS_STARTED_BY( ident, "enable" ))
+				return CONF_ATT__FILE_OUTPUT__ENABLE;
+			break;
+		case 'o':
+			if( IS_STARTED_BY( ident, "output-dir" ))
+				return CONF_ATT__FILE_OUTPUT__OUTPUT_DIR;
+			if( IS_STARTED_BY( ident, "output-file" ))
+				return CONF_ATT__FILE_OUTPUT__OUTPUT_FILE;
+			break;
+		case 'p':
+			if( IS_STARTED_BY( ident, "period" ))
+				return CONF_ATT__FILE_OUTPUT__PERIOD;
+			break;
+		case 'r':
+			if( IS_STARTED_BY( ident, "retain-files" ))
+				return CONF_ATT__FILE_OUTPUT__RETAIN_FILES;
+			break;
+		}
+		break;
+	}
+	return CONF_ATT__NONE;
+}
+
+
+static bool _parse_bool( const char *value ){
+	if( strcmp( value, "true" ) )
+		return true;
+	if( strcmp( value, "false" ) )
+		return false;
+	return false;
+}
+
+bool conf_override_element( probe_conf_t *conf, config_attribute_t ident, const char *value ){
+	bool bool_val;
+	char **string_param = NULL;
+	//uint64_t
+	switch( ident ){
+	case CONF_ATT__NONE:
+		return false;
+	case CONF_ATT__INPUT__MODE:
+		break;
+	case CONF_ATT__FILE_OUTPUT__ENABLE:
+		bool_val = _parse_bool( value );
+		if( bool_val == conf->outputs.file->is_enable )
+			return false;
+		conf->outputs.file->is_enable = bool_val;
+		if( bool_val )
+			conf->outputs.is_enable = true;
+		return true;
+	case CONF_ATT__FILE_OUTPUT__OUTPUT_DIR:
+		string_param = &conf->outputs.file->directory;
+		break;
+	default:
+		break;
+	}
+
+	if( string_param ){
+		mmt_probe_free( *string_param );
+		*string_param = mmt_strdup( value );
+		return true;
+	}
+
+	log_write( LOG_INFO, "Unknown identifier '%d'", ident );
+	return false;
 }

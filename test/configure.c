@@ -14,7 +14,7 @@ int main( int argc, const char **argv){
 		exit( 1 );
 	}
 
-	probe_conf_t *conf = load_configuration_from_file( argv[1] );
+	probe_conf_t *conf = conf_load_from_file( argv[1] );
 
-	release_probe_configuration( conf );
+	conf_release( conf );
 }

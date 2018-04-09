@@ -263,15 +263,55 @@ typedef struct probe_conf_struct{
 }probe_conf_t;
 
 
-probe_conf_t* load_configuration_from_file( const char* filename );
+probe_conf_t* conf_load_from_file( const char* filename );
 
-uint8_t override_config( probe_conf_t*, const char *ident, const char *value  );
+typedef enum {
+	CONF_ATT__NONE = 0,
+	CONF_ATT__PROBE_ID,
+	CONF_ATT__LICENSE,
+
+	CONF_ATT__INPUT__MODE,
+	CONF_ATT__INPUT__SOURCE,
+	CONF_ATT__INPUT__SNAP_LEN,
+
+	CONF_ATT__BEHAVIOUR__ENABLE,
+	CONF_ATT__BEHAVIOUR__OUTPUT_DIR,
+
+	CONF_ATT__DUMP_PCAP__ENABLE,
+	CONF_ATT__DUMP_PCAP__OUTPUT_DIR,
+	CONF_ATT__DUMP_PCAP__PROTOCOLS,
+	CONF_ATT__DUMP_PCAP__PERIOD,
+	CONF_ATT__DUMP_PCAP__RETAIN_FILES,
+	CONF_ATT__DUMP_PCAP__SNAP_LEN,
+
+	CONF_ATT__FILE_OUTPUT__ENABLE,
+	CONF_ATT__FILE_OUTPUT__OUTPUT_FILE,
+	CONF_ATT__FILE_OUTPUT__OUTPUT_DIR,
+	CONF_ATT__FILE_OUTPUT__RETAIN_FILES,
+	CONF_ATT__FILE_OUTPUT__PERIOD,
+}config_attribute_t;
+
+/**
+ * Convert identifier from string to number.
+ * @param ident :e.g., "probe-id", "input.mode", "event-report.ip_even.enable", etc.
+ * @return identifier of element. Otherwise CONF_ATT__NONE
+ */
+config_attribute_t conf_get_ident_att_from_string( const char *ident );
+
+/**
+ *
+ * @param
+ * @param ident: identifier of element will be overridden.
+ * @param value: value will be overridden only if the value is different with the current one of the element.
+ * @param cb
+ * @return true if the value has been overridden, otherwise false
+ */
+bool conf_override_element( probe_conf_t*, config_attribute_t ident, const char *value );
 
 /**
  * Free all memory allocated by @load_configuration_from_file
  * @param
  */
-void release_probe_configuration( probe_conf_t * );
-
+void conf_release( probe_conf_t * );
 
 #endif /* SRC_LIB_CONFIGURE_H_ */

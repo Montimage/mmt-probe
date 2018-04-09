@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include <inttypes.h> //for uint64_t PRIu64
 #include <stdbool.h>
 #include "optimization.h"
@@ -46,6 +47,14 @@ static ALWAYS_INLINE void *mmt_alloc_and_init_zero( size_t size ){
 
 static ALWAYS_INLINE void mmt_probe_free( void *x ) {
 	free( x );
+}
+
+static ALWAYS_INLINE char * mmt_strdup( const char *str ) {
+	return strdup( str );
+}
+
+static ALWAYS_INLINE char * mmt_strndup( const char *str, size_t size ) {
+	return strndup( str, size );
 }
 
 /**

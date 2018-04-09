@@ -44,22 +44,15 @@
 //#define DEFAULT_CONFIG_FILE "/opt/mmt/probe/mmt-probe.conf"
 #define DEFAULT_CONFIG_FILE "./mmt-probe.conf"
 
-void usage(const char * prg_name) {
+static void _print_usage(const char * prg_name) {
 	printf("%s [<option>]\n", prg_name);
 	printf("Option:\n");
 	printf("\t-v               : Print version information then exit.\n");
 	printf("\t-c <config file> : Gives the path to the config file (default: %s).\n", DEFAULT_CONFIG_FILE);
 	printf("\t-t <trace file>  : Gives the trace file to analyse.\n");
 	printf("\t-i <interface>   : Gives the interface name for live traffic analysis.\n");
-	printf("\t-o <output file> : Gives the output file name. \n");
-	printf("\t-r <output dir>  : Gives the security output folder name. \n");
-	printf("\t-p <period>      : Gives the period (in seconds) for statistics reporting. \n");
-	printf("\t-n <number>      : Give the unique probe id number. \n");
-	printf("\t-T <number>      : Give the number of threads. \n");
-	printf("\t-s <0|1>         : Enables or disables protocol statistics reporting. \n");
-	printf("\t-f <0|1>         : Enables or disables flows reporting. \n");
-	printf("\t-h               : Prints this help.\n");
-	exit( EXIT_SUCCESS );
+	printf("\t-X attr=value    : Override configuration attribute. For example \"-X file-output.output-dir=/tmp/\" will change output directory to /tmp. \n");
+	printf("\t-h               : Prints this help then exit.\n");
 }
 
 static inline void _override_string_conf( char **conf, const char*new_val ){
@@ -72,12 +65,14 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 	int opt, optcount = 0;
 	int val;
 
-	const char *options = "c:t:T:i:o:r:P:p:s:n:f:vh";
+	const char *options = "c:t:i:vhX:";
 	const char *config_file = DEFAULT_CONFIG_FILE;
 	probe_conf_t *conf = NULL;
 
 	extern char *optarg;
 	extern int optind;
+
+	char *string_att, *string_val;
 
 	bool is_user_gives_conf_file = false;
 
@@ -98,11 +93,12 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 			printf("- Modules: %s\n", MODULES_LIST );
 			exit( EXIT_SUCCESS );
 		case 'h':
-			usage(argv[0]);
+			_print_usage(argv[0]);
+			exit( EXIT_SUCCESS );
 		}
 	}
 
-	conf = load_configuration_from_file( config_file );
+	conf = conf_load_from_file( config_file );
 	if( conf == NULL ){
 		//config_file is indicated by user by -c parameter
 		if( is_user_gives_conf_file ){
@@ -111,7 +107,7 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 		}else{
 			//try again to read config from /opt/mmt/probe/mmt-probe.conf
 			config_file = "/opt/mmt/probe/mmt-probe.conf";
-			conf = load_configuration_from_file( config_file );
+			conf = conf_load_from_file( config_file );
 			if( conf == NULL )
 				abort();
 		}
@@ -134,26 +130,29 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 			//switch to online mode
 			conf->input->input_mode = ONLINE_ANALYSIS;
 			break;
-			//stat period
-		case 'p':
-			conf->stat_period = mmt_atoi(optarg, 1, 60, 5);
-			break;
 
-		case 'r':
-			_override_string_conf( &conf->outputs.file->directory, optarg );
-			break;
-			//enable/disable no-session protocol statistic
-		case 's':
-			conf->is_enable_proto_no_session_stat = mmt_atoi(optarg, 0, 1, 0);
-			break;
-			//probe id
-		case 'n':
-			conf->probe_id = mmt_atoi(optarg, 1, INT_MAX, 1 );
-			break;
-			//number of threads
-		case 'T':
-			conf->thread->thread_count = mmt_atoi(optarg, 0, 256, 1);
-			break;
+		case 'X':
+			string_att = optarg;
+			string_val = optarg;
+			while( *string_val != '\0' ){
+				//separated by = character
+				if( *string_val == '=' ){
+					*string_val = '\0'; //NULL ended for attribute
+					//jump to the part after = character
+					string_val ++;
+					break;
+				}
+				string_val ++;
+			}
+			//not found = character
+			if( string_val == '\0' )
+				log_write( LOG_WARNING, "Input parameter '%s' is not well-formatted. Ignored it.", string_att );
+
+			config_attribute_t ident = conf_get_ident_att_from_string(string_att);
+			if( ident == CONF_ATT__NONE ){
+				log_write( LOG_WARNING, "Ignored input parameter '%s' as no corresponding configuration parameter.", string_att );
+			}else if( conf_override_element(conf, ident, string_val) )
+				log_write( LOG_INFO, "Overridden value of configuration parameter '%s' by '%s'", string_att, string_val );
 		}
 	}
 
@@ -315,7 +314,7 @@ int main( int argc, char** argv ){
 #endif
 
 	//end
-	release_probe_configuration( context.config );
+	conf_release( context.config );
 
 	close_extraction();
 
