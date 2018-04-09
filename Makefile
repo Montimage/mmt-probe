@@ -25,6 +25,15 @@ LIBS     := -L/opt/mmt/dpi/lib -lmmt_core -lmmt_tcpip -lconfuse -lpthread
 CFLAGS   := -I /opt/mmt/dpi/include -Wall -Wno-unused-variable\
 			   -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"
 
+ifdef ALL_OPTIONS
+	DEBUG := 1
+	VALGRIND := 1
+	HTTP_RECONSTRUCT := 1
+	KAFKA := 1
+	REDIS := 1
+	SECURITY := 1
+endif
+
 #################################################
 ############ OTHER SETTING ######################
 #################################################
@@ -55,55 +64,57 @@ MODULE_SRCS += $(wildcard src/modules/dpi/*.c)
 #################################################
 
 # For HTTP reconstruction option
-ifdef HTTP_RECONSTRUCT_MODULE
-$(info - Enable HTTP_RECONSTRUCT_MODULE)
+ifdef HTTP_RECONSTRUCT
+$(info - Enable HTTP_RECONSTRUCT)
 	LIBS        += -lhtmlstreamparser -lz
 	CFLAGS      += -DHTTP_RECONSTRUCT_MODULE
 	MODULE_SRCS += $(wildcard src/modules/construct_http/*.c)
-$(info -> Disable HTTP_RECONSTRUCT_MODULE)
+else
+$(info -> Disable HTTP_RECONSTRUCT)
 endif
 
-ifdef KAFKA_MODULE
-$(info - Enable KAFKA_MODULE)
+ifdef KAFKA
+$(info - Enable KAFKA)
 	LIBS        += -lrdkafka
 	CFLAGS      += -I /usr/local/include/librdkafka -DKAFKA_MODULE
 	MODULE_SRCS += $(wildcard src/modules/output/kafka /*.c)
-$(info -> Disable KAFKA_MODULE)
+else
+$(info -> Disable KAFKA)
 endif
 
-ifdef REDIS_MODULE
-$(info - Enable REDIS_MODULE)
+ifdef REDIS
+$(info - Enable REDIS)
 	LIBS        += -lhiredis
 	CFLAGS      += -DREDIS_MODULE
 	MODULE_SRCS += $(wildcard src/modules/output/redis/*.c)
 else
-$(info -> Disable REDIS_MODULE)
+$(info -> Disable REDIS)
 endif
 
-ifdef NETCONF_MODULE
-$(info - Enable NETCONF_MODULE)
+ifdef NETCONF
+$(info - Enable NETCONF)
 	LIBS        += -lrt -lsysrepo -lxml2
 	CFLAGS      += -DNETCONF_MODULE
 	MODULE_SRCS += $(wildcard src/modules/netconf/*.c)
 else
-$(info -> Disable NETCONF_MODULE)
+$(info -> Disable NETCONF)
 endif
 
-ifdef DYNAMIC_CONFIG_MODULE
-$(info - Enable DYNAMIC_CONFIG_MODULE)
+ifdef DYNAMIC_CONFIG
+$(info - Enable DYNAMIC_CONFIG)
 	CFLAGS      += -DDYNAMIC_CONFIG_MODULE
 	MODULE_SRCS += $(wildcard src/modules/dynamic_conf/*.c)
 else
-$(info -> Disable DYNAMIC_CONFIG_MODULE)
+$(info -> Disable DYNAMIC_CONFIG)
 endif
 
-ifdef SECURITY_MODULE
-$(info - Enable SECURITY_MODULE)
+ifdef SECURITY
+$(info - Enable SECURITY)
 	LIBS        += -L/opt/mmt/security/lib -lmmt_security2 -lxml2
 	CFLAGS      += -I /opt/mmt/security/include -DSECURITY_MODULE
 	MODULE_SRCS += $(wildcard src/modules/security/*.c)
 else
-$(info -> Disable SECURITY_MODULE)
+$(info -> Disable SECURITY)
 endif
 
 

@@ -18,38 +18,38 @@
 #endif
 
 #ifdef PCAP_MODULE
-	#define IF_ENABLE_PCAP_MODULE( x ) x
+	#define IF_ENABLE_PCAP( x ) x
 #else
-	#define IF_ENABLE_PCAP_MODULE( x )
+	#define IF_ENABLE_PCAP( x )
 #endif
 
 #ifdef DPDK_MODULE
-	#define IF_ENABLE_DPDK_MODULE( x ) x
+	#define IF_ENABLE_DPDK( x ) x
 #else
-	#define IF_ENABLE_DPDK_MODULE( x )
+	#define IF_ENABLE_DPDK( x )
 #endif
 
 #ifdef SECURITY_MODULE
-	#define IF_ENABLE_SECURITY_MODULE( x ) x
+	#define IF_ENABLE_SECURITY( x ) x
 #else
-	#define IF_ENABLE_SECURITY_MODULE( x )
+	#define IF_ENABLE_SECURITY( x )
 #endif
 
 #ifdef DYNAMIC_CONFIG_MODULE
-	#define IF_ENABLE_DYNAMIC_CONFIG_MODULE( x ) x
+	#define IF_ENABLE_DYNAMIC_CONFIG( x ) x
 #else
-	#define IF_ENABLE_DYNAMIC_CONFIG_MODULE( x )
+	#define IF_ENABLE_DYNAMIC_CONFIG( x )
 #endif
 
 
 //a string contains list of compiled modules
-#define MODULES_LIST                                   \
-	""                                                 \
-	IF_ENABLE_DEBUG( "DEBUG " )                        \
-	IF_ENABLE_PCAP_MODULE( "PCAP " )                   \
-	IF_ENABLE_DPDK_MODULE( "DPDK " )                   \
-	IF_ENABLE_DYNAMIC_CONFIG_MODULE( "DYNAMIC_CONF " ) \
-	IF_ENABLE_SECURITY_MODULE("SECURITY ")
+#define MODULES_LIST                            \
+	""                                          \
+	IF_ENABLE_DEBUG( "DEBUG " )                 \
+	IF_ENABLE_PCAP( "PCAP " )                   \
+	IF_ENABLE_DPDK( "DPDK " )                   \
+	IF_ENABLE_DYNAMIC_CONFIG( "DYNAMIC_CONF " ) \
+	IF_ENABLE_SECURITY("SECURITY ")
 
 
 #define ALWAYS_INLINE __attribute__((always_inline))

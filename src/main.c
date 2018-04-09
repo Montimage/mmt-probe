@@ -92,7 +92,7 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 			printf("Version:\n");
 			printf( "- MMT-Probe %s\n", get_version());
 			printf( "- MMT-DPI %s\n", mmt_version() );
-			IF_ENABLE_SECURITY_MODULE(
+			IF_ENABLE_SECURITY(
 					printf( "- MMT-Security %s\n", security_get_version() );
 			)
 			printf("- Modules: %s\n", MODULES_LIST );
@@ -206,7 +206,7 @@ void print_execution_trace () {
 
 static inline void _stop_modules( probe_context_t *context){
 
-	IF_ENABLE_PCAP_MODULE(
+	IF_ENABLE_PCAP(
 		pcap_capture_stop(context);
 	)
 
@@ -274,9 +274,9 @@ int main( int argc, char** argv ){
 
 	log_open();
 
-IF_ENABLE_DEBUG(
-	log_write( LOG_WARNING, "Must not run debug mode in production environment" );
-)
+	IF_ENABLE_DEBUG(
+			log_write( LOG_WARNING, "Must not run debug mode in production environment" );
+	)
 
 #ifdef DPDK_MODULE
 	int ret = rte_eal_init(argc, argv);
@@ -299,6 +299,7 @@ IF_ENABLE_DEBUG(
 	log_write( LOG_INFO, "MMT-Probe v%s is running on pid %d",
 			get_version(),
 			getpid() );
+	log_write( LOG_INFO, "Modules: %s", MODULES_LIST );
 
 	//DPI initialization
 	if( !init_extraction() ) { // general ixE initialization
@@ -319,7 +320,7 @@ IF_ENABLE_DEBUG(
 	close_extraction();
 
 
-	IF_ENABLE_SECURITY_MODULE(
+	IF_ENABLE_SECURITY(
 		security_close();
 	)
 

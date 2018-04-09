@@ -13,7 +13,7 @@
 #include <string.h>
 
 #include "dynamic_conf.h"
-#include "../../lib/configure.h"
+#include "../../configure.h"
 #include "../../lib/linked_list.h"
 #include "../../lib/memory.h"
 

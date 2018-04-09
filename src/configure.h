@@ -16,6 +16,15 @@
 
 #define MMT_USER_AGENT_THRESHOLD 0x20 //32KB
 
+#define DEFINE_STRUCT( var_type, struct_name ) \
+typedef struct  {                              \
+	const char*name;                           \
+	var_type value;                            \
+}struct_name
+
+
+DEFINE_STRUCT( uint16_t, UINT16_T);
+
 typedef struct multi_thread_conf_struct{
 	uint16_t thread_count;
 	uint16_t readers_count;
@@ -254,6 +263,8 @@ typedef struct probe_conf_struct{
 
 
 probe_conf_t* load_configuration_from_file( const char* filename );
+
+uint8_t override_config( probe_conf_t*, const char *ident, const char *value  );
 
 /**
  * Free all memory allocated by @load_configuration_from_file

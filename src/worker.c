@@ -13,7 +13,7 @@
 #include "modules/output/output.h"
 
 #ifdef SECURITY_MODULE
-	#include "../modules/security/security.h"
+	#include "modules/security/security.h"
 #endif
 
 
@@ -163,7 +163,7 @@ void worker_on_start( worker_context_t *worker_context ){
 
 	uint32_t *cores_id = (uint32_t []){0,1};
 
-	IF_ENABLE_SECURITY_MODULE(
+	IF_ENABLE_SECURITY(
 	worker_context->security = security_worker_alloc_init( worker_context->probe_context->config->reports.security,
 				worker_context->dpi_handler, cores_id,
 				(worker_context->index == 0), //verbose for only the first worker
@@ -175,7 +175,7 @@ void worker_on_start( worker_context_t *worker_context ){
  * @param worker_context
  */
 void worker_on_stop( worker_context_t *worker_context ){
-	IF_ENABLE_SECURITY_MODULE(
+	IF_ENABLE_SECURITY(
 		worker_context->stat.alert_generated = security_worker_release( worker_context->security );
 	)
 	dpi_release( worker_context->dpi_context );
