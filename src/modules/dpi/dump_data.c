@@ -82,13 +82,13 @@ void data_dump_start( dpi_context_t *dpi_context ){
 	if( ! dpi_context->probe_config->reports.data_dump->is_enable )
 		return;
 
-	data_dump_context_t *context = alloc( sizeof( data_dump_context_t ));
+	data_dump_context_t *context = mmt_alloc( sizeof( data_dump_context_t ));
 	context->dump_handler = NULL;
 	context->config = dpi_context->probe_config->reports.data_dump;
 	context->worker_index = dpi_context->worker_index;
 
 	//protocol ids
-	context->proto_ids_lst = alloc( sizeof( uint32_t ) * context->config->protocols_size );
+	context->proto_ids_lst = mmt_alloc( sizeof( uint32_t ) * context->config->protocols_size );
 	int i;
 	for( i=0; i<context->config->protocols_size; i++ ){
 		context->proto_ids_lst[i] = get_protocol_id_by_name( context->config->protocols[i] );

@@ -68,7 +68,7 @@ static inline packet_session_t* _get_packet_session(const ipacket_t * ipacket) {
 				SESSION_STAT_TYPE_APP_IP, session->app_type);
 
 	if( session->apps.web == NULL ){
-		session->apps.web = alloc(sizeof (session_web_stat_t));
+		session->apps.web = mmt_alloc(sizeof (session_web_stat_t));
 		_reset_report(session->apps.web);
 
 		session->data_stat.is_touched = false;

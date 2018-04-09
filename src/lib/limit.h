@@ -52,6 +52,4 @@
 	IF_ENABLE_SECURITY("SECURITY ")
 
 
-#define ALWAYS_INLINE __attribute__((always_inline))
-
 #endif /* SRC_LIB_LIMIT_H_ */

@@ -37,7 +37,7 @@ struct mmt_timer_struct_t{
 
 
 mmt_timer_t* mmt_timer_create( uint32_t core_id ){
-	mmt_timer_t *ret = alloc( sizeof( mmt_timer_t ) );
+	mmt_timer_t *ret = mmt_alloc( sizeof( mmt_timer_t ) );
 
 	ret->lcore_id = core_id;
 	ret->second   = 0;
@@ -139,10 +139,10 @@ bool mmt_timer_release( mmt_timer_t *timer ){
 		//call its callback last time
 		node->callback( timer, node->user_data );
 
-		xfree( prv );
+		mmt_probe_free( prv );
 	}
 
-	xfree( timer );
+	mmt_probe_free( timer );
 	return true;
 }
 
@@ -150,7 +150,7 @@ bool mmt_timer_register_callback( mmt_timer_t *timer, uint32_t second, mmt_timer
 	if( mmt_timer_is_running( timer ) )
 		return false;
 
-	timer_callback_node_t *node = alloc( sizeof( timer_callback_node_t ));
+	timer_callback_node_t *node = mmt_alloc( sizeof( timer_callback_node_t ));
 	node->next      = NULL;
 	node->callback  = cb;
 	node->second    = second;

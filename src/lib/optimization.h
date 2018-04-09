@@ -15,5 +15,6 @@
 #define unlikely(x)     __builtin_expect(!!(x), 0)
 #endif
 
+#define ALWAYS_INLINE inline __attribute__((always_inline))
 
 #endif/* SRC_LIB_OPTIMIZATION_H_ */

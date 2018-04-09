@@ -356,12 +356,12 @@ static inline void _pcap_capture_release( probe_context_t *context ){
 			data_spsc_ring_free( & context->smp[i]->pcap->fifo );
 		}
 
-		xfree( context->smp[i]->pcap );
+		mmt_probe_free( context->smp[i]->pcap );
 		worker_release( context->smp[i] );
 	}
 
-	xfree( context->smp );
-	xfree( context->modules.pcap );
+	mmt_probe_free( context->smp );
+	mmt_probe_free( context->modules.pcap );
 }
 
 
@@ -388,10 +388,10 @@ void pcap_capture_start( probe_context_t *context ){
 	}
 
 	//memory for the pcap module
-	context->modules.pcap = alloc( sizeof( struct pcap_probe_context_struct ));
+	context->modules.pcap = mmt_alloc( sizeof( struct pcap_probe_context_struct ));
 
 	//allocate context for each thread
-	context->smp = alloc( sizeof( worker_context_t ) * context->config->thread->thread_count );
+	context->smp = mmt_alloc( sizeof( worker_context_t ) * context->config->thread->thread_count );
 
 	//allocate and initialize memory for each worker
 	for( i=0; i<workers_count; i++ ){
@@ -404,7 +404,7 @@ void pcap_capture_start( probe_context_t *context ){
 
 
 		//specific for pcap module
-		context->smp[i]->pcap = alloc( sizeof( struct pcap_worker_context_struct ));
+		context->smp[i]->pcap = mmt_alloc( sizeof( struct pcap_worker_context_struct ));
 
 		//pthread_spin_init( & context->smp[i]->pcap->spin_lock, PTHREAD_PROCESS_PRIVATE);
 

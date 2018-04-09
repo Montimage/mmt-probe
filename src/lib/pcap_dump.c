@@ -71,7 +71,7 @@ pcap_dump_t * pcap_dump_create(const char * path, int linktype, int thiszone, ui
     if (file == NULL)
     	return NULL;
 
-    pcap_dump_t *ret = alloc( sizeof (pcap_dump_t ));
+    pcap_dump_t *ret = mmt_alloc( sizeof (pcap_dump_t ));
     ret->file = file;
 
     //header of pcap file
@@ -83,5 +83,5 @@ pcap_dump_t * pcap_dump_create(const char * path, int linktype, int thiszone, ui
 void pcap_dump_release(pcap_dump_t *handler) {
 	if( handler->file )
 		fclose( handler->file );
-    xfree( handler );
+    mmt_probe_free( handler );
 }

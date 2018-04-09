@@ -40,7 +40,7 @@ struct dynamic_conf_struct{
 
 
 dynamic_config_context_t *dynamic_conf_alloc_and_init( const char * file_descriptor ){
-	dynamic_config_context_t *ret = alloc( sizeof( dynamic_config_context_t ));
+	dynamic_config_context_t *ret = mmt_alloc( sizeof( dynamic_config_context_t ));
 	ret->file_descriptor = strdup( file_descriptor );
 
 	ret->callback_list = NULL;
@@ -65,7 +65,7 @@ bool dynamic_conf_register( dynamic_config_context_t *context, dynamic_conf_pref
 		}
 	}
 
-	el = alloc( sizeof(callback_node_t));
+	el = mmt_alloc( sizeof(callback_node_t));
 	el->prefix = prefix;
 	el->callback = cb;
 	el->user_data = user_data;

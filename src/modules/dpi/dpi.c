@@ -28,7 +28,7 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *mmt_dp
 	set_short_session_timed_out(   mmt_dpi, config->session_timeout->short_session_timeout );
 	set_live_session_timed_out(    mmt_dpi, config->session_timeout->live_session_timeout  );
 
-	dpi_context_t *ret = alloc( sizeof( dpi_context_t ) );
+	dpi_context_t *ret = mmt_alloc( sizeof( dpi_context_t ) );
 	ret->worker_index  = worker_index;
 	ret->dpi_handler   = mmt_dpi;
 	ret->output        = output;
@@ -56,7 +56,7 @@ void dpi_release( dpi_context_t *dpi_context ){
 
 	data_dump_stop( dpi_context );
 
-	xfree( dpi_context );
+	mmt_probe_free( dpi_context );
 }
 
 

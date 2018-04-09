@@ -268,7 +268,7 @@ static inline packet_session_t *_create_session (const ipacket_t * ipacket, dpi_
 	mmt_session_t * dpi_session = ipacket->session;
 	if(dpi_session == NULL) return NULL;
 
-	packet_session_t *session = alloc(sizeof (packet_session_t));
+	packet_session_t *session = mmt_alloc(sizeof (packet_session_t));
 
 	memset(session, 0, sizeof (packet_session_t));
 
@@ -386,9 +386,9 @@ static void _expired_session_callback(const mmt_session_t * expired_session, voi
 		break;
 	}
 
-	xfree( session->apps.web );
+	mmt_probe_free( session->apps.web );
 
-	xfree(session);
+	mmt_probe_free(session);
 }
 
 static int _packet_handler_for_session(const ipacket_t * ipacket, void * args) {

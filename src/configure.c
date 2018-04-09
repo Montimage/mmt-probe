@@ -277,7 +277,7 @@ static inline input_source_conf_t * _parse_input_source( cfg_t *cfg ){
 	if( cfg == NULL )
 		return NULL;
 
-	input_source_conf_t *ret = alloc( sizeof( input_source_conf_t ));
+	input_source_conf_t *ret = mmt_alloc( sizeof( input_source_conf_t ));
 
 	ret->input_mode   = cfg_getint(cfg, "mode");
 	ret->input_source = _cfg_get_str(cfg, "source");
@@ -315,7 +315,7 @@ static inline file_output_conf_t *_parse_output_to_file( cfg_t *cfg ){
 	if( c == NULL )
 		return NULL;
 
-	file_output_conf_t *ret = alloc( sizeof( file_output_conf_t ));
+	file_output_conf_t *ret = mmt_alloc( sizeof( file_output_conf_t ));
 
 	ret->is_enable  = cfg_getbool( c, "enable" );
 	ret->directory  = _cfg_get_str(c, "output-dir");
@@ -332,7 +332,7 @@ static inline data_dump_conf_t *_parse_dump_to_file( cfg_t *cfg ){
 	if( cfg == NULL )
 		return NULL;
 
-	data_dump_conf_t *ret = alloc( sizeof( data_dump_conf_t ));
+	data_dump_conf_t *ret = mmt_alloc( sizeof( data_dump_conf_t ));
 
 	ret->is_enable  = cfg_getbool( cfg, "enable" );
 	ret->directory  = _cfg_get_str(cfg, "output-dir");
@@ -344,7 +344,7 @@ static inline data_dump_conf_t *_parse_dump_to_file( cfg_t *cfg ){
 
 	ret->protocols_size = cfg_size( cfg, "protocols");
 
-	ret->protocols = alloc( sizeof( void* ) * ret->protocols_size );
+	ret->protocols = mmt_alloc( sizeof( void* ) * ret->protocols_size );
 	int i;
 	char *str;
 	for( i=0; i<ret->protocols_size; i++) {
@@ -358,7 +358,7 @@ static inline kafka_output_conf_t *_parse_output_to_kafka( cfg_t *cfg ){
 	if( (cfg = _get_first_cfg_block( cfg, "kafka-output")) == NULL )
 		return NULL;
 
-	kafka_output_conf_t *ret = alloc( sizeof( kafka_output_conf_t ));
+	kafka_output_conf_t *ret = mmt_alloc( sizeof( kafka_output_conf_t ));
 
 	ret->is_enable        = cfg_getbool( cfg,  "enable" );
 	ret->host.host_name   = _cfg_get_str(cfg, "hostname");
@@ -372,7 +372,7 @@ static inline redis_output_conf_t *_parse_output_to_redis( cfg_t *cfg ){
 	if( (cfg = _get_first_cfg_block( cfg, "redis-output")) == NULL )
 		return NULL;
 
-	redis_output_conf_t *ret = alloc( sizeof( redis_output_conf_t ));
+	redis_output_conf_t *ret = mmt_alloc( sizeof( redis_output_conf_t ));
 
 	ret->is_enable        = cfg_getbool( cfg, "enable" );
 	ret->host.host_name   = _cfg_get_str(cfg, "hostname");
@@ -386,7 +386,7 @@ static inline dynamic_config_conf_t *_parse_dynamic_config_block( cfg_t *cfg ){
 	if( c == NULL )
 		return NULL;
 
-	dynamic_config_conf_t *ret = alloc( sizeof( dynamic_config_conf_t ));
+	dynamic_config_conf_t *ret = mmt_alloc( sizeof( dynamic_config_conf_t ));
 
 	ret->is_enable  = cfg_getbool( c, "enable" );
 	ret->descriptor  = _cfg_get_str(c, "descriptor");
@@ -396,7 +396,7 @@ static inline dynamic_config_conf_t *_parse_dynamic_config_block( cfg_t *cfg ){
 
 
 static inline multi_thread_conf_t * _parse_thread( cfg_t *cfg ){
-	multi_thread_conf_t *ret = alloc( sizeof( multi_thread_conf_t ));
+	multi_thread_conf_t *ret = mmt_alloc( sizeof( multi_thread_conf_t ));
 	ret->thread_count                  = cfg_getint( cfg, "thread-nb" );
 	ret->thread_queue_packet_threshold = cfg_getint( cfg, "thread-queue" );
 	return ret;
@@ -406,7 +406,7 @@ static inline behaviour_conf_t *_parse_behaviour_block( cfg_t *cfg ){
 	if( (cfg = _get_first_cfg_block( cfg, "behaviour")) == NULL )
 		return NULL;
 
-	behaviour_conf_t *ret = alloc( sizeof( behaviour_conf_t ));
+	behaviour_conf_t *ret = mmt_alloc( sizeof( behaviour_conf_t ));
 	ret->is_enable = cfg_getbool( cfg, "enable" );
 	ret->directory = _cfg_get_str(cfg, "output-dir");
 	return ret;
@@ -440,7 +440,7 @@ static inline system_stats_conf_t *_parse_cpu_mem_block( cfg_t *cfg ){
 	if( (cfg = _get_first_cfg_block( cfg, "system-report")) == NULL )
 		return NULL;
 
-	system_stats_conf_t *ret = alloc( sizeof( system_stats_conf_t ));
+	system_stats_conf_t *ret = mmt_alloc( sizeof( system_stats_conf_t ));
 	ret->is_enable = cfg_getbool( cfg, "enable" );
 	ret->frequency = cfg_getint( cfg, "frequency" );
 	_parse_output_channel( & ret->output_channels, cfg );
@@ -468,7 +468,7 @@ static inline uint16_t _parse_attributes_helper( cfg_t *cfg, const char* name, d
 		return size;
 
 	dpi_protocol_attribute_t *ret = NULL;
-	ret = alloc( sizeof( dpi_protocol_attribute_t ) * size );
+	ret = mmt_alloc( sizeof( dpi_protocol_attribute_t ) * size );
 	for( i=0; i<size; i++ )
 		_parse_dpi_protocol_attribute( &ret[i], cfg_getnstr( cfg, name, i ) );
 
@@ -484,7 +484,7 @@ static inline void _parse_event_block( event_report_conf_t *ret, cfg_t *cfg ){
 	assert( cfg != NULL );
 	ret->is_enable = cfg_getbool( cfg, "enable" );
 	ret->title     = strdup( cfg_title(cfg) );
-	ret->event = alloc( sizeof( dpi_protocol_attribute_t ));
+	ret->event = mmt_alloc( sizeof( dpi_protocol_attribute_t ));
 	_parse_dpi_protocol_attribute( ret->event, cfg_getstr( cfg, "event" ) );
 
 	ret->attributes_size = _parse_attributes_helper( cfg, "attributes", &ret->attributes );
@@ -496,7 +496,7 @@ static inline micro_flow_conf_t *_parse_microflow_block( cfg_t *cfg ){
 	if( (cfg = _get_first_cfg_block( cfg, "micro-flows")) == NULL )
 		return NULL;
 
-	micro_flow_conf_t *ret = alloc( sizeof( micro_flow_conf_t ));
+	micro_flow_conf_t *ret = mmt_alloc( sizeof( micro_flow_conf_t ));
 	ret->is_enable             = cfg_getbool( cfg, "enable" );
 	ret->include_bytes_count   = cfg_getint( cfg, "include-byte-count" );
 	ret->include_packets_count = cfg_getint( cfg, "include-packet-count" );
@@ -510,7 +510,7 @@ static inline radius_conf_t *_parse_radius_block( cfg_t *cfg ){
 	if( (cfg = _get_first_cfg_block( cfg, "radius-output")) == NULL )
 		return NULL;
 
-	radius_conf_t *ret     = alloc( sizeof( radius_conf_t ));
+	radius_conf_t *ret     = mmt_alloc( sizeof( radius_conf_t ));
 	ret->is_enable         = cfg_getbool( cfg, "enable" );
 	ret->include_msg       = cfg_getint( cfg, "include-msg" );
 	ret->include_condition = cfg_getint( cfg, "include-condition" );
@@ -522,7 +522,7 @@ static inline security_conf_t *_parse_security_block( cfg_t *cfg ){
 	if( (cfg = _get_first_cfg_block( cfg, "security")) == NULL )
 		return NULL;
 
-	security_conf_t *ret = alloc( sizeof( security_conf_t ));
+	security_conf_t *ret = mmt_alloc( sizeof( security_conf_t ));
 	ret->is_enable = cfg_getbool( cfg, "enable" );
 	ret->threads_size = cfg_getint( cfg, "thread-nb" );
 	ret->excluded_rules = _cfg_get_str(cfg, "exclude-rules" );
@@ -535,7 +535,7 @@ static inline security_multi_sessions_conf_t *_parse_multi_session_block( cfg_t 
 	if( (cfg = _get_first_cfg_block( cfg, "security-report-multisession")) == NULL )
 		return NULL;
 
-	security_multi_sessions_conf_t *ret = alloc( sizeof( security_multi_sessions_conf_t ));
+	security_multi_sessions_conf_t *ret = mmt_alloc( sizeof( security_multi_sessions_conf_t ));
 	ret->is_enable = cfg_getbool( cfg, "enable" );
 	ret->attributes_size = _parse_attributes_helper(cfg, "attributes", &ret->attributes );
 	_parse_output_channel( & ret->output_channels, cfg );
@@ -546,7 +546,7 @@ static inline session_report_conf_t *_parse_session_block( cfg_t *cfg ){
 	if( (cfg = _get_first_cfg_block( cfg, "session-report")) == NULL )
 		return NULL;
 
-	session_report_conf_t *ret = alloc( sizeof( session_report_conf_t ));
+	session_report_conf_t *ret = mmt_alloc( sizeof( session_report_conf_t ));
 	ret->is_enable = cfg_getbool( cfg, "enable" );
 	ret->is_ftp    = cfg_getbool( cfg, "ftp" );
 	ret->is_rtp    = cfg_getbool( cfg, "rtp" );
@@ -560,7 +560,7 @@ static inline session_timeout_conf_t *_parse_session_timeout_block( cfg_t *cfg )
 	if( (cfg = _get_first_cfg_block( cfg, "session-timeout")) == NULL )
 		return NULL;
 
-	session_timeout_conf_t *ret = alloc( sizeof( session_timeout_conf_t ));
+	session_timeout_conf_t *ret = mmt_alloc( sizeof( session_timeout_conf_t ));
 	ret->default_session_timeout = _cfg_getint( cfg, "default-session-timeout", 0, 6000, 0,   60 );
 	ret->live_session_timeout    = _cfg_getint( cfg, "live-session-timeout",    0, 6000, 0, 1500 );
 	ret->long_session_timeout    = _cfg_getint( cfg, "long-session-timeout",    0, 6000, 0,  600 );
@@ -574,7 +574,7 @@ static inline socket_output_conf_t *_parse_socket_block( cfg_t *cfg ){
 	if( c == NULL )
 		return NULL;
 
-	socket_output_conf_t *ret = alloc( sizeof( socket_output_conf_t ));
+	socket_output_conf_t *ret = mmt_alloc( sizeof( socket_output_conf_t ));
 	ret->is_enable = cfg_getbool( c, "enable" );
 	switch( cfg_getint( c, "domain")  ){
 	case 0:
@@ -622,7 +622,7 @@ static inline reconstruct_data_conf_t *_parse_reconstruct_data_block( cfg_t *cfg
 
 		DEBUG( "Parsing block 'reconstruct-data %s'", name );
 
-		reconstruct_data_conf_t *ret = alloc( sizeof( reconstruct_data_conf_t ));
+		reconstruct_data_conf_t *ret = mmt_alloc( sizeof( reconstruct_data_conf_t ));
 		ret->is_enable = cfg_getbool( c, "enable" );
 		ret->directory = _cfg_get_str(c, "output-dir" );
 		_parse_output_channel( & ret->output_channels, c );
@@ -643,7 +643,7 @@ probe_conf_t* load_configuration_from_file( const char* filename ){
 		return NULL;
 	}
 
-	probe_conf_t *conf = alloc( sizeof( probe_conf_t ) );
+	probe_conf_t *conf = mmt_alloc( sizeof( probe_conf_t ) );
 
 	conf->probe_id     = cfg_getint(cfg, "probe-id");
 	conf->stat_period  = cfg_getint(cfg, "stats-period");
@@ -671,7 +671,7 @@ probe_conf_t* load_configuration_from_file( const char* filename ){
 
 	//events reports
 	conf->reports.events_size = cfg_size( cfg, "event-report" );
-	conf->reports.events  = alloc( sizeof( event_report_conf_t ) * conf->reports.events_size );
+	conf->reports.events  = mmt_alloc( sizeof( event_report_conf_t ) * conf->reports.events_size );
 	for( i=0; i<conf->reports.events_size; i++ )
 		_parse_event_block( &conf->reports.events[i], cfg_getnsec( cfg, "event-report", i) );
 
@@ -701,14 +701,14 @@ static inline void _free_event_report( event_report_conf_t *ret ){
 		return;
 	int i;
 	for( i=0; i<ret->attributes_size; i++ ){
-		xfree( ret->attributes[i].proto_name );
-		xfree( ret->attributes[i].attribute_name );
+		mmt_probe_free( ret->attributes[i].proto_name );
+		mmt_probe_free( ret->attributes[i].attribute_name );
 	}
-	xfree( ret->attributes );
-	xfree( ret->title );
-	xfree( ret->event->proto_name );
-	xfree( ret->event->attribute_name );
-	xfree( ret->event );
+	mmt_probe_free( ret->attributes );
+	mmt_probe_free( ret->title );
+	mmt_probe_free( ret->event->proto_name );
+	mmt_probe_free( ret->event->attribute_name );
+	mmt_probe_free( ret->event );
 }
 
 /**
@@ -722,73 +722,73 @@ void release_probe_configuration( probe_conf_t *conf){
 
 	int i;
 
-	xfree( conf->input->input_source );
-	xfree( conf->input );
+	mmt_probe_free( conf->input->input_source );
+	mmt_probe_free( conf->input );
 
 	for( i=0; i<conf->reports.events_size; i++ )
 		_free_event_report( &conf->reports.events[i] );
-	xfree( conf->reports.events );
+	mmt_probe_free( conf->reports.events );
 
 	if( conf->reports.behaviour ){
-		xfree( conf->reports.behaviour->directory );
-		xfree( conf->reports.behaviour );
+		mmt_probe_free( conf->reports.behaviour->directory );
+		mmt_probe_free( conf->reports.behaviour );
 	}
 
-	xfree( conf->reports.cpu_mem );
-	xfree( conf->reports.microflow );
-	xfree( conf->reports.radius );
+	mmt_probe_free( conf->reports.cpu_mem );
+	mmt_probe_free( conf->reports.microflow );
+	mmt_probe_free( conf->reports.radius );
 
 	if( conf->reports.security ){
-		xfree( conf->reports.security->excluded_rules );
-		xfree( conf->reports.security->rules_mask );
-		xfree( conf->reports.security );
+		mmt_probe_free( conf->reports.security->excluded_rules );
+		mmt_probe_free( conf->reports.security->rules_mask );
+		mmt_probe_free( conf->reports.security );
 	}
 
 	if( conf->reports.security_multisession ){
 		for( i=0; i<conf->reports.security_multisession->attributes_size; i++ ){
-			xfree( conf->reports.security_multisession->attributes[i].proto_name );
-			xfree( conf->reports.security_multisession->attributes[i].attribute_name );
+			mmt_probe_free( conf->reports.security_multisession->attributes[i].proto_name );
+			mmt_probe_free( conf->reports.security_multisession->attributes[i].attribute_name );
 		}
-		xfree( conf->reports.security_multisession->attributes );
-		xfree( conf->reports.security_multisession );
+		mmt_probe_free( conf->reports.security_multisession->attributes );
+		mmt_probe_free( conf->reports.security_multisession );
 	}
-	xfree( conf->reports.session );
+	mmt_probe_free( conf->reports.session );
 
 	if( conf->reports.socket ){
-		xfree( conf->reports.socket->unix_socket_descriptor );
+		mmt_probe_free( conf->reports.socket->unix_socket_descriptor );
 		for( i=0; i<conf->reports.socket->internet_sockets_size; i++){
 			//xfree(conf->reports.socket->internet_sockets[i].host.host_name );
 		}
-		xfree( conf->reports.socket->internet_sockets );
-		xfree( conf->reports.socket );
+		mmt_probe_free( conf->reports.socket->internet_sockets );
+		mmt_probe_free( conf->reports.socket );
 	}
 
 	if( conf->reconstructions.ftp ){
-		xfree( conf->reconstructions.ftp->directory );
-		xfree( conf->reconstructions.ftp );
+		mmt_probe_free( conf->reconstructions.ftp->directory );
+		mmt_probe_free( conf->reconstructions.ftp );
 	}
 	if( conf->reconstructions.http ){
-		xfree( conf->reconstructions.http->directory );
-		xfree( conf->reconstructions.http );
+		mmt_probe_free( conf->reconstructions.http->directory );
+		mmt_probe_free( conf->reconstructions.http );
 	}
 
-	xfree( conf->thread );
+	mmt_probe_free( conf->thread );
 	if( conf->outputs.file ){
-		xfree( conf->outputs.file->directory );
-		xfree( conf->outputs.file->filename );
-		xfree( conf->outputs.file );
+		mmt_probe_free( conf->outputs.file->directory );
+		mmt_probe_free( conf->outputs.file->filename );
+		mmt_probe_free( conf->outputs.file );
 	}
 	if( conf->outputs.kafka ){
-		xfree( conf->outputs.kafka->host.host_name );
-		xfree( conf->outputs.kafka );
+		mmt_probe_free( conf->outputs.kafka->host.host_name );
+		mmt_probe_free( conf->outputs.kafka );
 	}
 	if( conf->outputs.redis ){
-		xfree( conf->outputs.redis->host.host_name );
-		xfree( conf->outputs.redis );
+		mmt_probe_free( conf->outputs.redis->host.host_name );
+		mmt_probe_free( conf->outputs.redis );
 	}
 
-	xfree( conf->session_timeout );
+	mmt_probe_free( conf->session_timeout );
 
-	xfree( conf->license_file );
-	xfree( conf );
+	mmt_probe_free( conf->license_file );
+	mmt_probe_free( conf );
 }

@@ -37,7 +37,7 @@ output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct
 	if( ! config->is_enable )
 		return NULL;
 
-	output_t *ret = alloc( sizeof( output_t ));
+	output_t *ret = mmt_alloc( sizeof( output_t ));
 	ret->config = config;
 	ret->index  = output_id;
 	ret->last_report_ts.tv_sec  = 0;
@@ -157,5 +157,5 @@ void output_release( output_t * output){
 
 	if( output->modules.file )
 		file_output_release( output->modules.file );
-	xfree( output );
+	mmt_probe_free( output );
 }

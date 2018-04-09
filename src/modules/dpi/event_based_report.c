@@ -58,7 +58,7 @@ void event_based_report_register( dpi_context_t *dpi_context ){
 
 
 	//no event?
-	event_based_report_context_t *ret = alloc( config->reports.events_size * sizeof( event_based_report_context_t  ) );
+	event_based_report_context_t *ret = mmt_alloc( config->reports.events_size * sizeof( event_based_report_context_t  ) );
 
 	for( i=0; i<config->reports.events_size; i++ ){
 		ret[i].config = &(config->reports.events[i]);
@@ -95,5 +95,5 @@ void event_based_report_unregister( dpi_context_t *dpi_context  ){
 		dpi_unregister_attribute( ev->attributes, ev->attributes_size, dpi_handler, NULL );
 	}
 
-	xfree( dpi_context->event_based_context );
+	mmt_probe_free( dpi_context->event_based_context );
 }

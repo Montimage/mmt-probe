@@ -112,7 +112,7 @@ file_output_t* file_output_alloc_init( const file_output_conf_t *config, uint16_
 	if( config->is_enable == false )
 		return NULL;
 
-	file_output_t *ret = alloc( sizeof( file_output_t) );
+	file_output_t *ret = mmt_alloc( sizeof( file_output_t) );
 	ret->file          = NULL;
 	ret->config        = config;
 	ret->id            = id;
@@ -164,7 +164,7 @@ void file_output_release( file_output_t *output ){
 		if( output->config->is_sampled )
 			_create_semaphore_file( output );
 	}
-	xfree( output );
+	mmt_probe_free( output );
 }
 
 int file_output_write( file_output_t *output, const char *message ){

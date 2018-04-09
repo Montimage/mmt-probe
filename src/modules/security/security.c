@@ -69,7 +69,7 @@ static int _security_packet_handler( const ipacket_t *ipacket, void *args ) {
  * @return
  */
 int security_open( const char *excluded_rules ){
-	log_write( LOG_INFO, "start MMT-Security %s", mmt_sec_get_version_info() );
+	log_write( LOG_INFO, "Start MMT-Security %s", mmt_sec_get_version_info() );
 	//exclude rules in rules_mask
 	return mmt_sec_init( excluded_rules );
 }
@@ -77,6 +77,43 @@ int security_open( const char *excluded_rules ){
 
 void security_close(){
 	mmt_sec_close();
+}
+
+
+/**
+ * A function to be called when a rule is validated
+ * Note: this function can be called from one or many different threads,
+ *       ==> be carefully when using static or shared variables inside it
+ */
+static void _print_security_verdict(
+		const rule_info_t *rule,		//rule being validated
+		enum verdict_type verdict,		//DETECTED, NOT_RESPECTED
+		uint64_t timestamp,  			//moment (by time) the rule is validated
+		uint64_t counter,			    //moment (by order of packet) the rule is validated
+		const mmt_array_t * const trace,//historic of messages that validates the rule
+		void *user_data					//#user-data being given in register_security
+){
+	security_context_t *security_context = (security_context_t *) user_data;
+
+	const output_channel_conf_t *channels = & security_context->config->output_channels;
+	const char *description = rule->description;
+	const char *exec_trace  = mmt_convert_execution_trace_to_json_string( trace, rule );
+
+
+	struct timeval ts;
+	mmt_sec_decode_timeval(timestamp, &ts );
+
+	output_write_report_with_format( security_context->output,
+			channels,
+			SECURITY_REPORT_TYPE,
+			&ts,
+			"%"PRIu32",\"%s\",\"%s\",\"%s\",%s",
+			rule->id,
+			verdict_type_string[verdict],
+			rule->type_string,
+			description,
+			exec_trace
+	);
 }
 
 /**
@@ -93,7 +130,7 @@ void security_close(){
 security_context_t* security_worker_alloc_init( const security_conf_t *config,
 		mmt_handler_t *dpi_handler, const uint32_t *cores_id,
 		bool verbose,
-		mmt_sec_callback callback, void *user_data ){
+		output_t *output ){
 	size_t threads_count = config->threads_size;
 	int i;
 
@@ -105,12 +142,12 @@ security_context_t* security_worker_alloc_init( const security_conf_t *config,
 		return NULL;
 
 	//init
-	security_context_t *ret = alloc(sizeof( security_context_t ));
+	security_context_t *ret = mmt_alloc_and_init_zero(sizeof( security_context_t ));
 	ret->dpi_handler = dpi_handler;
 	ret->config      = config;
-
+	ret->output      = output;
 	//init mmt-sec to verify the rules
-	ret->sec_handler = mmt_sec_register( threads_count, cores_id, config->rules_mask, false, callback, user_data);
+	ret->sec_handler = mmt_sec_register( threads_count, cores_id, config->rules_mask, false, _print_security_verdict, ret );
 
 	//register protocols and their attributes using by mmt-sec
 	ret->proto_atts_count =  mmt_sec_get_unique_protocol_attributes((void*) &ret->proto_atts );
@@ -168,7 +205,7 @@ size_t security_worker_release( security_context_t* ret ){
 	ret->sec_handler = NULL;
 
 	unregister_packet_handler (ret->dpi_handler, SECURITY_DPI_PACKET_HANDLER_ID );
-	xfree( ret );
+	mmt_probe_free( ret );
 
 	return alerts_count;
 }

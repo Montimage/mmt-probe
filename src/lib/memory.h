@@ -17,24 +17,12 @@
 #include "limit.h"
 #include "tools.h"
 
-//TODO: remove this block
-//#define DPDK_MODULE
-//#ifndef PCAP_MODULE
-//#define PCAP_MODULE
-//#endif
-
-//#define SECURITY_MODULE
-//#define REDIS_MODULE
-//#define KAFKA_MODULE
-//#define NETCONF_MODULE
-
-
 /**
  * Allocate a memory segment.
  * Abort when not enough memory to allocate
  * @param size
  */
-static inline void* alloc( size_t size ){
+static ALWAYS_INLINE void* mmt_alloc( size_t size ){
 	void *ret = malloc( size );
 	if( unlikely( ret == NULL )){
 		log_write( LOG_EMERG, "Not enough memory to allocate %zu bytes", size );
@@ -43,8 +31,20 @@ static inline void* alloc( size_t size ){
 	return ret;
 }
 
+/**
+ * Allocate memory and initialize to zero
+ * @param size
+ */
+static ALWAYS_INLINE void *mmt_alloc_and_init_zero( size_t size ){
+	void *ret = calloc( 1, size );
+	if( unlikely( ret == NULL )){
+		log_write( LOG_EMERG, "Not enough memory to allocate %zu bytes", size );
+		abort();
+	}
+	return ret;
+}
 
-static inline void xfree( void *x ){
+static ALWAYS_INLINE void mmt_probe_free( void *x ) {
 	free( x );
 }
 
@@ -53,7 +53,7 @@ static inline void xfree( void *x ){
  * @param dest
  * @param source
  */
-static inline void assign_6bytes( void *dest, void *source){
+static ALWAYS_INLINE void assign_6bytes( void *dest, void *source){
 	uint16_t *s = (uint16_t *)source;
 	uint16_t *d = (uint16_t *)dest;
 	d[0] = s[0];

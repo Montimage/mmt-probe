@@ -112,7 +112,7 @@ static void * _stats_routine(void * args){
 system_stats_context_t *system_stats_alloc_init_start( const system_stats_conf_t *config, uint32_t core_id, output_t *output ){
 	if( !config->is_enable )
 		return NULL;
-	system_stats_context_t *ret = alloc( sizeof( system_stats_context_t ));
+	system_stats_context_t *ret = mmt_alloc( sizeof( system_stats_context_t ));
 	ret->config  = config;
 	ret->core_id = core_id;
 	ret->output  = output;
@@ -127,5 +127,5 @@ system_stats_context_t *system_stats_alloc_init_start( const system_stats_conf_t
 }
 
 void system_stats_release( system_stats_context_t *context){
-	xfree( context );
+	mmt_probe_free( context );
 }

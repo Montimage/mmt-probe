@@ -422,7 +422,7 @@ static inline void _dpdk_capture_release( probe_context_t *context ){
 	int i;
 	for( i=0; i<context->config->thread->thread_count; i++ )
 		worker_release( context->smp[i] );
-	xfree( context->smp );
+	mmt_probe_free( context->smp );
 }
 
 static void _print_stats(int type) {
@@ -488,7 +488,7 @@ void dpdk_capture_start ( probe_context_t *context){
 	param.probe_context = context;
 	_port_init(input_port, context, &param );
 
-	context->smp = alloc( sizeof( worker_context_t ) * context->config->thread->thread_count );
+	context->smp = mmt_alloc( sizeof( worker_context_t ) * context->config->thread->thread_count );
 
 	lcore_id = 0;
 	i = 0;
@@ -507,7 +507,7 @@ void dpdk_capture_start ( probe_context_t *context){
 		context->smp[i]->probe_context = context;
 
 		//for DPDK
-		context->smp[i]->dpdk = alloc( sizeof( struct dpdk_worker_context_struct ));
+		context->smp[i]->dpdk = mmt_alloc( sizeof( struct dpdk_worker_context_struct ));
 		sem_init( &context->smp[i]->dpdk->semaphore, 0, 0 );
 		context->smp[i]->dpdk->distributor = param.distributor;
 

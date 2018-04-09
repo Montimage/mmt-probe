@@ -11,6 +11,7 @@
 #include <mmt_security.h>
 #include <mmt_core.h>
 #include "../../configure.h"
+#include "../output/output.h"
 
 typedef struct security_context_struct{
 	mmt_handler_t *dpi_handler;
@@ -22,6 +23,8 @@ typedef struct security_context_struct{
 	uint32_t proto_atts_count;
 
 	const security_conf_t *config;
+
+	output_t *output;
 } security_context_t;
 
 /**
@@ -38,30 +41,11 @@ int security_open( );
 void security_close();
 
 /**
- * Send security alerts' information to file or redis depending .conf file
- * @param rule
- * @param verdict
- * @param timestamp
- * @param counter
- * @param trace
- * @param user_data
- */
-void security_print_verdict(
-		const rule_info_t *rule,		//rule being validated
-		enum verdict_type verdict,		//DETECTED, NOT_RESPECTED
-		uint64_t timestamp,  			//moment (by time) the rule is validated
-		uint64_t counter,					//moment (by order of packet) the rule is validated
-		const mmt_array_t * const trace,//historic of messages that validates the rule
-		void *user_data					//#user-data being given in register_security
-);
-
-/**
  */
 security_context_t* security_worker_alloc_init( const security_conf_t *config,
 		mmt_handler_t *dpi_handler, const uint32_t *core_mask,
 		bool verbose,
-		mmt_sec_callback callback, void *user_data );
-
+		output_t *output );
 
 /**
  * Stop and free security
