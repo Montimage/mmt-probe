@@ -53,6 +53,9 @@ void dpi_release( dpi_context_t *dpi_context ){
 	dpi_callback_on_stat_period( dpi_context );
 
 	event_based_report_unregister( dpi_context );
+
+	data_dump_stop( dpi_context );
+
 	xfree( dpi_context );
 }
 

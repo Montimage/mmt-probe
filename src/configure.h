@@ -120,7 +120,7 @@ typedef struct data_dump_conf_struct{
 	uint16_t snap_len;
 }data_dump_conf_t;
 
-typedef struct reconstruct_ftp_conf_struct{
+typedef struct reconstruct_data_conf_struct{
 	bool is_enable;
 	char *directory; //indicates the folder where the output file is created
 	output_channel_conf_t output_channels;
@@ -251,6 +251,7 @@ typedef struct probe_conf_struct{
 	struct reconstruct_data_struct{
 		reconstruct_data_conf_t *http;
 		reconstruct_data_conf_t *ftp;
+		reconstruct_data_conf_t *tcp;
 	}reconstructions;
 
 

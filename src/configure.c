@@ -691,6 +691,7 @@ probe_conf_t* load_configuration_from_file( const char* filename ){
 	//
 	conf->reconstructions.ftp = _parse_reconstruct_data_block(cfg, "ftp");
 	conf->reconstructions.http = _parse_reconstruct_data_block(cfg, "http");
+	conf->reconstructions.tcp = _parse_reconstruct_data_block(cfg, "tcp");
 	cfg_free( cfg );
 	return conf;
 }
