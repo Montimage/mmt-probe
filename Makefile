@@ -59,6 +59,7 @@ endif
 MODULE_SRCS := $(wildcard src/modules/output/*.c)
 MODULE_SRCS += $(wildcard src/modules/output/file/*.c)
 MODULE_SRCS += $(wildcard src/modules/dpi/*.c)
+MODULE_SRCS += $(wildcard src/modules/routine/*.c)
 #################################################
 ########### MODULES #############################
 #################################################

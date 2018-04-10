@@ -39,6 +39,8 @@ typedef struct probe_context_struct{
 	}modules;
 }probe_context_t;
 
+//the variable is defined in main.c
+extern probe_context_t context;
 
 #define IS_SMP_MODE( context ) (context->config->thread->thread_count != 0)
 

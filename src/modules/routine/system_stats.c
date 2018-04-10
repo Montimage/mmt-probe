@@ -16,8 +16,8 @@
 
 
 struct system_stats_context_struct{
-	system_stats_conf_t *config;
-	uint32_t core_id;
+	const system_stats_conf_t *config;
+	uint16_t flush_period;
 	output_t *output;
 	pthread_t thread_handler;
 };
@@ -62,13 +62,17 @@ static inline bool _read_mem_info( unsigned long *mem_avail, unsigned long *mem_
 	return true;
 }
 
+typedef struct cpu_struct{
+	unsigned long user, system, idle;
+}cpu_t;
+
 /* This function monitors CPU and memory usage*/
 static void * _stats_routine(void * args){
-	probe_context_t * probe_context = (probe_context_t *)args;
+	system_stats_context_t * context = (system_stats_context_t *)args;
 
-	unsigned long cpu_user, cpu_system, cpu_idle;
-	unsigned long cpu_user_2, cpu_system_2, cpu_idle_2;
-	unsigned long cpu_total;
+	cpu_t cpu_1;
+	cpu_t cpu_2;
+	unsigned long diff_cpu_total;
 	/* mem_free: The amount of physical RAM, in kilobytes, left unused by the system
 	 * mem_avail: An estimate of how much memory is available for starting new applications, without swapping
 	 * see https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=34e431b0ae398fc54ea69ff85ec700722c9da773
@@ -79,43 +83,65 @@ static void * _stats_routine(void * args){
 	struct timeval ts;
 
 	//disable? no output?
-	if( ! probe_context->config->reports.cpu_mem->is_enable
-		|| ! probe_context->config->reports.cpu_mem->output_channels.is_enable
-		|| ! probe_context->config->outputs.is_enable )
+	if( ! context->config->is_enable
+		|| ! context->config->output_channels.is_enable )
 		return NULL;
 
-	if( ! _read_cpu_info( &cpu_user, &cpu_system, &cpu_idle))
+	if( ! _read_cpu_info( &cpu_1.user, &cpu_1.system, &cpu_1.idle))
 		return NULL;
 
 
+	uint16_t timer_1 = 0, timer_2 = 0;
 	while ( true ) {
+		timer_1 ++;
+		timer_2 ++;
+
 		//using usleep to wake up when having a signal
-		usleep( probe_context->config->reports.cpu_mem->frequency * 1000 );
+		usleep( MICRO_PER_SEC ); //sleep 1 second
 
-		if( ! _read_cpu_info( &cpu_user_2, &cpu_system_2, &cpu_idle_2) ||
-					! _read_mem_info( &mem_avail, &mem_total ) )
-				return NULL;
+		//do statistics
+		if( timer_1 == 5 ){// context->config->frequency ){
+			timer_1 = 0;
+			if( ! _read_cpu_info( &cpu_2.user, &cpu_2.system, &cpu_2.idle) ||
+						! _read_mem_info( &mem_avail, &mem_total ) ){
+				continue;
+			}
+			//cputime between two sample moments
+			diff_cpu_total = (cpu_2.user + cpu_2.system + cpu_2.idle) - (cpu_1.user + cpu_1.system + cpu_1.idle);
 
-		//cputime between two sample moments
-		cpu_total = (cpu_user_2 + cpu_system_2 + cpu_idle_2) - (cpu_user + cpu_system + cpu_idle);
+			//Print this report every 5 second
+			gettimeofday(&ts, NULL);
+			output_write_report_with_format(context->output,
+					&context->config->output_channels,
+					SYSTEM_REPORT_TYPE, &ts,
+					"%.0f,%.0f,%.0f,%lu,%lu",
+					(cpu_2.user - cpu_1.user)     * 100.0 / diff_cpu_total,
+					(cpu_2.system - cpu_1.system) * 100.0 / diff_cpu_total,
+					(cpu_2.idle - cpu_1.idle)     * 100.0 / diff_cpu_total,
+					mem_avail, mem_total );
 
-		//Print this report every 5 second
+			//remember last values of cpu
+			cpu_1 = cpu_2;
+		}
 
-		gettimeofday(&ts, NULL);
-
+		//flush messages
+		if( timer_2 == context->flush_period ){
+			timer_2 = 0;
+			output_flush( context->output );
+		}
 	}
 
 	return NULL;
 }
 
 
-system_stats_context_t *system_stats_alloc_init_start( const system_stats_conf_t *config, uint32_t core_id, output_t *output ){
+system_stats_context_t *system_stats_alloc_init_start( const system_stats_conf_t *config, output_t *output, uint16_t flush_period ){
 	if( !config->is_enable )
 		return NULL;
 	system_stats_context_t *ret = mmt_alloc( sizeof( system_stats_context_t ));
 	ret->config  = config;
-	ret->core_id = core_id;
 	ret->output  = output;
+	ret->flush_period = flush_period;
 
 	if( pthread_create( &ret->thread_handler, NULL, _stats_routine, ret )){
 		log_write( LOG_ERR, "Cannot create thread for system_stats");

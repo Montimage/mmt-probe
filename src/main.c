@@ -27,6 +27,7 @@
 
 #include "context.h"
 #include "configure.h"
+#include "modules/routine/routine.h"
 
 #ifdef DPDK_MODULE
 #include "modules/packet_capture/dpdk/dpdk_capture.h"
@@ -112,6 +113,8 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 				abort();
 		}
 	}
+
+	log_write( LOG_INFO, "Loaded configuration from '%s'", config_file );
 
 	//reset getopt function
 	optind = 0;
@@ -307,6 +310,9 @@ int main( int argc, char** argv ){
 	}else
 		log_write( LOG_INFO, "MMT-DPI %s", mmt_version() );
 
+	//other stubs, such as, system usage report
+	routine_t *routine = routine_create_and_start( &context );
+
 #ifdef DPDK_MODULE
 	dpdk_capture_start( &context );
 #else
@@ -322,6 +328,8 @@ int main( int argc, char** argv ){
 	IF_ENABLE_SECURITY(
 		security_close();
 	)
+
+	routine_stop_and_release( routine );
 
 	log_close();
 	printf("Bye\n");

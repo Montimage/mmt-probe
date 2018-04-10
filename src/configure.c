@@ -108,7 +108,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 
 	cfg_opt_t cpu_mem_report_opts[] = {
 			CFG_BOOL("enable", false, CFGF_NONE),
-			CFG_INT("frequency", 0, CFGF_NONE),
+			CFG_INT("period", 0, CFGF_NONE),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
 	};
@@ -337,8 +337,6 @@ static inline data_dump_conf_t *_parse_dump_to_file( cfg_t *cfg ){
 	ret->is_enable  = cfg_getbool( cfg, "enable" );
 	ret->directory  = _cfg_get_str(cfg, "output-dir");
 	ret->frequency  = cfg_getint( cfg, "period");
-	if( ret->frequency == 0 )
-		ret->frequency = 3600;
 	ret->retained_files_count = cfg_getint( cfg, "retain-files" );
 	ret->snap_len = cfg_getint( cfg, "snap-len" );
 
@@ -442,7 +440,7 @@ static inline system_stats_conf_t *_parse_cpu_mem_block( cfg_t *cfg ){
 
 	system_stats_conf_t *ret = mmt_alloc( sizeof( system_stats_conf_t ));
 	ret->is_enable = cfg_getbool( cfg, "enable" );
-	ret->frequency = cfg_getint( cfg, "frequency" );
+	ret->frequency = cfg_getint( cfg, "period" );
 	_parse_output_channel( & ret->output_channels, cfg );
 	return ret;
 }
@@ -693,6 +691,13 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 	conf->reconstructions.http = _parse_reconstruct_data_block(cfg, "http");
 	conf->reconstructions.tcp = _parse_reconstruct_data_block(cfg, "tcp");
 	cfg_free( cfg );
+
+	//validate default values
+	if( conf->reports.cpu_mem->frequency == 0 )
+		conf->reports.cpu_mem->frequency = 5;
+	if( conf->outputs.file->output_period == 0 )
+		conf->outputs.file->output_period = 5;
+
 	return conf;
 }
 
@@ -924,7 +929,7 @@ bool conf_override_element( probe_conf_t *conf, config_attribute_t ident, const 
 		}
 		break;
 	case CONF_ATT__INPUT__SOURCE:
-		string_param = conf->input->input_source;
+		string_param = &conf->input->input_source;
 		break;
 	case CONF_ATT__INPUT__SNAP_LEN:
 		conf->input->snap_len = atoi( value );

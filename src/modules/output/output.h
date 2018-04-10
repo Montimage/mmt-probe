@@ -22,6 +22,7 @@ typedef enum{
 	SESSION_REPORT_FTP_TYPE =    4, //sub report inside SESSION_REPORT
 	IP_FRAG_REPORT_TYPE     =  101,
 	DUMMY_REPORT_TYPE       =  200,
+	SYSTEM_REPORT_TYPE      =  201,
 	EVENT_REPORT_TYPE       = 1000,
 }report_type_t;
 

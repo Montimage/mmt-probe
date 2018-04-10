@@ -13,7 +13,7 @@
 
 typedef struct system_stats_context_struct system_stats_context_t;
 
-system_stats_context_t *system_stats_alloc_init_start(  const system_stats_conf_t *config, uint32_t core_id, output_t *output );
+system_stats_context_t *system_stats_alloc_init_start(  const system_stats_conf_t *config, output_t *output, uint16_t flush_period );
 
 void system_stats_release( system_stats_context_t *);
 
