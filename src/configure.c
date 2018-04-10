@@ -912,8 +912,25 @@ bool conf_override_element( probe_conf_t *conf, config_attribute_t ident, const 
 	switch( ident ){
 	case CONF_ATT__NONE:
 		return false;
+
 	case CONF_ATT__INPUT__MODE:
+		if( strcmp( value, "online") ){
+			conf->input->capture_mode = ONLINE_ANALYSIS;
+			return true;
+		}
+		if( strcmp( value, "offline") ){
+			conf->input->capture_mode = OFFLINE_ANALYSIS;
+			return true;
+		}
 		break;
+	case CONF_ATT__INPUT__SOURCE:
+		string_param = conf->input->input_source;
+		break;
+	case CONF_ATT__INPUT__SNAP_LEN:
+		conf->input->snap_len = atoi( value );
+		return true;
+
+
 	case CONF_ATT__FILE_OUTPUT__ENABLE:
 		bool_val = _parse_bool( value );
 		if( bool_val == conf->outputs.file->is_enable )
@@ -922,9 +939,20 @@ bool conf_override_element( probe_conf_t *conf, config_attribute_t ident, const 
 		if( bool_val )
 			conf->outputs.is_enable = true;
 		return true;
+	case CONF_ATT__FILE_OUTPUT__PERIOD:
+		conf->outputs.file->output_period = atoi( value );
+		return true;
+	case CONF_ATT__FILE_OUTPUT__RETAIN_FILES:
+		conf->outputs.file->retained_files_count = atoi( value );
+		return true;
 	case CONF_ATT__FILE_OUTPUT__OUTPUT_DIR:
 		string_param = &conf->outputs.file->directory;
 		break;
+	case CONF_ATT__FILE_OUTPUT__OUTPUT_FILE:
+		string_param = &conf->outputs.file->filename;
+		break;
+
+
 	default:
 		break;
 	}

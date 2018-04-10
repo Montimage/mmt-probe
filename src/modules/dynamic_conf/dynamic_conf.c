@@ -47,7 +47,7 @@ dynamic_config_context_t *dynamic_conf_alloc_and_init( const char * file_descrip
 	return ret;
 }
 
-static bool _is_listening( dynamic_config_context_t *context ){
+static ALWAYS_INLINE bool _is_listening( dynamic_config_context_t *context ){
 	bool ret;
 	ret = context->is_running;
 	return ret;
@@ -85,6 +85,5 @@ bool dynamic_conf_start( dynamic_config_context_t *context ){
 				context->file_descriptor, strerror( errno ));
 		return false;
 	}
-
-
+	return true;
 }
