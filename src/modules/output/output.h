@@ -33,7 +33,7 @@ typedef enum{
  */
 output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct *config, uint32_t probe_id, const char* input_src );
 
-int output_write( output_t *output, const output_channel_conf_t *channels, const char *message );
+int output_write( output_t *output, output_channel_conf_t channels, const char *message );
 
 /**
  * Write output to a set of channels: file/redis/kafka
@@ -45,12 +45,12 @@ int output_write( output_t *output, const output_channel_conf_t *channels, const
  * @param format
  * @return number of channels being received the output message
  */
-int output_write_report_with_format( output_t *output, const output_channel_conf_t *channels,
+int output_write_report_with_format( output_t *output, output_channel_conf_t channels,
 		report_type_t report_type, const struct timeval *ts,
 		const char* format, ...)
 __attribute__((format (printf, 5, 6)));
 
-static inline int output_write_report( output_t *output, const output_channel_conf_t *channels,
+static inline int output_write_report( output_t *output, output_channel_conf_t channels,
 		report_type_t report_type, const struct timeval *ts,
 		const char* message_body){
 	if( message_body == NULL )

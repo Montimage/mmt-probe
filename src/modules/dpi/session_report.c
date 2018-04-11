@@ -188,7 +188,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 
 
 	output_write_report( context->output,
-			&context->probe_config->reports.session->output_channels,
+			context->probe_config->reports.session->output_channels,
 			SESSION_REPORT_TYPE,
 			&session->data_stat.last_activity_time,
 			message );

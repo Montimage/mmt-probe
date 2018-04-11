@@ -73,6 +73,17 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_END()
 	};
+
+	cfg_opt_t mongodb_output_opts[] = {
+			CFG_STR("hostname", "localhost", CFGF_NONE),
+			CFG_INT("port", 27017, CFGF_NONE),
+			CFG_BOOL("enable", false, CFGF_NONE),
+			CFG_STR("database", "mmt-data", CFGF_NONE),
+			CFG_STR("collection", "reports", CFGF_NONE),
+			CFG_INT("limit-size", 0, CFGF_NONE),
+			CFG_END()
+	};
+
 	cfg_opt_t dynamic_conf_opts[] = {
 				CFG_STR("descriptor", "", CFGF_NONE),
 				CFG_BOOL("enable", false, CFGF_NONE),
@@ -203,6 +214,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_SEC("behaviour", behaviour_opts, CFGF_NONE),
 			CFG_SEC("reconstruct-data", reconstruct_data_opts, CFGF_TITLE | CFGF_MULTI ),
 			CFG_SEC("radius-output", radius_output_opts, CFGF_NONE),
+			CFG_SEC("mongodb-output", mongodb_output_opts, CFGF_NONE),
 			CFG_SEC("dump-pcap", dump_pcap_opts, CFGF_NONE),
 
 			CFG_INT("stats-period", 5, CFGF_NONE),
@@ -365,6 +377,21 @@ static inline kafka_output_conf_t *_parse_output_to_kafka( cfg_t *cfg ){
 	return ret;
 }
 
+static inline mongodb_output_conf_t *_parse_output_to_mongodb( cfg_t *cfg ){
+	if( (cfg = _get_first_cfg_block( cfg, "mongodb-output")) == NULL )
+		return NULL;
+
+	mongodb_output_conf_t *ret = mmt_alloc( sizeof( mongodb_output_conf_t ));
+
+	ret->is_enable        = cfg_getbool( cfg,  "enable" );
+	ret->host.host_name   = _cfg_get_str(cfg, "hostname");
+	ret->host.port_number = cfg_getint( cfg,  "port" );
+	ret->database_name    = _cfg_get_str(cfg, "database");
+	ret->collection_name  = _cfg_get_str(cfg, "collection");
+	ret->limit_size       = cfg_getint( cfg,  "limit-size" );
+
+	return ret;
+}
 
 static inline redis_output_conf_t *_parse_output_to_redis( cfg_t *cfg ){
 	if( (cfg = _get_first_cfg_block( cfg, "redis-output")) == NULL )
@@ -410,28 +437,27 @@ static inline behaviour_conf_t *_parse_behaviour_block( cfg_t *cfg ){
 	return ret;
 }
 
-static inline void _parse_output_channel( output_channel_conf_t *out, cfg_t *cfg ){
+static inline  output_channel_conf_t _parse_output_channel( cfg_t *cfg ){
 	int nb_output_channel = cfg_size( cfg, "output-channel");
 	int i;
 	const char *channel_name;
 
-	out->is_output_to_file  = true; //default is to output to file
-	out->is_output_to_kafka = false;
-	out->is_output_to_redis = false;
+	output_channel_conf_t out = CONF_OUTPUT_CHANNEL_FILE; //default is to output to file
 
 	for( i=0; i<nb_output_channel; i++) {
 		channel_name = cfg_getnstr(cfg, "output-channel", i);
 		if ( strncmp( channel_name, "file", 4 ) == 0 )
-			out->is_output_to_file = true;
+			out |= CONF_OUTPUT_CHANNEL_FILE;
 		else if ( strncmp( channel_name, "kafka", 5 ) == 0 )
-			out->is_output_to_kafka = true;
+			out |= CONF_OUTPUT_CHANNEL_KAFKA;
 		else if ( strncmp( channel_name, "redis", 5 ) == 0 )
-			out->is_output_to_redis = true;
+			out |= CONF_OUTPUT_CHANNEL_REDIS;
+		else if ( strncmp( channel_name, "mongodb", 5 ) == 0 )
+			out |= CONF_OUTPUT_CHANNEL_MONGODB;
 		else
 			log_write( LOG_WARNING, "Unexpected channel %s", channel_name );
 	}
-
-	out->is_enable = (out->is_output_to_file || out->is_output_to_kafka || out->is_output_to_redis );
+	return out;
 }
 
 static inline system_stats_conf_t *_parse_cpu_mem_block( cfg_t *cfg ){
@@ -441,7 +467,7 @@ static inline system_stats_conf_t *_parse_cpu_mem_block( cfg_t *cfg ){
 	system_stats_conf_t *ret = mmt_alloc( sizeof( system_stats_conf_t ));
 	ret->is_enable = cfg_getbool( cfg, "enable" );
 	ret->frequency = cfg_getint( cfg, "period" );
-	_parse_output_channel( & ret->output_channels, cfg );
+	ret->output_channels = _parse_output_channel( cfg );
 	return ret;
 }
 
@@ -487,7 +513,7 @@ static inline void _parse_event_block( event_report_conf_t *ret, cfg_t *cfg ){
 
 	ret->attributes_size = _parse_attributes_helper( cfg, "attributes", &ret->attributes );
 
-	_parse_output_channel( & ret->output_channels, cfg );
+	ret->output_channels = _parse_output_channel( cfg );
 }
 
 static inline micro_flow_conf_t *_parse_microflow_block( cfg_t *cfg ){
@@ -500,7 +526,7 @@ static inline micro_flow_conf_t *_parse_microflow_block( cfg_t *cfg ){
 	ret->include_packets_count = cfg_getint( cfg, "include-packet-count" );
 	ret->report_bytes_count    = cfg_getint( cfg, "report-byte-count" );
 	ret->report_flows_count    = cfg_getint( cfg, "report-flow-count" );
-	_parse_output_channel( & ret->output_channels, cfg );
+	ret->output_channels = _parse_output_channel( cfg );
 	return ret;
 }
 
@@ -512,7 +538,7 @@ static inline radius_conf_t *_parse_radius_block( cfg_t *cfg ){
 	ret->is_enable         = cfg_getbool( cfg, "enable" );
 	ret->include_msg       = cfg_getint( cfg, "include-msg" );
 	ret->include_condition = cfg_getint( cfg, "include-condition" );
-	_parse_output_channel( & ret->output_channels, cfg );
+	ret->output_channels = _parse_output_channel( cfg );
 	return ret;
 }
 
@@ -525,7 +551,7 @@ static inline security_conf_t *_parse_security_block( cfg_t *cfg ){
 	ret->threads_size = cfg_getint( cfg, "thread-nb" );
 	ret->excluded_rules = _cfg_get_str(cfg, "exclude-rules" );
 	ret->rules_mask = _cfg_get_str(cfg, "rules-mask" );
-	_parse_output_channel( & ret->output_channels, cfg );
+	ret->output_channels = _parse_output_channel( cfg );
 	return ret;
 }
 
@@ -536,7 +562,7 @@ static inline security_multi_sessions_conf_t *_parse_multi_session_block( cfg_t 
 	security_multi_sessions_conf_t *ret = mmt_alloc( sizeof( security_multi_sessions_conf_t ));
 	ret->is_enable = cfg_getbool( cfg, "enable" );
 	ret->attributes_size = _parse_attributes_helper(cfg, "attributes", &ret->attributes );
-	_parse_output_channel( & ret->output_channels, cfg );
+	ret->output_channels = _parse_output_channel( cfg );
 	return ret;
 }
 
@@ -550,7 +576,7 @@ static inline session_report_conf_t *_parse_session_block( cfg_t *cfg ){
 	ret->is_rtp    = cfg_getbool( cfg, "rtp" );
 	ret->is_http   = cfg_getbool( cfg, "http" );
 	ret->is_ssl    = cfg_getbool( cfg, "ssl" );
-	_parse_output_channel( & ret->output_channels, cfg );
+	ret->output_channels = _parse_output_channel( cfg );
 	return ret;
 }
 
@@ -623,7 +649,7 @@ static inline reconstruct_data_conf_t *_parse_reconstruct_data_block( cfg_t *cfg
 		reconstruct_data_conf_t *ret = mmt_alloc( sizeof( reconstruct_data_conf_t ));
 		ret->is_enable = cfg_getbool( c, "enable" );
 		ret->directory = _cfg_get_str(c, "output-dir" );
-		_parse_output_channel( & ret->output_channels, c );
+		ret->output_channels = _parse_output_channel( c );
 		return ret;
 	}
 	return NULL;
@@ -655,6 +681,7 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 	conf->outputs.file  = _parse_output_to_file( cfg );
 	conf->outputs.kafka = _parse_output_to_kafka( cfg );
 	conf->outputs.redis = _parse_output_to_redis( cfg );
+	conf->outputs.mongodb = _parse_output_to_mongodb( cfg );
 	//a global
 	conf->outputs.is_enable = ( (conf->outputs.file != NULL && conf->outputs.file->is_enable )
 									|| (conf->outputs.redis != NULL && conf->outputs.redis->is_enable)

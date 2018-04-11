@@ -84,7 +84,7 @@ static void * _stats_routine(void * args){
 
 	//disable? no output?
 	if( ! context->config->is_enable
-		|| ! context->config->output_channels.is_enable )
+		|| IS_DISABLE_OUTPUT( context->config->output_channels ))
 		return NULL;
 
 	if( ! _read_cpu_info( &cpu_1.user, &cpu_1.system, &cpu_1.idle))
@@ -112,7 +112,7 @@ static void * _stats_routine(void * args){
 			//Print this report every 5 second
 			gettimeofday(&ts, NULL);
 			output_write_report_with_format(context->output,
-					&context->config->output_channels,
+					context->config->output_channels,
 					SYSTEM_REPORT_TYPE, &ts,
 					"%.0f,%.0f,%.0f,%lu,%lu",
 					(cpu_2.user - cpu_1.user)     * 100.0 / diff_cpu_total,

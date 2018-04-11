@@ -13,6 +13,10 @@
 #include "../../lib/memory.h"
 #include "file/file_output.h"
 
+#ifdef MONGODB_MODULE
+	#include "mongodb/mongodb.h"
+#endif
+
 struct output_struct{
 	uint16_t index;
 	const char*input_src;
@@ -27,6 +31,10 @@ struct output_struct{
 
 #ifdef KAFKA_MODULE
 
+#endif
+
+#ifdef MONGODB_MODULE
+		mongodb_output_t *mongodb;
 #endif
 	}modules;
 };
@@ -57,36 +65,56 @@ output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct
 
 #endif
 
+#ifdef MONGODB_MODULE
+	if( ret->config->mongodb->is_enable )
+		ret->modules.mongodb = mongodb_output_alloc_init( ret->config->mongodb, output_id );
+#endif
+
 	return ret;
 }
 
 
-static inline int _write( output_t *output, const output_channel_conf_t *channels, const char *message ){
+static inline int _write( output_t *output, output_channel_conf_t channels, const char *message ){
 	int ret = 0;
 
 	//put message inside an array: [message]
-	if( output->config->format == OUTPUT_FORMAT_JSON ){
+	if( output->config->format == OUTPUT_FORMAT_JSON  ){
 		char new_msg[ MAX_LENGTH_REPORT_MESSAGE ];
 		snprintf( new_msg, MAX_LENGTH_REPORT_MESSAGE, "[%s]", message );
 		message = new_msg;
 	}
 
 	//output to file
-	if( channels == NULL || channels->is_output_to_file ){
+	if( IS_ENABLE_OUTPUT_TO( FILE, channels )){
 		file_output_write( output->modules.file, message );
 		ret ++;
 	}
 
 #ifdef KAFKA_MODULE
 	//output to Kafka
-	if( output->config->kafka->is_enable && (channels == NULL || channels->is_output_to_kafka )){
+	if( output->config->kafka->is_enable && IS_ENABLE_OUTPUT_TO( KAFKA, channels )){
 		ret ++;
 	}
 #endif
 
 #ifdef REDIS_MODULE
 	//output to redis
-	if( output->config->redis->is_enable && (channels == NULL || channels->is_output_to_redis )){
+	if( output->config->redis->is_enable && IS_ENABLE_OUTPUT_TO( REDIS, channels )){
+		ret ++;
+	}
+#endif
+
+#ifdef MONGODB_MODULE
+	if( output->config->mongodb->is_enable && IS_ENABLE_OUTPUT_TO( MONGODB, channels )){
+
+		//convert to JSON format
+		if( output->config->format != OUTPUT_FORMAT_JSON  ){
+				char new_msg[ MAX_LENGTH_REPORT_MESSAGE ];
+				snprintf( new_msg, MAX_LENGTH_REPORT_MESSAGE, "[%s]", message );
+				message = new_msg;
+		}
+
+		mongodb_output_write( output->modules.mongodb, message );
 		ret ++;
 	}
 #endif
@@ -94,7 +122,7 @@ static inline int _write( output_t *output, const output_channel_conf_t *channel
 	return ret;
 }
 
-int output_write_report_with_format( output_t *output, const output_channel_conf_t *channels,
+int output_write_report_with_format( output_t *output, output_channel_conf_t channels,
 		report_type_t report_type, const struct timeval *ts,
 		const char* format, ...){
 
@@ -102,7 +130,7 @@ int output_write_report_with_format( output_t *output, const output_channel_conf
 	if( output == NULL
 			|| output->config == NULL
 			|| ! output->config->is_enable
-			|| (channels != NULL && ! channels->is_enable ) )
+			|| IS_DISABLE_OUTPUT( channels ) )
 		return 0;
 
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
@@ -136,9 +164,9 @@ int output_write_report_with_format( output_t *output, const output_channel_conf
 }
 
 //public API
-int output_write( output_t *output, const output_channel_conf_t *channels, const char *message ){
+int output_write( output_t *output, output_channel_conf_t channels, const char *message ){
 	//global output is disable or no output on this channel
-	if( ! output || ! output->config->is_enable || (channels && ! channels->is_enable ))
+	if( ! output || ! output->config->is_enable || IS_DISABLE_OUTPUT(channels ))
 		return 0;
 
 	return _write( output, channels, message );
@@ -157,5 +185,11 @@ void output_release( output_t * output){
 
 	if( output->modules.file )
 		file_output_release( output->modules.file );
+
+#ifdef MONGODB_MODULE
+	if( output->config->mongodb->is_enable )
+		mongodb_output_release( output->modules.mongodb );
+#endif
+
 	mmt_probe_free( output );
 }

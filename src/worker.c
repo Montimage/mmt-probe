@@ -144,7 +144,8 @@ void worker_on_timer_stat_period( worker_context_t *worker_context ){
 	//print a dummy message to inform that MMT-Probe is still alive
 	if( worker_context->probe_context->config->input->input_mode == ONLINE_ANALYSIS ){
 		gettimeofday( &now, NULL );
-		output_write_report_with_format(worker_context->output, NULL, DUMMY_REPORT_TYPE,
+		//output to all channels
+		output_write_report_with_format(worker_context->output, CONF_OUTPUT_CHANNEL_ALL, DUMMY_REPORT_TYPE,
 				&now, NULL );
 	}
 

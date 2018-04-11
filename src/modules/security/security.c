@@ -95,7 +95,6 @@ static void _print_security_verdict(
 ){
 	security_context_t *security_context = (security_context_t *) user_data;
 
-	const output_channel_conf_t *channels = & security_context->config->output_channels;
 	const char *description = rule->description;
 	const char *exec_trace  = mmt_convert_execution_trace_to_json_string( trace, rule );
 
@@ -104,7 +103,7 @@ static void _print_security_verdict(
 	mmt_sec_decode_timeval(timestamp, &ts );
 
 	output_write_report_with_format( security_context->output,
-			channels,
+			security_context->config->output_channels,
 			SECURITY_REPORT_TYPE,
 			&ts,
 			"%"PRIu32",\"%s\",\"%s\",\"%s\",%s",

@@ -78,9 +78,18 @@ ifdef KAFKA
 $(info - Enable KAFKA)
 	LIBS        += -lrdkafka
 	CFLAGS      += -I /usr/local/include/librdkafka -DKAFKA_MODULE
-	MODULE_SRCS += $(wildcard src/modules/output/kafka /*.c)
+	MODULE_SRCS += $(wildcard src/modules/output/kafka/*.c)
 else
 $(info -> Disable KAFKA)
+endif
+
+ifdef MONGODB
+$(info - Enable MONGODB)
+	LIBS        += -lmongoc-1.0 -lbson-1.0
+	CFLAGS      += -I/usr/local/include/libmongoc-1.0/ -I/usr/local/include/libbson-1.0 -DMONGODB_MODULE
+	MODULE_SRCS += $(wildcard src/modules/output/mongodb/*.c)
+else
+$(info -> Disable MONGODB)
 endif
 
 ifdef REDIS

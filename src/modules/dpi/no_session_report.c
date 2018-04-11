@@ -38,7 +38,7 @@ static void _protocols_stats_iterator(uint32_t proto_id, void * args) {
 		//Count for fragmented and defragmented packets
 		if( is_enable_ip_fragementation ){
 			if (proto_id == PROTO_IP && (proto_stats->ip_frag_packets_count + proto_stats->ip_df_packets_count > 0)){
-				output_write_report_with_format(context->output, NULL,
+				output_write_report_with_format(context->output, CONF_OUTPUT_CHANNEL_ALL,
 						IP_FRAG_REPORT_TYPE, &proto_stats->last_packet_time,
 						"\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64,
 						proto_path_str,
@@ -64,7 +64,7 @@ static void _protocols_stats_iterator(uint32_t proto_id, void * args) {
 
 			//report the stats instance if there is anything to report
 			if(proto_stats->touched) {
-				output_write_report_with_format(context->output, NULL,
+				output_write_report_with_format(context->output, CONF_OUTPUT_CHANNEL_ALL,
 						NON_SESSION_REPORT_TYPE, &proto_stats->last_packet_time,
 						"%u,\"%s\",%u,%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%u,%u,%lu.%06lu,\"%s\",\"%s\",\"%s\",\"%s\",%u,%u,%u",
 						proto_id,

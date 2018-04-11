@@ -61,6 +61,15 @@ typedef struct kafka_output_conf_struct{
 	//further setting for kafka connection, such as, TLS certificate, cipher type, ...
 }kafka_output_conf_t;
 
+typedef struct mongodb_output_conf_struct{
+	bool is_enable;
+	internet_service_address_t host;
+	char *database_name;
+	char *collection_name;
+	uint32_t limit_size; //limit size of storage collection
+	//further setting for kafka connection, such as, TLS certificate, cipher type, ...
+}mongodb_output_conf_t;
+
 
 typedef struct input_source_conf_struct{
 
@@ -73,13 +82,19 @@ typedef struct input_source_conf_struct{
 }input_source_conf_t;
 
 
-
-typedef struct output_channel_conf_struct{
-	bool is_enable;
-	bool is_output_to_file;
-	bool is_output_to_redis;
-	bool is_output_to_kafka;
+typedef enum {
+	CONF_OUTPUT_CHANNEL_NONE    = 0,
+	CONF_OUTPUT_CHANNEL_FILE    = 1,
+	CONF_OUTPUT_CHANNEL_REDIS   = 2,
+	CONF_OUTPUT_CHANNEL_KAFKA   = 4,
+	CONF_OUTPUT_CHANNEL_MONGODB = 8,
+	CONF_OUTPUT_CHANNEL_ALL     = CONF_OUTPUT_CHANNEL_FILE | CONF_OUTPUT_CHANNEL_REDIS | CONF_OUTPUT_CHANNEL_KAFKA | CONF_OUTPUT_CHANNEL_MONGODB
 }output_channel_conf_t;
+
+#define IS_ENABLE_OUTPUT_TO( name, channels ) ( channels & CONF_OUTPUT_CHANNEL_ ##name )
+#define IS_ENABLE_OUTPUT_TO_ALL_CHANNELS( channles ) ( channels & CONF_OUTPUT_CHANNEL_ALL   )
+#define IS_ENABLE_OUTPUT_TO_ONE_CHANNEL(  channles ) ( channels | CONF_OUTPUT_CHANNEL_ALL   )
+#define IS_DISABLE_OUTPUT( channels )                ( channels == CONF_OUTPUT_CHANNEL_NONE )
 
 typedef struct dynamic_config_conf_struct{
 	bool is_enable;
@@ -213,6 +228,7 @@ struct output_conf_struct{
 	file_output_conf_t  *file;
 	redis_output_conf_t *redis;
 	kafka_output_conf_t *kafka;
+	mongodb_output_conf_t *mongodb;
 	enum {OUTPUT_FORMAT_CSV, OUTPUT_FORMAT_JSON} format;
 };
 

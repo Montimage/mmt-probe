@@ -41,15 +41,37 @@
 	#define IF_ENABLE_DYNAMIC_CONFIG( x )
 #endif
 
+#ifdef REDIS_MODULE
+	#define IF_ENABLE_REDIS( x ) x
+#else
+	#define IF_ENABLE_REDIS( x )
+#endif
+
+#ifdef KAFKA_MODULE
+	#define IF_ENABLE_KAFKA( x ) x
+#else
+	#define IF_ENABLE_KAFKA( x )
+#endif
+
+#ifdef MONGODB_MODULE
+	#define IF_ENABLE_MONGODB( x ) x
+#else
+	#define IF_ENABLE_MONGODB( x )
+#endif
+
+
 
 //a string contains list of compiled modules
-#define MODULES_LIST                            \
-	""                                          \
-	IF_ENABLE_DEBUG( "DEBUG " )                 \
-	IF_ENABLE_PCAP( "PCAP " )                   \
-	IF_ENABLE_DPDK( "DPDK " )                   \
-	IF_ENABLE_DYNAMIC_CONFIG( "DYNAMIC_CONF " ) \
-	IF_ENABLE_SECURITY("SECURITY ")
+#define MODULES_LIST                             \
+	"DPI"                                        \
+	IF_ENABLE_DEBUG( ", DEBUG" )                 \
+	IF_ENABLE_REDIS( ", REDIS" )                 \
+	IF_ENABLE_KAFKA( ", KAFKA" )                 \
+	IF_ENABLE_MONGODB( ", MONGODB" )             \
+	IF_ENABLE_PCAP( ", PCAP" )                   \
+	IF_ENABLE_DPDK( ", DPDK" )                   \
+	IF_ENABLE_DYNAMIC_CONFIG( ", DYNAMIC_CONF" ) \
+	IF_ENABLE_SECURITY(", SECURITY ")
 
 
 #endif /* SRC_LIB_LIMIT_H_ */
