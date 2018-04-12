@@ -51,7 +51,7 @@ static void _alarm_handler( int signal ){
 
 	if( context.config->outputs.file->is_sampled && context.config->outputs.file->is_enable ){
 		sample_file_period_counter ++;
-		if( sample_file_period_counter == context.config->outputs.file->output_period ){
+		if( sample_file_period_counter == context.config->outputs.cache_period ){
 			worker_on_timer_sample_file_period( context.smp[0] );
 			//reset counter
 			sample_file_period_counter = 0;
@@ -240,7 +240,7 @@ static void *_worker_thread( void *arg){
 		if( worker_context->probe_context->config->outputs.file->is_enable
 				&& worker_context->probe_context->config->outputs.file->is_sampled ){
 			if( u_second_diff( &now, &last_sample_ts ) >=
-					config->outputs.file->output_period * MICRO_SECOND  ){
+					config->outputs.cache_period * MICRO_SECOND  ){
 				last_sample_ts.tv_sec  = now.tv_sec;
 				last_sample_ts.tv_usec = now.tv_usec;
 				//call worker

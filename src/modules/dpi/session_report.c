@@ -11,6 +11,7 @@
 
 int print_web_report(char *message, size_t message_size, packet_session_t *session, dpi_context_t *context);
 
+#ifndef SIMPLE_REPORT
 //This callback is called by DPI periodically
 static inline void _print_ip_session_report (const mmt_session_t * dpi_session, void *user_args){
 	packet_session_t * session = (packet_session_t *) get_user_session_context(dpi_session);
@@ -190,7 +191,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	output_write_report( context->output,
 			context->probe_config->reports.session->output_channels,
 			SESSION_REPORT_TYPE,
-			&session->data_stat.last_activity_time,
+			&last_activity_time,
 			message );
 
 
@@ -221,6 +222,80 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	session->data_stat.sum_rtt[1]      = 0;
 	session->rtt_at_handshake     = rtt_at_handshake;
 }
+
+
+#else
+////===> Simpler reports for MMT-Box <===////
+
+//This callback is called by DPI periodically
+static inline void _print_simple_ip_session_report (const mmt_session_t * dpi_session, void *user_args){
+	packet_session_t * session = (packet_session_t *) get_user_session_context(dpi_session);
+	if( unlikely( session == NULL ))
+		return;
+
+	if( unlikely( is_micro_flow( dpi_session )))
+		return;
+
+	dpi_context_t *context = (dpi_context_t *)user_args;
+	if( unlikely( context == NULL ))
+		return;
+
+	uint64_t ul_volumes = get_session_ul_cap_byte_count(dpi_session);
+
+	uint64_t dl_volumes = get_session_dl_cap_byte_count(dpi_session);
+
+	if( unlikely( ul_volumes + dl_volumes == 0 ))
+		return;
+
+	struct timeval last_activity_time = get_session_last_activity_time( dpi_session );
+
+	//To check whether the session activity occurs between the reporting time interval
+	if (u_second_diff( &last_activity_time, &session->data_stat.last_activity_time ) == 0)
+		return;
+	session->data_stat.last_activity_time =  last_activity_time;
+
+	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(dpi_session);
+	int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
+
+	char app_path[128];
+
+	dpi_proto_hierarchy_ids_to_str(
+			proto_hierarchy,
+			app_path, sizeof( app_path) );
+
+	output_write_report_with_format(
+			context->output,
+			context->probe_config->reports.session->output_channels,
+			SESSION_REPORT_TYPE,
+			&last_activity_time,
+
+			"%zu," //index of a stat period
+			"%d,"
+			"\"%s\"," //proto path
+			"%"PRIu64",%"PRIu64"," //upload, download volume
+			"\"%s\",\"%s\"," //ip src - dst
+			"\""PRETTY_MAC_FORMAT"\",\""PRETTY_MAC_FORMAT"\"," //mac src - dst
+			"%hu,%hu"   //port src dst
+			,
+			context->stat_periods_index,
+			proto_id,
+			app_path,
+
+			ul_volumes - session->data_stat.volumes.upload,
+			dl_volumes - session->data_stat.volumes.download,
+
+			session->ip_src.ip_string, session->ip_dst.ip_string,
+
+			MAC_ELEMENT( session->mac_src ),//src_mac_pretty,
+			MAC_ELEMENT( session->mac_dst ),//dst_mac_pretty,
+
+			session->port_dst, session->port_src
+	);
+
+	session->data_stat.volumes.upload = ul_volumes;
+	session->data_stat.volumes.download = dl_volumes;
+}
+#endif
 //
 ///* This function calculates Round Trip Time (RTT) for each session */
 //void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
@@ -275,8 +350,9 @@ static inline packet_session_t *_create_session (const ipacket_t * ipacket, dpi_
 	session->dpi_session = dpi_session;
 	session->context     = context;
 	session->session_id  = get_session_id( dpi_session );
+#ifndef SIMPLE_REPORT
 	session->app_type    = SESSION_STAT_TYPE_APP_IP;
-
+#endif
 	// Flow extraction
 	int ip_index = get_protocol_index_by_id(ipacket, PROTO_IP);
 
@@ -307,11 +383,6 @@ static inline packet_session_t *_create_session (const ipacket_t * ipacket, dpi_
 		inet_ntop(AF_INET, (void *) &session->ip_src.ipv4, session->ip_src.ip_string, INET_ADDRSTRLEN);
 		inet_ntop(AF_INET, (void *) &session->ip_dst.ipv4, session->ip_dst.ip_string, INET_ADDRSTRLEN);
 
-		uint8_t *proto_id = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_PROTO_ID);
-		if( likely( proto_id != NULL ))
-			session->proto = *proto_id;
-
-		session->ip_version = IPv4;
 		uint16_t * cport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_CLIENT_PORT);
 		uint16_t * dport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_SERVER_PORT);
 		if (cport)
@@ -334,13 +405,6 @@ static inline packet_session_t *_create_session (const ipacket_t * ipacket, dpi_
 		inet_ntop(AF_INET6, (void *) &session->ip_dst.ipv6, session->ip_dst.ip_string, INET6_ADDRSTRLEN);
 
 
-		uint8_t * proto_id = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_NEXT_PROTO);
-		if (proto_id != NULL) {
-			session->proto = *proto_id;
-		} else {
-			session->proto = 0;
-		}
-		session->ip_version = IPv6;
 		uint16_t * cport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_CLIENT_PORT);
 		uint16_t * dport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SERVER_PORT);
 		if (cport)
@@ -348,8 +412,6 @@ static inline packet_session_t *_create_session (const ipacket_t * ipacket, dpi_
 		if (dport)
 			session->port_dst = *dport;
 	}
-
-	session->is_flow_extracted = 1;
 
     //    printf ("set session\n");
 	set_user_session_context(dpi_session, session);
@@ -378,7 +440,12 @@ static void _expired_session_callback(const mmt_session_t * expired_session, voi
 		return;
 	}
 
+#ifdef SIMPLE_REPORT
+	//use simpler report version: this output is used by mmt-box
+	_print_simple_ip_session_report ( expired_session, context );
+#else
 	_print_ip_session_report ( expired_session, context );
+
 
 	//release memory being allocated for application stat (web, ftp, rtp, ssl)
 	switch( session->app_type ){
@@ -387,6 +454,7 @@ static void _expired_session_callback(const mmt_session_t * expired_session, voi
 	}
 
 	mmt_probe_free( session->apps.web );
+#endif
 
 	mmt_probe_free(session);
 }
@@ -399,6 +467,7 @@ static int _packet_handler_for_session(const ipacket_t * ipacket, void * args) {
 	if( unlikely( ipacket->session != NULL && session == NULL))
 		session = _create_session (ipacket, context);
 
+#ifndef SIMPLE_REPORT
 	//only for packet based on TCP
 	if (session != NULL && session->dtt_seen == false ){
 		struct timeval ts = get_session_rtt(ipacket->session);
@@ -419,6 +488,7 @@ static int _packet_handler_for_session(const ipacket_t * ipacket, void * args) {
 			}
 		}
 	}
+#endif
 
 	return 0;
 }
@@ -459,7 +529,7 @@ void _register_protocols( dpi_context_t *context ) {
 	ret &= register_extraction_attribute(mmt_handler, PROTO_IPV6, IP6_SERVER_PORT);
 	ret &= register_extraction_attribute(mmt_handler, PROTO_IPV6, IP6_CLIENT_PORT);
 
-	if( context->probe_config->is_enable_ip_fragementation ){
+	if( context->probe_config->is_enable_ip_fragementation_report ){
 		ret &= register_extraction_attribute(mmt_handler, PROTO_IP, IP_FRAG_PACKET_COUNT);
 		ret &= register_extraction_attribute(mmt_handler, PROTO_IP, IP_FRAG_DATA_VOLUME);
 		ret &= register_extraction_attribute(mmt_handler, PROTO_IP, IP_DF_PACKET_COUNT);
@@ -530,6 +600,10 @@ bool session_report_register( dpi_context_t *context ){
 	size_t size;
 	const conditional_handler_t* handlers;
 
+#ifdef SIMPLE_REPORT
+	//use simpler report version: this output is used by mmt-box
+	register_session_timer_handler(context->dpi_handler,   _print_simple_ip_session_report, context);
+#else
 	//register protocols and attributes for application statistic: WEB, FTP, RTP, SSL
 	if( context->probe_config->reports.session->is_http ){
 		size = get_session_web_handlers_to_register( &handlers );
@@ -540,9 +614,10 @@ bool session_report_register( dpi_context_t *context ){
 		_register_conditional_handler( size, handlers, context );
 	}
 
-
-
 	register_session_timer_handler(context->dpi_handler,   _print_ip_session_report, context);
+#endif
+
+
 
 	register_session_timeout_handler(context->dpi_handler, _expired_session_callback, context);
 

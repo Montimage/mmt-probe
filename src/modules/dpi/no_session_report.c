@@ -17,8 +17,8 @@ static void _protocols_stats_iterator(uint32_t proto_id, void * args) {
 
 	dpi_context_t *context = (dpi_context_t*) args;
 
-	bool is_enable_ip_fragementation = context->probe_config->is_enable_ip_fragementation;
-	bool is_enable_proto_no_session_stat = context->probe_config->is_enable_proto_no_session_stat;
+	bool is_enable_ip_fragementation = context->probe_config->is_enable_ip_fragementation_report;
+	bool is_enable_proto_no_session_stat = context->probe_config->is_enable_proto_no_session_report;
 
 	proto_statistics_t * proto_stats = get_protocol_stats( context->dpi_handler, proto_id );
 
@@ -95,7 +95,8 @@ static void _protocols_stats_iterator(uint32_t proto_id, void * args) {
  * @return
  */
 bool no_session_report( dpi_context_t *context ){
-	if( !( context->probe_config->is_enable_proto_no_session_stat || context->probe_config->is_enable_ip_fragementation ))
+	if( !( context->probe_config->is_enable_proto_no_session_report
+			|| context->probe_config->is_enable_ip_fragementation_report ))
 		//TODO: unregister?
 		return false;
 

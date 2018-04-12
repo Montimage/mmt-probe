@@ -150,10 +150,9 @@ void file_output_flush( file_output_t * output){
 		//close csv file
 		fclose( output->file );
 		_create_semaphore_file( output );
-	}
 
-	if( output->config->is_sampled )
 		_create_new_file(output);
+	}
 }
 
 void file_output_release( file_output_t *output ){

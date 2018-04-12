@@ -55,6 +55,12 @@ ifndef NDEBUG
 	CFLAGS 	  += -DNDEBUG
 endif
 
+ifdef SIMPLE_REPORT
+$(info - Enable SIMPLE_REPORT (output simple reports for MMT-Box) )
+	CFLAGS      += -DSIMPLE_REPORT
+else
+$(info -> Disable SIMPLE_REPORT (output normal reports))
+endif
 
 MODULE_SRCS := $(wildcard src/modules/output/*.c)
 MODULE_SRCS += $(wildcard src/modules/output/file/*.c)
@@ -85,8 +91,8 @@ endif
 
 ifdef MONGODB
 $(info - Enable MONGODB)
-	LIBS        += -lmongoc-1.0 -lbson-1.0
-	CFLAGS      += -I/usr/local/include/libmongoc-1.0/ -I/usr/local/include/libbson-1.0 -DMONGODB_MODULE
+	LIBS        += -L/usr/lib/x86_64-linux-gnu/ -lmongoc-1.0 -lbson-1.0
+	CFLAGS      += -DMONGODB_MODULE -I/usr/local/include/libmongoc-1.0 -I/usr/local/include/libbson-1.0
 	MODULE_SRCS += $(wildcard src/modules/output/mongodb/*.c)
 else
 $(info -> Disable MONGODB)

@@ -60,6 +60,14 @@
 #endif
 
 
+#ifdef SIMPLE_REPORT
+	#define IF_ENABLE_SIMPLE_REPORT( x ) x
+	#define IF_NOT_SIMPLE_REPORT( x ) x
+#else
+	#define IF_ENABLE_SIMPLE_REPORT( x )
+	#define IF_NOT_SIMPLE_REPORT( x )
+#endif
+
 
 //a string contains list of compiled modules
 #define MODULES_LIST                             \
@@ -70,6 +78,7 @@
 	IF_ENABLE_MONGODB( ", MONGODB" )             \
 	IF_ENABLE_PCAP( ", PCAP" )                   \
 	IF_ENABLE_DPDK( ", DPDK" )                   \
+	IF_ENABLE_SIMPLE_REPORT( ", SIMPLE_REPORT" ) \
 	IF_ENABLE_DYNAMIC_CONFIG( ", DYNAMIC_CONF" ) \
 	IF_ENABLE_SECURITY(", SECURITY ")
 

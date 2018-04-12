@@ -42,15 +42,13 @@ struct output_struct{
 
 //public API
 output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct *config, uint32_t probe_id, const char* input_src ){
+	int i;
 	if( ! config->is_enable )
 		return NULL;
 
-	output_t *ret = mmt_alloc( sizeof( output_t ));
+	output_t *ret = mmt_alloc_and_init_zero( sizeof( output_t ));
 	ret->config = config;
 	ret->index  = output_id;
-	ret->last_report_ts.tv_sec  = 0;
-	ret->last_report_ts.tv_usec = 0;
-	ret->modules.file   = NULL;
 	ret->input_src = input_src;
 	ret->probe_id  = probe_id;
 
@@ -67,7 +65,7 @@ output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct
 
 #ifdef MONGODB_MODULE
 	if( ret->config->mongodb->is_enable )
-		ret->modules.mongodb = mongodb_output_alloc_init( ret->config->mongodb, output_id );
+		ret->modules.mongodb = mongodb_output_alloc_init( ret->config->mongodb, ret->config->cache_size, output_id );
 #endif
 
 	return ret;
@@ -163,6 +161,7 @@ int output_write_report_with_format( output_t *output, output_channel_conf_t cha
 	return ret;
 }
 
+
 //public API
 int output_write( output_t *output, output_channel_conf_t channels, const char *message ){
 	//global output is disable or no output on this channel
@@ -178,6 +177,12 @@ void output_flush( output_t *output ){
 
 	if( output->modules.file )
 		file_output_flush( output->modules.file );
+
+#ifdef MONGODB_MODULE
+	if( output->modules.mongodb
+			&& output->config->mongodb->is_enable )
+		mongodb_output_flush_to_database( output->modules.mongodb );
+#endif
 }
 
 void output_release( output_t * output){
@@ -187,7 +192,9 @@ void output_release( output_t * output){
 		file_output_release( output->modules.file );
 
 #ifdef MONGODB_MODULE
-	if( output->config->mongodb->is_enable )
+	if( output->config->mongodb != NULL
+			&& output->config->mongodb->is_enable
+			&& output->modules.mongodb != NULL )
 		mongodb_output_release( output->modules.mongodb );
 #endif
 

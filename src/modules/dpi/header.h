@@ -48,13 +48,17 @@ typedef struct flow_stat_data_struct{
 }flow_stat_data_t;
 
 typedef struct session_statistics_struct {
-	struct timeval start_time;
 	struct timeval last_activity_time;
+	flow_stat_data_t volumes;
+
+//we don't need these parameters in simple version for MMT-BOX
+#ifndef SIMPLE_REPORT
+	struct timeval start_time;
 	uint64_t total_volumes;
 	uint64_t total_payload;
 	uint64_t total_packets;
 
-	flow_stat_data_t volumes;
+
 	flow_stat_data_t payload;
 	flow_stat_data_t packets;
 
@@ -65,6 +69,7 @@ typedef struct session_statistics_struct {
 	uint64_t rtt_avg_usec[2];
 	uint64_t rtt_counter[2];
 	uint64_t retransmission_count;
+#endif
 } session_stat_t;
 
 
@@ -76,9 +81,6 @@ typedef struct session_ssl_stat_struct session_ssl_stat_t;
 typedef struct packet_session_struct {
 	uint64_t session_id;
 
-	struct timeval dtt_start_time;
-	uint64_t rtt_at_handshake;
-
 	mmt_ipv4_ipv6_t ip_src;
 	mmt_ipv4_ipv6_t ip_dst;
 	uint16_t port_src;
@@ -86,19 +88,24 @@ typedef struct packet_session_struct {
 
 	uint8_t  mac_src[6];
 	uint8_t  mac_dst[6];
-	uint8_t proto;
-	bool dtt_seen;
-	bool is_classified;
-	bool is_flow_extracted;
-	uint8_t ip_version;
-
-	uint16_t content_class;
 
 	session_stat_t data_stat;
 
 	//reference to others
 	dpi_context_t *context;
 	mmt_session_t *dpi_session;
+
+//we don't need these parameters in simple version for MMT-BOX
+#ifndef SIMPLE_REPORT
+	struct timeval dtt_start_time;
+	uint64_t rtt_at_handshake;
+
+	bool dtt_seen;
+	bool is_classified;
+
+	uint16_t content_class;
+
+
 
 	//sub statistic (e.g., HTTP) beyond main stat (IP)
 	session_stat_type_t app_type;
@@ -109,6 +116,8 @@ typedef struct packet_session_struct {
 		session_rtp_stat_t *rtp;
 		session_ssl_stat_t *ssl;
 	}apps;
+#endif
+
 } packet_session_t;
 
 

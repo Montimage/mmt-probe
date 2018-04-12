@@ -6,6 +6,7 @@
  */
 #include "header.h"
 
+#ifndef SIMPLE_REPORT
 struct session_web_stat_struct {
 	struct timeval first_request_time;
 
@@ -287,3 +288,4 @@ int print_web_report(char *message, size_t message_size, packet_session_t *sessi
 	session->data_stat.is_touched = true;
 	return valid;
 }
+#endif

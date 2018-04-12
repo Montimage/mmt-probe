@@ -23,7 +23,7 @@ routine_t *routine_create_and_start( probe_context_t * context){
 		output_id = context->config->thread->thread_count;
 
 	ret->output  = output_alloc_init( output_id, &context->config->outputs, context->config->probe_id, context->config->input->input_source );
-	ret->system_stats = system_stats_alloc_init_start( context->config->reports.cpu_mem, ret->output, context->config->outputs.file->output_period );
+	ret->system_stats = system_stats_alloc_init_start( context->config->reports.cpu_mem, ret->output, context->config->outputs.cache_period );
 
 	return ret;
 }

@@ -16,15 +16,6 @@
 
 #define MMT_USER_AGENT_THRESHOLD 0x20 //32KB
 
-#define DEFINE_STRUCT( var_type, struct_name ) \
-typedef struct  {                              \
-	const char*name;                           \
-	var_type value;                            \
-}struct_name
-
-
-DEFINE_STRUCT( uint16_t, UINT16_T);
-
 typedef struct multi_thread_conf_struct{
 	uint16_t thread_count;
 	uint16_t readers_count;
@@ -38,8 +29,6 @@ typedef struct file_output_conf_struct{
 	char *directory;
 	char *filename;
 	bool is_sampled;
-	//indicates the periodicity for reporting output file, i.e., a file contains statistics of traffic during x seconds
-	uint16_t output_period;
 	uint16_t retained_files_count; //retains the last x sampled files,
 								//set to 0 to retain all files
 								// ( note that the value of retain-files must be greater than the value of thread_nb + 1)
@@ -223,25 +212,28 @@ typedef struct session_report_conf_struct{
 	bool is_rtp;
 }session_report_conf_t;
 
-struct output_conf_struct{
+typedef struct output_conf_struct{
 	bool is_enable;
+	uint32_t cache_size;
+	uint16_t cache_period;
+
 	file_output_conf_t  *file;
 	redis_output_conf_t *redis;
 	kafka_output_conf_t *kafka;
 	mongodb_output_conf_t *mongodb;
 	enum {OUTPUT_FORMAT_CSV, OUTPUT_FORMAT_JSON} format;
-};
+}output_conf_t;
 
 /**
  * Configuration of MMT-Probe
  */
 typedef struct probe_conf_struct{
-	bool is_enable_ip_fragementation;
-	bool is_enable_proto_no_session_stat;
+	bool is_enable_ip_fragementation_report;
+	bool is_enable_proto_no_session_report;
 
 	uint32_t probe_id;
 
-	struct output_conf_struct outputs;
+	output_conf_t outputs;
 
 	multi_thread_conf_t *thread;
 
@@ -285,14 +277,42 @@ typedef enum {
 	CONF_ATT__NONE = 0,
 	CONF_ATT__PROBE_ID,
 	CONF_ATT__LICENSE,
+	CONF_ATT__ENABLE_PROTO_WITHOUT_SESSION_REPORT,
+	CONF_ATT__ENABLE_IP_FRAGEMENTATION_REPORT,
+	CONF_ATT__STATS_PERIOD,
+	CONF_ATT__OUTPUT_FORMAT,
 
+	//input
 	CONF_ATT__INPUT__MODE,
 	CONF_ATT__INPUT__SOURCE,
 	CONF_ATT__INPUT__SNAP_LEN,
 
-	CONF_ATT__BEHAVIOUR__ENABLE,
-	CONF_ATT__BEHAVIOUR__OUTPUT_DIR,
+	//file-output
+	CONF_ATT__FILE_OUTPUT__ENABLE,
+	CONF_ATT__FILE_OUTPUT__OUTPUT_FILE,
+	CONF_ATT__FILE_OUTPUT__OUTPUT_DIR,
+	CONF_ATT__FILE_OUTPUT__RETAIN_FILES,
+	CONF_ATT__FILE_OUTPUT__SAMPLE_FILE,
 
+	//mongodb-output
+	CONF_ATT__MONGODB_OUTPUT__ENABLE,
+	CONF_ATT__MONGODB_OUTPUT__HOSTNAME,
+	CONF_ATT__MONGODB_OUTPUT__PORT,
+	CONF_ATT__MONGODB_OUTPUT__COLLECTION,
+	CONF_ATT__MONGODB_OUTPUT__DATABASE,
+	CONF_ATT__MONGODB_OUTPUT__LIMIT_SIZE,
+
+	//kafka-output
+	CONF_ATT__KAFKA_OUTPUT__ENABLE,
+	CONF_ATT__KAFKA_OUTPUT__HOSTNAME,
+	CONF_ATT__KAFKA_OUTPUT__PORT,
+
+	//redis-output
+	CONF_ATT__REDIS_OUTPUT__ENABLE,
+	CONF_ATT__REDIS_OUTPUT__HOSTNAME,
+	CONF_ATT__REDIS_OUTPUT__PORT,
+
+	//dump-pcap
 	CONF_ATT__DUMP_PCAP__ENABLE,
 	CONF_ATT__DUMP_PCAP__OUTPUT_DIR,
 	CONF_ATT__DUMP_PCAP__PROTOCOLS,
@@ -300,11 +320,16 @@ typedef enum {
 	CONF_ATT__DUMP_PCAP__RETAIN_FILES,
 	CONF_ATT__DUMP_PCAP__SNAP_LEN,
 
-	CONF_ATT__FILE_OUTPUT__ENABLE,
-	CONF_ATT__FILE_OUTPUT__OUTPUT_FILE,
-	CONF_ATT__FILE_OUTPUT__OUTPUT_DIR,
-	CONF_ATT__FILE_OUTPUT__RETAIN_FILES,
-	CONF_ATT__FILE_OUTPUT__PERIOD,
+	//security
+
+	//system-report
+	CONF_ATT__SYSTEM_REPORT__ENABLE,
+	CONF_ATT__SYSTEM_REPORT__PERIOD,
+	CONF_ATT__SYSTEM_REPORT__OUTPUT_CHANNEL,
+
+	//behaviour
+	CONF_ATT__BEHAVIOUR__ENABLE,
+	CONF_ATT__BEHAVIOUR__OUTPUT_DIR,
 }config_attribute_t;
 
 /**

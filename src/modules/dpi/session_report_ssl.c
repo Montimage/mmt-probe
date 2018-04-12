@@ -7,6 +7,7 @@
 
 #include "header.h"
 
+#ifndef SIMPLE_REPORT
 struct session_ssl_stat_struct {
 	char hostname[64];
 };
@@ -60,3 +61,4 @@ size_t get_session_ssl_handlers_to_register( const conditional_handler_t **ret )
 	return (sizeof handlers / sizeof( conditional_handler_t ));
 }
 
+#endif

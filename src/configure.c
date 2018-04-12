@@ -17,9 +17,9 @@
 
 /* parse values for the input-mode option */
 static int _conf_parse_input_mode(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
-	if (strcmp(value, "online") == 0)
+	if (IS_EQUAL_STRINGS(value, "online") )
 		*(int *) result = ONLINE_ANALYSIS;
-	else if (strcmp(value, "offline") == 0)
+	else if (IS_EQUAL_STRINGS(value, "offline") )
 		*(int *) result = OFFLINE_ANALYSIS;
 	else {
 		cfg_error(cfg, "invalid value for option '%s': %s", cfg_opt_name(opt), value);
@@ -85,16 +85,16 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 	};
 
 	cfg_opt_t dynamic_conf_opts[] = {
-				CFG_STR("descriptor", "", CFGF_NONE),
-				CFG_BOOL("enable", false, CFGF_NONE),
-				CFG_END()
-		};
+			CFG_STR("descriptor", "", CFGF_NONE),
+			CFG_BOOL("enable", false, CFGF_NONE),
+			CFG_END()
+	};
 	cfg_opt_t file_output_opts[] = {
 			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_STR("output-file", 0, CFGF_NONE),
 			CFG_STR("output-dir", 0, CFGF_NONE),
 			CFG_INT("retain-files", 0, CFGF_NONE),
-			CFG_INT("period", 5, CFGF_NONE),
+			CFG_BOOL("sample-file", true, CFGF_NONE),
 			CFG_END()
 	};
 
@@ -200,10 +200,18 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_END()
 	};
 
+	cfg_opt_t output_opts[] = {
+			CFG_INT_CB("format", OUTPUT_FORMAT_CSV, CFGF_NONE, conf_parse_output_format),
+			CFG_INT("cache-size", 1000, CFGF_NONE),
+			CFG_INT("cache-period", 5, CFGF_NONE),
+			CFG_END()
+		};
+
 	cfg_opt_t opts[] = {
 			CFG_SEC("input", input_opts, CFGF_NONE),
 			CFG_SEC("micro-flows", micro_flows_opts, CFGF_NONE),
 			CFG_SEC("session-timeout", session_timeout_opts, CFGF_NONE),
+			CFG_SEC("output", output_opts, CFGF_NONE),
 			CFG_SEC("file-output", file_output_opts, CFGF_NONE),
 			CFG_SEC("redis-output", redis_output_opts, CFGF_NONE),
 			CFG_SEC("kafka-output", redis_output_opts, CFGF_NONE),
@@ -234,7 +242,6 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_SEC("security-report-multisession", security_report_multisession_opts, CFGF_TITLE | CFGF_MULTI),
 			CFG_SEC("session-report", session_report_opts, CFGF_NONE),
 			CFG_SEC("dynamic-config", dynamic_conf_opts, CFGF_NONE),
-			CFG_INT_CB("output-format", 0, CFGF_NONE, conf_parse_output_format),
 			CFG_END()
 	};
 
@@ -332,8 +339,7 @@ static inline file_output_conf_t *_parse_output_to_file( cfg_t *cfg ){
 	ret->is_enable  = cfg_getbool( c, "enable" );
 	ret->directory  = _cfg_get_str(c, "output-dir");
 	ret->filename   = _cfg_get_str(c, "output-file");
-	ret->output_period = cfg_getint( c, "period");
-	ret->is_sampled    = (ret->output_period > 0);
+	ret->is_sampled    = cfg_getbool(c, "sample-file");
 	ret->retained_files_count = cfg_getint( c, "retain-files" );
 
 	return ret;
@@ -641,7 +647,7 @@ static inline reconstruct_data_conf_t *_parse_reconstruct_data_block( cfg_t *cfg
 	for( i=0; i<size; i++ ){
 		c = cfg_getnsec(cfg, "reconstruct-data", i );
 
-		if( strcmp(name, cfg_title(c) ) != 0 )
+		if( ! IS_EQUAL_STRINGS(name, cfg_title(c) ) )
 			continue;
 
 		DEBUG( "Parsing block 'reconstruct-data %s'", name );
@@ -653,6 +659,21 @@ static inline reconstruct_data_conf_t *_parse_reconstruct_data_block( cfg_t *cfg
 		return ret;
 	}
 	return NULL;
+}
+
+
+static inline void _parse_output_block( output_conf_t *output, cfg_t *cfg ){
+	cfg = _get_first_cfg_block( cfg, "output");
+	if( cfg == NULL ){
+		log_write( LOG_ERR, "Expected output block" );
+		return;
+	}
+
+	output->cache_size = cfg_getint( cfg, "cache-size") ;
+	output->cache_period = cfg_getint( cfg, "cache-period") ;
+	output->format  = cfg_getint(cfg, "format");
+
+	return;
 }
 /**
  * Public API
@@ -671,12 +692,13 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 
 	conf->probe_id     = cfg_getint(cfg, "probe-id");
 	conf->stat_period  = cfg_getint(cfg, "stats-period");
-	conf->outputs.format  = cfg_getint(cfg, "output-format");
 	conf->license_file = _cfg_get_str(cfg, "license" );
-	conf->is_enable_proto_no_session_stat = cfg_getbool(cfg, "enable-proto-without-session-report");
-	conf->is_enable_ip_fragementation     = cfg_getbool(cfg, "enable-ip-fragmentation-report");
+	conf->is_enable_proto_no_session_report  = cfg_getbool(cfg, "enable-proto-without-session-report");
+	conf->is_enable_ip_fragementation_report = cfg_getbool(cfg, "enable-ip-fragmentation-report");
 
 	conf->input = _parse_input_source( cfg );
+
+	_parse_output_block( &conf->outputs, cfg );
 	//set of output channels
 	conf->outputs.file  = _parse_output_to_file( cfg );
 	conf->outputs.kafka = _parse_output_to_kafka( cfg );
@@ -722,8 +744,6 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 	//validate default values
 	if( conf->reports.cpu_mem->frequency == 0 )
 		conf->reports.cpu_mem->frequency = 5;
-	if( conf->outputs.file->output_period == 0 )
-		conf->outputs.file->output_period = 5;
 
 	return conf;
 }
@@ -829,27 +849,31 @@ void conf_release( probe_conf_t *conf){
 #define LENGTH( string ) (sizeof( string ) - 1 )
 #define IS_STARTED_BY( a, b ) is_started_by( a, b, LENGTH( b ))
 
+#define ENSURE_STARTED_BY( ident, string )                 \
+	if( ! is_started_by(ident, string, LENGTH( string )))  \
+		break
+
+#define CHECK_VALUE( ident, val, ret_val )                  \
+	if( strcmp( ident, val ) == 0 )                         \
+		return ret_val
+
 config_attribute_t conf_get_ident_att_from_string( const char *ident ){
 	int i;
 	const char *ch;
 	switch( ident[0] ){
 	//behaviour
 	case 'b':
-		if( ! IS_STARTED_BY(ident, "behaviour."))
-			break;
-
+		ENSURE_STARTED_BY(ident, "behaviour.");
 		ident += LENGTH( "behaviour.");
 
 		switch( ident[0] ){
 		//behaviour.enable
 		case 'e':
-			if( IS_STARTED_BY( ident, "enable" ))
-				return CONF_ATT__BEHAVIOUR__ENABLE;
+			CHECK_VALUE( ident, "enable", CONF_ATT__BEHAVIOUR__ENABLE );
 			break;
 		//behaviour.output-dir
 		case 'o':
-			if( IS_STARTED_BY( ident, "output-dir" ))
-				return CONF_ATT__BEHAVIOUR__OUTPUT_DIR;
+			CHECK_VALUE( ident, "output-dir", CONF_ATT__BEHAVIOUR__OUTPUT_DIR );
 			break;
 		}
 		break;
@@ -858,36 +882,28 @@ config_attribute_t conf_get_ident_att_from_string( const char *ident ){
 	case 'd':
 		switch( ident[1] ){
 		case 'a':
-			if( ! IS_STARTED_BY( ident, "data-output." ))
-				break;
+			ENSURE_STARTED_BY(ident, "data-output.");
 			break;
 		//dump-pcap
 		case 'u':
-			if( ! IS_STARTED_BY( ident, "dump-pcap." ))
-				break;
+			ENSURE_STARTED_BY(ident, "dump-pcap.");
 			ident += LENGTH( "dump-pcap." );
 			switch( ident[0] ){
 			case 'e':
-				if( IS_STARTED_BY( ident, "enable" ))
-					return CONF_ATT__DUMP_PCAP__ENABLE;
+				CHECK_VALUE( ident, "enable", CONF_ATT__DUMP_PCAP__ENABLE );
 				break;
 			case 'o':
-				if( IS_STARTED_BY( ident, "output-dir" ))
-					return CONF_ATT__DUMP_PCAP__OUTPUT_DIR;
+				CHECK_VALUE( ident, "output-dir", CONF_ATT__DUMP_PCAP__OUTPUT_DIR );
 				break;
 			case 'p':
-				if( IS_STARTED_BY( ident, "protocols" ))
-					return CONF_ATT__DUMP_PCAP__PROTOCOLS;
-				if( IS_STARTED_BY( ident, "period" ))
-					return CONF_ATT__DUMP_PCAP__PERIOD;
+				CHECK_VALUE( ident, "protocols", CONF_ATT__DUMP_PCAP__PROTOCOLS );
+				CHECK_VALUE( ident, "period", CONF_ATT__DUMP_PCAP__PERIOD );
 				break;
 			case 'r':
-				if( IS_STARTED_BY( ident, "retain-files" ))
-					return CONF_ATT__DUMP_PCAP__RETAIN_FILES;
+				CHECK_VALUE( ident, "retain-files", CONF_ATT__DUMP_PCAP__RETAIN_FILES );
 				break;
 			case 's':
-				if( IS_STARTED_BY( ident, "snap-len" ))
-					return CONF_ATT__DUMP_PCAP__SNAP_LEN;
+				CHECK_VALUE( ident, "snap-len", CONF_ATT__DUMP_PCAP__SNAP_LEN );
 				break;
 			}
 			break;
@@ -895,88 +911,139 @@ config_attribute_t conf_get_ident_att_from_string( const char *ident ){
 			break;
 		}
 		break;
+
 		//enable-proto-without-session-report, enable-ip-fragmentation-report, event-report
 	case 'e':
 		break;
+
 		//file-output
 	case 'f':
-		if( ! IS_STARTED_BY( ident, "file-output." ))
-			break;
+		ENSURE_STARTED_BY(ident, "file-output.");
 		ident += LENGTH( "file-output." );
 		switch( ident[0] ){
 		case 'e':
-			if( IS_STARTED_BY( ident, "enable" ))
-				return CONF_ATT__FILE_OUTPUT__ENABLE;
+			CHECK_VALUE( ident, "enable", CONF_ATT__FILE_OUTPUT__ENABLE );
 			break;
 		case 'o':
-			if( IS_STARTED_BY( ident, "output-dir" ))
-				return CONF_ATT__FILE_OUTPUT__OUTPUT_DIR;
-			if( IS_STARTED_BY( ident, "output-file" ))
-				return CONF_ATT__FILE_OUTPUT__OUTPUT_FILE;
+			CHECK_VALUE( ident, "output-dir", CONF_ATT__FILE_OUTPUT__OUTPUT_DIR );
+			CHECK_VALUE( ident, "output-file", CONF_ATT__FILE_OUTPUT__OUTPUT_FILE );
 			break;
-		case 'p':
-			if( IS_STARTED_BY( ident, "period" ))
-				return CONF_ATT__FILE_OUTPUT__PERIOD;
+		case 's':
+			CHECK_VALUE( ident, "sample-file", CONF_ATT__FILE_OUTPUT__SAMPLE_FILE );
 			break;
 		case 'r':
-			if( IS_STARTED_BY( ident, "retain-files" ))
-				return CONF_ATT__FILE_OUTPUT__RETAIN_FILES;
+			CHECK_VALUE( ident, "retain-files", CONF_ATT__FILE_OUTPUT__RETAIN_FILES );
 			break;
 		}
 		break;
+
+		//mongodb-output
+	case 'm':
+		ENSURE_STARTED_BY(ident, "mongodb-output.");
+		ident += LENGTH( "mongodb-output." );
+		switch( ident[0] ){
+		case 'e':
+			CHECK_VALUE( ident, "enable", CONF_ATT__MONGODB_OUTPUT__ENABLE );
+			break;
+		case 'h':
+			CHECK_VALUE( ident, "hostname", CONF_ATT__MONGODB_OUTPUT__HOSTNAME );
+			break;
+		case 'p':
+			CHECK_VALUE( ident, "port", CONF_ATT__MONGODB_OUTPUT__PORT );
+			break;
+		case 'd':
+			CHECK_VALUE( ident, "database", CONF_ATT__MONGODB_OUTPUT__DATABASE );
+			break;
+		case 'c':
+			CHECK_VALUE( ident, "collection", CONF_ATT__MONGODB_OUTPUT__COLLECTION );
+			break;
+		case 'l':
+			CHECK_VALUE( ident, "limit-size", CONF_ATT__MONGODB_OUTPUT__LIMIT_SIZE );
+			break;
+		}
+		break;
+
 	}
 	return CONF_ATT__NONE;
 }
 
 
 static bool _parse_bool( const char *value ){
-	if( strcmp( value, "true" ) )
+	if( IS_EQUAL_STRINGS( value, "true" ) )
 		return true;
-	if( strcmp( value, "false" ) )
+	if( IS_EQUAL_STRINGS( value, "false" ) )
 		return false;
 	return false;
 }
 
+/**
+ * Update value of a configuration parameter.
+ * The new value is updated only if it is different with the current value of the parameter.
+ * @param conf
+ * @param ident
+ * @param value
+ * @return true if the new value is updated, otherwise false
+ */
 bool conf_override_element( probe_conf_t *conf, config_attribute_t ident, const char *value ){
-	bool bool_val;
+	bool *bool_param = NULL, bool_val ;
+	uint16_t *uint16_t_param = NULL, uint16_t_val;
+	uint32_t *uint32_t_param = NULL, uint32_t_val;
+	int *int_param, int_val;
 	char **string_param = NULL;
 	//uint64_t
 	switch( ident ){
 	case CONF_ATT__NONE:
 		return false;
 
+		//top level
+	case CONF_ATT__PROBE_ID:
+		uint32_t_param = &conf->probe_id;
+		break;
+	case CONF_ATT__LICENSE:
+		string_param = &conf->license_file;
+		break;
+	case CONF_ATT__ENABLE_PROTO_WITHOUT_SESSION_REPORT:
+		bool_param = &conf->is_enable_proto_no_session_report;
+		break;
+	case CONF_ATT__ENABLE_IP_FRAGEMENTATION_REPORT:
+		bool_param = &conf->is_enable_ip_fragementation_report;
+		break;
+	case CONF_ATT__STATS_PERIOD:
+		uint16_t_param = &conf->stat_period;
+		break;
+
+		//input
 	case CONF_ATT__INPUT__MODE:
-		if( strcmp( value, "online") ){
-			conf->input->capture_mode = ONLINE_ANALYSIS;
-			return true;
-		}
-		if( strcmp( value, "offline") ){
-			conf->input->capture_mode = OFFLINE_ANALYSIS;
+		if( IS_EQUAL_STRINGS( value, "online") )
+			int_val = ONLINE_ANALYSIS;
+		else if ( IS_EQUAL_STRINGS( value, "offline") )
+			int_val = OFFLINE_ANALYSIS;
+		else
+			return false;
+		//update the new value if need
+		if( int_val != conf->input->input_mode ){
+			conf->input->input_mode = int_val;
 			return true;
 		}
 		break;
+
 	case CONF_ATT__INPUT__SOURCE:
 		string_param = &conf->input->input_source;
 		break;
 	case CONF_ATT__INPUT__SNAP_LEN:
-		conf->input->snap_len = atoi( value );
-		return true;
+		uint16_t_param = &conf->input->snap_len;
+		break;
 
-
+		//file-output
 	case CONF_ATT__FILE_OUTPUT__ENABLE:
-		bool_val = _parse_bool( value );
-		if( bool_val == conf->outputs.file->is_enable )
-			return false;
-		conf->outputs.file->is_enable = bool_val;
-		if( bool_val )
-			conf->outputs.is_enable = true;
-		return true;
-	case CONF_ATT__FILE_OUTPUT__PERIOD:
-		conf->outputs.file->output_period = atoi( value );
-		return true;
+		bool_param = &conf->outputs.file->is_enable;
+		break;
+	case CONF_ATT__FILE_OUTPUT__SAMPLE_FILE:
+		bool_param = &conf->outputs.file->is_sampled;
+		break;
 	case CONF_ATT__FILE_OUTPUT__RETAIN_FILES:
-		conf->outputs.file->retained_files_count = atoi( value );
-		return true;
+		uint16_t_param = &conf->outputs.file->retained_files_count;
+		break;
 	case CONF_ATT__FILE_OUTPUT__OUTPUT_DIR:
 		string_param = &conf->outputs.file->directory;
 		break;
@@ -984,15 +1051,96 @@ bool conf_override_element( probe_conf_t *conf, config_attribute_t ident, const 
 		string_param = &conf->outputs.file->filename;
 		break;
 
+		//mongodb-output
+	case CONF_ATT__MONGODB_OUTPUT__COLLECTION:
+		string_param = &conf->outputs.mongodb->collection_name;
+		break;
+	case CONF_ATT__MONGODB_OUTPUT__DATABASE:
+		string_param = &conf->outputs.mongodb->database_name;
+		break;
+	case CONF_ATT__MONGODB_OUTPUT__ENABLE:
+		bool_param = &conf->outputs.mongodb->is_enable;
+		break;
+	case CONF_ATT__MONGODB_OUTPUT__HOSTNAME:
+		string_param = &conf->outputs.mongodb->host.host_name;
+		break;
+	case CONF_ATT__MONGODB_OUTPUT__PORT:
+		uint16_t_param = &conf->outputs.mongodb->host.port_number;
+		break;
+	case CONF_ATT__MONGODB_OUTPUT__LIMIT_SIZE:
+		uint32_t_param = &conf->outputs.mongodb->limit_size;
+		break;
+
+		//kafka-output
+	case CONF_ATT__KAFKA_OUTPUT__ENABLE:
+		bool_param = &conf->outputs.kafka->is_enable;
+		break;
+	case CONF_ATT__KAFKA_OUTPUT__HOSTNAME:
+		string_param = &conf->outputs.kafka->host.host_name;
+		break;
+	case CONF_ATT__KAFKA_OUTPUT__PORT:
+		uint16_t_param = &conf->outputs.kafka->host.port_number;
+		break;
+
+		//redis-output
+	case CONF_ATT__REDIS_OUTPUT__ENABLE:
+		bool_param = &conf->outputs.redis->is_enable;
+		break;
+	case CONF_ATT__REDIS_OUTPUT__HOSTNAME:
+		string_param = &conf->outputs.redis->host.host_name;
+		break;
+	case CONF_ATT__REDIS_OUTPUT__PORT:
+		uint16_t_param = &conf->outputs.redis->host.port_number;
+		break;
 
 	default:
 		break;
 	}
 
-	if( string_param ){
-		mmt_probe_free( *string_param );
-		*string_param = mmt_strdup( value );
-		return true;
+	//update value depending on parameters
+	if( string_param != NULL ){
+		//value does not change ==> do nothing
+		if( IS_EQUAL_STRINGS( *string_param, value ) )
+			return false;
+		else{
+			mmt_probe_free( *string_param );
+			*string_param = mmt_strdup( value );
+			return true;
+		}
+	}
+
+	if( bool_param != NULL ){
+		bool_val = _parse_bool( value );
+		//value does not change => do nothing
+		if( bool_val == *bool_param )
+			return false;
+		else{
+			//update value
+			*bool_param = bool_val;
+			return true;
+		}
+	}
+
+	if( uint16_t_param != NULL ){
+		uint16_t_val = atoi( value );
+		//value does not change ==> do nothing
+		if( uint16_t_val == *uint16_t_param )
+			return false;
+		else{
+			*uint16_t_param = uint16_t_val;
+			return true;
+		}
+	}
+
+	if( uint32_t_param != NULL ){
+		uint32_t_val = atol( value );
+		//value does not change ==> do nothing
+		if( uint32_t_val == *uint32_t_param )
+			return false;
+		else{
+			*uint32_t_param = uint32_t_val;
+			return true;
+		}
 	}
 
 	log_write( LOG_INFO, "Unknown identifier '%d'", ident );

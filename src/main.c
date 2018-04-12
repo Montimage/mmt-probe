@@ -149,11 +149,11 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 			}
 			//not found = character
 			if( string_val == '\0' )
-				log_write( LOG_WARNING, "Input parameter '%s' is not well-formatted. Ignored it.", string_att );
+				log_write( LOG_WARNING, "Input parameter '%s' is not well-formatted (must be in format parameter=value). Ignored it.", string_att );
 
 			config_attribute_t ident = conf_get_ident_att_from_string(string_att);
 			if( ident == CONF_ATT__NONE ){
-				log_write( LOG_WARNING, "Ignored input parameter '%s' as no corresponding configuration parameter.", string_att );
+				log_write( LOG_WARNING, "Ignored input parameter '%s' as no corresponding configuration parameter or no supported yet.", string_att );
 			}else if( conf_override_element(conf, ident, string_val) )
 				log_write( LOG_INFO, "Overridden value of configuration parameter '%s' by '%s'", string_att, string_val );
 		}
@@ -320,8 +320,6 @@ int main( int argc, char** argv ){
 #endif
 
 	//end
-	conf_release( context.config );
-
 	close_extraction();
 
 
@@ -332,6 +330,9 @@ int main( int argc, char** argv ){
 	routine_stop_and_release( routine );
 
 	log_close();
+
+	conf_release( context.config );
+
 	printf("Bye\n");
 
 	return EXIT_SUCCESS;
