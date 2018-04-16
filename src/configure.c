@@ -168,21 +168,6 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_INT("num-of-report-per-msg", 1, CFGF_NONE),
 			CFG_END()
 	};
-	cfg_opt_t security_report_opts[] = {
-			CFG_BOOL("enable", false, CFGF_NONE),
-			CFG_STR_LIST("event", "{}", CFGF_NONE),
-			CFG_INT("rule-type", 0, CFGF_NONE),
-			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
-			CFG_END()
-	};
-	cfg_opt_t security_report_multisession_opts[] = {
-			CFG_BOOL("enable", false, CFGF_NONE),
-			CFG_INT("file-output", 0, CFGF_NONE),
-			CFG_INT("redis-output", 0, CFGF_NONE),
-			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
-			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
-			CFG_END()
-	};
 	cfg_opt_t session_report_opts[] = {
 			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_BOOL("ftp", false, CFGF_NONE),
@@ -221,7 +206,6 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_SEC("socket", socket_opts, CFGF_NONE),
 			CFG_SEC("behaviour", behaviour_opts, CFGF_NONE),
 			CFG_SEC("reconstruct-data", reconstruct_data_opts, CFGF_TITLE | CFGF_MULTI ),
-			CFG_SEC("radius-output", radius_output_opts, CFGF_NONE),
 			CFG_SEC("mongodb-output", mongodb_output_opts, CFGF_NONE),
 			CFG_SEC("dump-pcap", dump_pcap_opts, CFGF_NONE),
 
@@ -238,8 +222,6 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_INT("loglevel", 2, CFGF_NONE),
 
 			CFG_SEC("event-report", event_report_opts, CFGF_TITLE | CFGF_MULTI),
-			CFG_SEC("security-report", security_report_opts, CFGF_TITLE | CFGF_MULTI),
-			CFG_SEC("security-report-multisession", security_report_multisession_opts, CFGF_TITLE | CFGF_MULTI),
 			CFG_SEC("session-report", session_report_opts, CFGF_NONE),
 			CFG_SEC("dynamic-config", dynamic_conf_opts, CFGF_NONE),
 			CFG_END()
@@ -536,17 +518,6 @@ static inline micro_flow_conf_t *_parse_microflow_block( cfg_t *cfg ){
 	return ret;
 }
 
-static inline radius_conf_t *_parse_radius_block( cfg_t *cfg ){
-	if( (cfg = _get_first_cfg_block( cfg, "radius-output")) == NULL )
-		return NULL;
-
-	radius_conf_t *ret     = mmt_alloc( sizeof( radius_conf_t ));
-	ret->is_enable         = cfg_getbool( cfg, "enable" );
-	ret->include_msg       = cfg_getint( cfg, "include-msg" );
-	ret->include_condition = cfg_getint( cfg, "include-condition" );
-	ret->output_channels = _parse_output_channel( cfg );
-	return ret;
-}
 
 static inline security_conf_t *_parse_security_block( cfg_t *cfg ){
 	if( (cfg = _get_first_cfg_block( cfg, "security")) == NULL )
@@ -557,17 +528,6 @@ static inline security_conf_t *_parse_security_block( cfg_t *cfg ){
 	ret->threads_size = cfg_getint( cfg, "thread-nb" );
 	ret->excluded_rules = _cfg_get_str(cfg, "exclude-rules" );
 	ret->rules_mask = _cfg_get_str(cfg, "rules-mask" );
-	ret->output_channels = _parse_output_channel( cfg );
-	return ret;
-}
-
-static inline security_multi_sessions_conf_t *_parse_multi_session_block( cfg_t *cfg ){
-	if( (cfg = _get_first_cfg_block( cfg, "security-report-multisession")) == NULL )
-		return NULL;
-
-	security_multi_sessions_conf_t *ret = mmt_alloc( sizeof( security_multi_sessions_conf_t ));
-	ret->is_enable = cfg_getbool( cfg, "enable" );
-	ret->attributes_size = _parse_attributes_helper(cfg, "attributes", &ret->attributes );
 	ret->output_channels = _parse_output_channel( cfg );
 	return ret;
 }
@@ -725,9 +685,7 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 	//
 	conf->reports.microflow = _parse_microflow_block( cfg );
 
-	conf->reports.radius = _parse_radius_block( cfg );
 	conf->reports.security = _parse_security_block( cfg );
-	conf->reports.security_multisession = _parse_multi_session_block( cfg );
 	conf->reports.session = _parse_session_block( cfg );
 	conf->reports.socket = _parse_socket_block( cfg );
 
@@ -788,7 +746,6 @@ void conf_release( probe_conf_t *conf){
 
 	mmt_probe_free( conf->reports.cpu_mem );
 	mmt_probe_free( conf->reports.microflow );
-	mmt_probe_free( conf->reports.radius );
 
 	if( conf->reports.security ){
 		mmt_probe_free( conf->reports.security->excluded_rules );
@@ -796,14 +753,6 @@ void conf_release( probe_conf_t *conf){
 		mmt_probe_free( conf->reports.security );
 	}
 
-	if( conf->reports.security_multisession ){
-		for( i=0; i<conf->reports.security_multisession->attributes_size; i++ ){
-			mmt_probe_free( conf->reports.security_multisession->attributes[i].proto_name );
-			mmt_probe_free( conf->reports.security_multisession->attributes[i].attribute_name );
-		}
-		mmt_probe_free( conf->reports.security_multisession->attributes );
-		mmt_probe_free( conf->reports.security_multisession );
-	}
 	mmt_probe_free( conf->reports.session );
 
 	if( conf->reports.socket ){

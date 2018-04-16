@@ -160,23 +160,6 @@ typedef struct socket_output_conf_struct{
 	uint16_t messages_per_report;
 }socket_output_conf_t;
 
-//This report is for security multi-session security :
-typedef struct security_report_multi_sessions_conf_struct{
-	bool is_enable;
-	uint16_t attributes_size;
-	dpi_protocol_attribute_t *attributes;
-
-	output_channel_conf_t output_channels;
-}security_multi_sessions_conf_t;
-
-typedef struct radius_conf_struct{
-	bool is_enable;
-	uint16_t include_msg;
-	uint16_t include_condition;
-	output_channel_conf_t output_channels;
-}radius_conf_t;
-
-
 typedef struct micro_flow_conf_struct{
 	bool is_enable;
 	uint32_t include_packets_count;
@@ -245,8 +228,6 @@ typedef struct probe_conf_struct{
 		system_stats_conf_t *cpu_mem;
 		behaviour_conf_t   *behaviour;
 		socket_output_conf_t *socket;
-		security_multi_sessions_conf_t *security_multisession;
-		radius_conf_t *radius;
 		micro_flow_conf_t *microflow;
 		session_report_conf_t *session;
 
