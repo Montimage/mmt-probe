@@ -14,6 +14,7 @@ typedef struct output_struct output_t;
 
 typedef enum{
 	SECURITY_REPORT_TYPE    =   10,
+	LICENSE_REPORT_TYPE     =   30,
 	NON_SESSION_REPORT_TYPE =   99,
 	SESSION_REPORT_TYPE     =  100,
 	SESSION_REPORT_WEB_TYPE =    1, //sub report inside SESSION_REPORT

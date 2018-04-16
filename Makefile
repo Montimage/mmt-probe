@@ -34,6 +34,10 @@ ifdef ALL_OPTIONS
 	SECURITY := 1
 endif
 
+
+LIB_SRCS    := $(wildcard src/lib/*.c)
+LIB_SRCS    += src/configure.c src/worker.c
+
 #################################################
 ############ OTHER SETTING ######################
 #################################################
@@ -60,6 +64,16 @@ $(info - Enable SIMPLE_REPORT (output simple reports for MMT-Box) )
 	CFLAGS      += -DSIMPLE_REPORT
 else
 $(info -> Disable SIMPLE_REPORT (output normal reports))
+endif
+
+# check license
+ifdef LICENSE
+$(info - Enable LICENSE checking)
+	CFLAGS      += -DLICENSE_CHECK
+else
+$(info -> Disable LICENSE checking)
+#exclude license.c
+	LIB_SRCS := $(filter-out src/lib/license.c, $(LIB_SRCS))
 endif
 
 MODULE_SRCS := $(wildcard src/modules/output/*.c)
@@ -176,9 +190,6 @@ $(info - Use PCAP to capture packet)
 	MODULE_SRCS += $(wildcard src/modules/packet_capture/pcap/*.c)
 
 # PCAP COMPILE
-
-LIB_SRCS    := $(wildcard src/lib/*.c)
-LIB_SRCS    += src/configure.c src/worker.c
 
 MODULE_OBJS := $(patsubst %.c,%.o, $(MODULE_SRCS))
 LIB_OBJS    := $(patsubst %.c,%.o, $(LIB_SRCS))

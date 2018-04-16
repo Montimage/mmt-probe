@@ -41,7 +41,6 @@
 #include "modules/security/security.h"
 #endif
 
-
 //#define DEFAULT_CONFIG_FILE "/opt/mmt/probe/mmt-probe.conf"
 #define DEFAULT_CONFIG_FILE "./mmt-probe.conf"
 

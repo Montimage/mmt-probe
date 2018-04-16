@@ -16,6 +16,9 @@
 	#include "modules/security/security.h"
 #endif
 
+#ifdef LICENSE_CHECK
+#include "lib/license.h"
+#endif
 
 /**
  * This function must be called by the main thread when allocating a worker
@@ -92,7 +95,6 @@ void worker_print_common_statistics( const probe_context_t *context ){
 	}
 }
 
-
 /**
  * This callback must be called by a worker thread after starting it
  * @param worker_context
@@ -116,6 +118,12 @@ void worker_on_start( worker_context_t *worker_context ){
 				worker_context->dpi_handler, cores_id,
 				(worker_context->index == 0), //verbose for only the first worker
 				worker_context->output ));
+
+#ifdef LICENSE_CHECK
+	if( worker_context->index == 0 )
+		if( !license_check_expiry( context.config->license_file, worker_context->output ))
+			abort();
+#endif
 }
 
 /**
