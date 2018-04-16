@@ -4,7 +4,7 @@
  *  Created on: Dec 28, 2017
  *          by: Huu Nghia
  */
-#include "header.h"
+#include "report.h"
 
 #ifndef SIMPLE_REPORT
 struct session_web_stat_struct {

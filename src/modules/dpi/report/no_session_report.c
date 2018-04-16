@@ -7,7 +7,8 @@
 
 #include <stdint.h>
 #include <string.h>
-#include "header.h"
+
+#include "report.h"
 
 /* This function is for reporting the protocol statistics that do not have session */
 static void _protocols_stats_iterator(uint32_t proto_id, void * args) {

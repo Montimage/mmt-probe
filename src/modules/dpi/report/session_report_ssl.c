@@ -5,7 +5,7 @@
  *          by: Huu Nghia
  */
 
-#include "header.h"
+#include "report.h"
 
 #ifndef SIMPLE_REPORT
 struct session_ssl_stat_struct {

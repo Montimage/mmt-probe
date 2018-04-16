@@ -5,9 +5,8 @@
  *          by: Huu Nghia
  */
 
-#include "header.h"
-
 #include <arpa/inet.h>
+#include "report.h"
 
 int print_web_report(char *message, size_t message_size, packet_session_t *session, dpi_context_t *context);
 

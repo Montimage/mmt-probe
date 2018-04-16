@@ -5,9 +5,9 @@
  *          by: Huu Nghia
  */
 
-#include "dpi_tool.h"
-#include "dpi.h"
-#include "../output/output.h"
+#include "../dpi_tool.h"
+#include "../dpi.h"
+#include "../../output/output.h"
 
 typedef struct event_based_report_context_struct{
 	const event_report_conf_t *config;
