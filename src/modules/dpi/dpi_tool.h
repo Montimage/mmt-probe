@@ -133,4 +133,41 @@ static inline bool dpi_copy_string_value( char *target, size_t target_size, mmt_
 	return true;
 }
 
+
+
+typedef struct conditional_handler_struct{
+	uint32_t proto_id;
+	uint32_t att_id;
+	attribute_handler_function handler;
+}conditional_handler_t;
+
+
+
+/* This function registers attributes and attribute handlers for different condition_reports (if enabled in a configuration file).
+ * */
+static inline int dpi_register_conditional_handler( mmt_handler_t *dpi_handler, size_t count, const conditional_handler_t *handlers, void *user_argv ) {
+	int i, ret = 0;
+	const conditional_handler_t *handler;
+
+	for( i=0; i<count; i++ ){
+		handler = &handlers[i];
+
+		//register without handler function
+		if( handler->handler == NULL ){
+			if( ! register_extraction_attribute( dpi_handler, handler->proto_id, handler->att_id) )
+				log_write( LOG_WARNING, "Cannot register attribute %u.%u",
+						handler->proto_id, handler->att_id	);
+			else
+				ret ++;
+		}else{
+			if( !register_attribute_handler( dpi_handler,  handler->proto_id, handler->att_id, handler->handler, NULL, user_argv ) )
+				log_write( LOG_ERR, "Cannot register handler for %u.%u",
+						handler->proto_id, handler->att_id );
+			else
+				ret ++;
+		}
+	}
+	return ret;
+}
+
 #endif /* SRC_MODULES_DPI_DPI_TOOL_H_ */

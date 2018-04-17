@@ -62,6 +62,7 @@ static ALWAYS_INLINE char * mmt_strndup( const char *str, size_t size ) {
  * @param dest
  * @param source
  */
+
 static ALWAYS_INLINE void assign_6bytes( void *dest, void *source){
 	uint16_t *s = (uint16_t *)source;
 	uint16_t *d = (uint16_t *)dest;
@@ -69,6 +70,20 @@ static ALWAYS_INLINE void assign_6bytes( void *dest, void *source){
 	d[1] = s[1];
 	d[2] = s[2];
 }
+
+static ALWAYS_INLINE void assign_4bytes( void *dest, void *source){
+	uint16_t *s = (uint16_t *)source;
+	uint16_t *d = (uint16_t *)dest;
+	d[0] = s[0];
+	d[1] = s[1];
+}
+
+static ALWAYS_INLINE void assign_2bytes( void *dest, void *source){
+	uint16_t *s = (uint16_t *)source;
+	uint16_t *d = (uint16_t *)dest;
+	d[0] = s[0];
+}
+
 
 #define EXPECT( expected, ret )\
 	while( unlikely( ! (expected) ) )\

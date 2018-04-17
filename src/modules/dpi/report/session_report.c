@@ -551,35 +551,6 @@ void _register_protocols( dpi_context_t *context ) {
 	}
 }
 
-
-/* This function registers attributes and attribute handlers for different condition_reports (if enabled in a configuration file).
- * */
-static inline int _register_conditional_handler( size_t count,  const conditional_handler_t *handlers, dpi_context_t *context) {
-	int i, ret = 0;
-	const conditional_handler_t *handler;
-	mmt_handler_t *dpi_handler = context->dpi_handler;
-
-	for( i=0; i<count; i++ ){
-		handler = &handlers[i];
-
-		//register without handler function
-		if( handler->handler == NULL ){
-			if( ! register_extraction_attribute( dpi_handler, handler->proto_id, handler->att_id) )
-				log_write( LOG_WARNING, "Cannot register attribute %u.%u",
-						handler->proto_id, handler->att_id	);
-			else
-				ret ++;
-		}else{
-			if( !register_attribute_handler( dpi_handler,  handler->proto_id, handler->att_id, handler->handler, NULL, context ) )
-				log_write( LOG_ERR, "Cannot register handler for %u.%u",
-						handler->proto_id, handler->att_id );
-			else
-				ret ++;
-		}
-	}
-	return ret;
-}
-
 size_t get_session_web_handlers_to_register(const conditional_handler_t**);
 size_t get_session_ssl_handlers_to_register( const conditional_handler_t **ret );
 
@@ -606,11 +577,12 @@ bool session_report_register( dpi_context_t *context ){
 	//register protocols and attributes for application statistic: WEB, FTP, RTP, SSL
 	if( context->probe_config->reports.session->is_http ){
 		size = get_session_web_handlers_to_register( &handlers );
-		_register_conditional_handler( size, handlers, context );
+		dpi_register_conditional_handler( context->dpi_handler, size, handlers, context );
 	}
+
 	if( context->probe_config->reports.session->is_ssl ){
 		size = get_session_ssl_handlers_to_register( &handlers );
-		_register_conditional_handler( size, handlers, context );
+		dpi_register_conditional_handler( context->dpi_handler, size, handlers, context );
 	}
 
 	register_session_timer_handler(context->dpi_handler,   _print_ip_session_report, context);

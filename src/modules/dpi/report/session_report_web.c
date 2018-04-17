@@ -214,21 +214,20 @@ static void _web_xcdn_seen_handle(const ipacket_t * ipacket, attribute_t * attri
 		web->xcdn_seen = true;
 }
 
-static const conditional_handler_t web_handlers[] = {
-	{.proto_id = PROTO_HTTP, .att_id = RFC2822_URI,          .handler = _web_uri_handle},
-	{.proto_id = PROTO_HTTP, .att_id = RFC2822_METHOD,       .handler = _web_method_handle},
-	{.proto_id = PROTO_HTTP, .att_id = RFC2822_RESPONSE,     .handler = _web_response_handle},
-	{.proto_id = PROTO_HTTP, .att_id = RFC2822_CONTENT_TYPE, .handler = _content_type_handle},
-	{.proto_id = PROTO_HTTP, .att_id = RFC2822_HOST,         .handler = _web_host_handle},
-	{.proto_id = PROTO_HTTP, .att_id = RFC2822_USER_AGENT,   .handler = _web_user_agent_handle},
-	{.proto_id = PROTO_HTTP, .att_id = RFC2822_REFERER,      .handler = _web_referer_handle},
-	{.proto_id = PROTO_HTTP, .att_id = RFC2822_XCDN_SEEN,    .handler = _web_xcdn_seen_handle},
-	{.proto_id = PROTO_HTTP, .att_id = RFC2822_CONTENT_LEN,  .handler = _web_content_len_handle},
-};
-
-
 //This function is called by session_report.session_report_register to register HTTP extractions
 size_t get_session_web_handlers_to_register( const conditional_handler_t **ret ){
+	static const conditional_handler_t web_handlers[] = {
+		{.proto_id = PROTO_HTTP, .att_id = RFC2822_URI,          .handler = _web_uri_handle},
+		{.proto_id = PROTO_HTTP, .att_id = RFC2822_METHOD,       .handler = _web_method_handle},
+		{.proto_id = PROTO_HTTP, .att_id = RFC2822_RESPONSE,     .handler = _web_response_handle},
+		{.proto_id = PROTO_HTTP, .att_id = RFC2822_CONTENT_TYPE, .handler = _content_type_handle},
+		{.proto_id = PROTO_HTTP, .att_id = RFC2822_HOST,         .handler = _web_host_handle},
+		{.proto_id = PROTO_HTTP, .att_id = RFC2822_USER_AGENT,   .handler = _web_user_agent_handle},
+		{.proto_id = PROTO_HTTP, .att_id = RFC2822_REFERER,      .handler = _web_referer_handle},
+		{.proto_id = PROTO_HTTP, .att_id = RFC2822_XCDN_SEEN,    .handler = _web_xcdn_seen_handle},
+		{.proto_id = PROTO_HTTP, .att_id = RFC2822_CONTENT_LEN,  .handler = _web_content_len_handle},
+	};
+
 	*ret = web_handlers;
 	return (sizeof web_handlers / sizeof( conditional_handler_t ));
 }

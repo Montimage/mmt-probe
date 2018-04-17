@@ -121,12 +121,6 @@ typedef struct packet_session_struct {
 } packet_session_t;
 
 
-typedef struct conditional_handler_struct{
-	uint32_t proto_id;
-	uint32_t att_id;
-	attribute_handler_function handler;
-}conditional_handler_t;
-
 /**
  * Returns 1 if the given session is a microflow, O otherwise
  * @param expired_session pointer to the session context to check

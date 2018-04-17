@@ -11,7 +11,6 @@
 #include <errno.h>
 #include <stdarg.h>
 
-#ifdef HTTP_RECONSTRUCT_MODULE
 #include <htmlstreamparser.h>
 #include "zlib.h"
 #include <ctype.h>
@@ -153,5 +152,3 @@ inline static void clean_http_content_processor(http_content_processor_t * sp) {
  * Writes @len bytes from @content to the filename @path.
  */
 void http_write_data_to_file (char * path, const char * content, size_t len);
-
-#endif // End of HTTP_RECONSTRUCT_MODULE
