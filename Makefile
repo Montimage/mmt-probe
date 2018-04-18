@@ -79,7 +79,6 @@ endif
 MODULE_SRCS := $(wildcard src/modules/output/*.c)
 MODULE_SRCS += $(wildcard src/modules/output/file/*.c)
 MODULE_SRCS += $(wildcard src/modules/dpi/*.c)
-MODULE_SRCS += $(wildcard src/modules/dpi/report/*.c)
 MODULE_SRCS += $(wildcard src/modules/routine/*.c)
 #################################################
 ########### MODULES #############################
@@ -148,6 +147,25 @@ else
 $(info -> Disable SECURITY)
 endif
 
+ifdef PCAP_DUMP
+$(info - Enable PCAP_DUMP)
+	CFLAGS      += -DPCAP_DUMP_MODULE
+	MODULE_SRCS += $(wildcard src/modules/dpi/pcap_dump/*.c)
+else
+$(info -> Disable PCAP_DUMP)
+endif
+
+ifdef SIMPLE_REPORT
+undefine DISABLE_REPORT
+endif
+
+ifndef DISABLE_REPORT
+$(info - Enable REPORT)
+	CFLAGS      += -DSTAT_REPORT
+	MODULE_SRCS += $(wildcard src/modules/dpi/report/*.c)
+else
+$(info -> Disable REPORT)
+endif
 
 MAIN_SRCS := src/main.c
 

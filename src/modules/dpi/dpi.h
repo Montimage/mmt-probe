@@ -12,24 +12,7 @@
 #include "../../configure.h"
 #include "../output/output.h"
 
-
-typedef struct dpi_context_struct{
-	uint16_t worker_index;
-
-	mmt_handler_t *dpi_handler;
-
-	const probe_conf_t *probe_config;
-
-	output_t *output;
-
-	void *event_based_context;
-
-	void *data_dump_context;
-
-	//number of stat_period, e.g., 5s,
-	// => this number will increase 1 for each 5 seconds
-	size_t stat_periods_index;
-}dpi_context_t;
+typedef struct dpi_context_struct dpi_context_t;
 
 /**
  * This must be called by worker when it is initialize

@@ -60,23 +60,44 @@
 #endif
 
 
-#ifdef SIMPLE_REPORT
-	#define IF_ENABLE_SIMPLE_REPORT( x ) x
-	#define IF_NOT_SIMPLE_REPORT( x ) x
+#ifdef PCAP_DUMP_MODULE
+	#define IF_ENABLE_PCAP_DUMP( x ) x
 #else
-	#define IF_ENABLE_SIMPLE_REPORT( x )
-	#define IF_NOT_SIMPLE_REPORT( x )
+	#define IF_ENABLE_PCAP_DUMP( x )
 #endif
 
 
+#ifdef SIMPLE_REPORT
+	#define IF_ENABLE_SIMPLE_REPORT( x ) x
+	#define IF_NOT_SIMPLE_REPORT( x )
+#else
+	#define IF_ENABLE_SIMPLE_REPORT( x )
+	#define IF_NOT_SIMPLE_REPORT( x ) x
+#endif
+
+#define STAT_REPORT
+
+#ifdef STAT_REPORT
+	#define IF_ENABLE_STAT_REPORT( x ) x
+#else
+	#define IF_ENABLE_STAT_REPORT( x )
+#endif
+
+#ifdef LICENSE_CHECK
+	#define IF_ENABLE_LICENSE_CHECK( x ) x
+#else
+	#define IF_ENABLE_LICENSE_CHECK( x )
+#endif
 
 //a string contains list of compiled modules
 #define MODULES_LIST                             \
 	"DPI"                                        \
 	IF_ENABLE_DEBUG( ", DEBUG" )                 \
+	IF_ENABLE_LICENSE_CHECK( ", LICENSE" )       \
 	IF_ENABLE_REDIS( ", REDIS" )                 \
 	IF_ENABLE_KAFKA( ", KAFKA" )                 \
 	IF_ENABLE_MONGODB( ", MONGODB" )             \
+	IF_ENABLE_PCAP_DUMP( ", PCAP_DUMP" )         \
 	IF_ENABLE_PCAP( ", PCAP" )                   \
 	IF_ENABLE_DPDK( ", DPDK" )                   \
 	IF_ENABLE_SIMPLE_REPORT( ", SIMPLE_REPORT" ) \

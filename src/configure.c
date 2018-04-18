@@ -327,12 +327,12 @@ static inline file_output_conf_t *_parse_output_to_file( cfg_t *cfg ){
 	return ret;
 }
 
-static inline data_dump_conf_t *_parse_dump_to_file( cfg_t *cfg ){
+static inline pcap_dump_conf_t *_parse_dump_to_file( cfg_t *cfg ){
 	cfg = _get_first_cfg_block( cfg, "dump-pcap" );
 	if( cfg == NULL )
 		return NULL;
 
-	data_dump_conf_t *ret = mmt_alloc( sizeof( data_dump_conf_t ));
+	pcap_dump_conf_t *ret = mmt_alloc( sizeof( pcap_dump_conf_t ));
 
 	ret->is_enable  = cfg_getbool( cfg, "enable" );
 	ret->directory  = _cfg_get_str(cfg, "output-dir");
@@ -689,7 +689,7 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 	conf->reports.session = _parse_session_block( cfg );
 	conf->reports.socket = _parse_socket_block( cfg );
 
-	conf->reports.data_dump = _parse_dump_to_file(cfg);
+	conf->reports.pcap_dump = _parse_dump_to_file(cfg);
 
 	conf->session_timeout = _parse_session_timeout_block( cfg );
 

@@ -6,22 +6,15 @@
  */
 
 #include <arpa/inet.h>
-#include "report.h"
+#include "session_report.h"
 
-int print_web_report(char *message, size_t message_size, packet_session_t *session, dpi_context_t *context);
+int print_web_report(char *message, size_t message_size, session_stat_t *session_stat, dpi_context_t *context);
 
 #ifndef SIMPLE_REPORT
 //This callback is called by DPI periodically
-static inline void _print_ip_session_report (const mmt_session_t * dpi_session, void *user_args){
-	packet_session_t * session = (packet_session_t *) get_user_session_context(dpi_session);
-	if( unlikely( session == NULL ))
-		return;
+static inline void _print_ip_session_report (const mmt_session_t * dpi_session, session_stat_t * session_stat, dpi_context_t *context){
 
 	if( unlikely( is_micro_flow( dpi_session )))
-		return;
-
-	dpi_context_t *context = (dpi_context_t *)user_args;
-	if( unlikely( context == NULL ))
 		return;
 
 	uint64_t total_volumes = get_session_data_cap_volume(dpi_session);
@@ -40,23 +33,17 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 			dl_packets = get_session_dl_cap_packet_count(dpi_session);
 
 	uint64_t report_number;
-	struct timeval last_activity_time = get_session_last_activity_time(dpi_session);
-
-	//To check whether the session activity occurs between the reporting time interval
-	if (u_second_diff( &last_activity_time, &session->data_stat.last_activity_time ) == 0)
-		return;
 
 	// check the condition if in the last interval there was a protocol activity or not
 	//if (get_session_byte_count(session) - temp_session->stat.total_byte_count == 0)return;
 
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(dpi_session);
 	int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
-	session->data_stat.last_activity_time =  last_activity_time;
-	session->data_stat.start_time = get_session_init_time(dpi_session);
+
 
 	uint64_t data_transfer_time = 0;
 	// Data transfer time calculation
-	if (session->dtt_seen ){
+	if (session_stat->dtt_seen ){
 		struct timeval t1;
 		//The download direction is opposite to set_up_direction, the download direction is from server to client
 		if (get_session_setup_direction(dpi_session) == 1)
@@ -64,8 +51,8 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 		else
 			t1 = get_session_last_data_packet_time_by_direction(dpi_session, 1);
 
-		data_transfer_time      =  u_second_diff(&t1, &session->dtt_start_time);
-		session->dtt_start_time = t1;
+		data_transfer_time      =  u_second_diff(&t1, &session_stat->dtt_start_time);
+		session_stat->dtt_start_time = t1;
 	}
 
 	char path_ul[128], path_dl[128];
@@ -84,6 +71,8 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	uint64_t rtt_at_handshake = u_second( &rtt_time );
 
 	uint64_t total_retrans = get_session_retransmission_count( dpi_session );
+
+	struct timeval start_time = get_session_init_time(dpi_session);
 
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 
@@ -114,52 +103,52 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 			path_ul, path_dl,
 			total_active_sessions,
 
-			total_volumes - session->data_stat.total_volumes,
-			total_payload - session->data_stat.total_payload,
-			total_packets - session->data_stat.total_packets,
+			total_volumes,
+			total_payload,
+			total_packets,
 
-			ul_volumes - session->data_stat.volumes.upload,
-			ul_payload - session->data_stat.payload.upload,
-			ul_packets - session->data_stat.packets.upload,
+			ul_volumes - session_stat->volumes.upload,
+			ul_payload - session_stat->payload.upload,
+			ul_packets - session_stat->packets.upload,
 
-			dl_volumes - session->data_stat.volumes.download,
-			dl_payload - session->data_stat.payload.download,
-			dl_packets - session->data_stat.packets.download,
+			dl_volumes - session_stat->volumes.download,
+			dl_payload - session_stat->payload.download,
+			dl_packets - session_stat->packets.download,
 
-			session->data_stat.start_time.tv_sec, session->data_stat.start_time.tv_usec,
-			session->ip_src.ip_string, session->ip_dst.ip_string,
-			MAC_ELEMENT( session->mac_src ),//src_mac_pretty,
-			MAC_ELEMENT( session->mac_dst ),//dst_mac_pretty,
-			session ->session_id,
-			session->port_dst, session->port_src,
+			start_time.tv_sec, start_time.tv_usec,
+			session_stat->ip_src.ip_string, session_stat->ip_dst.ip_string,
+			MAC_ELEMENT( session_stat->mac_src ),//src_mac_pretty,
+			MAC_ELEMENT( session_stat->mac_dst ),//dst_mac_pretty,
+			get_session_id( dpi_session ),
+			session_stat->port_dst, session_stat->port_src,
 
 			context->worker_index, //thread_id
 
-			((session->rtt_at_handshake == 0)? rtt_at_handshake : 0),
-			session->data_stat.rtt_min_usec[1],
-			session->data_stat.rtt_min_usec[0],
-			session->data_stat.rtt_max_usec[1],
-			session->data_stat.rtt_max_usec[0],
-			session->data_stat.rtt_avg_usec[1],
-			session->data_stat.rtt_avg_usec[0],
+			((session_stat->rtt_at_handshake == 0)? rtt_at_handshake : 0),
+			session_stat->rtt_min_usec[1],
+			session_stat->rtt_min_usec[0],
+			session_stat->rtt_max_usec[1],
+			session_stat->rtt_max_usec[0],
+			session_stat->rtt_avg_usec[1],
+			session_stat->rtt_avg_usec[0],
 
 			data_transfer_time,
-			(total_retrans - session->data_stat.retransmission_count),
+			(total_retrans - session_stat->retransmission_count),
 
-			session->app_type,
+			session_stat->app_type,
 
 			get_application_class_by_protocol_id( proto_id ),
-			session->content_class
+			session_stat->content_class
 	);
 
 	//get_application_class_by_protocol_id( session->proto_id )
 	//append stats of application beyond IP
-	switch( session->app_type ){
+	switch( session_stat->app_type ){
 	case SESSION_STAT_TYPE_APP_IP:
 		break;
 	case SESSION_STAT_TYPE_APP_WEB:
 		valid += print_web_report( &message[ valid ], MAX_LENGTH_REPORT_MESSAGE - valid,
-				session, context );
+				session_stat, context );
 		break;
 	case SESSION_REPORT_SSL_TYPE:
 		break;
@@ -168,7 +157,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	case SESSION_REPORT_RTP_TYPE:
 		break;
 	default:
-		DEBUG("Does not support stat_type = %d", session->app_type );
+		DEBUG("Does not support stat_type = %d", session_stat->app_type );
 	}
 //	if (session->app_format_id == MMT_WEB_REPORT_FORMAT && probe_context->web_enable == 1)
 //		print_initial_web_report(dpi_session, session, message,valid);
@@ -186,40 +175,38 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 //		}else print_initial_default_report(dpi_session, session, message, valid);
 //	}
 
+	struct timeval timestamp = get_session_last_activity_time( dpi_session );
 
 	output_write_report( context->output,
 			context->probe_config->reports.session->output_channels,
 			SESSION_REPORT_TYPE,
-			&last_activity_time,
+			//timestamp is the one of the last packet in the session
+			& timestamp,
 			message );
 
 
-	session->data_stat.retransmission_count = total_retrans;
+	session_stat->retransmission_count = total_retrans;
 
-	session->data_stat.total_volumes = total_volumes;
-	session->data_stat.total_payload = total_payload;
-	session->data_stat.total_packets = total_packets;
+	session_stat->volumes.upload = ul_volumes;
+	session_stat->volumes.download = dl_volumes;
 
-	session->data_stat.volumes.upload = ul_volumes;
-	session->data_stat.volumes.download = dl_volumes;
+	session_stat->payload.upload = ul_payload;
+	session_stat->payload.download = dl_payload;
 
-	session->data_stat.payload.upload = ul_payload;
-	session->data_stat.payload.download = dl_payload;
+	session_stat->packets.upload = ul_packets;
+	session_stat->packets.download = dl_packets;
 
-	session->data_stat.packets.upload = ul_packets;
-	session->data_stat.packets.download = dl_packets;
-
-	session->data_stat.rtt_min_usec[1] = 0;
-	session->data_stat.rtt_min_usec[0] = 0;
-	session->data_stat.rtt_max_usec[1] = 0;
-	session->data_stat.rtt_max_usec[0] = 0;
-	session->data_stat.rtt_avg_usec[0] = 0;
-	session->data_stat.rtt_avg_usec[1] = 0;
-	session->data_stat.rtt_counter[0]  = 0;
-	session->data_stat.rtt_counter[1]  = 0;
-	session->data_stat.sum_rtt[0]      = 0;
-	session->data_stat.sum_rtt[1]      = 0;
-	session->rtt_at_handshake     = rtt_at_handshake;
+	session_stat->rtt_min_usec[1] = 0;
+	session_stat->rtt_min_usec[0] = 0;
+	session_stat->rtt_max_usec[1] = 0;
+	session_stat->rtt_max_usec[0] = 0;
+	session_stat->rtt_avg_usec[0] = 0;
+	session_stat->rtt_avg_usec[1] = 0;
+	session_stat->rtt_counter[0]  = 0;
+	session_stat->rtt_counter[1]  = 0;
+	session_stat->sum_rtt[0]      = 0;
+	session_stat->sum_rtt[1]      = 0;
+	session_stat->rtt_at_handshake     = rtt_at_handshake;
 }
 
 
@@ -249,9 +236,9 @@ static inline void _print_simple_ip_session_report (const mmt_session_t * dpi_se
 	struct timeval last_activity_time = get_session_last_activity_time( dpi_session );
 
 	//To check whether the session activity occurs between the reporting time interval
-	if (u_second_diff( &last_activity_time, &session->data_stat.last_activity_time ) == 0)
+	if (u_second_diff( &last_activity_time, &session->last_activity_time ) == 0)
 		return;
-	session->data_stat.last_activity_time =  last_activity_time;
+	session->last_activity_time =  last_activity_time;
 
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(dpi_session);
 	int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
@@ -280,8 +267,8 @@ static inline void _print_simple_ip_session_report (const mmt_session_t * dpi_se
 			proto_id,
 			app_path,
 
-			ul_volumes - session->data_stat.volumes.upload,
-			dl_volumes - session->data_stat.volumes.download,
+			ul_volumes - session->volumes.upload,
+			dl_volumes - session->volumes.download,
 
 			session->ip_src.ip_string, session->ip_dst.ip_string,
 
@@ -291,8 +278,8 @@ static inline void _print_simple_ip_session_report (const mmt_session_t * dpi_se
 			session->port_dst, session->port_src
 	);
 
-	session->data_stat.volumes.upload = ul_volumes;
-	session->data_stat.volumes.download = dl_volumes;
+	session->volumes.upload = ul_volumes;
+	session->volumes.download = dl_volumes;
 }
 #endif
 //
@@ -338,19 +325,14 @@ static inline void _print_simple_ip_session_report (const mmt_session_t * dpi_se
 //}
 
 
-static inline packet_session_t *_create_session (const ipacket_t * ipacket, dpi_context_t *context){
+session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * ipacket ){
 	mmt_session_t * dpi_session = ipacket->session;
 	if(dpi_session == NULL) return NULL;
 
-	packet_session_t *session = mmt_alloc(sizeof (packet_session_t));
+	session_stat_t *session_stat = mmt_alloc_and_init_zero( sizeof (session_stat_t));
 
-	memset(session, 0, sizeof (packet_session_t));
-
-	session->dpi_session = dpi_session;
-	session->context     = context;
-	session->session_id  = get_session_id( dpi_session );
 #ifndef SIMPLE_REPORT
-	session->app_type    = SESSION_STAT_TYPE_APP_IP;
+	session_stat->app_type    = SESSION_STAT_TYPE_APP_IP;
 #endif
 	// Flow extraction
 	int ip_index = get_protocol_index_by_id(ipacket, PROTO_IP);
@@ -359,11 +341,9 @@ static inline packet_session_t *_create_session (const ipacket_t * ipacket, dpi_
 	uint8_t *dst = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_DST);
 
 	if (src)
-		//memcpy(session->mac_src, src, 6);
-		assign_6bytes( session->mac_src, src );
+		assign_6bytes( session_stat->mac_src, src );
 	if (dst)
-		//memcpy(session->mac_dst, dst, 6);
-		assign_6bytes( session->mac_dst, dst );
+		assign_6bytes( session_stat->mac_dst, dst );
 
 	//IPV4
 	if (ip_index != -1) {
@@ -372,64 +352,58 @@ static inline packet_session_t *_create_session (const ipacket_t * ipacket, dpi_
 		uint32_t * ip_dst = (uint32_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_DST);
 
 		if (ip_src)
-			session->ip_src.ipv4 = (*ip_src);
+			session_stat->ip_src.ipv4 = (*ip_src);
 
 
 		if (ip_dst)
-			session->ip_dst.ipv4 = (*ip_dst);
+			session_stat->ip_dst.ipv4 = (*ip_dst);
 
 
-		inet_ntop(AF_INET, (void *) &session->ip_src.ipv4, session->ip_src.ip_string, INET_ADDRSTRLEN);
-		inet_ntop(AF_INET, (void *) &session->ip_dst.ipv4, session->ip_dst.ip_string, INET_ADDRSTRLEN);
+		inet_ntop(AF_INET, (void *) &session_stat->ip_src.ipv4, session_stat->ip_src.ip_string, INET_ADDRSTRLEN);
+		inet_ntop(AF_INET, (void *) &session_stat->ip_dst.ipv4, session_stat->ip_dst.ip_string, INET_ADDRSTRLEN);
 
 		uint16_t * cport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_CLIENT_PORT);
 		uint16_t * dport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_SERVER_PORT);
 		if (cport)
-			session->port_src = *cport;
+			session_stat->port_src = *cport;
 
 		if (dport)
-			session->port_dst = *dport;
+			session_stat->port_dst = *dport;
 
 	} else {
 		void * ipv6_src = (void *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SRC);
 		void * ipv6_dst = (void *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_DST);
 		if (ipv6_src) {
-			memcpy(&session->ip_src.ipv6, ipv6_src, 16);
+			memcpy(&session_stat->ip_src.ipv6, ipv6_src, 16);
 		}
 		if (ipv6_dst) {
-			memcpy(&session->ip_dst.ipv6, ipv6_dst, 16);
+			memcpy(&session_stat->ip_dst.ipv6, ipv6_dst, 16);
 		}
 
-		inet_ntop(AF_INET6, (void *) &session->ip_src.ipv6, session->ip_src.ip_string, INET6_ADDRSTRLEN);
-		inet_ntop(AF_INET6, (void *) &session->ip_dst.ipv6, session->ip_dst.ip_string, INET6_ADDRSTRLEN);
+		inet_ntop(AF_INET6, (void *) &session_stat->ip_src.ipv6, session_stat->ip_src.ip_string, INET6_ADDRSTRLEN);
+		inet_ntop(AF_INET6, (void *) &session_stat->ip_dst.ipv6, session_stat->ip_dst.ip_string, INET6_ADDRSTRLEN);
 
 
 		uint16_t * cport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_CLIENT_PORT);
 		uint16_t * dport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SERVER_PORT);
 		if (cport)
-			session->port_src = *cport;
+			session_stat->port_src = *cport;
 		if (dport)
-			session->port_dst = *dport;
+			session_stat->port_dst = *dport;
 	}
 
-    //    printf ("set session\n");
-	set_user_session_context(dpi_session, session);
-	return session;
+	return session_stat;
 }
 
 
 /* This function is called by mmt-dpi for each session time-out (expiry).
  * It provides the expired session information and frees the memory allocated.
  * */
-static void _expired_session_callback(const mmt_session_t * expired_session, void * args) {
-	//	debug("classification_expiry_session : %lu",get_session_id(expired_session));
-	packet_session_t * session = get_user_session_context(expired_session);
-	if (session == NULL)
+void session_report_callback_on_ending_session(const mmt_session_t * dpi_session, session_stat_t * session_stat, dpi_context_t *context) {
+	if (session_stat == NULL)
 		return;
 
-	dpi_context_t *context = (dpi_context_t *) args;
-
-	if (is_micro_flow( expired_session )) {
+	if (is_micro_flow( dpi_session )) {
 //		microsessions_stats_t * mf_stats = &th->iprobe.mf_stats[get_session_protocol_hierarchy(expired_session)->proto_path[(get_session_protocol_hierarchy(expired_session)->len <= 16)?(get_session_protocol_hierarchy(expired_session)->len - 1):(16 - 1)]];
 
 //		update_microflows_stats(mf_stats, expired_session);
@@ -441,34 +415,28 @@ static void _expired_session_callback(const mmt_session_t * expired_session, voi
 
 #ifdef SIMPLE_REPORT
 	//use simpler report version: this output is used by mmt-box
-	_print_simple_ip_session_report ( expired_session, context );
+	_print_simple_ip_session_report ( expired_session, session_stat, context );
 #else
-	_print_ip_session_report ( expired_session, context );
+	_print_ip_session_report ( dpi_session, session_stat, context );
 
 
 	//release memory being allocated for application stat (web, ftp, rtp, ssl)
-	switch( session->app_type ){
+	switch( session_stat->app_type ){
 	default:
 		break;
 	}
 
-	mmt_probe_free( session->apps.web );
+	mmt_probe_free( session_stat->apps.web );
 #endif
 
-	mmt_probe_free(session);
+	mmt_probe_free( session_stat );
 }
 
-static int _packet_handler_for_session(const ipacket_t * ipacket, void * args) {
-	dpi_context_t *context = (dpi_context_t *)args;
-
-	packet_session_t *session = (packet_session_t *) get_user_session_context_from_packet(ipacket);
-
-	if( unlikely( ipacket->session != NULL && session == NULL))
-		session = _create_session (ipacket, context);
+int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, session_stat_t * session_stat){
 
 #ifndef SIMPLE_REPORT
 	//only for packet based on TCP
-	if (session != NULL && session->dtt_seen == false ){
+	if (session_stat != NULL && session_stat->dtt_seen == false ){
 		struct timeval ts = get_session_rtt(ipacket->session);
 		//this will exclude all the protocols except TCP
 		uint64_t usec = u_second( &ts );
@@ -479,10 +447,11 @@ static int _packet_handler_for_session(const ipacket_t * ipacket, void * args) {
 				struct timeval t1;
 				t1 = get_session_last_data_packet_time_by_direction(ipacket->session, direction );
 
-				if (t1.tv_sec > 0 &&
-						u_second_diff(&ipacket->p_hdr->ts, & session->data_stat.start_time) > usec){
-					session->dtt_seen = true;
-					session->dtt_start_time = ipacket->p_hdr->ts;
+				if (t1.tv_sec > 0
+						//&& u_second_diff(&ipacket->p_hdr->ts, & session->start_time) > usec
+						){
+					session_stat->dtt_seen = true;
+					session_stat->dtt_start_time = ipacket->p_hdr->ts;
 				}
 			}
 		}
@@ -493,20 +462,20 @@ static int _packet_handler_for_session(const ipacket_t * ipacket, void * args) {
 }
 
 
-
-static void _flow_nb_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-	packet_session_t *session = (packet_session_t *) get_user_session_context_from_packet(ipacket);
-
-	if( session == NULL )
-		_create_session (ipacket, user_args);
+void session_report_callback_on_timer(const mmt_session_t * dpi_session, session_stat_t * session_stat, dpi_context_t *context){
+#ifdef SIMPLE_REPORT
+	//use simpler report version: this output is used by mmt-box
+	_print_simple_ip_session_report ( expired_session, session_stat, context );
+#else
+	_print_ip_session_report ( dpi_session, session_stat, context );
+#endif
 }
 
 /**
  * This function registers the required attributes for a flow (session)
  */
-static inline
-void _register_protocols( dpi_context_t *context ) {
-	mmt_handler_t *mmt_handler = context->dpi_handler;
+static inline void
+	_register_protocols( mmt_handler_t *mmt_handler ) {
 	int ret = 1;
 	ret &= register_extraction_attribute(mmt_handler, PROTO_TCP, TCP_SRC_PORT);
 	ret &= register_extraction_attribute(mmt_handler, PROTO_TCP, TCP_DEST_PORT);
@@ -528,23 +497,6 @@ void _register_protocols( dpi_context_t *context ) {
 	ret &= register_extraction_attribute(mmt_handler, PROTO_IPV6, IP6_SERVER_PORT);
 	ret &= register_extraction_attribute(mmt_handler, PROTO_IPV6, IP6_CLIENT_PORT);
 
-	if( context->probe_config->is_enable_ip_fragementation_report ){
-		ret &= register_extraction_attribute(mmt_handler, PROTO_IP, IP_FRAG_PACKET_COUNT);
-		ret &= register_extraction_attribute(mmt_handler, PROTO_IP, IP_FRAG_DATA_VOLUME);
-		ret &= register_extraction_attribute(mmt_handler, PROTO_IP, IP_DF_PACKET_COUNT);
-		ret &= register_extraction_attribute(mmt_handler, PROTO_IP, IP_DF_DATA_VOLUME);
-	}
-
-	ret &= register_attribute_handler(mmt_handler, PROTO_IP, PROTO_SESSION, _flow_nb_handle, NULL, (void *)context);
-
-//	ret &= register_attribute_handler(mmt_handler, PROTO_IPV6, PROTO_SESSION, flow_nb_handle, NULL, (void *)context);
-//	ret &= register_attribute_handler(mmt_handler, PROTO_IP, IP_RTT, ip_rtt_handler, NULL, (void *)context);
-//	ret &=register_attribute_handler(mmt_handler, PROTO_TCP,TCP_CONN_CLOSED, tcp_closed_handler, NULL, (void *)context);
-
-	/*if(probe_context->ftp_enable == 1){
-		register_ftp_attributes(mmt_handler);
-	}*/
-
 	if(!ret) {
 		//we need a sound error handling mechanism! Anyway, we should never get here :)
 		log_write(LOG_ERR, "Error while initializing MMT handlers and extractions!");
@@ -554,18 +506,12 @@ void _register_protocols( dpi_context_t *context ) {
 size_t get_session_web_handlers_to_register(const conditional_handler_t**);
 size_t get_session_ssl_handlers_to_register( const conditional_handler_t **ret );
 
-bool session_report_register( dpi_context_t *context ){
-	if( ! context->probe_config->reports.session->is_enable )
+bool session_report_register( mmt_handler_t *dpi_handler, session_report_conf_t *config ){
+	if( ! config->is_enable )
 		return false;
 
-	//this handler is used only for handling session
-	int ret = register_packet_handler( context->dpi_handler, 6, _packet_handler_for_session, context );
-
-	if( ! ret)
-		ABORT( "Cannot register packet handler for session processing" );
-
 	//register basic protocols and their attributes for IP session statistic
-	_register_protocols( context );
+	_register_protocols( dpi_handler );
 
 	size_t size;
 	const conditional_handler_t* handlers;
@@ -575,22 +521,16 @@ bool session_report_register( dpi_context_t *context ){
 	register_session_timer_handler(context->dpi_handler,   _print_simple_ip_session_report, context);
 #else
 	//register protocols and attributes for application statistic: WEB, FTP, RTP, SSL
-	if( context->probe_config->reports.session->is_http ){
+	if( config->is_http ){
 		size = get_session_web_handlers_to_register( &handlers );
-		dpi_register_conditional_handler( context->dpi_handler, size, handlers, context );
+		dpi_register_conditional_handler( dpi_handler, size, handlers, NULL );
 	}
 
-	if( context->probe_config->reports.session->is_ssl ){
+	if( config->is_ssl ){
 		size = get_session_ssl_handlers_to_register( &handlers );
-		dpi_register_conditional_handler( context->dpi_handler, size, handlers, context );
+		dpi_register_conditional_handler( dpi_handler, size, handlers, NULL );
 	}
-
-	register_session_timer_handler(context->dpi_handler,   _print_ip_session_report, context);
 #endif
-
-
-
-	register_session_timeout_handler(context->dpi_handler, _expired_session_callback, context);
 
 	return true;
 }

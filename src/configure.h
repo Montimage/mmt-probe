@@ -111,7 +111,7 @@ typedef struct behaviour_conf_struct{
 	char *directory;
 }behaviour_conf_t;
 
-typedef struct data_dump_conf_struct{
+typedef struct pcap_dump_conf_struct{
 	bool is_enable;
 	char *directory;
 	uint16_t frequency;
@@ -122,7 +122,7 @@ typedef struct data_dump_conf_struct{
 									//set to 0 to retain all files
 									// ( note that the value of retain-files must be greater than the value of thread_nb + 1)
 	uint16_t snap_len;
-}data_dump_conf_t;
+}pcap_dump_conf_t;
 
 typedef struct reconstruct_data_conf_struct{
 	bool is_enable;
@@ -234,7 +234,7 @@ typedef struct probe_conf_struct{
 		uint16_t events_size;
 		event_report_conf_t *events;
 
-		data_dump_conf_t *data_dump;
+		pcap_dump_conf_t *pcap_dump;
 	}reports;
 
 	struct reconstruct_data_struct{

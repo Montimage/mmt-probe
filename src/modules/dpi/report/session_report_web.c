@@ -17,7 +17,6 @@ struct session_web_stat_struct {
 	char mime_type[64];
 	char hostname[96];
 	char referer[64];
-	char user_agent[64];
 	char method[20];
 
 	bool xcdn_seen;
@@ -27,7 +26,6 @@ struct session_web_stat_struct {
 	char uri[1024];
 	char response[1024];
 	char content_len[20];
-
 };
 
 
@@ -37,7 +35,6 @@ static inline void _reset_report(session_web_stat_t *web){
 	 web->mime_type[0]   = '\0';
 	 web->hostname[0]    = '\0';
 	 web->referer[0]     = '\0';
-	 web->user_agent[0]  = '\0';
 	 web->method[0]      = '\0';
 	 web->uri[0]         = '\0';
 	 web->response[0]    = '\0';
@@ -145,14 +142,6 @@ static void _web_referer_handle(const ipacket_t * ipacket, attribute_t * attribu
 	dpi_copy_string_value(web->referer, sizeof( web->referer ), attribute->data );
 }
 
-static void _web_user_agent_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-	packet_session_t *session = _get_packet_session(ipacket);
-	if( unlikely( session == NULL ))
-		return;
-	session_web_stat_t *web = session->apps.web;
-	dpi_copy_string_value(web->user_agent, sizeof( web->user_agent ), attribute->data );
-}
-
 static void _web_uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	packet_session_t *session = _get_packet_session(ipacket);
 	if( unlikely( session == NULL ))
@@ -222,7 +211,6 @@ size_t get_session_web_handlers_to_register( const conditional_handler_t **ret )
 		{.proto_id = PROTO_HTTP, .att_id = RFC2822_RESPONSE,     .handler = _web_response_handle},
 		{.proto_id = PROTO_HTTP, .att_id = RFC2822_CONTENT_TYPE, .handler = _content_type_handle},
 		{.proto_id = PROTO_HTTP, .att_id = RFC2822_HOST,         .handler = _web_host_handle},
-		{.proto_id = PROTO_HTTP, .att_id = RFC2822_USER_AGENT,   .handler = _web_user_agent_handle},
 		{.proto_id = PROTO_HTTP, .att_id = RFC2822_REFERER,      .handler = _web_referer_handle},
 		{.proto_id = PROTO_HTTP, .att_id = RFC2822_XCDN_SEEN,    .handler = _web_xcdn_seen_handle},
 		{.proto_id = PROTO_HTTP, .att_id = RFC2822_CONTENT_LEN,  .handler = _web_content_len_handle},

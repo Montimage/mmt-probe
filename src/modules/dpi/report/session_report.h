@@ -47,40 +47,12 @@ typedef struct flow_stat_data_struct{
 	uint64_t download;
 }flow_stat_data_t;
 
-typedef struct session_statistics_struct {
-	struct timeval last_activity_time;
-	flow_stat_data_t volumes;
-
-//we don't need these parameters in simple version for MMT-BOX
-#ifndef SIMPLE_REPORT
-	struct timeval start_time;
-	uint64_t total_volumes;
-	uint64_t total_payload;
-	uint64_t total_packets;
-
-
-	flow_stat_data_t payload;
-	flow_stat_data_t packets;
-
-	bool is_touched;
-	uint64_t sum_rtt[2];
-	uint64_t rtt_min_usec[2];
-	uint64_t rtt_max_usec[2];
-	uint64_t rtt_avg_usec[2];
-	uint64_t rtt_counter[2];
-	uint64_t retransmission_count;
-#endif
-} session_stat_t;
-
-
 typedef struct session_web_stat_struct session_web_stat_t;
 typedef struct session_ftp_stat_struct session_ftp_stat_t;
 typedef struct session_rtp_stat_struct session_rtp_stat_t;
 typedef struct session_ssl_stat_struct session_ssl_stat_t;
 
-typedef struct packet_session_struct {
-	uint64_t session_id;
-
+typedef struct session_stat_struct {
 	mmt_ipv4_ipv6_t ip_src;
 	mmt_ipv4_ipv6_t ip_dst;
 	uint16_t port_src;
@@ -89,14 +61,21 @@ typedef struct packet_session_struct {
 	uint8_t  mac_src[6];
 	uint8_t  mac_dst[6];
 
-	session_stat_t data_stat;
-
-	//reference to others
-	dpi_context_t *context;
-	mmt_session_t *dpi_session;
+	flow_stat_data_t volumes;
 
 //we don't need these parameters in simple version for MMT-BOX
 #ifndef SIMPLE_REPORT
+	flow_stat_data_t payload;
+	flow_stat_data_t packets;
+
+	uint64_t sum_rtt[2];
+	uint64_t rtt_min_usec[2];
+	uint64_t rtt_max_usec[2];
+	uint64_t rtt_avg_usec[2];
+	uint64_t rtt_counter[2];
+	uint64_t retransmission_count;
+
+	bool is_touched;
 	struct timeval dtt_start_time;
 	uint64_t rtt_at_handshake;
 
@@ -104,8 +83,6 @@ typedef struct packet_session_struct {
 	bool is_classified;
 
 	uint16_t content_class;
-
-
 
 	//sub statistic (e.g., HTTP) beyond main stat (IP)
 	session_stat_type_t app_type;
@@ -118,9 +95,21 @@ typedef struct packet_session_struct {
 	}apps;
 #endif
 
-} packet_session_t;
+} session_stat_t;
 
 
+
+//This function must be called when starting a session
+session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * ipacket );
+
+/**
+ * This function must be called on each coming packet
+ */
+int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, session_stat_t * session_stat);
+
+void session_report_callback_on_ending_session(const mmt_session_t * dpi_session, session_stat_t * session_stat, dpi_context_t *context);
+
+void session_report_callback_on_timer(const mmt_session_t * dpi_session, session_stat_t * session_stat, dpi_context_t *context);
 /**
  * Returns 1 if the given session is a microflow, O otherwise
  * @param expired_session pointer to the session context to check
@@ -174,11 +163,13 @@ static inline bool is_local_ipv4(uint32_t addr) {
 	}
 }
 
-
 static inline const char* get_string_value( const char *value ){
 	if( value[0] == '\0' )
 		return "null";
 	return value;
 }
+
+//header
+bool session_report_register( mmt_handler_t *dpi_handler, session_report_conf_t *config );
 
 #endif /* SRC_MODULES_DPI_HEADER_H_ */
