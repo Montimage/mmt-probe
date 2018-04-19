@@ -45,6 +45,11 @@ worker_context_t * worker_alloc_init(){
 void worker_release( worker_context_t *worker_context ){
 	//log_debug("Releasing worker %d", worker_context->index );
 	mmt_close_handler( worker_context->dpi_handler );
+
+	dpi_release( worker_context->dpi_context );
+
+	output_release( worker_context->output );
+
 	mmt_probe_free( worker_context );
 }
 
@@ -134,8 +139,7 @@ void worker_on_stop( worker_context_t *worker_context ){
 	IF_ENABLE_SECURITY(
 		worker_context->stat.alert_generated = security_worker_release( worker_context->security );
 	)
-	dpi_release( worker_context->dpi_context );
-	output_release( worker_context->output );
+	dpi_close( worker_context->dpi_context );
 }
 
 

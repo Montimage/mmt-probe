@@ -68,12 +68,24 @@ typedef struct session_stat_struct {
 	flow_stat_data_t payload;
 	flow_stat_data_t packets;
 
+	uint64_t retransmission_count;
+
+	uint16_t content_class;
+
+	//sub statistic (e.g., HTTP) beyond main stat (IP)
+	session_stat_type_t app_type;
+	union{
+		session_web_stat_t *web;
+		session_ftp_stat_t *ftp;
+		session_rtp_stat_t *rtp;
+		session_ssl_stat_t *ssl;
+	}apps;
+
 	uint64_t sum_rtt[2];
 	uint64_t rtt_min_usec[2];
 	uint64_t rtt_max_usec[2];
 	uint64_t rtt_avg_usec[2];
 	uint64_t rtt_counter[2];
-	uint64_t retransmission_count;
 
 	bool is_touched;
 	struct timeval dtt_start_time;
@@ -82,22 +94,21 @@ typedef struct session_stat_struct {
 	bool dtt_seen;
 	bool is_classified;
 
-	uint16_t content_class;
 
-	//sub statistic (e.g., HTTP) beyond main stat (IP)
-	session_stat_type_t app_type;
-
-	union{
-		session_web_stat_t *web;
-		session_ftp_stat_t *ftp;
-		session_rtp_stat_t *rtp;
-		session_ssl_stat_t *ssl;
-	}apps;
 #endif
 
 } session_stat_t;
 
 
+static inline session_stat_t *session_report_get_session_stat(const ipacket_t * ipacket){
+	packet_session_t *session =
+			(packet_session_t *) get_user_session_context_from_packet(ipacket);
+
+	if( session == NULL )
+		return NULL;
+
+	return session->session_stat;
+}
 
 //This function must be called when starting a session
 session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * ipacket );
@@ -107,9 +118,9 @@ session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * 
  */
 int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, session_stat_t * session_stat);
 
-void session_report_callback_on_ending_session(const mmt_session_t * dpi_session, session_stat_t * session_stat, dpi_context_t *context);
+void session_report_callback_on_ending_session(const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context);
 
-void session_report_callback_on_timer(const mmt_session_t * dpi_session, session_stat_t * session_stat, dpi_context_t *context);
+void session_report_callback_on_timer(const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context);
 /**
  * Returns 1 if the given session is a microflow, O otherwise
  * @param expired_session pointer to the session context to check
@@ -125,8 +136,6 @@ static inline bool is_micro_flow(const mmt_session_t * expired_session) {
 //    }
     return false;
 }
-
-
 
 /*This function takes IPv6 address and finds whether this address belongs to a local network.
  *It returns 1 if the address belongs to a IPv6 local network

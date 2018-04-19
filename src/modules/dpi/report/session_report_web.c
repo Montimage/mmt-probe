@@ -4,7 +4,7 @@
  *  Created on: Dec 28, 2017
  *          by: Huu Nghia
  */
-#include "report.h"
+#include "session_report.h"
 
 #ifndef SIMPLE_REPORT
 struct session_web_stat_struct {
@@ -49,13 +49,12 @@ static inline void _reset_report(session_web_stat_t *web){
      web->state_http_request_response = 0;
 }
 
-static inline packet_session_t* _get_packet_session(const ipacket_t * ipacket) {
+static inline session_stat_t* _get_packet_session(const ipacket_t * ipacket) {
 
 	if( ipacket->session == NULL )
 		return NULL;
 
-	packet_session_t *session =
-			(packet_session_t *) get_user_session_context_from_packet(ipacket);
+	session_stat_t *session = session_report_get_session_stat(ipacket);
 
 	if( session == NULL )
 		return NULL;
@@ -69,7 +68,7 @@ static inline packet_session_t* _get_packet_session(const ipacket_t * ipacket) {
 		session->apps.web = mmt_alloc(sizeof (session_web_stat_t));
 		_reset_report(session->apps.web);
 
-		session->data_stat.is_touched = false;
+		session->is_touched = false;
 
 //		DEBUG("Create a new Web report for session %"PRIu64", packet_id = %"PRIu64,
 //				session->session_id, ipacket->packet_id );
@@ -83,15 +82,15 @@ static inline packet_session_t* _get_packet_session(const ipacket_t * ipacket) {
  * Initializes temp_session in the probe
  * Reporting between two http requests */
 static void _web_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-	packet_session_t *session = _get_packet_session(ipacket);
+	session_stat_t *session = _get_packet_session(ipacket);
 
 	if( unlikely( session == NULL ))
 		return;
 
 	session_web_stat_t *web = session->apps.web;
 
-	if( ! session->data_stat.is_touched ){
-		session->data_stat.is_touched = true;
+	if( ! session->is_touched ){
+		session->is_touched = true;
 		web->state_http_request_response++;//response is not finished
 		//web->request_counter = 1;
 		web->trans_nb = 1;
@@ -119,7 +118,7 @@ static void _web_method_handle(const ipacket_t * ipacket, attribute_t * attribut
 }
 
 static void _web_response_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-	packet_session_t *session = _get_packet_session(ipacket);
+	session_stat_t *session = _get_packet_session(ipacket);
 
 	if( unlikely( session == NULL ))
 		return;
@@ -135,7 +134,7 @@ static void _web_response_handle(const ipacket_t * ipacket, attribute_t * attrib
 }
 
 static void _web_referer_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-	packet_session_t *session = _get_packet_session(ipacket);
+	session_stat_t *session = _get_packet_session(ipacket);
 	if( unlikely( session == NULL ))
 		return;
 	session_web_stat_t *web = session->apps.web;
@@ -143,7 +142,7 @@ static void _web_referer_handle(const ipacket_t * ipacket, attribute_t * attribu
 }
 
 static void _web_uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-	packet_session_t *session = _get_packet_session(ipacket);
+	session_stat_t *session = _get_packet_session(ipacket);
 	if( unlikely( session == NULL ))
 		return;
 	session_web_stat_t *web = session->apps.web;
@@ -151,7 +150,7 @@ static void _web_uri_handle(const ipacket_t * ipacket, attribute_t * attribute, 
 }
 
 static void _web_content_len_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-	packet_session_t *session = _get_packet_session(ipacket);
+	session_stat_t *session = _get_packet_session(ipacket);
 	if( unlikely( session == NULL ))
 		return;
 	session_web_stat_t *web = session->apps.web;
@@ -159,7 +158,7 @@ static void _web_content_len_handle(const ipacket_t * ipacket, attribute_t * att
 }
 
 static void _web_host_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-	packet_session_t *session = _get_packet_session(ipacket);
+	session_stat_t *session = _get_packet_session(ipacket);
 	if( unlikely( session == NULL ))
 		return;
 	session_web_stat_t *web = session->apps.web;
@@ -168,15 +167,10 @@ static void _web_host_handle(const ipacket_t * ipacket, attribute_t * attribute,
 		return;
 
 	dpi_copy_string_value(web->hostname, sizeof( web->hostname ), attribute->data );
-
-	char *coma = strchr(web->hostname, ',');
-	//Semi column found, replace it by an en of string '\0'
-	if( coma )
-		*coma = '\0';
 }
 
 static void _content_type_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-	packet_session_t *session = _get_packet_session(ipacket);
+	session_stat_t *session = _get_packet_session(ipacket);
 	if( unlikely( session == NULL ))
 		return;
 	session_web_stat_t *web = session->apps.web;
@@ -185,16 +179,11 @@ static void _content_type_handle(const ipacket_t * ipacket, attribute_t * attrib
 
 	dpi_copy_string_value(web->mime_type, sizeof( web->mime_type ), attribute->data );
 
-	char *coma = strchr(web->mime_type, ',');
-	//Semi column found, replace it by an en of string '\0'
-	if( coma )
-		*coma = '\0';
-
-	session->content_class = get_content_class_by_content_type( web->mime_type );
+	//session->content_class = get_content_class_by_content_type( web->mime_type );
 }
 
 static void _web_xcdn_seen_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-	packet_session_t *session = _get_packet_session(ipacket);
+	session_stat_t *session = _get_packet_session(ipacket);
 	session_web_stat_t *web = session->apps.web;
 
 	uint8_t *xcdn_seen = (uint8_t *) attribute->data;
@@ -222,11 +211,11 @@ size_t get_session_web_handlers_to_register( const conditional_handler_t **ret )
 
 
 //This function is called by session_report._print_ip_session_report to append Web stat to the report message
-int print_web_report(char *message, size_t message_size, packet_session_t *session, dpi_context_t *context){
-	session_web_stat_t *web = session->apps.web;
+int print_web_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context){
+	session_web_stat_t *web = session_stat->apps.web;
 
 	//does not concern
-	if( unlikely( web == NULL || session->app_type != SESSION_STAT_TYPE_APP_WEB ))
+	if( unlikely( web == NULL || session_stat->app_type != SESSION_STAT_TYPE_APP_WEB ))
 		return 0;
 
 	//0: CDN not detected (This does not mean it is not used :)).
@@ -236,7 +225,7 @@ int print_web_report(char *message, size_t message_size, packet_session_t *sessi
 	int cdn_flag = 0;
 	if (web->xcdn_seen)
 		cdn_flag = web->xcdn_seen;
-	else if (get_session_content_flags(session->dpi_session) & MMT_CONTENT_CDN)
+	else if (get_session_content_flags( dpi_session ) & MMT_CONTENT_CDN)
 		cdn_flag = 2;
 
 	int valid = snprintf(message, message_size,
@@ -272,7 +261,7 @@ int print_web_report(char *message, size_t message_size, packet_session_t *sessi
 	web->response_time.tv_sec = 0;
 	web->response_time.tv_usec = 0;
 
-	session->data_stat.is_touched = true;
+	session_stat->is_touched = true;
 	return valid;
 }
 #endif

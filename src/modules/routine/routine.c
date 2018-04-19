@@ -30,5 +30,6 @@ routine_t *routine_create_and_start( probe_context_t * context){
 
 void routine_stop_and_release( routine_t *routine){
 	system_stats_release( routine->system_stats );
+	output_release( routine->output );
 	mmt_probe_free( routine );
 }

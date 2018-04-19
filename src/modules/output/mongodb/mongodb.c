@@ -110,6 +110,9 @@ void mongodb_output_flush_to_database( mongodb_output_t *mongo ){
 			&error)){
 			log_write( LOG_ERR, "Error when send message to mongodb: %s", error.message );
 	}
+	int i;
+	for( i=0; i<mongo->messages_count; i++ )
+		bson_destroy( mongo->messages_cache[i] );
 
 	//reset cache to zero
 	mongo->messages_count = 0;
@@ -135,10 +138,16 @@ int mongodb_output_write( mongodb_output_t *mongo, const char *message ){
 }
 
 void mongodb_output_release( mongodb_output_t *mongo ){
+
 	static bool is_first_times = true;
 	int i;
-	for( i=0; i<mongo->messages_cache_size_limit; i++ )
-		bson_destroy( mongo->messages_cache[i] );
+
+	mongodb_output_flush_to_database( mongo );
+
+	for( i=0; i<mongo->messages_cache_size_limit; i++ ){
+		bson_free( mongo->messages_cache[i] );
+	}
+	mmt_probe_free( mongo->messages_cache );
 
 	mongoc_collection_destroy( mongo->mongo_collection );
 	mongoc_client_destroy (mongo->mongo_client);
@@ -151,6 +160,6 @@ void mongodb_output_release( mongodb_output_t *mongo ){
 	}
 	pthread_mutex_unlock( &lock_mutex );
 
-	mmt_probe_free( mongo->messages_cache );
+
 	mmt_probe_free( mongo );
 }

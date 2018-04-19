@@ -167,7 +167,7 @@ static void *_worker_thread( void *arg){
 
 	struct timeval last_sample_ts = {0, 0},
 			last_stat_ts = {0, 0};
-	struct timeval now;
+	struct  now;
 
 	//init ts
 	if( config->input->input_mode == ONLINE_ANALYSIS ){

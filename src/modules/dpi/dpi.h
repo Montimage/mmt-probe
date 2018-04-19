@@ -9,10 +9,53 @@
 #define SRC_MODULES_DPI_STAT_H_
 
 #include <mmt_core.h>
+#include "../../lib/limit.h"
 #include "../../configure.h"
 #include "../output/output.h"
 
-typedef struct dpi_context_struct dpi_context_t;
+
+#ifdef STAT_REPORT
+typedef struct no_session_report_context_struct no_session_report_context_t;
+typedef struct list_event_based_report_context_struct list_event_based_report_context_t;
+typedef struct session_stat_struct session_stat_t;
+#endif
+
+#ifdef PCAP_DUMP_MODULE
+#include "pcap_dump/pcap_dump.h"
+#endif
+
+//the instances of this structure are used on global scope: during running time of MMT-Probe
+typedef struct dpi_context_struct{
+	uint16_t worker_index;
+
+	mmt_handler_t *dpi_handler;
+
+	const probe_conf_t *probe_config;
+
+	output_t *output;
+
+	IF_ENABLE_PCAP_DUMP( pcap_dump_context_t *pcap_dump );
+
+
+	IF_ENABLE_STAT_REPORT(
+		no_session_report_context_t *no_session_report;
+		list_event_based_report_context_t *event_reports;
+	)
+
+	//number of stat_period, e.g., 5s,
+	// => this number will increase 1 for each 5 seconds
+	size_t stat_periods_index;
+}dpi_context_t;
+
+//the instances of this structure are used on session scope: during session period
+typedef struct packet_session_struct {
+	uint64_t session_id;
+
+	//reference to others
+	dpi_context_t *context;
+	IF_ENABLE_STAT_REPORT( session_stat_t *session_stat ; )
+} packet_session_t;
+
 
 /**
  * This must be called by worker when it is initialize
@@ -31,5 +74,6 @@ void dpi_callback_on_stat_period( dpi_context_t * );
  */
 void dpi_release( dpi_context_t *dpi );
 
+void dpi_close( dpi_context_t *dpi_context );
 
 #endif /* SRC_MODULES_DPI_FLOW_STAT_H_ */

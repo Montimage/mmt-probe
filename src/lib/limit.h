@@ -75,8 +75,6 @@
 	#define IF_NOT_SIMPLE_REPORT( x ) x
 #endif
 
-#define STAT_REPORT
-
 #ifdef STAT_REPORT
 	#define IF_ENABLE_STAT_REPORT( x ) x
 #else

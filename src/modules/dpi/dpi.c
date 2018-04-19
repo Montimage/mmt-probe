@@ -22,37 +22,7 @@
 #include "pcap_dump/pcap_dump.h"
 #endif
 
-//the instances of this structure are used on global scope: during running time of MMT-Probe
-struct dpi_context_struct{
-	uint16_t worker_index;
-
-	mmt_handler_t *dpi_handler;
-
-	const probe_conf_t *probe_config;
-
-	output_t *output;
-
-	IF_ENABLE_PCAP_DUMP( pcap_dump_context_t *pcap_dump );
-
-
-	IF_ENABLE_STAT_REPORT(
-		no_session_report_context_t *no_session_report;
-		list_event_based_report_context_t *event_reports;
-	)
-
-	//number of stat_period, e.g., 5s,
-	// => this number will increase 1 for each 5 seconds
-	size_t stat_periods_index;
-};
-
-//the instances of this structure are used on session scope: during session period
-typedef struct packet_session_struct {
-	uint64_t session_id;
-
-	//reference to others
-	dpi_context_t *context;
-	IF_ENABLE_STAT_REPORT( session_stat_t *session_stat ; )
-} packet_session_t;
+#define DPI_PACKET_HANDLER_ID 6
 
 static inline packet_session_t * _create_session (const ipacket_t * ipacket, dpi_context_t *context){
 	mmt_session_t * dpi_session = ipacket->session;
@@ -84,9 +54,6 @@ static void _ending_session_handler(const mmt_session_t * dpi_session, void * us
 	dpi_context_t *context = (dpi_context_t *) user_args;
 	packet_session_t * session = get_user_session_context( dpi_session );
 
-	if (session == NULL)
-		return; //impossible
-
 	IF_ENABLE_STAT_REPORT(
 		if( context->probe_config->reports.session->is_enable )
 			session_report_callback_on_ending_session( dpi_session, session->session_stat, context);
@@ -101,21 +68,23 @@ static void _ending_session_handler(const mmt_session_t * dpi_session, void * us
 static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 	dpi_context_t *context = (dpi_context_t *)user_args;
 
-	packet_session_t *session = (packet_session_t *) get_user_session_context_from_packet(ipacket);
+	//when packet is below to one session
+	if( ipacket->session != NULL ){
+		packet_session_t *session = (packet_session_t *) get_user_session_context_from_packet(ipacket);
 
-	if( session == NULL )
-		session = _create_session (ipacket, context);
+		if( session == NULL )
+			session = _create_session (ipacket, context);
 
-	IF_ENABLE_PCAP_DUMP(
-		if( context->probe_config->reports.pcap_dump->is_enable )
-			pcap_dump_callback_on_receiving_packet( ipacket, context->pcap_dump );
-	)
+		IF_ENABLE_PCAP_DUMP(
+			if( context->probe_config->reports.pcap_dump->is_enable )
+				pcap_dump_callback_on_receiving_packet( ipacket, context->pcap_dump );
+		)
 
-	IF_ENABLE_STAT_REPORT(
-		if( context->probe_config->reports.session->is_enable )
-			session_report_callback_on_receiving_packet( ipacket, session->session_stat );
-	)
-
+		IF_ENABLE_STAT_REPORT(
+			if( context->probe_config->reports.session->is_enable )
+				session_report_callback_on_receiving_packet( ipacket, session->session_stat );
+		)
+	}
 	return 0;
 }
 /// <=== end of packet handler=============================
@@ -160,7 +129,7 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 		session_report_register( dpi_handler, config->reports.session );
 	)
 
-	if(! register_packet_handler( dpi_handler, 6, _packet_handler, ret ) )
+	if(! register_packet_handler( dpi_handler, DPI_PACKET_HANDLER_ID, _packet_handler, ret ) )
 		ABORT( "Cannot register handler for processing packet" );
 
 	//callback when starting a new IP session
@@ -180,19 +149,22 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 	return ret;
 }
 
+void dpi_close( dpi_context_t *dpi_context ){
+	unregister_attribute_handler(dpi_context->dpi_handler, PROTO_IP, PROTO_SESSION, _starting_session_handler );
+	unregister_attribute_handler(dpi_context->dpi_handler, PROTO_IPV6, PROTO_SESSION, _starting_session_handler );
+
+	unregister_packet_handler(dpi_context->dpi_handler, DPI_PACKET_HANDLER_ID );
+}
 
 void dpi_release( dpi_context_t *dpi_context ){
-	//last period
-	dpi_callback_on_stat_period( dpi_context );
-
-
 	IF_ENABLE_STAT_REPORT(
 		no_session_report_release(dpi_context->no_session_report );
 		event_based_report_unregister( dpi_context->event_reports );
 	)
 
 	IF_ENABLE_PCAP_DUMP(
-		pcap_dump_stop( dpi_context->pcap_dump );
+		if( dpi_context->probe_config->reports.pcap_dump->is_enable )
+			pcap_dump_stop( dpi_context->pcap_dump );
 	)
 
 	mmt_probe_free( dpi_context );

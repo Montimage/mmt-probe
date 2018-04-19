@@ -764,6 +764,15 @@ void conf_release( probe_conf_t *conf){
 		mmt_probe_free( conf->reports.socket );
 	}
 
+	if( conf->reports.pcap_dump ){
+		mmt_probe_free( conf->reports.pcap_dump->directory );
+		for( i=0; i<conf->reports.pcap_dump->protocols_size; i++ )
+			mmt_probe_free( conf->reports.pcap_dump->protocols[i] );
+
+		mmt_probe_free( conf->reports.pcap_dump->protocols );
+		mmt_probe_free( conf->reports.pcap_dump );
+	}
+
 	if( conf->reconstructions.ftp ){
 		mmt_probe_free( conf->reconstructions.ftp->directory );
 		mmt_probe_free( conf->reconstructions.ftp );
@@ -771,6 +780,11 @@ void conf_release( probe_conf_t *conf){
 	if( conf->reconstructions.http ){
 		mmt_probe_free( conf->reconstructions.http->directory );
 		mmt_probe_free( conf->reconstructions.http );
+	}
+
+	if( conf->reconstructions.tcp ){
+		mmt_probe_free( conf->reconstructions.tcp->directory );
+		mmt_probe_free( conf->reconstructions.tcp );
 	}
 
 	mmt_probe_free( conf->thread );
@@ -787,6 +801,19 @@ void conf_release( probe_conf_t *conf){
 		mmt_probe_free( conf->outputs.redis->host.host_name );
 		mmt_probe_free( conf->outputs.redis );
 	}
+	if( conf->outputs.mongodb ){
+		mmt_probe_free( conf->outputs.mongodb->collection_name );
+		mmt_probe_free( conf->outputs.mongodb->database_name );
+		mmt_probe_free( conf->outputs.mongodb->host.host_name );
+		mmt_probe_free( conf->outputs.mongodb );
+	}
+
+	if( conf->dynamic_conf ){
+		mmt_probe_free( conf->dynamic_conf->descriptor );
+		mmt_probe_free( conf->dynamic_conf );
+	}
+
+
 
 	mmt_probe_free( conf->session_timeout );
 

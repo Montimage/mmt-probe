@@ -8,11 +8,11 @@
 #include <arpa/inet.h>
 #include "session_report.h"
 
-int print_web_report(char *message, size_t message_size, session_stat_t *session_stat, dpi_context_t *context);
+int print_web_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);
 
 #ifndef SIMPLE_REPORT
 //This callback is called by DPI periodically
-static inline void _print_ip_session_report (const mmt_session_t * dpi_session, session_stat_t * session_stat, dpi_context_t *context){
+static inline void _print_ip_session_report (const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context){
 
 	if( unlikely( is_micro_flow( dpi_session )))
 		return;
@@ -148,7 +148,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 		break;
 	case SESSION_STAT_TYPE_APP_WEB:
 		valid += print_web_report( &message[ valid ], MAX_LENGTH_REPORT_MESSAGE - valid,
-				session_stat, context );
+				dpi_session, session_stat, context );
 		break;
 	case SESSION_REPORT_SSL_TYPE:
 		break;
@@ -214,31 +214,17 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 ////===> Simpler reports for MMT-Box <===////
 
 //This callback is called by DPI periodically
-static inline void _print_simple_ip_session_report (const mmt_session_t * dpi_session, void *user_args){
-	packet_session_t * session = (packet_session_t *) get_user_session_context(dpi_session);
-	if( unlikely( session == NULL ))
-		return;
-
+static inline void _print_ip_session_report (const mmt_session_t * dpi_session, session_stat_t * session, const dpi_context_t *context){
 	if( unlikely( is_micro_flow( dpi_session )))
 		return;
 
-	dpi_context_t *context = (dpi_context_t *)user_args;
-	if( unlikely( context == NULL ))
-		return;
-
 	uint64_t ul_volumes = get_session_ul_cap_byte_count(dpi_session);
-
 	uint64_t dl_volumes = get_session_dl_cap_byte_count(dpi_session);
 
 	if( unlikely( ul_volumes + dl_volumes == 0 ))
 		return;
 
 	struct timeval last_activity_time = get_session_last_activity_time( dpi_session );
-
-	//To check whether the session activity occurs between the reporting time interval
-	if (u_second_diff( &last_activity_time, &session->last_activity_time ) == 0)
-		return;
-	session->last_activity_time =  last_activity_time;
 
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(dpi_session);
 	int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
@@ -352,8 +338,7 @@ session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * 
 		uint32_t * ip_dst = (uint32_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_DST);
 
 		if (ip_src)
-			session_stat->ip_src.ipv4 = (*ip_src);
-
+			session_stat->ip_src.ipv4 = *ip_src;
 
 		if (ip_dst)
 			session_stat->ip_dst.ipv4 = (*ip_dst);
@@ -399,7 +384,7 @@ session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * 
 /* This function is called by mmt-dpi for each session time-out (expiry).
  * It provides the expired session information and frees the memory allocated.
  * */
-void session_report_callback_on_ending_session(const mmt_session_t * dpi_session, session_stat_t * session_stat, dpi_context_t *context) {
+void session_report_callback_on_ending_session(const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context) {
 	if (session_stat == NULL)
 		return;
 
@@ -413,13 +398,10 @@ void session_report_callback_on_ending_session(const mmt_session_t * dpi_session
 		return;
 	}
 
+	_print_ip_session_report ( dpi_session, session_stat, context );
 #ifdef SIMPLE_REPORT
 	//use simpler report version: this output is used by mmt-box
-	_print_simple_ip_session_report ( expired_session, session_stat, context );
 #else
-	_print_ip_session_report ( dpi_session, session_stat, context );
-
-
 	//release memory being allocated for application stat (web, ftp, rtp, ssl)
 	switch( session_stat->app_type ){
 	default:
@@ -462,13 +444,8 @@ int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, sessi
 }
 
 
-void session_report_callback_on_timer(const mmt_session_t * dpi_session, session_stat_t * session_stat, dpi_context_t *context){
-#ifdef SIMPLE_REPORT
-	//use simpler report version: this output is used by mmt-box
-	_print_simple_ip_session_report ( expired_session, session_stat, context );
-#else
+void session_report_callback_on_timer(const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context){
 	_print_ip_session_report ( dpi_session, session_stat, context );
-#endif
 }
 
 /**
@@ -479,7 +456,6 @@ static inline void
 	int ret = 1;
 	ret &= register_extraction_attribute(mmt_handler, PROTO_TCP, TCP_SRC_PORT);
 	ret &= register_extraction_attribute(mmt_handler, PROTO_TCP, TCP_DEST_PORT);
-	ret &= register_extraction_attribute(mmt_handler, PROTO_TCP, TCP_RTT);
 	ret &= register_extraction_attribute(mmt_handler, PROTO_UDP, UDP_SRC_PORT);
 	ret &= register_extraction_attribute(mmt_handler, PROTO_UDP, UDP_DEST_PORT);
 
@@ -518,7 +494,6 @@ bool session_report_register( mmt_handler_t *dpi_handler, session_report_conf_t 
 
 #ifdef SIMPLE_REPORT
 	//use simpler report version: this output is used by mmt-box
-	register_session_timer_handler(context->dpi_handler,   _print_simple_ip_session_report, context);
 #else
 	//register protocols and attributes for application statistic: WEB, FTP, RTP, SSL
 	if( config->is_http ){

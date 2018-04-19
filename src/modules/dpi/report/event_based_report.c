@@ -7,6 +7,7 @@
 #include <mmt_core.h>
 #include "../dpi_tool.h"
 #include "../../output/output.h"
+#include "event_based_report.h"
 
 typedef struct event_based_report_context_struct {
 		const event_report_conf_t *config;
@@ -39,7 +40,7 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 		offset ++;
 
 		if( attr_extract == NULL ){
-			offset += snprintf( message, sizeof( message ) - index, "null" );
+			offset += snprintf( message, sizeof( message ) - offset, "null" );
 		}else{
 			offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, attr_extract );
 		}

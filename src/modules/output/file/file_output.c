@@ -162,6 +162,7 @@ void file_output_release( file_output_t *output ){
 		fclose( output->file );
 		if( output->config->is_sampled )
 			_create_semaphore_file( output );
+		output->file = NULL;
 	}
 	mmt_probe_free( output );
 }

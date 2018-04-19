@@ -34,6 +34,8 @@ ifdef ALL_OPTIONS
 	SECURITY := 1
 endif
 
+#opt_debug: 
+#	$(eval DEBUG := 1 )
 
 LIB_SRCS    := $(wildcard src/lib/*.c)
 LIB_SRCS    += src/configure.c src/worker.c
@@ -43,9 +45,10 @@ LIB_SRCS    += src/configure.c src/worker.c
 #################################################
 #for debuging
 ifdef DEBUG
-$(warning - Enable DEBUG)
+$(info - Enable DEBUG)
 	CFLAGS   += -g -O0 -DDEBUG_MODE
 else
+$(info - Disable DEBUG)
 	CFLAGS   += -O3
 endif
 

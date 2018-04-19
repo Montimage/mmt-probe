@@ -25,7 +25,10 @@ struct system_stats_context_struct{
 static inline bool _read_cpu_info( unsigned long *cpu_user, unsigned long *cpu_sys, unsigned long *cpu_idle ){
 	unsigned long user, nice, system, idle, iowait, irq, softirq, steal, guest, guest_nice;
 	FILE *fp = fopen("/proc/stat", "r");
-
+	if( fp == NULL ){
+		log_write( LOG_ERR, "Cannot open /proc/stat: %s", strerror( errno ) );
+		return NULL;
+	}
 	*cpu_user = *cpu_sys = *cpu_idle = 0;
 
 	if( fp == NULL
@@ -87,9 +90,13 @@ static void * _stats_routine(void * args){
 		|| IS_DISABLE_OUTPUT( context->config->output_channels ))
 		return NULL;
 
-	if( ! _read_cpu_info( &cpu_1.user, &cpu_1.system, &cpu_1.idle))
+	if( ! _read_cpu_info( &cpu_1.user, &cpu_1.system, &cpu_1.idle)){
 		return NULL;
+	}
 
+	//allow to cancel this thread (from its parents)
+	if( pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) )
+		ABORT("Cannot set PTHREAD_CANCEL_ENABLE");
 
 	uint16_t timer_1 = 0, timer_2 = 0;
 	while ( true ) {
@@ -153,5 +160,10 @@ system_stats_context_t *system_stats_alloc_init_start( const system_stats_conf_t
 }
 
 void system_stats_release( system_stats_context_t *context){
+	if( pthread_cancel( context->thread_handler ) )
+		log_write(LOG_WARNING, "Cannot stop thread for system_stats");
+	//waiting for the thread
+	pthread_join( context->thread_handler, NULL );
+
 	mmt_probe_free( context );
 }

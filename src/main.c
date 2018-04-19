@@ -161,9 +161,9 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 	return conf;
 }
 
-IF_ENABLE_DEBUG(
+#ifdef DEBUG_MODE
 	#warning "The debug compile option is reserved only for debugging"
-)
+#endif
 
 /* Obtain a backtrace */
 void print_execution_trace () {
@@ -182,22 +182,13 @@ void print_execution_trace () {
 		/* find first occurence of '(' or ' ' in message[i] and assume
 		 * everything before that is the file name. (Don't go beyond 0 though
 		 * (string terminator)*/
-		size_t p = 0, size;
-		while(strings[i][p] != '(' && strings[i][p] != ' '
-				&& strings[i][p] != 0)
-			++p;
-
-		char syscom[256];
-
-
-		size = snprintf(syscom, sizeof( syscom ), "addr2line %p -e %.*s", array[i] , (int)p, strings[i] );
-		syscom[size] = '\0';
-		//last parameter is the filename of the symbol
-
-		fprintf(stderr, "\t    ");
-		if( system(syscom) ) {}
+//		size_t p = 0;
+//		while(strings[i][p] != '(' && strings[i][p] != ' '
+//				&& strings[i][p] != 0)
+//			++p;
+//
+//		log_write(LOG_ERR, "addr2line %p -e %.*s", array[i] , (int)p, strings[i] );
 #endif
-
 	}
 
 	free (strings);

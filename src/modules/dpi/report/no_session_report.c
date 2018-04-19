@@ -8,11 +8,12 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <tcpip/mmt_tcpip.h>
 #include <mmt_core.h>
+#include <tcpip/mmt_tcpip.h>
+
 
 #include "no_session_report.h"
-
+#include "../dpi_tool.h"
 #include "../../../lib/memory.h"
 
 struct no_session_report_context_struct{
@@ -95,7 +96,7 @@ static void _protocols_stats_iterator(uint32_t proto_id, void * args) {
 			if( proto_id == PROTO_IP || proto_id == PROTO_IPV6 || proto_id == PROTO_8021Q)
 				goto next_iteration_label;
 			//ignore session protocol on top of IPv4 and IPv6
-			for (i = 1; i <= proto_hierarchy.len; i++){
+			for (i = 1; i < proto_hierarchy.len; i++){
 				if (proto_hierarchy.proto_path[i] == PROTO_IP
 						|| proto_hierarchy.proto_path[i] == PROTO_IPV6 )
 					goto next_iteration_label;
@@ -134,11 +135,10 @@ static void _protocols_stats_iterator(uint32_t proto_id, void * args) {
  * @param context
  * @return
  */
-bool no_session_report( no_session_report_context_t *context ){
+void no_session_report( no_session_report_context_t *context ){
 	if( !( context->is_enable_proto_no_session_stat
 			|| context->is_enable_ip_fragementation_stat ))
-		return false;
+		return;
 
 	iterate_through_protocols( _protocols_stats_iterator, context );
-	return true;
 }

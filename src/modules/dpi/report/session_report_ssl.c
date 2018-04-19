@@ -5,7 +5,7 @@
  *          by: Huu Nghia
  */
 
-#include "report.h"
+#include "session_report.h"
 
 #ifndef SIMPLE_REPORT
 struct session_ssl_stat_struct {
@@ -14,44 +14,38 @@ struct session_ssl_stat_struct {
 
 /* This function is called by mmt-dpi for reporting ssl server_name, if an extraction handler is registered */
 static void _ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-    if( unlikely( ipacket->session == NULL))
-    		return;
 
-    if( ipacket->session == NULL )
-    		return;
+	session_stat_t *session_stat = session_report_get_session_stat( ipacket );
+	//no session: impossible for ssl packets
+	if( session_stat == NULL )
+		return;
 
-    	packet_session_t *session =
-    			(packet_session_t *) get_user_session_context_from_packet(ipacket);
+	if( session_stat->app_type != SESSION_STAT_TYPE_APP_IP
+			&& session_stat->app_type != SESSION_STAT_TYPE_APP_SSL )
+		ABORT( "Impossible: stat_type must be %d, not %d",
+				SESSION_STAT_TYPE_APP_IP, session_stat->app_type);
 
-    	if( session == NULL )
-    		return;
+	if( session_stat->apps.ssl == NULL ){
+		session_stat->apps.ssl = mmt_alloc(sizeof (session_ssl_stat_t));
+		reset_string( session_stat->apps.ssl->hostname );
+		session_stat->is_touched = false;
 
-    	if( session->app_type != SESSION_STAT_TYPE_APP_IP
-    			&& session->app_type != SESSION_STAT_TYPE_APP_SSL )
-    		ABORT( "Impossible: stat_type must be %d, not %d",
-    				SESSION_STAT_TYPE_APP_IP, session->app_type);
+		session_stat->app_type = SESSION_STAT_TYPE_APP_SSL;
+	}
 
-    	if( session->apps.ssl == NULL ){
-    		session->apps.ssl = mmt_alloc(sizeof (session_ssl_stat_t));
-    		reset_string( session->apps.ssl->hostname );
-    		session->data_stat.is_touched = false;
+	mmt_header_line_t *val = (mmt_header_line_t *) attribute->data;
+	if( unlikely( val == NULL || val->len == 0 ))
+		return;
 
-    		session->app_type = SESSION_STAT_TYPE_APP_SSL;
-    	}
+	int target_size = sizeof( session_stat->apps.ssl->hostname );
 
-    	mmt_header_line_t *val = (mmt_header_line_t *) attribute->data;
-    	if( unlikely( val == NULL || val->len == 0 ))
-    		return;
+	dpi_copy_string_value( session_stat->apps.ssl->hostname, target_size, val );
 
-    	int target_size = sizeof( session->apps.ssl->hostname );
-
-    	dpi_copy_string_value( session->apps.ssl->hostname, target_size, val );
-
-    session->content_class = get_content_class_by_content_flags( get_session_content_flags(ipacket->session) );
+	session_stat->content_class = get_content_class_by_content_flags( get_session_content_flags(ipacket->session) );
 }
 
 static const conditional_handler_t handlers[] = {
-	{.proto_id = PROTO_SSL, .att_id = SSL_SERVER_NAME, .handler = _ssl_server_name_handle},
+		{.proto_id = PROTO_SSL, .att_id = SSL_SERVER_NAME, .handler = _ssl_server_name_handle},
 };
 
 
