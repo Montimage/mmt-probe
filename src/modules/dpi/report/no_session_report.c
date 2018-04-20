@@ -136,7 +136,7 @@ static void _protocols_stats_iterator(uint32_t proto_id, void * args) {
  * @return
  */
 void no_session_report( no_session_report_context_t *context ){
-	if( !( context->is_enable_proto_no_session_stat
+	if( context == NULL || !( context->is_enable_proto_no_session_stat
 			|| context->is_enable_ip_fragementation_stat ))
 		return;
 

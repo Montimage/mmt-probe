@@ -96,7 +96,7 @@ static inline uint32_t _get_packet_hash_number( const uint8_t *packet, size_t pk
 	} *eth;
 
 	uint32_t a1, a2;
-	uint16_t ip_src_off;
+	uint16_t ip_off;
 
 	if ( unlikely( pkt_len < 38))
 		return 0; //TODO: this is not elegant check IP, IPv6 etc.
@@ -107,19 +107,19 @@ static inline uint32_t _get_packet_hash_number( const uint8_t *packet, size_t pk
 	switch( eth->proto ){
 	//IP
 	case 0x08:
-		ip_src_off = 26;
+		ip_off = 26;
 		break;
 	//vlan
 	case 0x81:
-		ip_src_off = 30;
+		ip_off = 30;
 		break;
 	default:
 		//for other protocol
 		return 0;
 	}
 
-	a1 = *((uint32_t *) &packet[ ip_src_off     ]);
-	a2 = *((uint32_t *) &packet[ ip_src_off + 4 ]);
+	a1 = *((uint32_t *) &packet[ ip_off     ]);
+	a2 = *((uint32_t *) &packet[ ip_off + 4 ]);
 //
 //	/*proto_id = *((uint8_t *) &packet[ ip_src_off - 3 ]);
 //	//src and dst ports of TCP or UDP
@@ -165,84 +165,66 @@ static void *_worker_thread( void *arg){
 	worker_on_start( worker_context );
 
 
-	struct timeval last_sample_ts = {0, 0},
-			last_stat_ts = {0, 0};
-	struct  now;
-
-	//init ts
-	if( config->input->input_mode == ONLINE_ANALYSIS ){
-		gettimeofday( &last_stat_ts, NULL );
-		last_sample_ts.tv_sec  = last_stat_ts.tv_sec;
-		last_sample_ts.tv_usec = last_stat_ts.tv_usec;
-	}
+	time_t next_stat_ts = 0; //moment we need to do statistic
+	time_t next_output_ts = 0; //moment we need flush output to channels
+	time_t now = 0; //current timestamp that is either
+				//- real timestamp of system when running online
+	 	 	 	//- packet timestamp when running offline
 
 	while( true ){
 		//get number of packets being available
 		avail_pkt_count = data_spsc_ring_pop_bulk( fifo, &fifo_tail_index );
 
-		/* if no packet has arrived sleep 1 milli-second */
+		/* if no packet has arrived => sleep 1 milli-second */
 		if ( avail_pkt_count <= 0 ) {
 			nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
 		} else {  /* else remove number of packets from list and process it */
+
 			//the last packet will be verified after (not in for)
 			avail_pkt_count --;
 			for( i=0; i<avail_pkt_count; i++ ){
 				pkt_header = (pkthdr_t *) data_spsc_ring_get_data( fifo, i + fifo_tail_index);
 				pkt_data   = (u_char *)(pkt_header + 1);
 				worker_process_a_packet( worker_context, pkt_header, pkt_data );
-				//update new position of ring's tail => give place to a new packet
-				//data_spsc_ring_update_tail( fifo, i+fifo_tail_index, 1);
 			}
 
 			//only the last packet in the queue may has NULL data
 			pkt_header = (pkthdr_t *) data_spsc_ring_get_data( fifo, avail_pkt_count + fifo_tail_index);
 
-			/* is it a dummy packet ? => means thread must exit */
+			/* is it a dummy packet ? => means that the worker thread must exit */
 			if( unlikely( pkt_header->len == BREAK_PCAP_NUMBER ))
 				break;
 			else{
-
-				now.tv_sec  = pkt_header->ts.tv_sec;
-				now.tv_usec = pkt_header->ts.tv_usec;
+				now = pkt_header->ts.tv_sec;
 
 				worker_process_a_packet( worker_context, pkt_header, (u_char *)(pkt_header + 1) );
-				//update new position of ring's tail
-				//data_spsc_ring_update_tail( fifo, avail_pkt_count + fifo_tail_index, 1);
 			}
 
+			//update new position of ring's tail => give place to a new packet
 			data_spsc_ring_update_tail( fifo, fifo_tail_index, avail_pkt_count + 1);
 		}
 
-		//get the current time
+		//we do not use packet timestamp for online analysis as
+		// there may be exist some moment having no packets => output will be blocked until a new packet comes
+		//get the current timestamp of system
 		if( config->input->input_mode == ONLINE_ANALYSIS )
-			//this is timestamp of system
-			gettimeofday( &now, NULL );
-		else{
-			//this is timestamp of packet
-			//init
-			if( last_stat_ts.tv_sec == 0 ){
-				last_sample_ts.tv_sec  = now.tv_sec;
-				last_sample_ts.tv_usec = now.tv_usec;
-				last_stat_ts.tv_sec    = now.tv_sec;
-				last_stat_ts.tv_usec   = now.tv_usec;
+			now = time( NULL );
+
+		//first times: we need to initialize the 2 milestones
+		if( next_output_ts == 0 && now != 0 ){
+			next_stat_ts = now + config->stat_period;
+			next_output_ts = now + config->outputs.cache_period;
+		}else{
+			//statistic periodically
+			if( now > next_stat_ts  ){
+				next_stat_ts += config->stat_period;
+				//call worker
+				worker_on_timer_stat_period( worker_context );
 			}
-		}
 
-		//statistic periodically
-		if( u_second_diff( &now, &last_stat_ts ) >= config->stat_period * MICRO_SECOND ){
-			last_stat_ts.tv_sec  = now.tv_sec;
-			last_stat_ts.tv_usec = now.tv_usec;
-			//call worker
-			worker_on_timer_stat_period(worker_context);
-		}
-
-		//if we need to sample output file
-		if( worker_context->probe_context->config->outputs.file->is_enable
-				&& worker_context->probe_context->config->outputs.file->is_sampled ){
-			if( u_second_diff( &now, &last_sample_ts ) >=
-					config->outputs.cache_period * MICRO_SECOND  ){
-				last_sample_ts.tv_sec  = now.tv_sec;
-				last_sample_ts.tv_usec = now.tv_usec;
+			//if we need to sample output file
+			if( config->outputs.file->is_sampled && now >  next_output_ts ){
+				next_output_ts += config->outputs.cache_period;
 				//call worker
 				worker_on_timer_sample_file_period( worker_context );
 			}

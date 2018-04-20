@@ -97,8 +97,8 @@ static inline int dpi_unregister_attribute( const dpi_protocol_attribute_t *atts
 
 static inline int dpi_proto_hierarchy_ids_to_str(const proto_hierarchy_t * proto_hierarchy, char * dest, int max_length ) {
 	int offset = 0;
+	int index = 1;
 	if (proto_hierarchy->len >= 1) {
-		int index = 1;
 		offset += snprintf(dest, max_length - offset, "%u", proto_hierarchy->proto_path[index]);
 		index++;
 		for (; index < proto_hierarchy->len && index < 16; index++) {
@@ -127,8 +127,26 @@ static inline bool dpi_copy_string_value( char *target, size_t target_size, mmt_
 	if( val->len < target_size )
 		target_size = val->len;
 
-	memcpy( target, val->ptr, target_size );
-	target[ target_size ] = '\0';
+	int i;
+	//copy to target string. Ensure the target is a valid JSON string
+	for( i=0; i<target_size; i++ ){
+		switch( val->ptr[ i ] ){
+		case '\b': //  Backspace (ascii code 08)
+		case '\f': //  Form feed (ascii code 0C)
+		case '\n': //  New line
+		case '\r': //  Carriage return
+		case '\t': //  Tab
+		case '\\': //  Backslash characte
+			target[i] = '.';
+			break;
+		case '"': //  Double quote
+			target[i] = '\'';
+			break;
+		default:
+			target[i] = val->ptr[i];
+		}
+	}
+	target[ target_size - 1 ] = '\0';
 
 	return true;
 }

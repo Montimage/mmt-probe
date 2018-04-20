@@ -141,10 +141,15 @@ static int _worker_thread( void *arg ){
 	unsigned int worker_id = worker_context->index;
 
 
-	time_t now = time( NULL );
+	time_t next_stat_ts = 0; //moment we need to do statistic
+	time_t next_output_ts = 0; //moment we need flush output to channels
+	time_t now; //current timestamp that is either
+	//- real timestamp of system when running online
+	//- packet timestamp when running offline
 
-	uint32_t next_sample_ts = now + config->stat_period;
-	uint32_t next_stat_ts   = now + config->outputs.cache_period;
+	now = time( NULL );
+	next_stat_ts   = now + config->stat_period;
+	next_output_ts = now + config->outputs.cache_period;
 
 	volatile bool is_continuous = true;
 	/* Run until the application is quit or killed. */
@@ -196,8 +201,8 @@ static int _worker_thread( void *arg ){
 		}
 
 		//if we need to sample output file
-		if( config->outputs.file->is_sampled && now >=  next_sample_ts ){
-			next_sample_ts += config->outputs.cache_period;
+		if( config->outputs.file->is_sampled && now >=  next_output_ts ){
+			next_output_ts += config->outputs.cache_period;
 			//call worker
 			worker_on_timer_sample_file_period( worker_context );
 		}

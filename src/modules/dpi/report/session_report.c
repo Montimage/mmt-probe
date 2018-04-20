@@ -17,29 +17,27 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	if( unlikely( is_micro_flow( dpi_session )))
 		return;
 
-	uint64_t total_volumes = get_session_data_cap_volume(dpi_session);
-	if( unlikely( total_volumes == 0 ))
+	uint64_t ul_packets = get_session_ul_cap_packet_count(dpi_session);
+	uint64_t dl_packets = get_session_dl_cap_packet_count(dpi_session);
+	uint64_t total_packets = ul_packets + dl_packets;
+
+	// check the condition if in the last interval there was a protocol activity or not
+	// => no new packets since the last report times
+	if( total_packets == (session_stat->packets.upload + session_stat->packets.download) )
 		return;
 
-	uint64_t total_payload = get_session_byte_count(dpi_session),
-			total_packets = get_session_packet_cap_count(dpi_session);
+	uint64_t ul_volumes = get_session_ul_cap_byte_count(dpi_session);
+	uint64_t dl_volumes = get_session_dl_cap_byte_count(dpi_session);
+	uint64_t total_volumes = ul_volumes + dl_volumes;
 
-	uint64_t ul_volumes = get_session_ul_cap_byte_count(dpi_session),
-			ul_payload = get_session_ul_data_byte_count(dpi_session),
-			ul_packets = get_session_ul_cap_packet_count(dpi_session);
-
-	uint64_t dl_volumes = get_session_dl_cap_byte_count(dpi_session),
-			dl_payload = get_session_dl_data_byte_count(dpi_session),
-			dl_packets = get_session_dl_cap_packet_count(dpi_session);
+	uint64_t ul_payload = get_session_ul_data_byte_count(dpi_session);
+	uint64_t dl_payload = get_session_dl_data_byte_count(dpi_session);
+	uint64_t total_payload = ul_payload + dl_payload;
 
 	uint64_t report_number;
 
-	// check the condition if in the last interval there was a protocol activity or not
-	//if (get_session_byte_count(session) - temp_session->stat.total_byte_count == 0)return;
-
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(dpi_session);
 	int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
-
 
 	uint64_t data_transfer_time = 0;
 	// Data transfer time calculation
@@ -51,7 +49,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 		else
 			t1 = get_session_last_data_packet_time_by_direction(dpi_session, 1);
 
-		data_transfer_time      =  u_second_diff(&t1, &session_stat->dtt_start_time);
+		data_transfer_time =  u_second_diff(&t1, &session_stat->dtt_start_time);
 		session_stat->dtt_start_time = t1;
 	}
 
@@ -103,9 +101,9 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 			path_ul, path_dl,
 			total_active_sessions,
 
-			total_volumes,
-			total_payload,
-			total_packets,
+			total_volumes - (session_stat->volumes.upload + session_stat->volumes.download),
+			total_payload - (session_stat->payload.upload + session_stat->payload.download),
+			total_packets - (session_stat->packets.upload + session_stat->packets.download),
 
 			ul_volumes - session_stat->volumes.upload,
 			ul_payload - session_stat->payload.upload,
@@ -184,7 +182,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 			& timestamp,
 			message );
 
-
+	//remember the current statistics
 	session_stat->retransmission_count = total_retrans;
 
 	session_stat->volumes.upload = ul_volumes;
