@@ -9,14 +9,10 @@
 //dpi_message_set_data function to set data to message_t
 #include <dpi_message_t.h>
 
-#include <tcpip/mmt_tcpip.h>
-#include <signal.h>
-#include <execinfo.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "../../lib/memory.h"
-#include "../../lib/tools.h"
 
 #define SECURITY_DPI_PACKET_HANDLER_ID 10
 

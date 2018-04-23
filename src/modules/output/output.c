@@ -65,7 +65,7 @@ output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct
 
 #ifdef MONGODB_MODULE
 	if( ret->config->mongodb->is_enable )
-		ret->modules.mongodb = mongodb_output_alloc_init( ret->config->mongodb, ret->config->cache_size, output_id );
+		ret->modules.mongodb = mongodb_output_alloc_init( ret->config->mongodb, ret->config->cache_max, output_id );
 #endif
 
 	return ret;

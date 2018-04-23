@@ -57,6 +57,12 @@ static ALWAYS_INLINE char * mmt_strndup( const char *str, size_t size ) {
 	return strndup( str, size );
 }
 
+static ALWAYS_INLINE void assign_8bytes( void *dest, void *source){
+	uint64_t *s = (uint64_t *)source;
+	uint64_t *d = (uint64_t *)dest;
+	d[0] = s[0];
+}
+
 /**
  * Assign 6 bytes from #source to #dest
  * @param dest
@@ -72,10 +78,9 @@ static ALWAYS_INLINE void assign_6bytes( void *dest, void *source){
 }
 
 static ALWAYS_INLINE void assign_4bytes( void *dest, void *source){
-	uint16_t *s = (uint16_t *)source;
-	uint16_t *d = (uint16_t *)dest;
+	uint32_t *s = (uint32_t *)source;
+	uint32_t *d = (uint32_t *)dest;
 	d[0] = s[0];
-	d[1] = s[1];
 }
 
 static ALWAYS_INLINE void assign_2bytes( void *dest, void *source){

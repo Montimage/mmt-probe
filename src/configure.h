@@ -197,7 +197,7 @@ typedef struct session_report_conf_struct{
 
 typedef struct output_conf_struct{
 	bool is_enable;
-	uint32_t cache_size;
+	uint32_t cache_max;
 	uint16_t cache_period;
 
 	file_output_conf_t  *file;
@@ -254,86 +254,13 @@ typedef struct probe_conf_struct{
 
 probe_conf_t* conf_load_from_file( const char* filename );
 
-typedef enum {
-	CONF_ATT__NONE = 0,
-	CONF_ATT__PROBE_ID,
-	CONF_ATT__LICENSE,
-	CONF_ATT__ENABLE_PROTO_WITHOUT_SESSION_REPORT,
-	CONF_ATT__ENABLE_IP_FRAGEMENTATION_REPORT,
-	CONF_ATT__STATS_PERIOD,
-	CONF_ATT__OUTPUT_FORMAT,
-
-	//input
-	CONF_ATT__INPUT__MODE,
-	CONF_ATT__INPUT__SOURCE,
-	CONF_ATT__INPUT__SNAP_LEN,
-
-	//file-output
-	CONF_ATT__FILE_OUTPUT__ENABLE,
-	CONF_ATT__FILE_OUTPUT__OUTPUT_FILE,
-	CONF_ATT__FILE_OUTPUT__OUTPUT_DIR,
-	CONF_ATT__FILE_OUTPUT__RETAIN_FILES,
-	CONF_ATT__FILE_OUTPUT__SAMPLE_FILE,
-
-	//mongodb-output
-	CONF_ATT__MONGODB_OUTPUT__ENABLE,
-	CONF_ATT__MONGODB_OUTPUT__HOSTNAME,
-	CONF_ATT__MONGODB_OUTPUT__PORT,
-	CONF_ATT__MONGODB_OUTPUT__COLLECTION,
-	CONF_ATT__MONGODB_OUTPUT__DATABASE,
-	CONF_ATT__MONGODB_OUTPUT__LIMIT_SIZE,
-
-	//kafka-output
-	CONF_ATT__KAFKA_OUTPUT__ENABLE,
-	CONF_ATT__KAFKA_OUTPUT__HOSTNAME,
-	CONF_ATT__KAFKA_OUTPUT__PORT,
-
-	//redis-output
-	CONF_ATT__REDIS_OUTPUT__ENABLE,
-	CONF_ATT__REDIS_OUTPUT__HOSTNAME,
-	CONF_ATT__REDIS_OUTPUT__PORT,
-
-	//dump-pcap
-	CONF_ATT__DUMP_PCAP__ENABLE,
-	CONF_ATT__DUMP_PCAP__OUTPUT_DIR,
-	CONF_ATT__DUMP_PCAP__PROTOCOLS,
-	CONF_ATT__DUMP_PCAP__PERIOD,
-	CONF_ATT__DUMP_PCAP__RETAIN_FILES,
-	CONF_ATT__DUMP_PCAP__SNAP_LEN,
-
-	//security
-
-	//system-report
-	CONF_ATT__SYSTEM_REPORT__ENABLE,
-	CONF_ATT__SYSTEM_REPORT__PERIOD,
-	CONF_ATT__SYSTEM_REPORT__OUTPUT_CHANNEL,
-
-	//behaviour
-	CONF_ATT__BEHAVIOUR__ENABLE,
-	CONF_ATT__BEHAVIOUR__OUTPUT_DIR,
-}config_attribute_t;
-
-/**
- * Convert identifier from string to number.
- * @param ident :e.g., "probe-id", "input.mode", "event-report.ip_even.enable", etc.
- * @return identifier of element. Otherwise CONF_ATT__NONE
- */
-config_attribute_t conf_get_ident_att_from_string( const char *ident );
-
-/**
- *
- * @param
- * @param ident: identifier of element will be overridden.
- * @param value: value will be overridden only if the value is different with the current one of the element.
- * @param cb
- * @return true if the value has been overridden, otherwise false
- */
-bool conf_override_element( probe_conf_t*, config_attribute_t ident, const char *value );
-
 /**
  * Free all memory allocated by @load_configuration_from_file
  * @param
  */
 void conf_release( probe_conf_t * );
+
+
+int conf_validate( probe_conf_t *conf );
 
 #endif /* SRC_LIB_CONFIGURE_H_ */

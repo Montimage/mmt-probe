@@ -118,7 +118,7 @@ void worker_on_start( worker_context_t *worker_context ){
 	uint32_t *cores_id = (uint32_t []){0,1};
 
 	IF_ENABLE_SECURITY(
-	worker_context->security = security_worker_alloc_init(
+			worker_context->security = security_worker_alloc_init(
 				worker_context->probe_context->config->reports.security,
 				worker_context->dpi_handler, cores_id,
 				(worker_context->index == 0), //verbose for only the first worker

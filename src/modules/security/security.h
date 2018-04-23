@@ -8,8 +8,8 @@
 #ifndef SRC_LIB_SECURITY_SECURITY_H_
 #define SRC_LIB_SECURITY_SECURITY_H_
 
-#include <mmt_security.h>
 #include <mmt_core.h>
+#include <mmt_security.h>
 #include "../../configure.h"
 #include "../output/output.h"
 

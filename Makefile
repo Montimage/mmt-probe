@@ -38,7 +38,9 @@ endif
 #	$(eval DEBUG := 1 )
 
 LIB_SRCS    := $(wildcard src/lib/*.c)
-LIB_SRCS    += src/configure.c src/worker.c
+#LIB_SRCS    := $(wildcard src/*.c)
+#LIB_SRCS    := $(filter-out src/main.c, $(LIB_SRCS)) #exclude main.c
+LIB_SRCS    += src/configure.c src/configure_override.c src/worker.c
 
 #################################################
 ############ OTHER SETTING ######################

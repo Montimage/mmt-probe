@@ -26,7 +26,7 @@
 #include "lib/limit.h"
 
 #include "context.h"
-#include "configure.h"
+#include "configure_override.h"
 #include "modules/routine/routine.h"
 
 #ifdef DPDK_MODULE
@@ -150,10 +150,7 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 			if( string_val == '\0' )
 				log_write( LOG_WARNING, "Input parameter '%s' is not well-formatted (must be in format parameter=value). Ignored it.", string_att );
 
-			config_attribute_t ident = conf_get_ident_att_from_string(string_att);
-			if( ident == CONF_ATT__NONE ){
-				log_write( LOG_WARNING, "Ignored input parameter '%s' as no corresponding configuration parameter or no supported yet.", string_att );
-			}else if( conf_override_element(conf, ident, string_val) )
+			if( conf_override_element(conf, string_att, string_val) )
 				log_write( LOG_INFO, "Overridden value of configuration parameter '%s' by '%s'", string_att, string_val );
 		}
 	}
@@ -282,11 +279,12 @@ int main( int argc, char** argv ){
 	//init context
 	context.is_aborting = false;
 	context.config = _parse_options(argc, argv);
+	conf_validate( context.config );
 
-#ifdef SECURITY_MODULE
-	if( context.config->reports.security != NULL )
-		security_open( context.config->reports.security->excluded_rules );
-#endif
+	IF_ENABLE_SECURITY(
+		if( context.config->reports.security != NULL && context.config->reports.security->is_enable )
+			security_open( context.config->reports.security->excluded_rules );
+	)
 
 	log_write( LOG_INFO, "MMT-Probe v%s is running on pid %d",
 			get_version(),
@@ -314,7 +312,8 @@ int main( int argc, char** argv ){
 
 
 	IF_ENABLE_SECURITY(
-		security_close();
+		if( context.config->reports.security != NULL && context.config->reports.security->is_enable )
+			security_close();
 	)
 
 	routine_stop_and_release( routine );
