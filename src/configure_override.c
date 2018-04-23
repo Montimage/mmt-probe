@@ -76,7 +76,16 @@ static inline void* _conf_get_ident_attribute_field(                      \
 	return NULL;                                                          \
 }
 
-//declare
+/**
+ * In the following declaration, each line uses the sturcture:
+ *  (ident-number, ident-string, pointer-field, data-type)
+ * - ident-number: is used to define enum element
+ * - ident-string: is string of configuration attribute.
+ *    They are the same as in mmt-probe.conf. Its level is separated by dot, for example:
+ *    "input.mode" will represent "mode" in "input" block
+ * - pointer-field: is a pointer pointing to a field of "conf" variable having "probe_config_t" type
+ * - data-type: is data type of the attribute. It can be bool, uint16_t, uint32_t or char*
+ */
 DECLARE_CONF_ATT(
 	(CONF_ATT__NONE, "no-support", NULL, NO_SUPPORT),
 
@@ -99,29 +108,29 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__INPUT__SNAP_LEN, "input.snap-len", &conf->input->snap_len,     UINT16_T),
 
 	//output
-	(CONF_ATT__OUTPUT__FORMAT,       "output.format",       &conf->outputs.format, UINT16_T),
-	(CONF_ATT__OUTPUT__CACHE_MAX,    "output.cache-max",    &conf->outputs.cache_max, UINT32_T),
+	(CONF_ATT__OUTPUT__FORMAT,       "output.format",       &conf->outputs.format,       UINT16_T),
+	(CONF_ATT__OUTPUT__CACHE_MAX,    "output.cache-max",    &conf->outputs.cache_max,    UINT32_T),
 	(CONF_ATT__OUTPUT__CACHE_PERIOD, "output.cache-period", &conf->outputs.cache_period, UINT32_T),
 
 	//file-output
-	(CONF_ATT__FILE_OUTPUT__ENABLE,       "file-output.enable", &conf->outputs.file->is_enable, BOOL),
-	(CONF_ATT__FILE_OUTPUT__OUTPUT_FILE,  "file-output.output-file", &conf->outputs.file->filename, CHAR_STAR),
-	(CONF_ATT__FILE_OUTPUT__OUTPUT_DIR,   "file-output.output-dir", &conf->outputs.file->directory, CHAR_STAR),
-	(CONF_ATT__FILE_OUTPUT__RETAIN_FILES, "file-output.sample-file", &conf->outputs.file->is_sampled, BOOL),
+	(CONF_ATT__FILE_OUTPUT__ENABLE,       "file-output.enable", &conf->outputs.file->is_enable,                  BOOL),
+	(CONF_ATT__FILE_OUTPUT__OUTPUT_FILE,  "file-output.output-file", &conf->outputs.file->filename,              CHAR_STAR),
+	(CONF_ATT__FILE_OUTPUT__OUTPUT_DIR,   "file-output.output-dir", &conf->outputs.file->directory,              CHAR_STAR),
+	(CONF_ATT__FILE_OUTPUT__RETAIN_FILES, "file-output.sample-file", &conf->outputs.file->is_sampled,            BOOL),
 	(CONF_ATT__FILE_OUTPUT__SAMPLE_FILE,  "file-output.retain-files", &conf->outputs.file->retained_files_count, UINT16_T),
 
 	//mongodb-output
-	(CONF_ATT__MONGODB_OUTPUT__ENABLE,     "mongodb-output.enable", &conf->outputs.mongodb->is_enable, BOOL),
-	(CONF_ATT__MONGODB_OUTPUT__HOSTNAME,   "mongodb-output.hostnam", &conf->outputs.mongodb->host.host_name, CHAR_STAR),
-	(CONF_ATT__MONGODB_OUTPUT__PORT,       "mongodb-output.port", &conf->outputs.mongodb->host.port_number, UINT16_T),
+	(CONF_ATT__MONGODB_OUTPUT__ENABLE,     "mongodb-output.enable", &conf->outputs.mongodb->is_enable,           BOOL),
+	(CONF_ATT__MONGODB_OUTPUT__HOSTNAME,   "mongodb-output.hostnam", &conf->outputs.mongodb->host.host_name,     CHAR_STAR),
+	(CONF_ATT__MONGODB_OUTPUT__PORT,       "mongodb-output.port", &conf->outputs.mongodb->host.port_number,      UINT16_T),
 	(CONF_ATT__MONGODB_OUTPUT__COLLECTION, "mongodb-output.collection", &conf->outputs.mongodb->collection_name, CHAR_STAR),
-	(CONF_ATT__MONGODB_OUTPUT__DATABASE,   "mongodb-output.database", &conf->outputs.mongodb->database_name, CHAR_STAR),
-	(CONF_ATT__MONGODB_OUTPUT__LIMIT_SIZE, "mongodb-output.limit-size", &conf->outputs.mongodb->limit_size, UINT32_T),
+	(CONF_ATT__MONGODB_OUTPUT__DATABASE,   "mongodb-output.database", &conf->outputs.mongodb->database_name,     CHAR_STAR),
+	(CONF_ATT__MONGODB_OUTPUT__LIMIT_SIZE, "mongodb-output.limit-size", &conf->outputs.mongodb->limit_size,      UINT32_T),
 
 	//kafka-output
-	(CONF_ATT__KAFKA_OUTPUT__ENABLE,   "kafka-output.enable", &conf->outputs.kafka->is_enable, BOOL),
+	(CONF_ATT__KAFKA_OUTPUT__ENABLE,   "kafka-output.enable", &conf->outputs.kafka->is_enable,        BOOL),
 	(CONF_ATT__KAFKA_OUTPUT__HOSTNAME, "kafka-output.hostname", &conf->outputs.kafka->host.host_name, CHAR_STAR),
-	(CONF_ATT__KAFKA_OUTPUT__PORT,     "kafka-output.port", &conf->outputs.kafka->host.port_number, UINT16_T),
+	(CONF_ATT__KAFKA_OUTPUT__PORT,     "kafka-output.port", &conf->outputs.kafka->host.port_number,   UINT16_T),
 
 	//redis-output
 	(CONF_ATT__REDIS_OUTPUT__ENABLE,   "redis-output.enable", &conf->outputs.redis->is_enable, BOOL),
