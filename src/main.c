@@ -51,7 +51,10 @@ static void _print_usage(const char * prg_name) {
 	printf("\t-c <config file> : Gives the path to the config file (default: %s).\n", DEFAULT_CONFIG_FILE);
 	printf("\t-t <trace file>  : Gives the trace file to analyse.\n");
 	printf("\t-i <interface>   : Gives the interface name for live traffic analysis.\n");
-	printf("\t-X attr=value    : Override configuration attribute. For example \"-X file-output.output-dir=/tmp/\" will change output directory to /tmp. \n");
+	printf("\t-X attr=value    : Override configuration attribute.\n");
+	printf("\t                    For example \"-X file-output.enable=true -Xfile-output.output-dir=/tmp/\" will enable output and change output directory to /tmp.\n");
+	printf("\t                    This parameter can appear several times.\n");
+	printf("\t-x               : Prints list of configuration attributes being able to be used with -X.\n");
 	printf("\t-h               : Prints this help then exit.\n");
 }
 
@@ -65,7 +68,7 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 	int opt, optcount = 0;
 	int val;
 
-	const char *options = "c:t:i:vhX:";
+	const char *options = "c:t:i:vhxX:";
 	const char *config_file = DEFAULT_CONFIG_FILE;
 	probe_conf_t *conf = NULL;
 
@@ -94,6 +97,9 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 			exit( EXIT_SUCCESS );
 		case 'h':
 			_print_usage(argv[0]);
+			exit( EXIT_SUCCESS );
+		case 'x':
+			conf_print_identities_list();
 			exit( EXIT_SUCCESS );
 		}
 	}

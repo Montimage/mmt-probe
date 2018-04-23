@@ -20,5 +20,6 @@
  */
 bool conf_override_element( probe_conf_t*, const char* ident, const char *value );
 
+void conf_print_identities_list();
 
 #endif /* SRC_CONFIGURE_OVERRIDE_H_ */

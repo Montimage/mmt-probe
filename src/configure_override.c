@@ -32,6 +32,7 @@ static bool _parse_bool( const char *value ){
 }
 
 typedef enum{
+   NO_SUPPORT,
    BOOL,
    UINT16_T,
    UINT32_T,
@@ -77,7 +78,7 @@ static inline void* _conf_get_ident_attribute_field(                      \
 
 //declare
 DECLARE_CONF_ATT(
-	(CONF_ATT__NONE, "no-support", NULL, CHAR_STAR),
+	(CONF_ATT__NONE, "no-support", NULL, NO_SUPPORT),
 
 	//general
 	(CONF_ATT__PROBE_ID,     "probe-id", &conf->probe_id, UINT32_T),
@@ -130,7 +131,7 @@ DECLARE_CONF_ATT(
 	//dump-pcap
 	(CONF_ATT__DUMP_PCAP__ENABLE,       "dump-pcap.enable", &conf->reports.pcap_dump->is_enable, BOOL),
 	(CONF_ATT__DUMP_PCAP__OUTPUT_DIR,   "dump-pcap.output-dir", &conf->reports.pcap_dump->directory, CHAR_STAR),
-	(CONF_ATT__DUMP_PCAP__PROTOCOLS,    "dump-pcap.protocols", NULL, CHAR_STAR),
+	(CONF_ATT__DUMP_PCAP__PROTOCOLS,    "dump-pcap.protocols", NULL, NO_SUPPORT),
 	(CONF_ATT__DUMP_PCAP__PERIOD,       "dump-pcap.period", &conf->reports.pcap_dump->frequency, UINT16_T),
 	(CONF_ATT__DUMP_PCAP__RETAIN_FILES, "dump-pcap.retain-files", &conf->reports.pcap_dump->retained_files_count, UINT16_T),
 	(CONF_ATT__DUMP_PCAP__SNAP_LEN,     "dump-pcap.snap-len", &conf->reports.pcap_dump->snap_len, UINT16_T),
@@ -138,7 +139,7 @@ DECLARE_CONF_ATT(
 	//system-report
 	(CONF_ATT__SYSTEM_REPORT__ENABLE, "system-report.enable", &conf->reports.cpu_mem->is_enable, BOOL),
 	(CONF_ATT__SYSTEM_REPORT__PERIOD, "system-report.period", &conf->reports.cpu_mem->frequency, UINT16_T),
-	(CONF_ATT__SYSTEM_REPORT__OUTPUT_CHANNEL, "system-report.output-channel", NULL, CHAR_STAR), //NO SUPPORT
+	(CONF_ATT__SYSTEM_REPORT__OUTPUT_CHANNEL, "system-report.output-channel", NULL, NO_SUPPORT), //NO SUPPORT
 
 	//behaviour
 	(CONF_ATT__BEHAVIOUR__ENABLE,     "behaviour.enable", &conf->reports.behaviour->is_enable, BOOL),
@@ -174,14 +175,17 @@ int _cmp (const void * a, const void * b ) {
   return strcmp(pa->ident, pb->ident);
 }
 
-const identity_t* _conf_get_ident_from_string( const char * ident_str ){
+static inline void _sort_identities_if_need(){
 	static bool is_init = true;
-	int i;
 	//first times: sort the table to find quickly
 	if( is_init ){
 		qsort( identities, nb_parameters, sizeof( identity_t ), _cmp );
 		is_init = false;
 	}
+}
+
+const identity_t* _conf_get_ident_from_string( const char * ident_str ){
+	_sort_identities_if_need();
 	identity_t key = {.val = 0, .ident = ident_str};
 	return (identity_t*) bsearch( &key, identities,  nb_parameters, sizeof( identity_t ), _cmp );
 }
@@ -270,4 +274,21 @@ bool conf_override_element( probe_conf_t *conf, const char *ident_str, const cha
 
 	log_write( LOG_INFO, "Unknown identifier '%s'", ident_str );
 	return false;
+}
+
+void conf_print_identities_list(){
+	int i;
+	char *data_type_strings[] = {
+			"",
+			"bool",
+			"uint16_t",
+			"uint32_t",
+			"char *"
+	};
+
+	_sort_identities_if_need();
+
+	for( i=0; i<nb_parameters; i++ )
+		if( identities[i].data_type !=NO_SUPPORT  )
+			printf("- %s (%s)\n", identities[i].ident, data_type_strings[identities[i].data_type]);
 }
