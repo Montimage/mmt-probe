@@ -13,6 +13,7 @@
 typedef struct output_struct output_t;
 
 typedef enum{
+	MICRO_FLOW_REPORT_TYPE  =    8,
 	SECURITY_REPORT_TYPE    =   10,
 	LICENSE_REPORT_TYPE     =   30,
 	NON_SESSION_REPORT_TYPE =   99,

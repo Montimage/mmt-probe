@@ -113,10 +113,10 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__OUTPUT__CACHE_PERIOD, "output.cache-period", &conf->outputs.cache_period, UINT32_T),
 
 	//file-output
-	(CONF_ATT__FILE_OUTPUT__ENABLE,       "file-output.enable", &conf->outputs.file->is_enable,                  BOOL),
-	(CONF_ATT__FILE_OUTPUT__OUTPUT_FILE,  "file-output.output-file", &conf->outputs.file->filename,              CHAR_STAR),
-	(CONF_ATT__FILE_OUTPUT__OUTPUT_DIR,   "file-output.output-dir", &conf->outputs.file->directory,              CHAR_STAR),
-	(CONF_ATT__FILE_OUTPUT__RETAIN_FILES, "file-output.sample-file", &conf->outputs.file->is_sampled,            BOOL),
+	(CONF_ATT__FILE_OUTPUT__ENABLE,       "file-output.enable",       &conf->outputs.file->is_enable,            BOOL),
+	(CONF_ATT__FILE_OUTPUT__OUTPUT_FILE,  "file-output.output-file",  &conf->outputs.file->filename,             CHAR_STAR),
+	(CONF_ATT__FILE_OUTPUT__OUTPUT_DIR,   "file-output.output-dir",   &conf->outputs.file->directory,            CHAR_STAR),
+	(CONF_ATT__FILE_OUTPUT__RETAIN_FILES, "file-output.sample-file",  &conf->outputs.file->is_sampled,           BOOL),
 	(CONF_ATT__FILE_OUTPUT__SAMPLE_FILE,  "file-output.retain-files", &conf->outputs.file->retained_files_count, UINT16_T),
 
 	//mongodb-output
@@ -169,12 +169,20 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__RECONSTRUCT_DATA__HTTP__ENABLE,     "reconstruct-data.http.enable", &conf->reconstructions.http->is_enable, BOOL),
 	(CONF_ATT__RECONSTRUCT_DATA__HTTP__OUTPUT_DIR, "reconstruct-data.http.output-dir", &conf->reconstructions.http->directory, CHAR_STAR ),
 
+	//micro-flows
+	(CONF_ATT__MICRO_FLOWS__ENABLE, "micro-flows.enable", &conf->reports.microflow->is_enable, BOOL ),
+	(CONF_ATT__MICRO_FLOWS__PACKET_THRESHOLD,    "micro-flows.packet-threshold",    &conf->reports.microflow->packet_threshold,     UINT32_T ),
+	(CONF_ATT__MICRO_FLOWS__BYTE_THRESHOLD,      "micro-flows.byte-threshold",      &conf->reports.microflow->byte_threshold,       UINT32_T ),
+	(CONF_ATT__MICRO_FLOWS__REPORT_PACKET_COUNT, "micro-flows.report-packet-count", &conf->reports.microflow->report_packets_count, UINT32_T ),
+	(CONF_ATT__MICRO_FLOWS__REPORT_BYTE_COUNT,   "micro-flows.report-bytes-count",  &conf->reports.microflow->report_bytes_count,   UINT32_T ),
+	(CONF_ATT__MICRO_FLOWS__REPORT_FLOWSCOUNT,   "micro-flows.report-flows-count",  &conf->reports.microflow->report_flows_count,   UINT32_T ),
+
 	//session-report
 	(CONF_ATT__SESSION_REPORT__ENABLE, "session-report.enable", &conf->reports.session->is_enable, BOOL),
-	(CONF_ATT__SESSION_REPORT__FTP,    "session-report.ftp", &conf->reports.session->is_ftp, BOOL ),
-	(CONF_ATT__SESSION_REPORT__HTTP,   "session-report.http", &conf->reports.session->is_http, BOOL),
-	(CONF_ATT__SESSION_REPORT__RTP,    "session-report.rtp", &conf->reports.session->is_rtp, BOOL ),
-	(CONF_ATT__SESSION_REPORT__SSL,    "session-report.ssl", &conf->reports.session->is_ssl, BOOL)
+	(CONF_ATT__SESSION_REPORT__FTP,    "session-report.ftp",    &conf->reports.session->is_ftp,    BOOL ),
+	(CONF_ATT__SESSION_REPORT__HTTP,   "session-report.http",   &conf->reports.session->is_http,   BOOL),
+	(CONF_ATT__SESSION_REPORT__RTP,    "session-report.rtp",    &conf->reports.session->is_rtp,    BOOL ),
+	(CONF_ATT__SESSION_REPORT__SSL,    "session-report.ssl",    &conf->reports.session->is_ssl,    BOOL)
 )
 
 
@@ -245,6 +253,9 @@ bool conf_override_element( probe_conf_t *conf, const char *ident_str, const cha
 
 	switch( ident->data_type ){
 	//update value depending on parameters
+	case NO_SUPPORT:
+		log_write( LOG_WARNING, "Have not supported yet for [%s]", ident_str );
+		return false;
 	case CHAR_STAR:
 		string_ptr = (char **) field_ptr;
 		//value does not change ==> do nothing

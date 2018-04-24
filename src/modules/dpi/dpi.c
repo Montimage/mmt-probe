@@ -46,18 +46,30 @@ static void _starting_session_handler(const ipacket_t * ipacket, attribute_t * a
 
 	if( session == NULL )
 		session = _create_session (ipacket, context);
-
-
 }
 //callback when a session is expiring
 static void _ending_session_handler(const mmt_session_t * dpi_session, void * user_args) {
 	dpi_context_t *context = (dpi_context_t *) user_args;
 	packet_session_t * session = get_user_session_context( dpi_session );
 
-	IF_ENABLE_STAT_REPORT(
-		if( context->probe_config->reports.session->is_enable )
-			session_report_callback_on_ending_session( dpi_session, session->session_stat, context);
-	)
+#ifdef STAT_REPORT
+		//a session statistic is processed as either micro-flow or normal-flow
+		bool is_micro = false;
+		if( context->micro_reports ){
+			is_micro = is_micro_flow( context->micro_reports, dpi_session);
+			if( is_micro )
+				micro_flow_report__update( context->micro_reports, dpi_session);
+		}
+
+		if( context->probe_config->reports.session->is_enable ){
+			//do statistic only if the session is not micro one
+			if( ! is_micro  )
+				session_report_do_report(dpi_session, session->session_stat, context);
+
+			//we always need to free session as it was created when starting a new session (at that moment, we haven't known yet it is micro- or normal-flow)
+			session_report_callback_on_ending_session( dpi_session, session->session_stat, context );
+		}
+#endif
 
 	mmt_probe_free( session );
 }
@@ -95,8 +107,18 @@ static void _period_session_report (const mmt_session_t * dpi_session, void *use
 	packet_session_t *session = (packet_session_t *) get_user_session_context( dpi_session );
 
 	IF_ENABLE_STAT_REPORT(
-		session_report_callback_on_timer( dpi_session, session->session_stat, context )
-	);
+		bool is_micro = false;
+		//if session report is enable?
+		if( session->session_stat ){
+			//need to check if a flow is micro ???
+			if( context->micro_reports )
+				is_micro = is_micro_flow( context->micro_reports, dpi_session);
+
+			//do report if the flow is not micro
+			if( !is_micro )
+				session_report_do_report( dpi_session, session->session_stat, context );
+		}
+	)
 }
 
 
@@ -123,6 +145,7 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 	);
 
 	IF_ENABLE_STAT_REPORT(
+		ret->micro_reports = micro_flow_report_alloc_init(config->reports.microflow, output);
 		ret->event_reports = event_based_report_register(dpi_handler, config->reports.events, config->reports.events_size, output);
 		ret->no_session_report = no_session_report_alloc_init(dpi_handler, output, config->is_enable_ip_fragementation_report, config->is_enable_proto_no_session_report );
 
@@ -149,17 +172,24 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 	return ret;
 }
 
+//this happens before closing dpi_context->dpi_handler
 void dpi_close( dpi_context_t *dpi_context ){
 	unregister_attribute_handler(dpi_context->dpi_handler, PROTO_IP, PROTO_SESSION, _starting_session_handler );
 	unregister_attribute_handler(dpi_context->dpi_handler, PROTO_IPV6, PROTO_SESSION, _starting_session_handler );
 
 	unregister_packet_handler(dpi_context->dpi_handler, DPI_PACKET_HANDLER_ID );
+
+	IF_ENABLE_STAT_REPORT(
+		session_report_unregister( dpi_context->dpi_handler, dpi_context->probe_config->reports.session );
+		event_based_report_unregister( dpi_context->event_reports );
+	)
 }
 
+//this happens after closing dpi_context->dpi_handler
 void dpi_release( dpi_context_t *dpi_context ){
 	IF_ENABLE_STAT_REPORT(
 		no_session_report_release(dpi_context->no_session_report );
-		event_based_report_unregister( dpi_context->event_reports );
+		micro_flow_report_release( dpi_context->micro_reports );
 	)
 
 	IF_ENABLE_PCAP_DUMP(

@@ -31,22 +31,22 @@ struct session_web_stat_struct {
 
 /* This function resets http stats */
 static inline void _reset_report(session_web_stat_t *web){
+	web->trans_nb = 0;
+	web->mime_type[0]   = '\0';
+	web->hostname[0]    = '\0';
+	web->referer[0]     = '\0';
+	web->method[0]      = '\0';
+	web->uri[0]         = '\0';
+	web->response[0]    = '\0';
+	web->content_len[0] = '\0';
 
-	 web->mime_type[0]   = '\0';
-	 web->hostname[0]    = '\0';
-	 web->referer[0]     = '\0';
-	 web->method[0]      = '\0';
-	 web->uri[0]         = '\0';
-	 web->response[0]    = '\0';
-	 web->content_len[0] = '\0';
+	web->response_time.tv_sec = 0;
+	web->response_time.tv_usec = 0;
+	web->method_time.tv_sec = 0;
+	web->method_time.tv_usec = 0;
 
-	 web->response_time.tv_sec = 0;
-	 web->response_time.tv_usec = 0;
-	 web->method_time.tv_sec = 0;
-	 web->method_time.tv_usec = 0;
-
-	 web->xcdn_seen = false;
-     web->state_http_request_response = 0;
+	web->xcdn_seen = false;
+	web->state_http_request_response = 0;
 }
 
 static inline session_stat_t* _get_packet_session(const ipacket_t * ipacket) {

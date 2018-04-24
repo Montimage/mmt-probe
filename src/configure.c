@@ -44,8 +44,8 @@ int conf_parse_output_format(cfg_t *cfg, cfg_opt_t *opt, const char *value, void
 static inline cfg_t *_load_cfg_from_file(const char *filename) {
 	cfg_opt_t micro_flows_opts[] = {
 			CFG_BOOL("enable", false, CFGF_NONE),
-			CFG_INT("include-packet-count", 10, CFGF_NONE),
-			CFG_INT("include-byte-count", 5, CFGF_NONE),
+			CFG_INT("packet-threshold", 10, CFGF_NONE),
+			CFG_INT("byte-threshold", 5, CFGF_NONE),
 			CFG_INT("report-packet-count", 10000, CFGF_NONE),
 			CFG_INT("report-byte-count", 5000, CFGF_NONE),
 			CFG_INT("report-flow-count", 1000, CFGF_NONE),
@@ -510,9 +510,10 @@ static inline micro_flow_conf_t *_parse_microflow_block( cfg_t *cfg ){
 
 	micro_flow_conf_t *ret = mmt_alloc( sizeof( micro_flow_conf_t ));
 	ret->is_enable             = cfg_getbool( cfg, "enable" );
-	ret->include_bytes_count   = cfg_getint( cfg, "include-byte-count" );
-	ret->include_packets_count = cfg_getint( cfg, "include-packet-count" );
+	ret->byte_threshold   = cfg_getint( cfg, "byte-threshold" );
+	ret->packet_threshold = cfg_getint( cfg, "packet-threshold" );
 	ret->report_bytes_count    = cfg_getint( cfg, "report-byte-count" );
+	ret->report_packets_count = cfg_getint( cfg, "report-packet-count" );
 	ret->report_flows_count    = cfg_getint( cfg, "report-flow-count" );
 	ret->output_channels = _parse_output_channel( cfg );
 	return ret;
@@ -814,7 +815,6 @@ void conf_release( probe_conf_t *conf){
 	}
 
 
-
 	mmt_probe_free( conf->session_timeout );
 
 	mmt_probe_free( conf->license_file );
@@ -826,5 +826,13 @@ int conf_validate( probe_conf_t *conf ){
 	int ret = 0;
 	if( conf->outputs.mongodb ){
 	}
+
+	if( conf->reports.microflow ){
+		if( conf->reports.microflow->report_bytes_count == 0)
+			conf->reports.microflow->report_bytes_count = INT32_MAX;
+		if( conf->reports.microflow->byte_threshold == 0 )
+			conf->reports.microflow->byte_threshold = INT32_MAX;
+	}
+
 	return ret;
 }

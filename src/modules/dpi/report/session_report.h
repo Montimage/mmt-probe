@@ -120,22 +120,7 @@ int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, sessi
 
 void session_report_callback_on_ending_session(const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context);
 
-void session_report_callback_on_timer(const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context);
-/**
- * Returns 1 if the given session is a microflow, O otherwise
- * @param expired_session pointer to the session context to check
- * @return 1 if the given session is a microflow, O otherwise
- */
-static inline bool is_micro_flow(const mmt_session_t * expired_session) {
-//    mmt_probe_context_t * probe_context = get_probe_context_config();
-//
-//    if (probe_context->microf_enable == 1){
-//        if ((get_session_packet_count(expired_session) <= probe_context->microf_pthreshold) || (get_session_byte_count(expired_session) <= probe_context->microf_bthreshold)) {
-//            return true;
-//        }
-//    }
-    return false;
-}
+void session_report_do_report(const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context);
 
 /*This function takes IPv6 address and finds whether this address belongs to a local network.
  *It returns 1 if the address belongs to a IPv6 local network
@@ -180,5 +165,5 @@ static inline const char* get_string_value( const char *value ){
 
 //header
 bool session_report_register( mmt_handler_t *dpi_handler, session_report_conf_t *config );
-
+bool session_report_unregister( mmt_handler_t *dpi_handler, session_report_conf_t *config );
 #endif /* SRC_MODULES_DPI_HEADER_H_ */

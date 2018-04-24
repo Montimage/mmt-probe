@@ -13,10 +13,6 @@ int print_web_report(char *message, size_t message_size, const mmt_session_t * d
 #ifndef SIMPLE_REPORT
 //This callback is called by DPI periodically
 static inline void _print_ip_session_report (const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context){
-
-	if( unlikely( is_micro_flow( dpi_session )))
-		return;
-
 	uint64_t ul_packets = get_session_ul_cap_packet_count(dpi_session);
 	uint64_t dl_packets = get_session_dl_cap_packet_count(dpi_session);
 	uint64_t total_packets = ul_packets + dl_packets;
@@ -382,21 +378,10 @@ session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * 
 /* This function is called by mmt-dpi for each session time-out (expiry).
  * It provides the expired session information and frees the memory allocated.
  * */
-void session_report_callback_on_ending_session(const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context) {
+void session_report_callback_on_ending_session(const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context ) {
 	if (session_stat == NULL)
 		return;
 
-	if (is_micro_flow( dpi_session )) {
-//		microsessions_stats_t * mf_stats = &th->iprobe.mf_stats[get_session_protocol_hierarchy(expired_session)->proto_path[(get_session_protocol_hierarchy(expired_session)->len <= 16)?(get_session_protocol_hierarchy(expired_session)->len - 1):(16 - 1)]];
-
-//		update_microflows_stats(mf_stats, expired_session);
-//		if (is_microflow_stats_reportable(mf_stats)) {
-//			report_microflows_stats(mf_stats, args);
-//		}
-		return;
-	}
-
-	_print_ip_session_report ( dpi_session, session_stat, context );
 #ifdef SIMPLE_REPORT
 	//use simpler report version: this output is used by mmt-box
 #else
@@ -442,7 +427,7 @@ int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, sessi
 }
 
 
-void session_report_callback_on_timer(const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context){
+void session_report_do_report(const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context){
 	_print_ip_session_report ( dpi_session, session_stat, context );
 }
 
@@ -502,6 +487,32 @@ bool session_report_register( mmt_handler_t *dpi_handler, session_report_conf_t 
 	if( config->is_ssl ){
 		size = get_session_ssl_handlers_to_register( &handlers );
 		dpi_register_conditional_handler( dpi_handler, size, handlers, NULL );
+	}
+#endif
+
+	return true;
+}
+
+
+bool session_report_unregister( mmt_handler_t *dpi_handler, session_report_conf_t *config ){
+	if( ! config->is_enable )
+		return false;
+
+	size_t size;
+	const conditional_handler_t* handlers;
+
+#ifdef SIMPLE_REPORT
+	//use simpler report version: this output is used by mmt-box
+#else
+	//register protocols and attributes for application statistic: WEB, FTP, RTP, SSL
+	if( config->is_http ){
+		size = get_session_web_handlers_to_register( &handlers );
+		dpi_unregister_conditional_handler( dpi_handler, size, handlers, NULL );
+	}
+
+	if( config->is_ssl ){
+		size = get_session_ssl_handlers_to_register( &handlers );
+		dpi_unregister_conditional_handler( dpi_handler, size, handlers, NULL );
 	}
 #endif
 

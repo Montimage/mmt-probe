@@ -16,6 +16,7 @@
 #include "optimization.h"
 #include "log.h"
 #include "limit.h"
+#include "unit.h"
 #include "tools.h"
 
 /**

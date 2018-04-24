@@ -162,8 +162,9 @@ typedef struct socket_output_conf_struct{
 
 typedef struct micro_flow_conf_struct{
 	bool is_enable;
-	uint32_t include_packets_count;
-	uint32_t include_bytes_count;
+	uint32_t packet_threshold;
+	uint32_t byte_threshold;
+	uint32_t report_packets_count;
 	uint32_t report_bytes_count;
 	uint32_t report_flows_count;
 	output_channel_conf_t output_channels;

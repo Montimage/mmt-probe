@@ -12,6 +12,14 @@
 #include "../../configure.h"
 #include "../../lib/memory.h"
 
+static inline uint32_t dpi_get_proto_id_from_session( const mmt_session_t * dpi_session ){
+	const proto_hierarchy_t *proto_hierarchy = get_session_protocol_hierarchy( dpi_session );
+	int len = proto_hierarchy->len;
+	if( len > 16 )
+		len = 16;
+	return proto_hierarchy->proto_path[ len - 1 ];
+}
+
 static inline bool dpi_get_proto_id_and_att_id( const dpi_protocol_attribute_t *att, uint32_t *proto_id, uint32_t *att_id ){
 	*proto_id = get_protocol_id_by_name( att->proto_name );
 	if( *proto_id != 0 )
@@ -28,7 +36,7 @@ static inline int dpi_register_attribute( const dpi_protocol_attribute_t *atts, 
 	uint32_t proto_id, att_id;
 	for( i=0; i<count; i++ ){
 		if( ! dpi_get_proto_id_and_att_id( &atts[i], &proto_id, &att_id ) ){
-			log_write( LOG_ERR, "Does not support protocol %s and its attribute %s",
+			log_write( LOG_ERR, "Does not support protocol [%s] with its attribute [%s]",
 					atts[i].proto_name,
 					atts[i].attribute_name);
 			continue;
@@ -124,8 +132,9 @@ static inline bool dpi_copy_string_value( char *target, size_t target_size, mmt_
 		return false;
 	}
 
-	if( val->len < target_size )
-		target_size = val->len;
+	//length of string + 1 byte for '\0'
+	if( val->len + 1 < target_size )
+		target_size = val->len + 1;
 
 	int i;
 	//copy to target string. Ensure the target is a valid JSON string
@@ -188,4 +197,28 @@ static inline int dpi_register_conditional_handler( mmt_handler_t *dpi_handler, 
 	return ret;
 }
 
+static inline int dpi_unregister_conditional_handler( mmt_handler_t *dpi_handler, size_t count, const conditional_handler_t *handlers, void *user_argv ) {
+	int i, ret = 0;
+	const conditional_handler_t *handler;
+
+	for( i=0; i<count; i++ ){
+		handler = &handlers[i];
+
+		//register without handler function
+		if( handler->handler == NULL ){
+			if( !unregister_extraction_attribute( dpi_handler, handler->proto_id, handler->att_id) )
+				log_write( LOG_WARNING, "Cannot register attribute %u.%u",
+						handler->proto_id, handler->att_id	);
+			else
+				ret ++;
+		}else{
+			if( !unregister_attribute_handler( dpi_handler,  handler->proto_id, handler->att_id, handler->handler ) )
+				log_write( LOG_ERR, "Cannot register handler for %u.%u",
+						handler->proto_id, handler->att_id );
+			else
+				ret ++;
+		}
+	}
+	return ret;
+}
 #endif /* SRC_MODULES_DPI_DPI_TOOL_H_ */
