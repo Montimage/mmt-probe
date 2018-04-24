@@ -45,7 +45,7 @@ static inline int dpi_register_attribute( const dpi_protocol_attribute_t *atts, 
 		//register without handler function
 		if( handler_fct == NULL ){
 			if( ! register_extraction_attribute( dpi_handler, proto_id, att_id) )
-				log_write( LOG_WARNING, "Cannot register attribute %s.%s",
+				log_write( LOG_WARNING, "Cannot register attribute [%s.%s]",
 						atts[i].proto_name,
 						atts[i].attribute_name
 				);
@@ -53,7 +53,7 @@ static inline int dpi_register_attribute( const dpi_protocol_attribute_t *atts, 
 				ret ++;
 		}else{
 			if( !register_attribute_handler( dpi_handler, proto_id, att_id, handler_fct, NULL, args ) ){
-				log_write( LOG_ERR, "Cannot register handler for %s.%s",
+				log_write( LOG_ERR, "Cannot register handler for [%s.%s]",
 						atts[i].proto_name,
 						atts[i].attribute_name );
 			}
@@ -71,7 +71,7 @@ static inline int dpi_unregister_attribute( const dpi_protocol_attribute_t *atts
 	uint32_t proto_id, att_id;
 	for( i=0; i<count; i++ ){
 		if( ! dpi_get_proto_id_and_att_id( &atts[i], &proto_id, &att_id ) ){
-			log_write( LOG_ERR, "Does not support protocol %s and its attribute %s",
+			log_write( LOG_ERR, "Does not support protocol [%s] width its attribute [%s]",
 					atts[i].proto_name,
 					atts[i].attribute_name);
 			continue;
@@ -81,7 +81,7 @@ static inline int dpi_unregister_attribute( const dpi_protocol_attribute_t *atts
 		if( handler_fct == NULL ){
 			if( is_registered_attribute( dpi_handler, proto_id, att_id) ){
 				if( ! unregister_extraction_attribute( dpi_handler, proto_id, att_id) )
-					log_write( LOG_WARNING, "Cannot unregister attribute %s.%s",
+					log_write( LOG_WARNING, "Cannot unregister attribute [%s.%s]",
 							atts[i].proto_name,
 							atts[i].attribute_name
 					);
@@ -91,7 +91,7 @@ static inline int dpi_unregister_attribute( const dpi_protocol_attribute_t *atts
 		}else{
 			if( is_registered_attribute_handler( dpi_handler, proto_id, att_id, handler_fct ) ){
 				if( !unregister_attribute_handler( dpi_handler, proto_id, att_id, handler_fct))
-					log_write( LOG_ERR, "Cannot register handler for %s.%s",
+					log_write( LOG_ERR, "Cannot register handler for [%s.%s]",
 						atts[i].proto_name,
 						atts[i].attribute_name );
 			else
@@ -182,13 +182,13 @@ static inline int dpi_register_conditional_handler( mmt_handler_t *dpi_handler, 
 		//register without handler function
 		if( handler->handler == NULL ){
 			if( ! register_extraction_attribute( dpi_handler, handler->proto_id, handler->att_id) )
-				log_write( LOG_WARNING, "Cannot register attribute %u.%u",
+				log_write( LOG_WARNING, "Cannot register attribute [%u.%u]",
 						handler->proto_id, handler->att_id	);
 			else
 				ret ++;
 		}else{
 			if( !register_attribute_handler( dpi_handler,  handler->proto_id, handler->att_id, handler->handler, NULL, user_argv ) )
-				log_write( LOG_ERR, "Cannot register handler for %u.%u",
+				log_write( LOG_ERR, "Cannot register handler for [%u.%u]",
 						handler->proto_id, handler->att_id );
 			else
 				ret ++;
@@ -207,13 +207,13 @@ static inline int dpi_unregister_conditional_handler( mmt_handler_t *dpi_handler
 		//register without handler function
 		if( handler->handler == NULL ){
 			if( !unregister_extraction_attribute( dpi_handler, handler->proto_id, handler->att_id) )
-				log_write( LOG_WARNING, "Cannot register attribute %u.%u",
+				log_write( LOG_WARNING, "Cannot register attribute [%u.%u]",
 						handler->proto_id, handler->att_id	);
 			else
 				ret ++;
 		}else{
 			if( !unregister_attribute_handler( dpi_handler,  handler->proto_id, handler->att_id, handler->handler ) )
-				log_write( LOG_ERR, "Cannot register handler for %u.%u",
+				log_write( LOG_ERR, "Cannot register handler for [%u.%u]",
 						handler->proto_id, handler->att_id );
 			else
 				ret ++;

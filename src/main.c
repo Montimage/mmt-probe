@@ -43,19 +43,21 @@
 
 //#define DEFAULT_CONFIG_FILE "/opt/mmt/probe/mmt-probe.conf"
 #define DEFAULT_CONFIG_FILE "./mmt-probe.conf"
+#define DEFAULT_CONFIG_FILE_OPT "/opt/mmt/probe/mmt-probe.conf"
 
 static void _print_usage(const char * prg_name) {
 	printf("%s [<option>]\n", prg_name);
 	printf("Option:\n");
-	printf("\t-v               : Print version information then exit.\n");
-	printf("\t-c <config file> : Gives the path to the config file (default: %s).\n", DEFAULT_CONFIG_FILE);
-	printf("\t-t <trace file>  : Gives the trace file to analyse.\n");
+	printf("\t-v               : Print version information, then exits.\n");
+	printf("\t-c <config file> : Gives the path to the configuration file (default: %s, %s).\n",
+				DEFAULT_CONFIG_FILE, DEFAULT_CONFIG_FILE_OPT);
+	printf("\t-t <trace file>  : Gives the trace file for offline analyse.\n");
 	printf("\t-i <interface>   : Gives the interface name for live traffic analysis.\n");
-	printf("\t-X attr=value    : Override configuration attribute.\n");
-	printf("\t                    For example \"-X file-output.enable=true -Xfile-output.output-dir=/tmp/\" will enable output and change output directory to /tmp.\n");
+	printf("\t-X attr=value    : Override configuration attributes.\n");
+	printf("\t                    For example \"-X file-output.enable=true -Xfile-output.output-dir=/tmp/\" will enable output to file and change output directory to /tmp.\n");
 	printf("\t                    This parameter can appear several times.\n");
-	printf("\t-x               : Prints list of configuration attributes being able to be used with -X.\n");
-	printf("\t-h               : Prints this help then exit.\n");
+	printf("\t-x               : Prints list of configuration attributes being able to be used with -X, then exits.\n");
+	printf("\t-h               : Prints this help, then exits.\n");
 }
 
 static inline void _override_string_conf( char **conf, const char*new_val ){
@@ -112,7 +114,7 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 			abort();
 		}else{
 			//try again to read config from /opt/mmt/probe/mmt-probe.conf
-			config_file = "/opt/mmt/probe/mmt-probe.conf";
+			config_file = DEFAULT_CONFIG_FILE_OPT;
 			conf = conf_load_from_file( config_file );
 			if( conf == NULL )
 				abort();
