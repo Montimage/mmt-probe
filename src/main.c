@@ -41,8 +41,11 @@
 #include "modules/security/security.h"
 #endif
 
-//#define DEFAULT_CONFIG_FILE "/opt/mmt/probe/mmt-probe.conf"
-#define DEFAULT_CONFIG_FILE "./mmt-probe.conf"
+/*
+ * Default configuration file: either in the current folder or in /opt/mmt/probe
+ * The former has a higher priority
+ */
+#define DEFAULT_CONFIG_FILE     "./mmt-probe.conf"
 #define DEFAULT_CONFIG_FILE_OPT "/opt/mmt/probe/mmt-probe.conf"
 
 static void _print_usage(const char * prg_name) {

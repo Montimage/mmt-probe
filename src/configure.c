@@ -834,5 +834,9 @@ int conf_validate( probe_conf_t *conf ){
 			conf->reports.microflow->byte_threshold = INT32_MAX;
 	}
 
+	if( conf->reports.pcap_dump ){
+		if( conf->reports.pcap_dump->frequency == 0 )
+			conf->reports.pcap_dump->frequency = 3600;
+	}
 	return ret;
 }

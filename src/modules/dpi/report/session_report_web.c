@@ -45,6 +45,13 @@ static inline void _reset_report(session_web_stat_t *web){
 	web->method_time.tv_sec = 0;
 	web->method_time.tv_usec = 0;
 
+	web->method_time.tv_sec = 0;
+	web->method_time.tv_usec = 0;
+	web->interaction_time.tv_sec = 0;
+	web->interaction_time.tv_usec = 0;
+	web->first_request_time.tv_sec = 0;
+	web->first_request_time.tv_usec = 0;
+
 	web->xcdn_seen = false;
 	web->state_http_request_response = 0;
 }

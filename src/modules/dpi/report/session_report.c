@@ -209,8 +209,6 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 
 //This callback is called by DPI periodically
 static inline void _print_ip_session_report (const mmt_session_t * dpi_session, session_stat_t * session, const dpi_context_t *context){
-	if( unlikely( is_micro_flow( dpi_session )))
-		return;
 
 	uint64_t ul_volumes = get_session_ul_cap_byte_count(dpi_session);
 	uint64_t dl_volumes = get_session_dl_cap_byte_count(dpi_session);

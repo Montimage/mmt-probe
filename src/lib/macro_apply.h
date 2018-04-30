@@ -95,9 +95,9 @@
 #define APPLY( SEPA, FUN, ... ) __APPLY_N1( COUNT_ARGS( __VA_ARGS__ ), SEPA, FUN, __VA_ARGS__ )
 
 //Example:
-//#define STRINGIFY( a, ... ) #a
-//#define SEPARATOR ,
-//APPLY( STRINGIFY, hihi, huhu, haha ) ==> "hihi" , "huhu" , "haha"
+//#define STRINGIFY( a ) #a
+//#define SEPARATOR() ,
+//APPLY( SEPARATOR, STRINGIFY, hihi, huhu, haha ) ==> "hihi" , "huhu" , "haha"
 
 
 #endif /* SRC_LIB_MACRO_APPLY_H_ */

@@ -13,10 +13,9 @@
 typedef struct pcap_dump_context_struct{
 	FILE *file;
 	const pcap_dump_conf_t *config;
-	struct timeval last_dump_ts;
-	uint16_t worker_index;
+	uint32_t next_ts_to_dump_to_new_file;
 	uint32_t *proto_ids_lst;
-
+	uint16_t worker_index;
 } pcap_dump_context_t;
 
 
@@ -113,16 +112,13 @@ int pcap_dump_callback_on_receiving_packet(const ipacket_t * ipacket, pcap_dump_
 				continue;
 
 			//found one protocol
-
 			//check periodically
 			if( context->file == NULL
-					|| u_second_diff( &ipacket->p_hdr->ts, &context->last_dump_ts) >= context->config->frequency * 1000000L ){
+					|| ipacket->p_hdr->ts.tv_sec  > context->next_ts_to_dump_to_new_file ){
 
 				//close old file
-				if( context->file != NULL ){
+				if( context->file != NULL )
 					_close_pcap_file( context->file );
-					context->file = NULL;
-				}
 
 				//set new file name
 				(void)snprintf(file_name, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s%lu_thread_%d.pcap",
@@ -139,7 +135,7 @@ int pcap_dump_callback_on_receiving_packet(const ipacket_t * ipacket, pcap_dump_
 					);
 					return 0;
 				}
-				context->last_dump_ts = ipacket->p_hdr->ts;
+				context->next_ts_to_dump_to_new_file = ipacket->p_hdr->ts.tv_sec + context->config->frequency;
 			}
 
 			_write_packet( context->file, (char*)ipacket->data,
@@ -159,7 +155,7 @@ pcap_dump_context_t* pcap_dump_start( uint16_t worker_index, pcap_dump_conf_t *c
 	if( ! config->is_enable )
 		return NULL;
 
-	pcap_dump_context_t *context = mmt_alloc( sizeof( pcap_dump_context_t ));
+	pcap_dump_context_t *context = mmt_alloc_and_init_zero(sizeof( pcap_dump_context_t ));
 	context->file = NULL;
 	context->config = config;
 	context->worker_index = worker_index;

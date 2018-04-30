@@ -44,17 +44,17 @@ struct pcap_probe_context_struct{
  */
 static void _alarm_handler( int signal ){
 	extern probe_context_t context;
-	static size_t stat_period_counter = 0, sample_file_period_counter = 0;
+	static size_t stat_period_counter = 0, output_to_file_period_counter = 0;
 
 	struct timeval start_time, end_time;
 	gettimeofday( &start_time, NULL );
 
 	if( context.config->outputs.file->is_sampled && context.config->outputs.file->is_enable ){
-		sample_file_period_counter ++;
-		if( sample_file_period_counter == context.config->outputs.cache_period ){
+		output_to_file_period_counter ++;
+		if( output_to_file_period_counter == context.config->outputs.cache_period ){
 			worker_on_timer_sample_file_period( context.smp[0] );
 			//reset counter
-			sample_file_period_counter = 0;
+			output_to_file_period_counter = 0;
 		}
 	}
 
@@ -69,19 +69,20 @@ static void _alarm_handler( int signal ){
 	//calculate the rest of one second after executed the functions above
 	gettimeofday( &end_time, NULL );
 	size_t usecond = (end_time.tv_sec - start_time.tv_sec)*MICRO_SECOND + (end_time.tv_usec - start_time.tv_usec );
+
 	if( usecond >= MICRO_SECOND ){
 		log_write( LOG_ERR, "Too slow interval processing" );
 		_alarm_handler( SIGALRM );
+		return;
 	}
 
 	DEBUG("next iterate in %zu us", MICRO_SECOND - usecond);
-	fflush( stdout );
+
 	//call this handler again
 	if( usecond == 0 )
 		alarm( 1 ); //ualarm cannot be used for interval >= 1 second
 	else
 		ualarm( MICRO_SECOND - usecond, 0 );
-
 }
 
 /**
@@ -370,10 +371,10 @@ void pcap_capture_start( probe_context_t *context ){
 	}
 
 	//memory for the pcap module
-	context->modules.pcap = mmt_alloc( sizeof( struct pcap_probe_context_struct ));
+	context->modules.pcap = mmt_alloc_and_init_zero( sizeof( struct pcap_probe_context_struct ));
 
 	//allocate context for each thread
-	context->smp = mmt_alloc( sizeof( worker_context_t ) * context->config->thread->thread_count );
+	context->smp = mmt_alloc( sizeof( worker_context_t ) * workers_count );
 
 	//allocate and initialize memory for each worker
 	for( i=0; i<workers_count; i++ ){
@@ -386,7 +387,7 @@ void pcap_capture_start( probe_context_t *context ){
 
 
 		//specific for pcap module
-		context->smp[i]->pcap = mmt_alloc( sizeof( struct pcap_worker_context_struct ));
+		context->smp[i]->pcap = mmt_alloc_and_init_zero( sizeof( struct pcap_worker_context_struct ));
 
 		//pthread_spin_init( & context->smp[i]->pcap->spin_lock, PTHREAD_PROCESS_PRIVATE);
 
@@ -477,13 +478,13 @@ void pcap_capture_start( probe_context_t *context ){
 
 	switch( ret ){
 	case 0: //no more packets are available
-		DEBUG( "reach end of pcap file. No more packets are available" );
+		log_write( LOG_INFO, "Normally reached to the end of pcap file" );
 		break;
 	case -1:// if an error occurs
 		log_write( LOG_ERR, "Error when reading pcap: %s", pcap_geterr( pcap ));
 		break;
 	case -2: // if the loop terminated due to a call to pcap_breakloop() before any packets were processed.
-		DEBUG( "pcap_breakloop() is called" );
+		log_write( LOG_INFO, "pcap_breakloop() is called" );
 		break;
 	}
 
@@ -507,9 +508,12 @@ void pcap_capture_start( probe_context_t *context ){
 			pthread_join( context->smp[i]->pcap->thread_handler, NULL );
 		}
 	}
-	else
+	else{
+		//cancel any currently active alarm
+		alarm( 0 );
 		//when there is only one worker running on the main thread
 		worker_on_stop( context->smp[0] );
+	}
 
 
 	worker_print_common_statistics( context );

@@ -88,7 +88,7 @@ static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 			session = _create_session (ipacket, context);
 
 		IF_ENABLE_PCAP_DUMP(
-			if( context->probe_config->reports.pcap_dump->is_enable )
+			if( context->pcap_dump != NULL)
 				pcap_dump_callback_on_receiving_packet( ipacket, context->pcap_dump );
 		)
 
