@@ -7,10 +7,6 @@
 
 #include <semaphore.h>
 
-#ifndef DPDK_MODULE
-#define DPDK_MODULE
-#endif
-
 #include <rte_random.h>
 #include <rte_ethdev.h>
 #include <rte_prefetch.h>
@@ -23,8 +19,8 @@
 #include "dpdk_capture.h"
 #include "distributor.h"
 
-#include "../../lib/worker.h"
-#include "../../lib/memory.h"
+#include "../../../worker.h"
+#include "../../../lib/memory.h"
 
 #define RX_DESCRIPTORS         4096 	/* Size for RX ring*/
 #define READER_BURST_SIZE       256  	/* Burst size to receive packets from RX ring */

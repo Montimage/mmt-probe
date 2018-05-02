@@ -212,6 +212,7 @@ bool license_check_expiry( const char *license_file, output_t *output ){
 	struct timeval current_time, expired_date;
 	gettimeofday (&current_time, NULL);
 
+	memset( &license, 0, sizeof( license ) );
 	license.mac_addresses = mac_stored_in_license;
 	ret = _decode_license_file( license_file, &license );
 

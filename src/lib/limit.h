@@ -11,6 +11,45 @@
 #define MAX_LENGTH_FULL_PATH_FILE_NAME  256
 #define MAX_LENGTH_REPORT_MESSAGE      3000
 
+//TODO: remove this block
+/*
+#ifndef DEBUG_MODE
+#define DEBUG_MODE
+#endif
+#ifndef PCAP_MODULE
+#define PCAP_MODULE
+#endif
+#ifndef SECURITY_MODULE
+#define SECURITY_MODULE
+#endif
+#ifndef DYNAMIC_CONFIG_MODULE
+#define DYNAMIC_CONFIG_MODULE
+#endif
+#ifndef REDIS_MODULE
+#define REDIS_MODULE
+#endif
+#ifndef KAFKA_MODULE
+#define KAFKA_MODULE
+#endif
+#ifndef MONGODB_MODULE
+#define MONGODB_MODULE
+#endif
+#ifndef PCAP_DUMP_MODULE
+#define PCAP_DUMP_MODULE
+#endif
+#ifndef SIMPLE_REPORT
+#define SIMPLE_REPORT
+#endif
+#ifndef STAT_REPORT
+#define STAT_REPORT
+#endif
+#ifndef LICENSE_CHECK
+#define LICENSE_CHECK
+#endif
+*/
+//end of block to be removed
+
+
 #ifdef DEBUG_MODE
 	#define IF_ENABLE_DEBUG( x ) x
 #else
