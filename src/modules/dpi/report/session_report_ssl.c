@@ -44,15 +44,37 @@ static void _ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * att
 	session_stat->content_class = get_content_class_by_content_flags( get_session_content_flags(ipacket->session) );
 }
 
-static const conditional_handler_t handlers[] = {
-		{.proto_id = PROTO_SSL, .att_id = SSL_SERVER_NAME, .handler = _ssl_server_name_handle},
-};
+
 
 
 //This function is called by session_report.session_report_register to register HTTP extractions
 size_t get_session_ssl_handlers_to_register( const conditional_handler_t **ret ){
+	static const conditional_handler_t handlers[] = {
+			{.proto_id = PROTO_SSL, .att_id = SSL_SERVER_NAME, .handler = _ssl_server_name_handle},
+	};
 	*ret = handlers;
-	return (sizeof handlers / sizeof( conditional_handler_t ));
+	return (sizeof( handlers ) / sizeof( handlers[0] ));
+}
+
+
+/* This function is for reporting ssl session statistics*/
+int print_ssl_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context){
+	session_ssl_stat_t *ssl = session_stat->apps.ssl;
+
+	//does not concern
+	if( unlikely( ssl == NULL || session_stat->app_type != SESSION_STAT_TYPE_APP_SSL ))
+		return 0;
+
+    //case 1://missing dev_prop, cdn_flag
+	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy( dpi_session );
+
+    size_t ret = snprintf( message, message_size,
+            "\"%s\",%u",
+            ssl->hostname,
+			(get_session_content_flags(dpi_session) & MMT_CONTENT_CDN) ? 2 : 0
+    );
+
+    return ret;
 }
 
 #endif

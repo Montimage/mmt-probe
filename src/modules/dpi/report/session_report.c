@@ -9,6 +9,8 @@
 #include "session_report.h"
 
 int print_web_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);
+int print_ssl_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);
+int print_rtp_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);
 
 #ifndef SIMPLE_REPORT
 //This callback is called by DPI periodically
@@ -145,10 +147,14 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 				dpi_session, session_stat, context );
 		break;
 	case SESSION_REPORT_SSL_TYPE:
+		valid += print_ssl_report( &message[ valid ], MAX_LENGTH_REPORT_MESSAGE - valid,
+						dpi_session, session_stat, context );
 		break;
 	case SESSION_REPORT_FTP_TYPE:
 		break;
 	case SESSION_REPORT_RTP_TYPE:
+		valid += print_rtp_report( &message[ valid ], MAX_LENGTH_REPORT_MESSAGE - valid,
+						dpi_session, session_stat, context );
 		break;
 	default:
 		DEBUG("Does not support stat_type = %d", session_stat->app_type );
@@ -389,6 +395,7 @@ void session_report_callback_on_ending_session(const mmt_session_t * dpi_session
 		break;
 	}
 
+	//
 	mmt_probe_free( session_stat->apps.web );
 #endif
 
@@ -462,6 +469,7 @@ static inline void
 
 size_t get_session_web_handlers_to_register(const conditional_handler_t**);
 size_t get_session_ssl_handlers_to_register( const conditional_handler_t **ret );
+size_t get_session_rtp_handlers_to_register( const conditional_handler_t **ret );
 
 bool session_report_register( mmt_handler_t *dpi_handler, session_report_conf_t *config ){
 	if( ! config->is_enable )
@@ -484,6 +492,11 @@ bool session_report_register( mmt_handler_t *dpi_handler, session_report_conf_t 
 
 	if( config->is_ssl ){
 		size = get_session_ssl_handlers_to_register( &handlers );
+		dpi_register_conditional_handler( dpi_handler, size, handlers, NULL );
+	}
+
+	if( config->is_rtp ){
+		size = get_session_rtp_handlers_to_register( &handlers );
 		dpi_register_conditional_handler( dpi_handler, size, handlers, NULL );
 	}
 #endif

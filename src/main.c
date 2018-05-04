@@ -317,7 +317,7 @@ int main( int argc, char** argv ){
 	log_write( LOG_INFO, "MMT-Probe v%s is running on pid %d",
 			get_version(),
 			getpid() );
-	log_write( LOG_INFO, "Modules: %s", MODULES_LIST );
+	log_write( LOG_INFO, "Modules: " MODULES_LIST );
 
 	//DPI initialization
 	if( !init_extraction() ) { // general ixE initialization

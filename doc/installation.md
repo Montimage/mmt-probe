@@ -87,7 +87,7 @@ Consequently no DPI reports will be output.
 
 This option is very helpful if user want to get higher performance for security or dumping network packets to pcap files.
 
-###### `SIMPLE_REPORT`
+##### `SIMPLE_REPORT`
 
 This option enables a simple version of DPI reports: only some attributes (source and desstination of IP, MAC, port number; and upload and download volumes) session report. It is used for MMT-Box.
 
@@ -107,7 +107,7 @@ make all
 
 In addition to output reports to files, MMT-Probe can ouput to redis, kafka and mongodb servers. 
 
-**Install required libraries**
+Install required libraries
 
 - When output to redis, we need `hiredis` library
 
@@ -144,7 +144,7 @@ cd mongo-c-driver-1.9.5
 ./configure --disable-automatic-init-and-cleanup
 ```
 
-**Compile MMT-Probe **
+Compile MMT-Probe:
 
 ```bash
 #support output to file, redis and kafka servers
@@ -162,19 +162,19 @@ These compile options require `MMT-Security` to be installed respectively (see h
 make SECURITY_MODULE all
 ```
 
-###### `PCAP_DUMP_MODULE`
+##### `PCAP_DUMP_MODULE`
 
-###### `DYNAMIC_CONFIG_MODULE`
+##### `DYNAMIC_CONFIG_MODULE`
 
 Enable to modify configuration parameters at runtime
 
-###### `NETCONF_MODULE`
+##### `NETCONF_MODULE`
 
 By default, the dynamic reconfiguration receives new parameters via socket. This option enable the reception via net_conf protocol.
 
 This compile option requires `Sysrepo` and `netopeer2 server`.
 
-###### Reconstruction modules: `HTTP-RECONSTRUCT_MODULE`, `FTP_RECONSTRCT_MODULE`
+##### Reconstruction modules: `HTTP-RECONSTRUCT_MODULE`, `FTP_RECONSTRCT_MODULE`
 
 This option enables reconstruction of tcp payload
 
@@ -189,12 +189,11 @@ This option enables reconstruction of tcp payload
 - `rpm`: create REL-based package (tested on CentOS, Fedora)
 
 
-
 ### Step 3 — Execution
 
 When running `./probe -h` (or `./probe -- -h` in DPDK mode), we obtain:
 
-```
+```bash
 mmt@ubuntu:~/mmt-probe$ ./probe -h
 ./probe [<option>]
 Option:
