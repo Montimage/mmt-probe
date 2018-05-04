@@ -76,5 +76,8 @@ static bool ALWAYS_INLINE is_started_by( const char *string, const char *prefix,
 	return true;
 }
 
+
+#define SWAP(x, y, T) do { T tmp = x; x = y; y = tmp; } while (0)
+
 #define IS_EQUAL_STRINGS( s1, s2 ) (strcmp(s1, s2) == 0)
 #endif /* SRC_LIB_TOOLS_H_ */

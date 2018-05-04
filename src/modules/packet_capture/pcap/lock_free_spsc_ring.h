@@ -13,10 +13,22 @@
 #include <stdatomic.h>
 #include <stdio.h>
 #include "../../../lib/valgrind.h"
+#include "../../../lib/optimization.h"
 
 #define QUEUE_EMPTY  -1
 #define QUEUE_FULL   -2
 #define QUEUE_SUCCESS 0
+
+
+//this lib needs to be compiled by gcc >= 4.9
+#define GCC_VERSION (__GNUC__ * 10000        \
+                     + __GNUC_MINOR__ * 100  \
+                     + __GNUC_PATCHLEVEL__)
+
+// Test for GCC < 4.9.0
+#if GCC_VERSION < 40900
+	#error Need gcc >= 4.9
+#endif
 
 typedef struct lock_free_spsc_ring_struct
 {
@@ -42,8 +54,7 @@ typedef struct lock_free_spsc_ring_struct
 void queue_init( lock_free_spsc_ring_t *q, uint32_t size );
 void queue_free( lock_free_spsc_ring_t *q );
 
-static inline int __attribute__((always_inline))
-queue_push( lock_free_spsc_ring_t *q, uint32_t val  ){
+static ALWAYS_INLINE int queue_push( lock_free_spsc_ring_t *q, uint32_t val  ){
 	uint32_t h;
 	h = q->_head;
 
@@ -67,8 +78,7 @@ queue_push( lock_free_spsc_ring_t *q, uint32_t val  ){
 	return QUEUE_SUCCESS;
 }
 
-static inline int __attribute__((always_inline))
-	queue_pop ( lock_free_spsc_ring_t *q, uint32_t *val ){
+static ALWAYS_INLINE int queue_pop ( lock_free_spsc_ring_t *q, uint32_t *val ){
 	uint32_t  t;
 	t = q->_tail;
 
@@ -88,8 +98,7 @@ static inline int __attribute__((always_inline))
 }
 
 
-static inline int __attribute__((always_inline))
-	queue_pop_bulk ( lock_free_spsc_ring_t *q, uint32_t *val ){
+static ALWAYS_INLINE int queue_pop_bulk ( lock_free_spsc_ring_t *q, uint32_t *val ){
 	uint32_t t = q->_tail;
 
 	if( q->_cached_head == t ){
@@ -111,8 +120,7 @@ static inline int __attribute__((always_inline))
 }
 
 
-static inline void __attribute__((always_inline))
-	queue_update_tail ( lock_free_spsc_ring_t *q, uint32_t tail, uint32_t size ){
+static ALWAYS_INLINE void queue_update_tail ( lock_free_spsc_ring_t *q, uint32_t tail, uint32_t size ){
 	atomic_store_explicit( &q->_tail, (tail + size) % q->_size, memory_order_release );
 }
 #endif /* SRC_QUEUE_LOCK_FREE_SPSC_RING_H_ */

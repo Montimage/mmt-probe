@@ -39,8 +39,7 @@ int data_spsc_ring_init( data_spsc_ring_t *q, uint32_t size, uint32_t element_si
  * @return: 0 if success
  *          1 if q is null
  */
-static inline int __attribute__((always_inline))
-data_spsc_ring_get_tmp_element( const data_spsc_ring_t *q, void **tmp_element ){
+static ALWAYS_INLINE int data_spsc_ring_get_tmp_element( const data_spsc_ring_t *q, void **tmp_element ){
 //	if( unlikely( q == NULL ) )
 //		return 1;
 
@@ -57,8 +56,7 @@ data_spsc_ring_get_tmp_element( const data_spsc_ring_t *q, void **tmp_element ){
  *          2 if the queue is full
  *          3 if the temporary element does not exist (e.g., it is freed by user)
  */
-static inline int __attribute__((always_inline))
-data_spsc_ring_push_tmp_element( data_spsc_ring_t *q ){
+static ALWAYS_INLINE int data_spsc_ring_push_tmp_element( data_spsc_ring_t *q ){
 //	if( unlikely( q == NULL ) )
 //		return 1;
 
@@ -76,8 +74,7 @@ data_spsc_ring_push_tmp_element( data_spsc_ring_t *q ){
  *          1 if q is null
  *          2 if the queue is empty
  */
-static inline int __attribute__((always_inline))
-data_spsc_ring_pop ( data_spsc_ring_t *q, void **val ){
+static ALWAYS_INLINE int data_spsc_ring_pop ( data_spsc_ring_t *q, void **val ){
 	uint32_t tail;
 //	if( unlikely( q == NULL ) )
 //		return 1;
@@ -88,20 +85,17 @@ data_spsc_ring_pop ( data_spsc_ring_t *q, void **val ){
 	return QUEUE_SUCCESS;
 }
 
-static inline int __attribute__((always_inline))
-data_spsc_ring_pop_bulk ( const data_spsc_ring_t *q, uint32_t *tail ){
+static ALWAYS_INLINE int data_spsc_ring_pop_bulk ( const data_spsc_ring_t *q, uint32_t *tail ){
 	return queue_pop_bulk( q->_fifo_index, tail);
 }
 
-static inline void* __attribute__((always_inline))
-data_spsc_ring_get_data( const data_spsc_ring_t *q, uint32_t index ){
+static ALWAYS_INLINE void* data_spsc_ring_get_data( const data_spsc_ring_t *q, uint32_t index ){
 	EXEC_ONLY_IN_VALGRIND_MODE( ANNOTATE_HAPPENS_AFTER( &(q->_fifo_index->_data) ));
 	EXEC_ONLY_IN_VALGRIND_MODE( ANNOTATE_HAPPENS_AFTER( &(q->_fifo_index) ));
 	return q->_data[ q->_fifo_index->_data[ index ] ];
 }
 
-static inline void __attribute__((always_inline))
-data_spsc_ring_update_tail( const data_spsc_ring_t *q, uint32_t tail, uint32_t size ){
+static ALWAYS_INLINE void data_spsc_ring_update_tail( const data_spsc_ring_t *q, uint32_t tail, uint32_t size ){
 	queue_update_tail( q->_fifo_index, tail, size );
 }
 /**

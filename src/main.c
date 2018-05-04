@@ -145,6 +145,11 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 			break;
 
 		case 'X':
+			//example: -X file-output.enable=true
+			//we will separate the phrase "file-output.enable=true" into 2
+			// to expect:
+			//   string_att = "file-output.enable"
+			//   string_val = "true"
 			string_att = optarg;
 			string_val = optarg;
 			while( *string_val != '\0' ){
@@ -278,19 +283,31 @@ int main( int argc, char** argv ){
 			log_write( LOG_WARNING, "Must not run debug mode in production environment" );
 	)
 
+	int ret = 0;
 #ifdef DPDK_MODULE
-	int ret = rte_eal_init(argc, argv);
-	if (ret < 0)
-		rte_exit_failure("Error with EAL initialization\n");
-
-	argc -= ret;
-	argv += ret;
+	//argv is divided into 2 parts: DPDK setting and Probe setting
+	// they are separated by --
+	//We need to jump over the first part
+	for( ; ret < argc; ret ++ )
+		if( argv[ret][0] == '-' && argv[ret][1] == '-')
+			break;
+	//argv[0] is file path of this execution file
+	SWAP( argv[0], argv[ret], char * );
 #endif
 
+	//this block must be put before DPDK to check some parameters:
+	//in case of error, or check vesion => do not need to start DPDK
 	//init context
 	context.is_aborting = false;
-	context.config = _parse_options(argc, argv);
+	context.config = _parse_options(argc - ret, argv + ret);
 	conf_validate( context.config );
+
+#ifdef DPDK_MODULE
+	SWAP( argv[0], argv[ret], char * );
+	ret = rte_eal_init(argc, argv);
+	if (ret < 0)
+		rte_exit_failure("Error with EAL initialization\n");
+#endif
 
 	IF_ENABLE_SECURITY(
 		if( context.config->reports.security != NULL && context.config->reports.security->is_enable )
