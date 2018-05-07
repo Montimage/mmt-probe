@@ -139,8 +139,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 
 	cfg_opt_t radius_output_opts[] = {
 			CFG_BOOL("enable", false, CFGF_NONE),
-			CFG_INT("include-msg", 0, CFGF_NONE),
-			CFG_INT("include-condition", 0, CFGF_NONE),
+			CFG_INT("message-id", 0, CFGF_NONE),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
 	};
@@ -207,6 +206,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_SEC("behaviour", behaviour_opts, CFGF_NONE),
 			CFG_SEC("reconstruct-data", reconstruct_data_opts, CFGF_TITLE | CFGF_MULTI ),
 			CFG_SEC("mongodb-output", mongodb_output_opts, CFGF_NONE),
+			CFG_SEC("radius-report", radius_output_opts, CFGF_NONE),
 			CFG_SEC("dump-pcap", dump_pcap_opts, CFGF_NONE),
 
 			CFG_INT("stats-period", 5, CFGF_NONE),
@@ -533,6 +533,17 @@ static inline security_conf_t *_parse_security_block( cfg_t *cfg ){
 	return ret;
 }
 
+static inline radius_report_conf_t *_parse_radius_block( cfg_t *cfg ){
+	if( (cfg = _get_first_cfg_block( cfg, "radius-report")) == NULL )
+		return NULL;
+
+	radius_report_conf_t *ret = mmt_alloc( sizeof( radius_report_conf_t ));
+	ret->is_enable = cfg_getbool( cfg, "enable" );
+	ret->message_code = cfg_getint( cfg, "message-id" );
+	ret->output_channels = _parse_output_channel( cfg );
+	return ret;
+}
+
 static inline session_report_conf_t *_parse_session_block( cfg_t *cfg ){
 	if( (cfg = _get_first_cfg_block( cfg, "session-report")) == NULL )
 		return NULL;
@@ -691,6 +702,7 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 	conf->reports.socket = _parse_socket_block( cfg );
 
 	conf->reports.pcap_dump = _parse_dump_to_file(cfg);
+	conf->reports.radius   = _parse_radius_block( cfg );
 
 	conf->session_timeout = _parse_session_timeout_block( cfg );
 
@@ -773,6 +785,9 @@ void conf_release( probe_conf_t *conf){
 		mmt_probe_free( conf->reports.pcap_dump->protocols );
 		mmt_probe_free( conf->reports.pcap_dump );
 	}
+
+	mmt_probe_free( conf->reports.radius );
+
 
 	if( conf->reconstructions.ftp ){
 		mmt_probe_free( conf->reconstructions.ftp->directory );

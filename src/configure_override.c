@@ -182,7 +182,10 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__SESSION_REPORT__FTP,    "session-report.ftp",    &conf->reports.session->is_ftp,    BOOL ),
 	(CONF_ATT__SESSION_REPORT__HTTP,   "session-report.http",   &conf->reports.session->is_http,   BOOL),
 	(CONF_ATT__SESSION_REPORT__RTP,    "session-report.rtp",    &conf->reports.session->is_rtp,    BOOL ),
-	(CONF_ATT__SESSION_REPORT__SSL,    "session-report.ssl",    &conf->reports.session->is_ssl,    BOOL)
+	(CONF_ATT__SESSION_REPORT__SSL,    "session-report.ssl",    &conf->reports.session->is_ssl,    BOOL),
+	//radius-report
+	(CONF_ATT__RADIUS_REPORT__ENABLE,     "radius-report.enable",     &conf->reports.radius->is_enable,  BOOL),
+	(CONF_ATT__RADIUS_REPORT__MESSAGE_ID, "radius-report.message-id", &conf->reports.radius->message_code, UINT16_T )
 )
 
 

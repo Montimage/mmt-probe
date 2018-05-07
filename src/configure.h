@@ -59,7 +59,6 @@ typedef struct mongodb_output_conf_struct{
 	//further setting for kafka connection, such as, TLS certificate, cipher type, ...
 }mongodb_output_conf_t;
 
-
 typedef struct input_source_conf_struct{
 
 	enum {ONLINE_ANALYSIS, OFFLINE_ANALYSIS} input_mode;
@@ -196,6 +195,13 @@ typedef struct session_report_conf_struct{
 	bool is_rtp;
 }session_report_conf_t;
 
+typedef struct radius_report_conf_struct{
+	bool is_enable;
+	uint16_t message_code;
+	output_channel_conf_t output_channels;
+}radius_report_conf_t;
+
+
 typedef struct output_conf_struct{
 	bool is_enable;
 	uint32_t cache_max;
@@ -236,6 +242,7 @@ typedef struct probe_conf_struct{
 		event_report_conf_t *events;
 
 		pcap_dump_conf_t *pcap_dump;
+		radius_report_conf_t *radius;
 	}reports;
 
 	struct reconstruct_data_struct{

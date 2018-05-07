@@ -161,7 +161,6 @@ static inline bool dpi_copy_string_value( char *target, size_t target_size, mmt_
 }
 
 
-
 typedef struct conditional_handler_struct{
 	uint32_t proto_id;
 	uint32_t att_id;
@@ -197,7 +196,7 @@ static inline int dpi_register_conditional_handler( mmt_handler_t *dpi_handler, 
 	return ret;
 }
 
-static inline int dpi_unregister_conditional_handler( mmt_handler_t *dpi_handler, size_t count, const conditional_handler_t *handlers, void *user_argv ) {
+static inline int dpi_unregister_conditional_handler( mmt_handler_t *dpi_handler, size_t count, const conditional_handler_t *handlers) {
 	int i, ret = 0;
 	const conditional_handler_t *handler;
 

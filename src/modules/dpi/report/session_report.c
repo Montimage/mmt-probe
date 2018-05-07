@@ -518,12 +518,12 @@ bool session_report_unregister( mmt_handler_t *dpi_handler, session_report_conf_
 	//register protocols and attributes for application statistic: WEB, FTP, RTP, SSL
 	if( config->is_http ){
 		size = get_session_web_handlers_to_register( &handlers );
-		dpi_unregister_conditional_handler( dpi_handler, size, handlers, NULL );
+		dpi_unregister_conditional_handler( dpi_handler, size, handlers);
 	}
 
 	if( config->is_ssl ){
 		size = get_session_ssl_handlers_to_register( &handlers );
-		dpi_unregister_conditional_handler( dpi_handler, size, handlers, NULL );
+		dpi_unregister_conditional_handler( dpi_handler, size, handlers );
 	}
 #endif
 

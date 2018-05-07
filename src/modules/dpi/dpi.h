@@ -19,6 +19,7 @@
 typedef struct no_session_report_context_struct no_session_report_context_t;
 typedef struct list_event_based_report_context_struct list_event_based_report_context_t;
 typedef struct session_stat_struct session_stat_t;
+#include "report/radius_report.h"
 #endif
 
 #ifdef PCAP_DUMP_MODULE
@@ -42,6 +43,7 @@ typedef struct dpi_context_struct{
 		no_session_report_context_t *no_session_report;
 		list_event_based_report_context_t *event_reports;
 		micro_flow_report_context_t *micro_reports;
+		radius_report_context_t *radius_report;
 	)
 
 	//number of stat_period, e.g., 5s,
