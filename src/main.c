@@ -24,6 +24,7 @@
 #include "lib/memory.h"
 #include "lib/version.h"
 #include "lib/limit.h"
+#include "lib/restart_proc.h"
 
 #include "context.h"
 #include "configure_override.h"
@@ -217,25 +218,36 @@ static inline void _stop_modules( probe_context_t *context){
 
 }
 
+static probe_context_t context;
+probe_context_t *get_context(){
+	return &context;
+}
 
+static char **exec_argv = NULL;
+static inline void _clone_argv( int argc, char *const*argv ){
+	int i;
 
-//no static: other file can access to this variable by using extern keyword
-probe_context_t context;
+	exec_argv = malloc( sizeof( char* ) * ( argc + 1) ); //+1 : the last element of exec_argv is NULL
+	exec_argv[ argc ] = NULL;
+	for( i=0; i<argc; i++ )
+		exec_argv[i] = strdup( argv[i] );
+}
+
 
 /* This signal handler ensures clean exits */
 void signal_handler(int type) {
+	if(  context.is_aborting ){
+#ifdef DPDK_MODULE
+		rte_exit_failure( "Received signal %d while processing other one. Exit immediately." );
+#else
+		log_write(LOG_ERR, "Received signal %d while processing other one. Exit immediately." );
+		fflush( stdout );
+		exit( EXIT_FAILURE );
+#endif
+	}
+
 	switch (type) {
 	case SIGINT:
-		if(  context.is_aborting ){
-#ifdef DPDK_MODULE
-			rte_exit_failure( "Received Ctrl+C again. Exit immediately." );
-#else
-			log_write(LOG_ERR, "Received Ctrl+C again. Exit immediately." );
-			fflush( stdout );
-			exit( EXIT_FAILURE );
-#endif
-		}
-
 		fprintf(stderr, "Received Ctrl+C. Releasing resource ...\n");
 		log_write(LOG_INFO, "Received Ctrl+C. Releasing resource ...");
 		context.is_aborting = true;
@@ -245,13 +257,21 @@ void signal_handler(int type) {
 
 		//segmentation fault
 	case SIGSEGV:
-		log_write(LOG_ERR, "Segv signal received! Exit immediately!");
+		log_write(LOG_ERR, "Segv signal received! Restart myself!");
 		print_execution_trace();
-		exit( EXIT_FAILURE );
+
+		//restart only if exec in online mode
+		if( context.config->input->input_mode == ONLINE_ANALYSIS )
+			restart_application( exec_argv[0], exec_argv );
+		else
+			exit( EXIT_FAILURE );
+
 		break;
 	case SIGTERM:
 		log_write(LOG_ERR, "Termination signal received! Cleaning up before exiting!");
+		exit( EXIT_FAILURE );
 		break;
+
 	case SIGABRT:
 #ifdef DPDK_MODULE
 		rte_exit_failure( "Abort signal received! Cleaning up before exiting!" );
@@ -259,9 +279,6 @@ void signal_handler(int type) {
 		log_write(LOG_ERR, "Abort signal received! Cleaning up before exiting!");
 		exit( EXIT_FAILURE );
 #endif
-		break;
-	case SIGKILL:
-		log_write(LOG_ERR, "Kill signal received! Cleaning up before exiting!");
 		break;
 	}
 }
@@ -272,6 +289,9 @@ void signal_handler(int type) {
 
 
 int main( int argc, char** argv ){
+	//clone argv to use when restarting the program if received segmentation faults
+	_clone_argv(argc, argv);
+
 	signal(SIGINT,  signal_handler);
 	signal(SIGTERM, signal_handler);
 	signal(SIGSEGV, signal_handler);
@@ -334,6 +354,7 @@ int main( int argc, char** argv ){
 #else
 	pcap_capture_start( &context );
 #endif
+
 
 	//end
 	close_extraction();

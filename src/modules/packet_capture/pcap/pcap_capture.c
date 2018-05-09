@@ -43,16 +43,16 @@ struct pcap_probe_context_struct{
  * @param signal
  */
 static void _alarm_handler( int signal ){
-	extern probe_context_t context;
+	probe_context_t *context = get_context();
 	static size_t stat_period_counter = 0, output_to_file_period_counter = 0;
 
 	struct timeval start_time, end_time;
 	gettimeofday( &start_time, NULL );
 
-	if( context.config->outputs.file->is_sampled && context.config->outputs.file->is_enable ){
+	if( context->config->outputs.file->is_sampled && context->config->outputs.file->is_enable ){
 		output_to_file_period_counter ++;
-		if( output_to_file_period_counter == context.config->outputs.cache_period ){
-			worker_on_timer_sample_file_period( context.smp[0] );
+		if( output_to_file_period_counter == context->config->outputs.cache_period ){
+			worker_on_timer_sample_file_period( context->smp[0] );
 			//reset counter
 			output_to_file_period_counter = 0;
 		}
@@ -60,8 +60,8 @@ static void _alarm_handler( int signal ){
 
 	//increase 1 second;
 	stat_period_counter ++;
-	if( stat_period_counter == context.config->stat_period ){
-		worker_on_timer_stat_period( context.smp[0] );
+	if( stat_period_counter == context->config->stat_period ){
+		worker_on_timer_stat_period( context->smp[0] );
 		//reset counter
 		stat_period_counter = 0;
 	}

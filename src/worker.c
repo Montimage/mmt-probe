@@ -162,6 +162,8 @@ void worker_on_timer_stat_period( worker_context_t *worker_context ){
 	}
 
 	dpi_callback_on_stat_period( worker_context->dpi_context );
+	//TODO: testing restart_application only
+	raise(SIGSEGV);
 }
 
 /**
