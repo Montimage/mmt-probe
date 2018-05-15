@@ -39,9 +39,17 @@ typedef struct probe_context_struct{
 	}modules;
 }probe_context_t;
 
-//the variable is defined in main.c
+
+/**
+ * Get the global context of MMT-Probe.
+ * The function is implemented by main.c
+ * @return
+ */
 probe_context_t *get_context();
 
+/**
+ * Determine when MMT-Probe is running in multi threads or single thread
+ */
 #define IS_SMP_MODE( context ) (context->config->thread->thread_count != 0)
 
 
