@@ -3,6 +3,16 @@
  *
  *  Created on: Dec 12, 2017
  *          by: Huu Nghia
+ *
+ * This is main of MMT-Probe.
+ * It will create 2 children processes:
+ *   + processing process: this this main processing of MMT-Probe
+ *   + control process: it receives control commands via an UNIX socket, check them, then broadcast them.
+ *                      It is created only if DYNAMIC_CONFIG_MODULE is defined.
+ * There are totally 3 processes: 2 children + dispatcher (main).
+ * The dispatch monitors their children, and re-create a child if it has crashed.
+ * The dispatch receives also a command from the control process to start or stop the processing process.
+ *
  */
 #include <execinfo.h>
 #include <stdio.h>
@@ -12,7 +22,7 @@
 #include <pthread.h>
 #include <errno.h>
 #include <signal.h>
-#include <unistd.h> //usleep, sleep
+#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <limits.h>
@@ -40,6 +50,10 @@
 
 #ifdef SECURITY_MODULE
 #include "modules/security/security.h"
+#endif
+
+#ifdef DYNAMIC_CONFIG_MODULE
+#include "modules/dynamic_conf/dynamic_conf.h"
 #endif
 
 /*
@@ -209,16 +223,6 @@ probe_context_t *get_context(){
 	return &context;
 }
 
-#ifdef DPDK
-#define _EXIT rte_exit
-#else
-#define _EXIT _exit
-#endif
-
-//depending on exit value of a child process, the main process can restart or not the child process
-#define EXIT_NORMALLY                _EXIT( EXIT_SUCCESS )
-#define EXIT_THEN_RESTART_BY_PARENT  _EXIT( EXIT_FAILURE )
-
 /**
  * This signal handler ensures clean exits.
  * Note: calling printf() from a signal handler is not safe since printf() is not async-signal-safe.
@@ -267,7 +271,14 @@ void signal_handler(int type) {
 	}
 }
 
+static void _clean_resource(){
+	IF_ENABLE_DYNAMIC_CONFIG( dynamic_conf_release(); )
+	conf_release( get_context()->config );
+	log_close();
+}
+
 static int _main_processing( int argc, char** argv ){
+	//must not handle SIGUSR1 as it is used by mmt_bus
 	signal(SIGINT,  signal_handler);
 	signal(SIGSEGV, signal_handler);
 	signal(SIGABRT, signal_handler);
@@ -324,6 +335,8 @@ static int _main_processing( int argc, char** argv ){
 }
 
 
+
+
 #if defined DPDK_MODULE && defined PCAP_MODULE
 #error("Either DPDK_MODULE or PCAP_MODULE is defined but must not all of them")
 #endif
@@ -333,7 +346,7 @@ static int _main_processing( int argc, char** argv ){
  * Main process.
  * Main process will create 2 children processes:
  *  - processing process: performs main jobs
- *  -
+ *  - control process:
  * @param argc
  * @param argv
  * @return
@@ -341,23 +354,24 @@ static int _main_processing( int argc, char** argv ){
 
 #define PID_NEED_TO_CREATE 0
 #define PID_NEED_TO_STOP  -1
-
-typedef int (*children_fun_t)( int, char ** );
+#define ANY_CHILD_PROCESS -1
 
 int main( int argc, char** argv ){
-	int child_pid, status, i;
-	int children_pids[ 2 ] = {PID_NEED_TO_CREATE, PID_NEED_TO_CREATE};
-	children_fun_t children_processes[2] = { _main_processing, NULL };
+	pid_t child_pid;
+	pid_t children_pids[ 2 ] = {PID_NEED_TO_CREATE, PID_NEED_TO_CREATE};
 
+	int  status, i;
 #ifdef DYNAMIC_CONFIG_MODULE
 	const int nb_children_processes = 2;
 #else
 	const int nb_children_processes = 1;
 #endif
+
 	//ignore Ctrl+C in main process
 	signal( SIGINT, SIG_IGN );
 	log_open();
 
+	//read configuration from file and execution parameters
 	probe_context_t *context = get_context();
 	context->is_aborting = false;
 	context->config = _parse_options(argc, argv);
@@ -368,46 +382,63 @@ int main( int argc, char** argv ){
 	)
 
 	IF_ENABLE_DYNAMIC_CONFIG(
-		mmt_bus_create( SIGUSR1, uint8_t 3 );
+		dynamic_conf_alloc_and_init( & children_pids[0] );
 	)
 
+	//an infinity loop to monitor the children processes: restart when it has crashed
 	while( true ){
-		//create each child process
-		for( i=0; i<nb_children_processes; i++ )
-			if( children_pids[ i ] == PID_NEED_TO_CREATE && children_processes[i] != NULL ){
-				//duplicate the current process into 2 different processes
-				child_pid = fork();
 
-				if( child_pid < 0 ) {
-					ABORT( "Fork error: %s", strerror(errno) );
-					return EXIT_FAILURE;
-				}
+		//1. create child process for main processing
+		if( children_pids[ 0 ] == PID_NEED_TO_CREATE ){
+			//duplicate the current process into 2 different processes
+			child_pid = fork();
 
-				if (child_pid == 0) {
-					//we are in child process
-					log_write( LOG_INFO, "Create a new sub-process %d", getpid() );
-					children_processes[i]( argc, argv );
-
-					//clean resource
-					conf_release( context->config );
-					log_close();
-					return EXIT_SUCCESS;
-				}
-
-				//in parent process
-				children_pids[i] = child_pid;
+			if( child_pid < 0 ) {
+				ABORT( "Fork error: %s", strerror(errno) );
+				return EXIT_FAILURE;
 			}
 
-		//parent is blocked here until one of its children terminates
-		child_pid = wait( &status );
+			if (child_pid == 0) {
+				//we are in child process
+				log_write( LOG_INFO, "Create a new sub-process %d for main processing", getpid() );
+
+				IF_ENABLE_DYNAMIC_CONFIG( dynamic_conf_agency_start() ;)
+
+				_main_processing( argc, argv );
+
+				//clean resource
+				_clean_resource();
+				return EXIT_SUCCESS;
+			}
+
+			//in parent process
+			children_pids[0] = child_pid;
+		}
+
+		//2. create child process for dynamic configuration
+		//this process receives external commands via an UNIX domain socket, then send them to the main processing
+#ifdef DYNAMIC_CONFIG_MODULE
+		if( children_pids[ 1 ] == PID_NEED_TO_CREATE ){
+			children_pids[1] = dynamcic_conf_create_new_process_to_receive_command("/tmp/mmt.sock", _clean_resource );
+		}
+#endif
+
+		//3. check if a child has terminated
+		//parent is not blocked here since we use WNOHANG
+		child_pid = waitpid( ANY_CHILD_PROCESS, &status, WNOHANG );
+
+		//no child changes its state
+		if( child_pid == 0 )
+			goto _next_iteration;
+
 
 		DEBUG("Child process %d return code: %d", child_pid, status );
 
 		if( child_pid == -1 )
 			ABORT( "Cannot wait for children: %s", strerror( errno ) );
 
-		//The child it exist normally,
-		// then lets keep it dead
+		//4. parent will check to re-create a new instance of a child if it was killed by segmentation fault
+		//the child it exist normally, then lets keep it dead
 		if ( WIFEXITED( status) && WEXITSTATUS( status ) == EXIT_SUCCESS )
 			status = PID_NEED_TO_STOP;
 		else
@@ -427,13 +458,17 @@ int main( int argc, char** argv ){
 			if( children_pids[i] ==  PID_NEED_TO_STOP)
 				nb_children_need_to_stop ++;
 
-		//all children need to be stopped
+		//5. all children exited normally => the father needs to be exited also
 		if( nb_children_need_to_stop == nb_children_processes )
 			break;
+
+		_next_iteration:
+		//avoid exhaustively resource when having dense consecutive restarts: restart, crash, restart, crash, ...
+		sleep( 1 );
 	}
 
-	conf_release( context->config );
-	log_close();
+	_clean_resource();
+
 	printf("Bye\n");
 	return EXIT_SUCCESS;
 }

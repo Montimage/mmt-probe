@@ -8,6 +8,7 @@
 #ifndef SRC_LIB_TOOLS_H_
 #define SRC_LIB_TOOLS_H_
 #include <sys/time.h>
+#include <stdlib.h>
 
 #include "optimization.h"
 

@@ -38,6 +38,12 @@ static inline void log_close(){
 	do{                                                                     \
 		log_write( LOG_ERR, format,## __VA_ARGS__ );                        \
 		abort();                                                            \
-	}while( 0 )                                                             \
+	}while( 0 )
+
+#define ASSERT( exp, format, ... )                                          \
+	while( !(exp) ){                                                        \
+		log_write( LOG_ERR, format,## __VA_ARGS__ );                        \
+		abort();                                                            \
+	}
 
 #endif /* SRC_LIB_LOG_H_ */

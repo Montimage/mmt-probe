@@ -11,34 +11,43 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include <signal.h>
 
-#define MMT_BUS_MAX_MESSAGE_SIZE 10000
+#include "command.h"
+//we send a message that can contain at least one command_t
+#define MMT_BUS_MAX_MESSAGE_SIZE (MMT_CMD_PARAM_MAX_LENGTH + sizeof( command_t) )
+
 //number of subscribers
 #define MMT_BUS_MAX_SUBSCRIBERS      3
 
-bool mmt_bus_create( int signal_id );
+bool mmt_bus_create();
 
 void mmt_bus_release( );
 
 typedef enum{
-	MMT_BUS_SUCCESS,
-	MMT_BUS_LOCK_ERROR,
-	MMT_BUS_OVER_MSG_SIZE,
-	MMT_BUS_NO_INIT,
-	MSG_BUS_OLD_MSG_NO_CONSUME
+	MMT_BUS_SUCCESS            = 0,
+	MMT_BUS_LOCK_ERROR         = 1,
+	MMT_BUS_OVER_MSG_SIZE      = 2,
+	MMT_BUS_NO_INIT            = 3,
+	MSG_BUS_OLD_MSG_NO_CONSUME = 4
 }mmt_bus_code_t;
 /**
  *
  * @param topic_id
  * @param message
  * @param message_size
- * @param nb_consumers if this is not NULL,
- * 			the function will be blocked until the message are consumed by all subscribers,
- * 			then the function will set value of nb_consumers as number of subscribers.
+ * @param reply_code if this is not NULL,
+ * 			the caller will be blocked until the message is consumed, then processed by at least one subscriber.
+ * 			A subscriber marks its processing by reply a code that is different from DYN_CONF_CMD_DO_NOTHING.
+ *          The value of reply_code will be set to this code.
  *
  * @return
+ * - MMT_BUS_SUCCESS if everything works well
+ * - MMT_BUS_OVER_MSG_SIZE if message_size is bigger than MMT_BUS_MAX_MESSAGE_SIZE
+ * - MMT_BUS_NO_INIT if the function is called before `mmt_bus_create`
+ * - MSG_BUS_OLD_MSG_NO_CONSUME if the previous message has not been processed
  */
-mmt_bus_code_t mmt_bus_publish( const void *message, size_t message_size, size_t *nb_consumers );
+mmt_bus_code_t mmt_bus_publish( const char *message, size_t message_size, uint16_t *reply_code );
 
 /**
  * @param message
@@ -48,7 +57,7 @@ mmt_bus_code_t mmt_bus_publish( const void *message, size_t message_size, size_t
  * @note: the functions used inside bus_subscriber_callback_t must be async-safe
  *  as they are called inside an interrupt handler.
  */
-typedef void (*bus_subscriber_callback_t)( const char *message, size_t message_size, void *user_data );
+typedef int (*bus_subscriber_callback_t)( const char *message, size_t message_size, void *user_data );
 
 /**
  * Subscribe the calling process to the bus.

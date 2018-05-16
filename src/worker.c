@@ -126,7 +126,7 @@ void worker_on_start( worker_context_t *worker_context ){
 
 #ifdef LICENSE_CHECK
 	if( worker_context->index == 0 )
-		if( !license_check_expiry( context.config->license_file, worker_context->output ))
+		if( !license_check_expiry( get_context()->config->license_file, worker_context->output ))
 			abort();
 #endif
 }
@@ -163,7 +163,7 @@ void worker_on_timer_stat_period( worker_context_t *worker_context ){
 
 	dpi_callback_on_stat_period( worker_context->dpi_context );
 	//TODO: testing restart_application only
-	raise(SIGSEGV);
+	//raise(SIGSEGV);
 }
 
 /**

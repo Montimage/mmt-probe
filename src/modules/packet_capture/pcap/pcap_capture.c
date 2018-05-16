@@ -76,7 +76,7 @@ static void _alarm_handler( int signal ){
 		return;
 	}
 
-	DEBUG("next iterate in %zu us", MICRO_SECOND - usecond);
+	//DEBUG("next iterate in %zu us", MICRO_SECOND - usecond);
 
 	//call this handler again
 	if( usecond == 0 )

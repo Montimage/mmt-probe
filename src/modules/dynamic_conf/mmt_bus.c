@@ -10,9 +10,10 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/mman.h>
 #include <string.h>
 #include <errno.h>
 #include <pthread.h>
@@ -22,6 +23,12 @@
 #include "../../lib/tools.h"
 #include "../../lib/log.h"
 
+/**
+ * The id signal to inform other processes to read data in the bus.
+ * This signal must not be used elsewhere.
+ */
+#define SIGNAL_ID SIGUSR1
+
 struct subscriber{
 	pid_t pid;
 	void *user_data;
@@ -29,19 +36,18 @@ struct subscriber{
 };
 
 struct mmt_bus{
-	int signal_id;
 	uint8_t nb_subscribers;
-	uint8_t nb_consumers;   //nb of subscribers that consumed the message
 	struct subscriber sub_lst[ MMT_BUS_MAX_SUBSCRIBERS ];
 	pthread_mutex_t mutex; //mutex to synchronize read/write data among publishers and subscribers
 
 	size_t message_size; //real size of message being used
 	char message[ MMT_BUS_MAX_MESSAGE_SIZE ];
+	int reply_code;
 };
 
 static struct mmt_bus *bus = NULL;
 
-bool mmt_bus_create( int signal_id ){
+bool mmt_bus_create(){
 	//already created
 	if( bus != NULL )
 		return false;
@@ -59,7 +65,6 @@ bool mmt_bus_create( int signal_id ){
 
 	//initialize memory segment
 	memset( bus, 0, total_shared_memory_size );
-	bus->signal_id = signal_id;
 
 	// initialise mutex so it works properly in shared memory
 	pthread_mutexattr_t attr;
@@ -70,7 +75,7 @@ bool mmt_bus_create( int signal_id ){
 	return true;
 }
 
-int mmt_bus_publish( const void *message, size_t message_size, size_t *nb_consumers ){
+mmt_bus_code_t mmt_bus_publish( const char*message, size_t message_size, uint16_t *reply_code ){
 	int i;
 	if( bus == NULL )
 		return MMT_BUS_NO_INIT;
@@ -78,12 +83,16 @@ int mmt_bus_publish( const void *message, size_t message_size, size_t *nb_consum
 		return MMT_BUS_OVER_MSG_SIZE;
 
 	bool old_msg_is_consummed = false;
-	//block memory
+
+	//cannot block memory?
 	if( pthread_mutex_lock( &bus->mutex ) != 0){
 		log_write( LOG_ERR, "Cannot lock mmt-bus for publishing: %s", strerror( errno) );
 		return MMT_BUS_LOCK_ERROR;
 	}
-	if( bus->nb_consumers == bus->nb_subscribers  ){
+
+//	DEBUG("Number of subscribers: %d", bus->nb_subscribers );
+	//the message must be processed by at leat one subscriber
+	if( bus->reply_code != DYN_CONF_CMD_DO_NOTHING ){
 		old_msg_is_consummed = true;
 
 		//store data to the shared memory segment
@@ -91,7 +100,7 @@ int mmt_bus_publish( const void *message, size_t message_size, size_t *nb_consum
 		bus->message_size = message_size;
 
 		//this message is fresh, no one consumes it
-		bus->nb_consumers = 0;
+		bus->reply_code = DYN_CONF_CMD_DO_NOTHING;
 	}
 
 	//unblock
@@ -103,52 +112,75 @@ int mmt_bus_publish( const void *message, size_t message_size, size_t *nb_consum
 	//notify to all subscribers
 	for( i=0; i<MMT_BUS_MAX_SUBSCRIBERS; i++ )
 		if( bus->sub_lst[i].pid != 0 ){
-			kill( bus->sub_lst[i].pid, bus->signal_id );
+//			DEBUG("Wake up process %d", bus->sub_lst[i].pid );
+			kill( bus->sub_lst[i].pid, SIGNAL_ID );
 		}
 
-	if( nb_consumers == NULL )
+	if( reply_code == NULL )
 		return MMT_BUS_SUCCESS;
 
-	//waiting for the message is consumed by all subscribers
-	*nb_consumers = 0;
-	while( *nb_consumers == 0 ){
+	//waiting for a response from one of the subscribers
+	while( true ){
+
 		if( pthread_mutex_lock( &bus->mutex ) != 0){
 			log_write( LOG_ERR, "Cannot lock mmt-bus for publishing: %s", strerror( errno) );
 			return MMT_BUS_LOCK_ERROR;
 		}
-		if( bus->nb_consumers == bus->nb_subscribers  )
-			*nb_consumers = bus->nb_consumers;
+
+		//one subscriber replied
+		if( bus->reply_code != DYN_CONF_CMD_DO_NOTHING ){
+			*reply_code = bus->reply_code;
+			goto _end;
+		}
+
 		//unblock
 		pthread_mutex_unlock( &bus->mutex );
 
 		usleep( 10000 );
 	}
 
+	_end:
+	pthread_mutex_unlock( &bus->mutex );
+
 	return MMT_BUS_SUCCESS;
 }
 
-void _signal_handler( int type ){
+static void _signal_handler( int type ){
 	int i;
 	char msg[ MMT_BUS_MAX_MESSAGE_SIZE ];
 	size_t msg_size = 0;
+
+//	DEBUG("Subscriber is waken up");
 
 	pid_t pid = getpid();
 	for( i=0; i<MMT_BUS_MAX_SUBSCRIBERS; i++ )
 		if( bus->sub_lst[i].pid == pid ){
 			if( bus->sub_lst[i].callback != NULL ){
-
+				//TODO: pthread_mutex_lock is not signal-safety
 				if( pthread_mutex_lock( &bus->mutex ) == 0){
 					msg_size = bus->message_size;
 					memcpy( msg, bus->message, msg_size );
-					bus->nb_consumers ++;
-					//unblock
-					pthread_mutex_unlock( &bus->mutex );
+					pthread_mutex_unlock( &bus->mutex ); //unblock
 
-					bus->sub_lst[i].callback( bus->message, bus->message_size, bus->sub_lst[i].user_data );
+					//fire the callback of the subscriber
+					int ret = bus->sub_lst[i].callback( msg, msg_size, bus->sub_lst[i].user_data );
+
+					//DEBUG("Reply code: %d", ret );
+
+					//update reply code
+					if( ret != DYN_CONF_CMD_DO_NOTHING ){
+						if( pthread_mutex_lock( &bus->mutex ) == 0){
+							bus->reply_code = ret;
+							pthread_mutex_unlock( &bus->mutex );
+						}
+					}
+
 				}else
 					log_write( LOG_ERR, "Cannot lock mmt-bus for reading: %s", strerror( errno) );
 				return;
 			}
+			log_write( LOG_ERR, "Callback off %d-th (pid = %d) is NULL", i, pid );
+			return;
 		}
 }
 
@@ -175,8 +207,10 @@ bool mmt_bus_subscribe( bus_subscriber_callback_t cb, void *user_data ){
 
 			bus->nb_subscribers ++;
 
+//			DEBUG("Number of subscribers: %d", bus->nb_subscribers );
+
 			//register a handler to respond to a notification from a publisher
-			signal( bus->signal_id, _signal_handler );
+			signal( SIGNAL_ID , _signal_handler );
 
 			pthread_mutex_unlock( &bus->mutex );
 			return true;
@@ -184,6 +218,7 @@ bool mmt_bus_subscribe( bus_subscriber_callback_t cb, void *user_data ){
 	}
 	pthread_mutex_unlock( &bus->mutex );
 
+	log_write( LOG_ERR, "Number of subscribers is bigger than the limit (%d)", MMT_BUS_MAX_SUBSCRIBERS );
 	//no more slot for this
 	return false;
 }
@@ -202,7 +237,7 @@ bool mmt_bus_unsubscribe(){
 		if( bus->sub_lst[i].pid == pid ){
 			bus->sub_lst[i].pid = 0; //this is enough to unregister
 			//unregister signal handler
-			signal( bus->signal_id, SIG_DFL );
+			signal( SIGNAL_ID, SIG_DFL );
 
 			bus->nb_subscribers --;
 

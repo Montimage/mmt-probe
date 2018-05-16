@@ -17,73 +17,74 @@
 #include "../../lib/linked_list.h"
 #include "../../lib/memory.h"
 
+#include "mmt_bus.h"
+#include "server.h"
 
+static int _receive_message( const char *message, size_t message_size, void *user_data ){
+	const command_t *cmd = (command_t *) message;
+	pid_t *pid = (pid_t *) user_data;
 
-typedef struct callback_node_struct{
-	dynamic_conf_prefix_t prefix;
+	ASSERT( pid != NULL, "Must not be NULL" );
 
-	void *user_data;
-	dynamic_conf_callback callback;
-
-	struct callback_node_struct *next;
-}callback_node_t;;
-
-struct dynamic_conf_struct{
-	uint32_t lcore_id; //id of logical core on which the timer is running
-	bool is_running;
-	callback_node_t *callback_list;
-
-	pthread_t thread_handler;
-	char *file_descriptor;
-	pthread_spinlock_t spin_lock;
-};
-
-
-dynamic_config_context_t *dynamic_conf_alloc_and_init( const char * file_descriptor ){
-	dynamic_config_context_t *ret = mmt_alloc( sizeof( dynamic_config_context_t ));
-	ret->file_descriptor = strdup( file_descriptor );
-
-	ret->callback_list = NULL;
-	return ret;
-}
-
-static ALWAYS_INLINE bool _is_listening( dynamic_config_context_t *context ){
-	bool ret;
-	ret = context->is_running;
-	return ret;
-}
-
-bool dynamic_conf_register( dynamic_config_context_t *context, dynamic_conf_prefix_t prefix,  dynamic_conf_callback cb, void *user_data  ){
-	if( _is_listening(context) )
-		return false;
-
-	callback_node_t *el;
-	LL_FOREACH( context->callback_list, el ){
-		if( el->prefix == prefix ){
-			DEBUG( "Prefix %d has been registered.", prefix );
-			return false;
+	switch( cmd->id ){
+	case DYN_CONF_CMD_START:
+		//it is running
+		if( *pid > 0  ){
+			return DYN_CONF_CMD_REPLY_CHILD_RUNNING;
+		}else{
+			*pid = 0; //once the value is changed to 0, the main process will (re)create the processing process
+			return DYN_CONF_CMD_REPLY_OK;
 		}
+
+		break;
+	case DYN_CONF_CMD_STOP:
+		if( *pid <= 0 )
+			return DYN_CONF_CMD_REPLY_CHILD_STOPPING;
+		else{
+			//send a Ctrl+C signal to the processing process
+			kill( *pid, SIGINT );
+			return DYN_CONF_CMD_REPLY_OK;
+		}
+		break;
+//		break;
+//	case DYN_CONF_CMD_UPDATE:
+//		break;
+//	default:
+//		log_write( LOG_ERR, "Command is not supported: %d", cmd->id );
 	}
-
-	el = mmt_alloc( sizeof(callback_node_t));
-	el->prefix = prefix;
-	el->callback = cb;
-	el->user_data = user_data;
-	el->next = NULL;
-	LL_APPEND( context->callback_list, el );
-
-	return true;
+	return DYN_CONF_CMD_DO_NOTHING;
 }
 
-bool dynamic_conf_start( dynamic_config_context_t *context ){
-	if( _is_listening(context) )
-		return true;
+bool dynamic_conf_alloc_and_init( pid_t *processing_pid ){
+	bool ret = mmt_bus_create();
+	mmt_bus_subscribe( _receive_message, processing_pid );
+	return ret;
+}
 
-	int ret = mkfifo( context->file_descriptor, 0666 );
-	if( ret != 0 ){
-		log_write( LOG_ERR, "Error while creating file descriptor for dynamic configuration at %s: %s",
-				context->file_descriptor, strerror( errno ));
-		return false;
+void dynamic_conf_release(){
+	mmt_bus_release();
+}
+
+
+pid_t dynamcic_conf_create_new_process_to_receive_command( const char * unix_socket_domain_descriptor_name, void (*clean_resource)() ){
+	//duplicate the current process into 2 different processes
+	pid_t child_pid = fork();
+
+	if( child_pid < 0 ) {
+		ABORT( "Fork error: %s", strerror(errno) );
+		return EXIT_FAILURE;
 	}
-	return true;
+
+	if (child_pid == 0) {
+		//we are in child process
+		log_write( LOG_INFO, "Create a new sub-process %d for dynamic configuration server", getpid() );
+		dynamic_conf_server_start_processing( unix_socket_domain_descriptor_name );
+
+		//clean resource
+		clean_resource();
+		return EXIT_SUCCESS;
+	}
+
+	//in parent process
+	return child_pid;
 }
