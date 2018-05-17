@@ -9,6 +9,9 @@
 #define SRC_LIB_LOG_H_
 
 #include <syslog.h>
+#include <execinfo.h>
+#include <stdlib.h>
+#include <string.h>
 
 /**
  * Open system log file
@@ -46,4 +49,21 @@ static inline void log_close(){
 		abort();                                                            \
 	}
 
+
+/**
+ *  Obtain a back-trace
+ */
+static inline void log_execution_trace () {
+	void *array[10];
+	size_t size;
+	char **strings;
+	size_t i;
+	size    = backtrace (array, 10);
+	strings = backtrace_symbols (array, size);
+	//i=2: ignore 2 first elements in trace as they are: this fun, then mmt_log
+	for (i = 2; i < size; i++)
+		log_write( LOG_ERR, "%zu. %s\n", (i-1), strings[i] );
+
+	free (strings);
+}
 #endif /* SRC_LIB_LOG_H_ */

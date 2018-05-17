@@ -36,12 +36,38 @@ struct subscriber{
 };
 
 struct mmt_bus{
-	uint8_t nb_subscribers;
-	struct subscriber sub_lst[ MMT_BUS_MAX_SUBSCRIBERS ];
-	pthread_mutex_t mutex; //mutex to synchronize read/write data among publishers and subscribers
 
+	/**
+	 * Mutex to synchronize read/write data among publishers and subscribers
+	 */
+	pthread_mutex_t mutex;
+
+	/**
+	 * Number of real subscribers presented in the list below
+	 */
+	uint8_t nb_subscribers;
+	/**
+	 * List of subscribers
+	 */
+	struct subscriber sub_lst[ MMT_BUS_MAX_SUBSCRIBERS ];
+
+	/**
+	 * The message and message_size are used to transfer data from a publisher to the subscribers
+	 */
 	size_t message_size; //real size of message being used
 	char message[ MMT_BUS_MAX_MESSAGE_SIZE ];
+
+	/**
+	 * reply_code is used to store effective returned value of one subscriber when it finishes processing the message above.
+	 *
+	 * All subscribers receive the message being published.
+	 * A subscriber represents its processing of the message by returning an effective code that is different with DYN_CONF_CMD_DO_NOTHING.
+	 *
+	 * If more than one subscribers return their value, then, reply_code stores only the first return value.
+	 *   That is the value being received the most early.
+	 *
+	 * The published message is considered as being consumed if reply_code != DYN_CONF_CMD_DO_NOTHING.
+	 */
 	int reply_code;
 };
 
@@ -79,6 +105,7 @@ mmt_bus_code_t mmt_bus_publish( const char*message, size_t message_size, uint16_
 	int i;
 	if( bus == NULL )
 		return MMT_BUS_NO_INIT;
+
 	if( message_size > MMT_BUS_MAX_MESSAGE_SIZE )
 		return MMT_BUS_OVER_MSG_SIZE;
 
@@ -91,7 +118,8 @@ mmt_bus_code_t mmt_bus_publish( const char*message, size_t message_size, uint16_
 	}
 
 //	DEBUG("Number of subscribers: %d", bus->nb_subscribers );
-	//the message must be processed by at leat one subscriber
+
+	//the new message is published only if the previous one must be processed by at least one subscriber
 	if( bus->reply_code != DYN_CONF_CMD_DO_NOTHING ){
 		old_msg_is_consummed = true;
 
@@ -99,13 +127,14 @@ mmt_bus_code_t mmt_bus_publish( const char*message, size_t message_size, uint16_
 		memcpy( bus->message, message, message_size );
 		bus->message_size = message_size;
 
-		//this message is fresh, no one consumes it
+		//the new message is fresh, no one consumes it
 		bus->reply_code = DYN_CONF_CMD_DO_NOTHING;
 	}
 
 	//unblock
 	pthread_mutex_unlock( &bus->mutex );
 
+	//the previous message has not been yet consumed
 	if( !old_msg_is_consummed )
 		return MSG_BUS_OLD_MSG_NO_CONSUME;
 
@@ -116,6 +145,7 @@ mmt_bus_code_t mmt_bus_publish( const char*message, size_t message_size, uint16_
 			kill( bus->sub_lst[i].pid, SIGNAL_ID );
 		}
 
+	//if publisher does not intend to wait for its message being consumed
 	if( reply_code == NULL )
 		return MMT_BUS_SUCCESS;
 
@@ -145,6 +175,10 @@ mmt_bus_code_t mmt_bus_publish( const char*message, size_t message_size, uint16_
 	return MMT_BUS_SUCCESS;
 }
 
+/**
+ * This function is a callback being called in subscribers when receiving a signal notification from a publisher.
+ * @param type
+ */
 static void _signal_handler( int type ){
 	int i;
 	char msg[ MMT_BUS_MAX_MESSAGE_SIZE ];
@@ -170,7 +204,9 @@ static void _signal_handler( int type ){
 					//update reply code
 					if( ret != DYN_CONF_CMD_DO_NOTHING ){
 						if( pthread_mutex_lock( &bus->mutex ) == 0){
-							bus->reply_code = ret;
+							if( bus->reply_code == DYN_CONF_CMD_DO_NOTHING ){
+								bus->reply_code = ret;
+							}
 							pthread_mutex_unlock( &bus->mutex );
 						}
 					}
@@ -187,6 +223,9 @@ static void _signal_handler( int type ){
 bool mmt_bus_subscribe( bus_subscriber_callback_t cb, void *user_data ){
 	int i;
 	pid_t pid = getpid();
+
+	if( bus == NULL )
+		return false;
 
 	if( pthread_mutex_lock( &bus->mutex ) != 0){
 		log_write( LOG_ERR, "Cannot lock mmt-bus for publishing: %s", strerror( errno) );
@@ -227,6 +266,9 @@ bool mmt_bus_unsubscribe(){
 	int i;
 	pid_t pid = getpid();
 
+	if( bus == NULL )
+		return false;
+
 	if( pthread_mutex_lock( &bus->mutex ) != 0){
 		log_write( LOG_ERR, "Cannot lock mmt-bus for publishing: %s", strerror( errno) );
 		return false;
@@ -236,16 +278,19 @@ bool mmt_bus_unsubscribe(){
 		//found one process
 		if( bus->sub_lst[i].pid == pid ){
 			bus->sub_lst[i].pid = 0; //this is enough to unregister
-			//unregister signal handler
-			signal( SIGNAL_ID, SIG_DFL );
 
 			bus->nb_subscribers --;
 
 			pthread_mutex_unlock( &bus->mutex );
+
+			//we need to release the signal handler to the default one
+			signal( SIGNAL_ID, SIG_DFL );
+
 			return true;
 		}
 	}
 
+	//the caller has not subscribed yet => does not exist in our list of subscribers
 	pthread_mutex_unlock( &bus->mutex );
 	return false;
 
@@ -254,6 +299,7 @@ bool mmt_bus_unsubscribe(){
 void mmt_bus_release(){
 	if( bus == NULL )
 		return;
+
 	munmap( bus, sizeof( struct mmt_bus) );
-	bus = NULL;
+	bus = NULL; //avoid to release more than once
 }

@@ -98,6 +98,9 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__ENABLE_IP_FRAGEMENTATION_REPORT,     "enable-ip-fragmentation-report",
 			&conf->is_enable_ip_fragementation_report, BOOL ),
 
+	//dynamic configuration
+	(CONF_ATT__DYN_CONF__ENABLE,     "dynamic-config.enable",      &conf->dynamic_conf->is_enable,   BOOL),
+	(CONF_ATT__DYN_CONF__DESCRIPTOR, "dynamic-config.descriptor",  &conf->dynamic_conf->descriptor,  CHAR_STAR),
 	//multi-threading
 	(CONF_ATT__THREAD_NB,    "thread-nb",   &conf->thread->thread_count, UINT16_T),
 	(CONF_ATT__THREAD_QUEUE, "thread-queue",&conf->thread->thread_queue_packet_threshold, UINT32_T),

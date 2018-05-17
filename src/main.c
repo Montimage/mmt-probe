@@ -193,22 +193,6 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 	#warning "The debug compile option is reserved only for debugging"
 #endif
 
-/* Obtain a backtrace */
-static void _print_execution_trace () {
-	void *array[10];
-	size_t size;
-	char **strings;
-	size_t i;
-	size    = backtrace (array, 10);
-	strings = backtrace_symbols (array, size);
-	//i=2: ignore 2 first elements in trace as they are: this fun, then mmt_log
-	for (i = 2; i < size; i++)
-		log_write( LOG_ERR, "%zu. %s\n", (i-1), strings[i] );
-
-	free (strings);
-	fflush( stdout );
-}
-
 
 static inline void _stop_modules( probe_context_t *context){
 
@@ -234,30 +218,29 @@ void signal_handler(int type) {
 	if(  context->is_aborting ){
 		log_write(LOG_ERR, "Received signal %d while processing other one. Exit immediately.", type );
 		fflush( stdout );
-		EXIT_NORMALLY;
+		EXIT_NORMALLY();
 	}
 
 	switch( type ){
 	case SIGINT:
-		fprintf(stderr, "Received Ctrl+C. Releasing resource ...\n");
-		log_write(LOG_INFO, "Received Ctrl+C. Releasing resource ...");
+		log_write(LOG_INFO, "Received SIGINT. Main processing process is releasing resource ...");
 		context->is_aborting = true;
 
 		_stop_modules( context );
-		EXIT_NORMALLY;
+		EXIT_NORMALLY();
 		break;
 
 		//segmentation fault
 	case SIGSEGV:
 		log_write(LOG_ERR, "Segv signal received!");
-		_print_execution_trace();
+		log_execution_trace();
 
 		//Auto restart when segmentation fault
 		//restart only if exec in online mode
 		if( context->config->input->input_mode == OFFLINE_ANALYSIS )
-			EXIT_NORMALLY;
+			EXIT_NORMALLY();
 		else
-			EXIT_THEN_RESTART_BY_PARENT;
+			EXIT_THEN_RESTART_BY_PARENT();
 
 		break;
 
@@ -266,14 +249,18 @@ void signal_handler(int type) {
 		//In such a case, we need to exit normally MMT-Probe to give control to user to update the parameters
 	case SIGABRT:
 		log_write(LOG_ERR, "Abort signal received! Cleaning up before exiting!");
-		EXIT_NORMALLY;
+		EXIT_NORMALLY();
 		break;
 	}
 }
 
 static void _clean_resource(){
-	IF_ENABLE_DYNAMIC_CONFIG( dynamic_conf_release(); )
-	conf_release( get_context()->config );
+	probe_context_t *context = get_context();
+	IF_ENABLE_DYNAMIC_CONFIG(
+		if( context->config->dynamic_conf->is_enable )
+			dynamic_conf_release();
+	)
+	conf_release( context->config );
 	log_close();
 }
 
@@ -359,13 +346,8 @@ static int _main_processing( int argc, char** argv ){
 int main( int argc, char** argv ){
 	pid_t child_pid;
 	pid_t children_pids[ 2 ] = {PID_NEED_TO_CREATE, PID_NEED_TO_CREATE};
-
+	int nb_children_processes = 1; //by default, only one sub-process for the main processing
 	int  status, i;
-#ifdef DYNAMIC_CONFIG_MODULE
-	const int nb_children_processes = 2;
-#else
-	const int nb_children_processes = 1;
-#endif
 
 	//ignore Ctrl+C in main process
 	signal( SIGINT, SIG_IGN );
@@ -382,13 +364,17 @@ int main( int argc, char** argv ){
 	)
 
 	IF_ENABLE_DYNAMIC_CONFIG(
-		dynamic_conf_alloc_and_init( & children_pids[0] );
+		if( context->config->dynamic_conf->is_enable ){
+			//take into account control process
+			nb_children_processes = 2;
+			dynamic_conf_alloc_and_init( & children_pids[0] );
+		}
 	)
 
 	//an infinity loop to monitor the children processes: restart when it has crashed
 	while( true ){
 
-		//1. create child process for main processing
+		//1. create a child process for main processing
 		if( children_pids[ 0 ] == PID_NEED_TO_CREATE ){
 			//duplicate the current process into 2 different processes
 			child_pid = fork();
@@ -402,7 +388,11 @@ int main( int argc, char** argv ){
 				//we are in child process
 				log_write( LOG_INFO, "Create a new sub-process %d for main processing", getpid() );
 
-				IF_ENABLE_DYNAMIC_CONFIG( dynamic_conf_agency_start() ;)
+				IF_ENABLE_DYNAMIC_CONFIG(
+					if( context->config->dynamic_conf->is_enable ){
+						dynamic_conf_agency_start() ;
+					}
+				)
 
 				_main_processing( argc, argv );
 
@@ -415,11 +405,11 @@ int main( int argc, char** argv ){
 			children_pids[0] = child_pid;
 		}
 
-		//2. create child process for dynamic configuration
+		//2. create a child process for dynamic configuration
 		//this process receives external commands via an UNIX domain socket, then send them to the main processing
 #ifdef DYNAMIC_CONFIG_MODULE
-		if( children_pids[ 1 ] == PID_NEED_TO_CREATE ){
-			children_pids[1] = dynamcic_conf_create_new_process_to_receive_command("/tmp/mmt.sock", _clean_resource );
+		if( context->config->dynamic_conf->is_enable && children_pids[ 1 ] == PID_NEED_TO_CREATE ){
+			children_pids[1] = dynamcic_conf_create_new_process_to_receive_command( context->config->dynamic_conf->descriptor, _clean_resource );
 		}
 #endif
 
@@ -427,27 +417,25 @@ int main( int argc, char** argv ){
 		//parent is not blocked here since we use WNOHANG
 		child_pid = waitpid( ANY_CHILD_PROCESS, &status, WNOHANG );
 
+		if( child_pid == -1 )
+			ABORT( "Cannot wait for children: %s", strerror( errno ) );
+
 		//no child changes its state
 		if( child_pid == 0 )
 			goto _next_iteration;
 
-
-		DEBUG("Child process %d return code: %d", child_pid, status );
-
-		if( child_pid == -1 )
-			ABORT( "Cannot wait for children: %s", strerror( errno ) );
+		log_write(LOG_INFO, "Child process %d return code: %d", child_pid, status );
 
 		//4. parent will check to re-create a new instance of a child if it was killed by segmentation fault
 		//the child it exist normally, then lets keep it dead
 		if ( WIFEXITED( status) && WEXITSTATUS( status ) == EXIT_SUCCESS )
 			status = PID_NEED_TO_STOP;
-		else
+		else //mark to re-create this child
 			status = PID_NEED_TO_CREATE;
 
 		//update status of the child
 		for( i=0; i<nb_children_processes; i++ )
 			if( child_pid == children_pids[i] ){
-				//mark to re-create this child
 				children_pids[i] = status;
 				break;
 			}
@@ -467,6 +455,7 @@ int main( int argc, char** argv ){
 		sleep( 1 );
 	}
 
+	log_write(LOG_INFO, "Exit normally MMT-Probe");
 	_clean_resource();
 
 	printf("Bye\n");

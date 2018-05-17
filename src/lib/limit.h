@@ -22,9 +22,6 @@
 #ifndef SECURITY_MODULE
 #define SECURITY_MODULE
 #endif
-#ifndef DYNAMIC_CONFIG_MODULE
-#define DYNAMIC_CONFIG_MODULE
-#endif
 #ifndef REDIS_MODULE
 #define REDIS_MODULE
 #endif
@@ -47,6 +44,9 @@
 #define LICENSE_CHECK
 #endif
 */
+#ifndef DYNAMIC_CONFIG_MODULE
+#define DYNAMIC_CONFIG_MODULE
+#endif
 //end of block to be removed
 
 
@@ -149,7 +149,7 @@
 #endif
 
 //depending on exit value of a child process, the main process can restart or not the child process
-#define EXIT_NORMALLY                _EXIT( EXIT_SUCCESS )
-#define EXIT_THEN_RESTART_BY_PARENT  _EXIT( EXIT_FAILURE )
+#define EXIT_NORMALLY()                _EXIT( EXIT_SUCCESS )
+#define EXIT_THEN_RESTART_BY_PARENT()  _EXIT( EXIT_FAILURE )
 
 #endif /* SRC_LIB_LIMIT_H_ */

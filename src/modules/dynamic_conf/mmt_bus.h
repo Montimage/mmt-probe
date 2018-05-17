@@ -3,7 +3,7 @@
  *
  *  Created on: May 11, 2018
  *          by: Huu Nghia Nguyen
- * A communication bus between processes.
+ * A communication bus among processes.
  */
 
 #ifndef SRC_LIB_MMT_BUS_H_
@@ -20,8 +20,17 @@
 //number of subscribers
 #define MMT_BUS_MAX_SUBSCRIBERS      3
 
+/**
+ * Create a shared bus.
+ * This function must be called before any `fork` in order to share the created bus among the processes.
+ * @return
+ */
 bool mmt_bus_create();
 
+/**
+ * Release the resource being allocated to the bus.
+ * This function must be called on each concerned process when it does not need to access to the bus.
+ */
 void mmt_bus_release( );
 
 typedef enum{
@@ -31,6 +40,7 @@ typedef enum{
 	MMT_BUS_NO_INIT            = 3,
 	MSG_BUS_OLD_MSG_NO_CONSUME = 4
 }mmt_bus_code_t;
+
 /**
  *
  * @param topic_id

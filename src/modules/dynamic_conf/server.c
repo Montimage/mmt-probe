@@ -87,10 +87,27 @@ static inline void _processing( int sock ) {
 }
 
 static void _signal_handler( int type ){
-	log_write(LOG_INFO, "Received Ctrl+C. Exit dynamic configuration server.");
-	close( socket_fd );
-	unlink( address.sun_path );
-	EXIT_NORMALLY;
+	switch( type ){
+	case SIGINT:
+
+		log_write(LOG_INFO, "Received SIGINT. Exit dynamic configuration server.");
+		close( socket_fd );
+		unlink( address.sun_path );
+
+		//intend to exit
+		EXIT_NORMALLY();
+
+		break;
+
+	case SIGSEGV:
+		log_write(LOG_ERR, "Segv signal received!");
+		log_execution_trace();
+
+		//Auto restart when segmentation fault
+		EXIT_THEN_RESTART_BY_PARENT();
+
+		break;
+	}
 }
 
 bool dynamic_conf_server_start_processing( const char* unix_domain_descriptor ){
@@ -124,6 +141,7 @@ bool dynamic_conf_server_start_processing( const char* unix_domain_descriptor ){
 	}
 
 	log_write( LOG_INFO, "Dynamic configuration server is listening on %s", unix_domain_descriptor );
+	printf("MMT-Probe is listening control commands on UNIX domain socket at %s", unix_domain_descriptor );
 
 	while( true ){
 		//Accept actual connection from the client
