@@ -31,14 +31,6 @@ static bool _parse_bool( const char *value ){
 	return false;
 }
 
-typedef enum{
-   NO_SUPPORT,
-   BOOL,
-   UINT16_T,
-   UINT32_T,
-   CHAR_STAR
-}data_type_t;
-
 #define _FIRST(  a, ... )   a
 #define FIRST(  a )  _FIRST  a
 
@@ -50,12 +42,6 @@ typedef enum{
 
 #define COMMA() ,
 #define EMPTY()
-
-typedef struct identity_struct{
-	int val;
-	data_type_t data_type;
-	const char *ident;
-}identity_t;
 
 #define DECLARE_CONF_ATT( ... )                                           \
 static const size_t nb_parameters = COUNT_ARGS( __VA_ARGS__ );            \
@@ -191,8 +177,21 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__RADIUS_REPORT__MESSAGE_ID, "radius-report.message-id", &conf->reports.radius->message_code, UINT16_T )
 )
 
+size_t conf_get_number_of_identities(){
+	return nb_parameters;
+}
 
-int _cmp (const void * a, const void * b ) {
+bool need_to_restart_to_update( const identity_t *ident ){
+	switch( ident->val ){
+	case CONF_ATT__NONE:
+	case CONF_ATT__SECURITY__ENABLE:
+		return false;
+	default:
+		return true;
+	}
+}
+
+static int _cmp (const void * a, const void * b ) {
   const identity_t *pa = (identity_t*) a;
   const identity_t *pb = (identity_t*) b;
   return strcmp(pa->ident, pb->ident);
@@ -207,35 +206,30 @@ static inline void _sort_identities_if_need(){
 	}
 }
 
-const identity_t* _conf_get_ident_from_string( const char * ident_str ){
+const identity_t* conf_get_ident_from_string( const char * ident_str ){
 	_sort_identities_if_need();
 	identity_t key = {.val = 0, .ident = ident_str};
 	return (identity_t*) bsearch( &key, identities,  nb_parameters, sizeof( identity_t ), _cmp );
 }
 
 
-/**
- * Update value of a configuration parameter.
- * The new value is updated only if it is different with the current value of the parameter.
- * @param conf
- * @param ident
- * @param value
- * @return true if the new value is updated, otherwise false
- */
-bool conf_override_element( probe_conf_t *conf, const char *ident_str, const char *value_str ){
-	const identity_t *ident = _conf_get_ident_from_string( ident_str );
+const identity_t* conf_get_ident_from_id( int id ){
+	_sort_identities_if_need();
+	const identity_t *ident = NULL;
+	int i;
+	for( i=0; i<nb_parameters; i++ )
+		if( identities[i].val == id )
+			return &identities[i];
+	return NULL;
+}
 
-	if( ident == NULL ){
-		log_write( LOG_WARNING, "Unknown parameter identity [%s]", ident_str );
-		return false;
-	}
-
+static inline bool _override_element_by_ident( probe_conf_t *conf, const identity_t *ident, const char *value_str ){
 	uint32_t int_val = 0;
-
+	DEBUG("Update %s to %s", ident->ident, value_str );
 	void *field_ptr = _conf_get_ident_attribute_field(conf, ident->val );
 
 	if( field_ptr == NULL ){
-		log_write( LOG_WARNING, "Have not supported yet for [%s]", ident_str );
+		log_write( LOG_WARNING, "Have not supported yet for [%s]", ident->ident );
 		return false;
 	}
 	char **string_ptr;
@@ -249,7 +243,7 @@ bool conf_override_element( probe_conf_t *conf, const char *ident_str, const cha
 		else if ( IS_EQUAL_STRINGS( value_str, "offline") )
 			*((int *)field_ptr) = OFFLINE_ANALYSIS;
 		else{
-			log_write( LOG_WARNING, "Unexpected value [%s] for [%s]", ident_str, value_str );
+			log_write( LOG_WARNING, "Unexpected value [%s] for [%s]", ident->ident, value_str );
 			return false;
 		}
 		break;
@@ -260,7 +254,7 @@ bool conf_override_element( probe_conf_t *conf, const char *ident_str, const cha
 	switch( ident->data_type ){
 	//update value depending on parameters
 	case NO_SUPPORT:
-		log_write( LOG_WARNING, "Have not supported yet for [%s]", ident_str );
+		log_write( LOG_WARNING, "Have not supported yet for [%s]", ident->ident );
 		return false;
 	case CHAR_STAR:
 		string_ptr = (char **) field_ptr;
@@ -298,9 +292,39 @@ bool conf_override_element( probe_conf_t *conf, const char *ident_str, const cha
 		return true;
 	}
 
-	log_write( LOG_INFO, "Unknown identifier '%s'", ident_str );
+	log_write( LOG_INFO, "Unknown identifier '%s'", ident->ident );
 	return false;
 }
+
+
+/**
+ * Update value of a configuration parameter.
+ * The new value is updated only if it is different with the current value of the parameter.
+ * @param conf
+ * @param ident
+ * @param value
+ * @return true if the new value is updated, otherwise false
+ */
+bool conf_override_element( probe_conf_t *conf, const char *ident_str, const char *value_str ){
+	const identity_t *ident = conf_get_ident_from_string( ident_str );
+
+	if( ident == NULL ){
+		log_write( LOG_WARNING, "Unknown parameter identity [%s]", ident_str );
+		return false;
+	}
+	return _override_element_by_ident(conf, ident, value_str );
+}
+
+bool conf_override_element_by_id( probe_conf_t *conf, int ident_val, const char *value_str ){
+	const identity_t *ident = conf_get_ident_from_id( ident_val );
+
+	if( ident == NULL ){
+		log_write( LOG_WARNING, "Unknown parameter identity [%d]", ident_val );
+		return false;
+	}
+	return _override_element_by_ident(conf, ident, value_str );
+}
+
 
 void conf_print_identities_list(){
 	int i;

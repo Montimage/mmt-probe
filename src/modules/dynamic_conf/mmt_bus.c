@@ -120,7 +120,7 @@ mmt_bus_code_t mmt_bus_publish( const char*message, size_t message_size, uint16_
 //	DEBUG("Number of subscribers: %d", bus->nb_subscribers );
 
 	//the new message is published only if the previous one must be processed by at least one subscriber
-	if( bus->reply_code != DYN_CONF_CMD_DO_NOTHING ){
+	if( bus->reply_code != DYN_CONF_CMD_REPLY_DO_NOTHING ){
 		old_msg_is_consummed = true;
 
 		//store data to the shared memory segment
@@ -128,7 +128,7 @@ mmt_bus_code_t mmt_bus_publish( const char*message, size_t message_size, uint16_
 		bus->message_size = message_size;
 
 		//the new message is fresh, no one consumes it
-		bus->reply_code = DYN_CONF_CMD_DO_NOTHING;
+		bus->reply_code = DYN_CONF_CMD_REPLY_DO_NOTHING;
 	}
 
 	//unblock
@@ -158,7 +158,7 @@ mmt_bus_code_t mmt_bus_publish( const char*message, size_t message_size, uint16_
 		}
 
 		//one subscriber replied
-		if( bus->reply_code != DYN_CONF_CMD_DO_NOTHING ){
+		if( bus->reply_code != DYN_CONF_CMD_REPLY_DO_NOTHING ){
 			*reply_code = bus->reply_code;
 			goto _end;
 		}
@@ -202,9 +202,9 @@ static void _signal_handler( int type ){
 					//DEBUG("Reply code: %d", ret );
 
 					//update reply code
-					if( ret != DYN_CONF_CMD_DO_NOTHING ){
+					if( ret != DYN_CONF_CMD_REPLY_DO_NOTHING ){
 						if( pthread_mutex_lock( &bus->mutex ) == 0){
-							if( bus->reply_code == DYN_CONF_CMD_DO_NOTHING ){
+							if( bus->reply_code == DYN_CONF_CMD_REPLY_DO_NOTHING ){
 								bus->reply_code = ret;
 							}
 							pthread_mutex_unlock( &bus->mutex );

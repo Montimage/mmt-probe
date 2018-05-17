@@ -22,14 +22,13 @@ enum{
 	DYN_CONF_CMD_REPLY_OK = 0,
 	DYN_CONF_CMD_REPLY_CHILD_RUNNING = 1,
 	DYN_CONF_CMD_REPLY_CHILD_STOPPING = 1,
-	DYN_CONF_CMD_DO_NOTHING = 1000
+	DYN_CONF_CMD_REPLY_DO_NOTHING = 1000
 };
 
 typedef struct{
 	uint16_t id;
 	uint16_t parameter_length;
 	char parameter[ MMT_CMD_PARAM_MAX_LENGTH ];
-	uint16_t reply_code;
 }command_t;
 
 #endif /* SRC_MODULES_DYNAMIC_CONF_COMMAND_H_ */

@@ -19,6 +19,7 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <errno.h>
+#include <stdarg.h>
 
 #include "server.h"
 #include "mmt_bus.h"
@@ -26,20 +27,191 @@
 
 #include "../../lib/log.h"
 #include "../../lib/tools.h"
+#include "../../lib/memory.h"
 #include "../../lib/limit.h"
+#include "../../configure_override.h"
 
 //we allocate buffer to be able to stock at least one command
 #define BUFFER_SIZE MMT_CMD_PARAM_MAX_LENGTH
-
+#define LENGTH( string ) (sizeof( string ) - 1 )
 #define IS_CMD( buf, cmd ) (0 == strncmp( buf, cmd, sizeof( cmd ) - 1 ))
-#define REPLY( code, sock, txt )         \
-do{                                      \
-	write( sock, txt, sizeof( txt ) -1 );\
-	log_write( code, txt );              \
-}while( 0 )
+
+#define NEW_LINE '\n'
+
+/**
+ * Response to control client in form: code description
+ * @param sock
+ * @param code
+ * @param format
+ */
+__attribute__((format (printf, 3, 4)))
+static inline void _reply( int sock, uint16_t code, const char *format, ... ){
+	char message[ BUFFER_SIZE ];
+	int offset = snprintf( message, BUFFER_SIZE, "%d ", code);
+	va_list args;
+	va_start( args, format );
+	offset += vsnprintf( message + offset, BUFFER_SIZE - offset, format, args);
+	va_end( args );
+
+	write( sock, message, offset );
+}
+
+size_t parse_update_parameters( const char *buffer, size_t buffer_size, void (*callback)(int ident, size_t data_len, const char *data) ){
+	size_t ret = 0, offset = 0;
+	uint16_t ident, data_len;
+	const char *data;
+	while( buffer_size > offset ){
+		assign_2bytes( &ident, &buffer[ offset ]);
+		offset += 2;
+		assign_2bytes( &data_len, &buffer[ offset ]);
+		offset += 2;
+		data = &buffer[offset];
+
+		//processing this parameter
+		callback( ident, data_len, data );
+
+		//jump to the next parameter
+		offset += data_len;
+		ret ++;
+	}
+	DEBUG("Got %zu parameters", ret );
+	return ret;
+}
+
+static inline int _parse_update_parameters( const char *buffer, size_t buffer_len, char *parameter, size_t param_size, int sock ){
+	char string[ BUFFER_SIZE ];
+	char *ident_str, *val_str;
+	const identity_t *ident;
+	uint16_t val, val_len;
+
+	DEBUG( "Update parameter: %s", buffer );
+
+	//1. must surround by { and }
+	if( buffer[0] != '{' || buffer[ buffer_len - 1 ] != '}' ){
+		_reply( sock, CMD_SYNTAX_ERROR, "Parameters of update command must be surrounded by { and }");
+		return 0;
+	}
+	buffer ++; //jump over {
+	buffer_len -= 2; //exclude { and }
+
+	//2. check parameters
+	//no parameter?
+	if( buffer_len == 0 ){
+		_reply( sock, CMD_SYNTAX_ERROR, "The update command must contain at least one parameter");
+		return 0;
+	}
+
+	//each parameter must be ended by \n
+	if( buffer[ buffer_len - 1 ] != NEW_LINE ){
+		_reply( sock, CMD_SYNTAX_ERROR, "The last parameter of update command must ended by \\n" );
+		return 0;
+	}
+
+	//copy to a new memory segment to be able to modify it
+	memcpy( string, buffer, buffer_len );
+	string[ buffer_len ] = '\0'; //well terminate by '\0'
+	ident_str = string;
+	val_str   = ident_str;
+
+	size_t offset = 0;
+	do{
+		//val_str = 'input.mode=online\nabc.xyz=12\n'
+
+		//we need to jump over the first = character
+		while( *val_str != NEW_LINE ){
+			if( *val_str == '='){
+				*val_str = '\0'; //null-ended for ident_str;
+				//jump over =
+				val_str ++;
+				break;
+			}
+			val_str ++;
+		}
+
+		//not found = character
+		if( *val_str == NEW_LINE ){
+			_reply( sock, CMD_SYNTAX_ERROR, "Parameter and its value (%s) must be separated by '='", ident_str );
+			return 0;
+		}
+
+		//check identity
+		ident = conf_get_ident_from_string( ident_str );
+		if( ident == NULL || ident->data_type == NO_SUPPORT ){
+			_reply( sock, CMD_SYNTAX_ERROR, "Does not support parameter '%s'", ident_str );
+			return 0;
+		}
+
+		//ended val_str by '\0'
+		val_len = 0;
+		while( val_str[ val_len ] != NEW_LINE ){
+			val_len ++;
+		}
+		val_str[ val_len ] = '\0';
+
+		//check value depending on data type of parameter
+		switch( ident->data_type ){
+		case BOOL:
+			if( IS_EQUAL_STRINGS( val_str, "true" ) )
+				break;
+			if( IS_EQUAL_STRINGS( val_str, "false" ) )
+				break;
+
+			_reply( sock, CMD_SYNTAX_ERROR, "Expect either 'true' or 'false' as value of '%s' (not '%s')", ident_str, val_str );
+			return 0;
+			break;
+
+		case UINT16_T:
+		case UINT32_T:
+			while( *val_str != '\0' ){
+				if( *val_str < '0' || *val_str > '9' ){
+					_reply( sock, CMD_SYNTAX_ERROR, "Expect a number as value of '%s' (not '%s')", ident_str, val_str );
+					return 0;
+				}
+				val_str ++;
+			}
+			break;
+		default:
+			break;
+		}
+
+
+		//stock into parameter
+
+		//ensure that we have enough place to stock this parameter
+		if( offset + 2 + 2 + val_len > param_size ){
+			_reply( sock, CMD_SYNTAX_ERROR, "Huge data for parameters");
+			return 0;
+		}
+
+		//First 2bytes contains identity of parameter
+		val = ident->val;
+		assign_2bytes( &parameter[offset], &val );
+		offset += 2;
+		//next 2bytes contains value length
+		assign_2bytes( &parameter[offset], &val_len );
+		offset += 2;
+		//next x bytes contains value data
+		memcpy( &parameter[offset], val_str, val_len );
+		offset += val_len;
+
+
+		//next parameter
+		val_str  += val_len; //to the next
+		ident_str = val_str;
+
+	}while( *val_str != '\0'); //reach to the end of string
+
+	//3. everything are ok
+	return offset;
+}
 
 static int socket_fd = 0;
 static struct sockaddr_un address;
+
+
+#define CMD_START_STR   "start"
+#define CMD_STOP_STR    "stop"
+#define CMD_UPDATE_STR  "update"
 
 static inline void _processing( int sock ) {
 	int ret;
@@ -52,18 +224,36 @@ static inline void _processing( int sock ) {
 		ret = recv( sock, buffer, BUFFER_SIZE, MSG_WAITALL);
 		if( ret == 0 ) break;
 
-		if( IS_CMD( buffer, "start" )){
+		//if buffer is ended by null-terminated
+		if( buffer[ret - 1] == '\0' )
+			ret --;// ret = strlen( buffer )
+		else{
+			//buffer is full => reserve the last element to contain '\0'
+			if( ret == BUFFER_SIZE )
+				ret --;
+			buffer[ ret ] = '\0'; //well terminate the string
+		}
+
+
+		if( IS_CMD( buffer, CMD_START_STR )){
 			command.id = DYN_CONF_CMD_START;
 			command.parameter_length = 0;
-			cmd_str = "start";
-		}else if( IS_CMD( buffer, "stop" )){
+			cmd_str = CMD_START_STR;
+		}else if( IS_CMD( buffer, CMD_STOP_STR )){
 			command.id = DYN_CONF_CMD_STOP;
 			command.parameter_length = 0;
-			cmd_str = "stop";
-		}else if( IS_CMD( buffer, "update" )){
-			cmd_str = "update";
+			cmd_str = CMD_STOP_STR;
+		}else if( IS_CMD( buffer, CMD_UPDATE_STR )){
+			ret = _parse_update_parameters( buffer + LENGTH( CMD_UPDATE_STR ), ret - LENGTH( CMD_UPDATE_STR ), command.parameter, sizeof(command.parameter), sock );
+			//syntax error. We notified the error inside _parse_update_parameters function
+			if( ret == 0 )
+				continue;
+
+			command.parameter_length = ret;
+			command.id = DYN_CONF_CMD_UPDATE;
+			cmd_str = CMD_UPDATE_STR;
 		}else{
-			REPLY( LOG_ERR, sock, "syntax_error" );
+			_reply( sock, CMD_SYNTAX_ERROR , "Does not support the command: %s", buffer );
 			continue;
 		}
 
@@ -74,12 +264,14 @@ static inline void _processing( int sock ) {
 
 		switch( ret ){
 		case MSG_BUS_OLD_MSG_NO_CONSUME:
-			REPLY( LOG_ERR, sock, "Old message is not consumed. Need to wait then resend again." );
+			_reply( sock, MSG_BUS_OLD_MSG_NO_CONSUME, "Old message is not consumed. Need to wait then resend again." );
 			break;
 		case MMT_BUS_SUCCESS:
-			REPLY( LOG_INFO, sock, "Successfully processed the command" );
+			_reply( sock, CMD_SUCCESS, "Successfully processed the command: %s", cmd_str );
 			break;
 		}
+
+		continue;
 
 	}while( true );
 
@@ -100,7 +292,7 @@ static void _signal_handler( int type ){
 		break;
 
 	case SIGSEGV:
-		log_write(LOG_ERR, "Segv signal received!");
+		log_write(LOG_ERR, "Segv signal received on control process!");
 		log_execution_trace();
 
 		//Auto restart when segmentation fault
@@ -116,7 +308,8 @@ bool dynamic_conf_server_start_processing( const char* unix_domain_descriptor ){
 	socklen_t sock_len = sizeof( cli_addr );
 
 	//default signal to exit
-	signal( SIGINT, _signal_handler );
+	signal( SIGINT,  _signal_handler );
+	signal( SIGSEGV, _signal_handler );
 
 	//use UNIX socket
 	if ((socket_fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {

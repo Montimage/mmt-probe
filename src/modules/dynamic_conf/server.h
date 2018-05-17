@@ -20,6 +20,14 @@
 
 #include <stdbool.h>
 
+enum{
+	CMD_SUCCESS      = 0,
+	CMD_SYNTAX_ERROR = 1,
+	CMD_OVER_SIZE    = 2,
+};
+
+size_t parse_update_parameters( const char *buffer, size_t buffer_size, void (*callback)(int ident, size_t data_len, const char *data) );
+
 /**
  * Start the server to listen on a file descriptor.
  * It is stopped by SIGINT (Ctrl+C) signal

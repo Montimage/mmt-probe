@@ -26,9 +26,10 @@ static int _receive_message( const char *message, size_t message_size, void *use
 
 	switch( cmd->id ){
 	case DYN_CONF_CMD_UPDATE:
+		return DYN_CONF_CMD_REPLY_OK;
 		break;
 	}
-	return DYN_CONF_CMD_DO_NOTHING;
+	return DYN_CONF_CMD_REPLY_DO_NOTHING;
 }
 
 bool dynamic_conf_agency_start(){

@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include "agency.h"
 
+
 typedef struct dynamic_conf_struct dynamic_config_context_t;
 
 bool dynamic_conf_alloc_and_init( pid_t *processing_pid );
