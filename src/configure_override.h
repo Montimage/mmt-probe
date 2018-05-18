@@ -40,6 +40,14 @@ bool conf_override_element( probe_conf_t*, const char* ident, const char *value 
 bool conf_override_element_by_id( probe_conf_t *conf, int ident_val, const char *value_str );
 
 /**
+ * Check if data_value is suitable for an identity.
+ * @param ident
+ * @param data_value
+ * @return NULL if yes, otherwise, a text representing error reasons.
+ */
+const char* conf_validate_data_value( const identity_t *ident, const char *data_value );
+
+/**
  * Get number of parameters that can be overridden
  * @return
  */

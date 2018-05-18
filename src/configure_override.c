@@ -223,6 +223,58 @@ const identity_t* conf_get_ident_from_id( int id ){
 	return NULL;
 }
 
+const char* conf_validate_data_value( const identity_t *ident, const char *data_value ){
+	static char error_reason[1000];
+	int i;
+
+	//special data type
+	switch( ident->val ){
+	//input
+	case CONF_ATT__INPUT__MODE:
+		if( IS_EQUAL_STRINGS( data_value, "online") )
+			return NULL;
+		else if ( IS_EQUAL_STRINGS( data_value, "offline") )
+			return NULL;
+		else{
+			snprintf( error_reason, sizeof( error_reason), "Unexpected value [%s] for [%s]", data_value, ident->ident );
+			return error_reason;
+		}
+		break;
+	default:
+		break;
+	}
+
+	//check value depending on data type of parameter
+	switch( ident->data_type ){
+	case BOOL:
+		if( IS_EQUAL_STRINGS( data_value, "true" ) )
+			break;
+		if( IS_EQUAL_STRINGS( data_value, "false" ) )
+			break;
+
+		snprintf( error_reason, sizeof(error_reason), "Expect either 'true' or 'false' as value of '%s' (not '%s')", ident->ident, data_value );
+		return error_reason;
+		break;
+
+	case UINT16_T:
+	case UINT32_T:
+		//check if data_value contains only the number
+		i = 0;
+		while( data_value[i] != '\0' ){
+			if( data_value[i] < '0' || data_value[i] > '9' ){
+				snprintf( error_reason, sizeof( error_reason), "Expect a number as value of '%s' (not '%s')", ident->ident, data_value );
+				return 0;
+			}
+			i ++;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return NULL;
+}
+
 static inline bool _override_element_by_ident( probe_conf_t *conf, const identity_t *ident, const char *value_str ){
 	uint32_t int_val = 0;
 	DEBUG("Update %s to %s", ident->ident, value_str );
@@ -243,7 +295,7 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 		else if ( IS_EQUAL_STRINGS( value_str, "offline") )
 			*((int *)field_ptr) = OFFLINE_ANALYSIS;
 		else{
-			log_write( LOG_WARNING, "Unexpected value [%s] for [%s]", ident->ident, value_str );
+			log_write( LOG_WARNING, "Unexpected value [%s] for [%s]", value_str, ident->ident );
 			return false;
 		}
 		break;

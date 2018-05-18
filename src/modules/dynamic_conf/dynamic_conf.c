@@ -23,13 +23,9 @@
 #include "server.h"
 
 static void _process_param( int ident, size_t data_len, const char *data ){
-	char *buf = malloc( data_len + 1 );
-	memcpy( buf, data, data_len );
-	buf[ data_len ] = '\0';
-
-	conf_override_element_by_id( get_context()->config, ident, buf );
-
-	free( buf );
+	//update the config in the main process.
+	//this update will be transfered to its children once they are created (by using fork)
+	conf_override_element_by_id( get_context()->config, ident, data );
 }
 
 static int _receive_message( const char *message, size_t message_size, void *user_data ){
@@ -59,15 +55,15 @@ static int _receive_message( const char *message, size_t message_size, void *use
 		}
 		break;
 
-	//in case of restarting
+	//The main process must always take into account the modifications of these parameters.
+	// these modifications will be transfered to its child when restarting
 	case DYN_CONF_CMD_UPDATE:
-		parse_update_parameters( message, message_size, _process_param );
-		//send a Ctrl+C signal to the processing process
-		//kill( *pid, SIGINT );
-		//*pid = 0; //once the value is changed to 0, the main process will (re)create the processing process
+		//As the message was validated and parsed summarily by server.c, we do not need to check it again
+		parse_update_parameters( cmd->parameter, cmd->parameter_length, _process_param );
 		break;
-//	default:
-//		log_write( LOG_ERR, "Command is not supported: %d", cmd->id );
+
+	default: //must not happen
+		log_write( LOG_ERR, "Command is not supported: %d", cmd->id );
 	}
 	return DYN_CONF_CMD_REPLY_DO_NOTHING;
 }

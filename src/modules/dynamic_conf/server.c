@@ -60,11 +60,14 @@ size_t parse_update_parameters( const char *buffer, size_t buffer_size, void (*c
 	size_t ret = 0, offset = 0;
 	uint16_t ident, data_len;
 	const char *data;
-	while( buffer_size > offset ){
+	while( offset < buffer_size ){
+		//1. The first 2bytes is identity
 		assign_2bytes( &ident, &buffer[ offset ]);
 		offset += 2;
+		//2. The next 2bytes is data length
 		assign_2bytes( &data_len, &buffer[ offset ]);
 		offset += 2;
+		//3. data
 		data = &buffer[offset];
 
 		//processing this parameter
@@ -78,28 +81,53 @@ size_t parse_update_parameters( const char *buffer, size_t buffer_size, void (*c
 	return ret;
 }
 
-static inline int _parse_update_parameters( const char *buffer, size_t buffer_len, char *parameter, size_t param_size, int sock ){
-	char string[ BUFFER_SIZE ];
+/**
+ * After executing this function, we get the parameters of update command on `parameter` variable.
+ * Each parameter is stocked in format:
+ * - the first 2bytes represents identity of the parameter (see the list in `conf_print_identities_list`)
+ * - the next 2bytes represents length of data value
+ * - the next x bytes represents data value. The data value is always ended by '\0'.
+ *     For example, x=5 if data value is 'true\0' (4 effective bytes + 1 byte for '\0')
+ *
+ * Example, given buffer = "{input.mode=online\n}"
+ * => parameter = "xxyyonline\0", in which,
+ *  - xx is 2 bytes whose value is 10 representing "input.mode"
+ *  - yy is 2 bytes whose value is  7 representing 6 bytes of 'online' and 1  byte of '\0'
+ * @param buffer
+ * @param buffer_len
+ * @param parameter
+ * @param param_size
+ * @param sock
+ * @return - 0 if there exist syntax error in one of the parameters
+ *         - otherwise, number of bytes being used to stock the parameters
+ *
+ *
+ */
+static inline int _parse_update_parameters( char *buffer, size_t buffer_len, char *parameter, size_t param_size, int sock ){
 	char *ident_str, *val_str;
+	const char *str_ptr;
 	const identity_t *ident;
 	uint16_t val, val_len;
+	int i;
 
 	DEBUG( "Update parameter: %s", buffer );
 
 	//1. must surround by { and }
-	if( buffer[0] != '{' || buffer[ buffer_len - 1 ] != '}' ){
+	if( buffer_len < 2 || buffer[0] != '{' || buffer[ buffer_len - 1 ] != '}' ){
 		_reply( sock, CMD_SYNTAX_ERROR, "Parameters of update command must be surrounded by { and }");
 		return 0;
 	}
 	buffer ++; //jump over {
 	buffer_len -= 2; //exclude { and }
+	buffer[ buffer_len ] = '\0'; //well null-terminated
 
-	//2. check parameters
-	//no parameter?
+	//0. no parameter?
 	if( buffer_len == 0 ){
 		_reply( sock, CMD_SYNTAX_ERROR, "The update command must contain at least one parameter");
 		return 0;
 	}
+
+	//2. check parameters
 
 	//each parameter must be ended by \n
 	if( buffer[ buffer_len - 1 ] != NEW_LINE ){
@@ -107,10 +135,7 @@ static inline int _parse_update_parameters( const char *buffer, size_t buffer_le
 		return 0;
 	}
 
-	//copy to a new memory segment to be able to modify it
-	memcpy( string, buffer, buffer_len );
-	string[ buffer_len ] = '\0'; //well terminate by '\0'
-	ident_str = string;
+	ident_str = buffer;
 	val_str   = ident_str;
 
 	size_t offset = 0;
@@ -118,68 +143,59 @@ static inline int _parse_update_parameters( const char *buffer, size_t buffer_le
 		//val_str = 'input.mode=online\nabc.xyz=12\n'
 
 		//we need to jump over the first = character
-		while( *val_str != NEW_LINE ){
-			if( *val_str == '='){
-				*val_str = '\0'; //null-ended for ident_str;
-				//jump over =
-				val_str ++;
-				break;
-			}
+		while( *val_str != NEW_LINE && *val_str != '=' )
 			val_str ++;
-		}
 
 		//not found = character
 		if( *val_str == NEW_LINE ){
+			*val_str = '\0'; //terminate ident_str to be able to used in the next _reply
 			_reply( sock, CMD_SYNTAX_ERROR, "Parameter and its value (%s) must be separated by '='", ident_str );
 			return 0;
 		}
 
-		//check identity
+		//We have (*val_str == '=')
+		*val_str = '\0'; //null-ended for ident_str;
+		//jump over '\0' above
+		val_str ++;
+
+		//now ident_str is a string with null-terminated.
+		// We will check whether it is existing in our list (see the list in `conf_print_identities_list`)
 		ident = conf_get_ident_from_string( ident_str );
+		//not found or not supported yet
 		if( ident == NULL || ident->data_type == NO_SUPPORT ){
 			_reply( sock, CMD_SYNTAX_ERROR, "Does not support parameter '%s'", ident_str );
 			return 0;
 		}
 
-		//ended val_str by '\0'
+		//count the length of data value
 		val_len = 0;
-		while( val_str[ val_len ] != NEW_LINE ){
+		while( val_str[ val_len ] != NEW_LINE )
 			val_len ++;
+
+		//value is empty
+		if( val_len == 0 ){
+			_reply( sock, CMD_SYNTAX_ERROR, "Expect value for '%s'", ident_str );
+			return 0;
 		}
+
+		//ended val_str by '\0'
 		val_str[ val_len ] = '\0';
+		val_len ++; //take into account '\0'
 
 		//check value depending on data type of parameter
-		switch( ident->data_type ){
-		case BOOL:
-			if( IS_EQUAL_STRINGS( val_str, "true" ) )
-				break;
-			if( IS_EQUAL_STRINGS( val_str, "false" ) )
-				break;
-
-			_reply( sock, CMD_SYNTAX_ERROR, "Expect either 'true' or 'false' as value of '%s' (not '%s')", ident_str, val_str );
+		str_ptr = conf_validate_data_value(ident, val_str);
+		if( str_ptr != NULL ){
+			_reply( sock, CMD_SYNTAX_ERROR, "%s", str_ptr );
 			return 0;
-			break;
-
-		case UINT16_T:
-		case UINT32_T:
-			while( *val_str != '\0' ){
-				if( *val_str < '0' || *val_str > '9' ){
-					_reply( sock, CMD_SYNTAX_ERROR, "Expect a number as value of '%s' (not '%s')", ident_str, val_str );
-					return 0;
-				}
-				val_str ++;
-			}
-			break;
-		default:
-			break;
 		}
 
 
+		DEBUG("%s=%s", ident_str, val_str );
 		//stock into parameter
 
 		//ensure that we have enough place to stock this parameter
 		if( offset + 2 + 2 + val_len > param_size ){
-			_reply( sock, CMD_SYNTAX_ERROR, "Huge data for parameters");
+			_reply( sock, CMD_SYNTAX_ERROR, "Huge data value for parameters");
 			return 0;
 		}
 
