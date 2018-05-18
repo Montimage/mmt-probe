@@ -15,7 +15,7 @@
 
 #include "command.h"
 //we send a message that can contain at least one command_t
-#define MMT_BUS_MAX_MESSAGE_SIZE (MMT_CMD_PARAM_MAX_LENGTH + sizeof( command_t) )
+#define MMT_BUS_MAX_MESSAGE_SIZE ( sizeof( command_t) )
 
 //number of subscribers
 #define MMT_BUS_MAX_SUBSCRIBERS      3
@@ -75,6 +75,9 @@ typedef int (*bus_subscriber_callback_t)( const char *message, size_t message_si
  * @param cb
  * @param user_data
  * @return true if successfully, otherwise false
+ *
+ * @note: the functions used inside bus_subscriber_callback_t must be async-safe
+ *  as they are called inside an interrupt handler.
  */
 bool mmt_bus_subscribe( bus_subscriber_callback_t cb, void *user_data );
 

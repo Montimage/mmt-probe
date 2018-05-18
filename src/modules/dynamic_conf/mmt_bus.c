@@ -84,10 +84,7 @@ bool mmt_bus_create(){
 	//create a shared memory segment
 	bus = mmap(0, total_shared_memory_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 
-	if (bus == MAP_FAILED) {
-		log_write(LOG_ERR, "Cannot create shared memory for %zu B: %s", total_shared_memory_size, strerror( errno ));
-		abort();
-	}
+	ASSERT(bus != MAP_FAILED, "Cannot create shared memory for %zu B: %s", total_shared_memory_size, strerror( errno ));
 
 	//initialize memory segment
 	memset( bus, 0, total_shared_memory_size );
@@ -178,6 +175,8 @@ mmt_bus_code_t mmt_bus_publish( const char*message, size_t message_size, uint16_
 /**
  * This function is a callback being called in subscribers when receiving a signal notification from a publisher.
  * @param type
+ *
+ * TODO: need signal-safety
  */
 static void _signal_handler( int type ){
 	int i;
@@ -220,6 +219,16 @@ static void _signal_handler( int type ){
 		}
 }
 
+/**
+ * Subscribe the calling process to the bus.
+ * When someone publishes a message to the bus, the callback cb will be fired.
+ * @param cb
+ * @param user_data
+ * @return true if successfully, otherwise false
+ *
+ * @note: the functions used inside bus_subscriber_callback_t must be async-safe
+ *  as they are called inside an interrupt handler.
+ */
 bool mmt_bus_subscribe( bus_subscriber_callback_t cb, void *user_data ){
 	int i;
 	pid_t pid = getpid();

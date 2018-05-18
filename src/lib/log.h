@@ -12,6 +12,13 @@
 #include <execinfo.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
+
+/**
+ * Signal to restart the current (child) process
+ */
+#define SIGRES SIGUSR2
+
 
 /**
  * Open system log file
@@ -49,6 +56,11 @@ static inline void log_close(){
 		abort();                                                            \
 	}
 
+#define RESTART( format, ... )                                              \
+	do{                                                                     \
+		log_write( LOG_ERR, format,## __VA_ARGS__ );                        \
+		raise( SIGRES );                                                    \
+	}while( 0 )
 
 /**
  *  Obtain a back-trace

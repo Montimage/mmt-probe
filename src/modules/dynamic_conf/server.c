@@ -32,7 +32,7 @@
 #include "../../configure_override.h"
 
 //we allocate buffer to be able to stock at least one command
-#define BUFFER_SIZE MMT_CMD_PARAM_MAX_LENGTH
+#define BUFFER_SIZE  ( sizeof( command_t) )
 #define LENGTH( string ) (sizeof( string ) - 1 )
 #define IS_CMD( buf, cmd ) (0 == strncmp( buf, cmd, sizeof( cmd ) - 1 ))
 
@@ -56,11 +56,11 @@ static inline void _reply( int sock, uint16_t code, const char *format, ... ){
 	write( sock, message, offset );
 }
 
-size_t parse_update_parameters( const char *buffer, size_t buffer_size, void (*callback)(int ident, size_t data_len, const char *data) ){
+size_t parse_command_parameters( const char *buffer, size_t buffer_size, command_param_t * lst, size_t size ){
 	size_t ret = 0, offset = 0;
 	uint16_t ident, data_len;
 	const char *data;
-	while( offset < buffer_size ){
+	while( offset < buffer_size && ret < size ){
 		//1. The first 2bytes is identity
 		assign_2bytes( &ident, &buffer[ offset ]);
 		offset += 2;
@@ -71,7 +71,9 @@ size_t parse_update_parameters( const char *buffer, size_t buffer_size, void (*c
 		data = &buffer[offset];
 
 		//processing this parameter
-		callback( ident, data_len, data );
+		lst[ret].ident = ident;
+		lst[ret].data_len = data_len;
+		lst[ret].data = data;
 
 		//jump to the next parameter
 		offset += data_len;
@@ -160,7 +162,7 @@ static inline int _parse_update_parameters( char *buffer, size_t buffer_len, cha
 
 		//now ident_str is a string with null-terminated.
 		// We will check whether it is existing in our list (see the list in `conf_print_identities_list`)
-		ident = conf_get_ident_from_string( ident_str );
+		ident = conf_get_identity_from_string( ident_str );
 		//not found or not supported yet
 		if( ident == NULL || ident->data_type == NO_SUPPORT ){
 			_reply( sock, CMD_SYNTAX_ERROR, "Does not support parameter '%s'", ident_str );
@@ -221,6 +223,31 @@ static inline int _parse_update_parameters( char *buffer, size_t buffer_len, cha
 	return offset;
 }
 
+static inline void _reply_list_of_update_parameters( int sock ){
+	int i, size;
+	const char *data_type_strings[] = {
+			"",
+			"boolean",
+			"uint16_t",
+			"uint32_t",
+			"string"
+	};
+	char message[ BUFFER_SIZE ];
+
+	const identity_t *identities;
+	size_t nb_parameters = conf_get_identities( &identities );
+
+	//number of elements
+	size = snprintf( message, BUFFER_SIZE, "%zu\n", nb_parameters - 1 ); //-NO_SUPPORT
+	write( sock, message, size );
+
+	for( i=0; i<nb_parameters; i++ )
+		if( identities[i].data_type !=NO_SUPPORT  ){
+			size = snprintf( message, BUFFER_SIZE, "%s (%s)\n", identities[i].ident, data_type_strings[identities[i].data_type]);
+			write( sock, message, size );
+		}
+}
+
 static int socket_fd = 0;
 static struct sockaddr_un address;
 
@@ -228,6 +255,7 @@ static struct sockaddr_un address;
 #define CMD_START_STR   "start"
 #define CMD_STOP_STR    "stop"
 #define CMD_UPDATE_STR  "update"
+#define CMD_LS_STR      "ls"
 
 static inline void _processing( int sock ) {
 	int ret;
@@ -250,8 +278,10 @@ static inline void _processing( int sock ) {
 			buffer[ ret ] = '\0'; //well terminate the string
 		}
 
-
-		if( IS_CMD( buffer, CMD_START_STR )){
+		if( IS_CMD( buffer, CMD_LS_STR )){
+			_reply_list_of_update_parameters( sock );
+			continue;
+		}else if( IS_CMD( buffer, CMD_START_STR )){
 			command.id = DYN_CONF_CMD_START;
 			command.parameter_length = 0;
 			cmd_str = CMD_START_STR;
@@ -315,6 +345,10 @@ static void _signal_handler( int type ){
 		EXIT_THEN_RESTART_BY_PARENT();
 
 		break;
+
+	case SIGRES:
+		log_write(LOG_ERR, "Restart signal received! Cleaning up before restarting!");
+		EXIT_THEN_RESTART_BY_PARENT();
 	}
 }
 
@@ -326,7 +360,7 @@ bool dynamic_conf_server_start_processing( const char* unix_domain_descriptor ){
 	//default signal to exit
 	signal( SIGINT,  _signal_handler );
 	signal( SIGSEGV, _signal_handler );
-
+	signal(SIGRES,   _signal_handler);
 	//use UNIX socket
 	if ((socket_fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
 		ABORT( "Error when opening socket: %s", strerror( errno ) );

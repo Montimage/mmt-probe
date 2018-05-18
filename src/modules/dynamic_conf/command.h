@@ -9,9 +9,8 @@
 #define SRC_MODULES_DYNAMIC_CONF_COMMAND_H_
 
 #include <stdint.h>
-#include "mmt_bus.h"
 
-#define MMT_CMD_PARAM_MAX_LENGTH 1000
+#define MMT_CMD_PARAM_MAX_LENGTH 10000
 enum{
 	DYN_CONF_CMD_STOP   = 1,
 	DYN_CONF_CMD_START  = 2,
@@ -31,4 +30,15 @@ typedef struct{
 	char parameter[ MMT_CMD_PARAM_MAX_LENGTH ];
 }command_t;
 
+/**
+ * Represent a parameter of update command, for example, input.mode=online
+ * => ident    = CONF_ATT__INPUT__MODE
+ * => data_len = 7 (6bytes for 'online' + 1 bytes for '\0')
+ * => data     = "online\0"
+ */
+typedef struct{
+	uint16_t ident;
+	uint16_t data_len;
+	const char *data ;
+}command_param_t;
 #endif /* SRC_MODULES_DYNAMIC_CONF_COMMAND_H_ */

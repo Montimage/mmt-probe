@@ -400,9 +400,8 @@ void pcap_capture_start( probe_context_t *context ){
 					(sizeof( pkthdr_t ) + context->config->input->snap_len)
 			)){
 
-				log_write(LOG_ERR, "Cannot allocate FIFO buffer for thread %d. Please reduce thread-queue or thread-nb",
+				ABORT( "Cannot allocate FIFO buffer for thread %d. Please reduce thread-queue or thread-nb",
 						i);
-				exit( EXIT_FAILURE );
 			}
 
 			//start worker thread
@@ -417,19 +416,17 @@ void pcap_capture_start( probe_context_t *context ){
 	if( context->config->input->input_mode == OFFLINE_ANALYSIS ){
 		pcap = pcap_open_offline( context->config->input->input_source, errbuf );
 		if( pcap == NULL ){
-			log_write( LOG_ERR, "Couldn't open file \'%s\': %s\n",
+			ABORT( "Couldn't open file \'%s\': %s\n",
 					context->config->input->input_source,
 					errbuf);
-			exit( EXIT_FAILURE );
 		}
 	}else{
 		/* open capture device */
 		pcap = pcap_create(context->config->input->input_source, errbuf);
 		if ( pcap == NULL ) {
-			log_write( LOG_ERR, "Couldn't open device \'%s\': %s\n",
+			ABORT( "Couldn't open device \'%s\': %s\n",
 					context->config->input->input_source,
 					errbuf);
-			exit( EXIT_FAILURE );
 		}
 
 		//set IP packet size
@@ -437,9 +434,8 @@ void pcap_capture_start( probe_context_t *context ){
 		//put NIC to promiscuous mode to capture any packets
 		ret = pcap_set_promisc( pcap, 1);
 		if( ret != 0 ){
-			log_write( LOG_ERR, "Cannot put '%s' NIC to promiscuous mode",
+			ABORT( "Cannot put '%s' NIC to promiscuous mode",
 					context->config->input->input_source);
-			exit( EXIT_FAILURE );
 		}
 		ret = pcap_set_timeout( pcap, 0 );
 		//buffer size
@@ -450,9 +446,8 @@ void pcap_capture_start( probe_context_t *context ){
 		//pcap_datalink() must not be called on a pcap  descriptor  created  by  pcap_create()
 		//  that has not yet been activated by pcap_activate().
 		if (pcap_datalink( pcap ) != DLT_EN10MB) {
-			log_write( LOG_ERR, "'%s' is not an Ethernet. (be sure that you are running probe with root permission)\n",
+			ABORT( "'%s' is not an Ethernet. (be sure that you are running probe with root permission)\n",
 					context->config->input->input_source);
-			exit( EXIT_FAILURE );
 		}
 	}
 

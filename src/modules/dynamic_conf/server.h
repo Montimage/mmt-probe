@@ -19,6 +19,7 @@
 #define SRC_MODULES_DYNAMIC_CONF_SERVER_H_
 
 #include <stdbool.h>
+#include "command.h"
 
 enum{
 	CMD_SUCCESS      = 0,
@@ -26,7 +27,16 @@ enum{
 	CMD_OVER_SIZE    = 2,
 };
 
-size_t parse_update_parameters( const char *buffer, size_t buffer_size, void (*callback)(int ident, size_t data_len, const char *data) );
+/**
+ * Get a list of command_t being stored in buffer.
+ * Data in the buffer is constructed by server.c
+ * @param buffer
+ * @param buffer_size
+ * @param lst
+ * @param command_size
+ * @return
+ */
+size_t parse_command_parameters( const char *buffer, size_t buffer_size, command_param_t * lst, size_t command_size );
 
 /**
  * Start the server to listen on a file descriptor.

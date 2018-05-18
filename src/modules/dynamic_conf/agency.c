@@ -19,20 +19,18 @@
 #include "../../lib/log.h"
 #include "../../lib/tools.h"
 #include "../../lib/limit.h"
-
-static void _process_param( int ident, size_t data_len, const char *data ){
-	//update the config in the main process.
-	//this update will be transfered to its children once they are created (by using fork)
-	//conf_override_element_by_id( get_context()->config, ident, data );
-}
+#include "../../configure_override.h"
 
 static int _receive_message( const char *message, size_t message_size, void *user_data ){
 	const command_t *cmd = (command_t *) message;
+	size_t size = conf_get_identities( NULL );
+	command_param_t params[ size ];
+
 	DEBUG( "Received command id %d", cmd->id );
 
 	switch( cmd->id ){
 	case DYN_CONF_CMD_UPDATE:
-		parse_update_parameters( cmd->parameter, cmd->parameter_length, _process_param );
+		size = parse_command_parameters( cmd->parameter, cmd->parameter_length, params, size );
 		return DYN_CONF_CMD_REPLY_OK;
 		break;
 	}
@@ -45,4 +43,16 @@ bool dynamic_conf_agency_start(){
 		return false;
 	}
 	return true;
+}
+
+
+bool dynamic_conf_need_to_restart_to_update( int ident ){
+	switch( ident ){
+	case CONF_ATT__NONE:
+		return false;
+//currently suppose that all parameters are need to restart to be able to update
+	default:
+		return true;
+	}
+	return false;
 }

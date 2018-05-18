@@ -33,11 +33,16 @@ There are no space between identities.
 
 
 command   := `update{` new_line (parameter)+ new_line `}`
+new_line  := `\n`
 parameter := identity `=` (string | boolean | number )
-boolean   :=  `true` | `false`
-string    :=  `"` (.+) `"`
+boolean   := `true` | `false`
+string    := (.+)
 number    := [0-9]+
-   
+
+
+## `ls`
+
+Get the list of parameters
 
 
 ```

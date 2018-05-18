@@ -22,15 +22,15 @@
 #include "mmt_bus.h"
 #include "server.h"
 
-static void _process_param( int ident, size_t data_len, const char *data ){
-	//update the config in the main process.
-	//this update will be transfered to its children once they are created (by using fork)
-	conf_override_element_by_id( get_context()->config, ident, data );
-}
 
 static int _receive_message( const char *message, size_t message_size, void *user_data ){
 	const command_t *cmd = (command_t *) message;
 	pid_t *pid = (pid_t *) user_data;
+	int i;
+	size_t size = conf_get_identities( NULL );
+	command_param_t params[ size ];
+	probe_conf_t *config;
+	bool is_need_to_restart;
 
 	ASSERT( pid != NULL, "Must not be NULL" );
 
@@ -59,7 +59,28 @@ static int _receive_message( const char *message, size_t message_size, void *use
 	// these modifications will be transfered to its child when restarting
 	case DYN_CONF_CMD_UPDATE:
 		//As the message was validated and parsed summarily by server.c, we do not need to check it again
-		parse_update_parameters( cmd->parameter, cmd->parameter_length, _process_param );
+		size = parse_command_parameters( cmd->parameter, cmd->parameter_length, params, size );
+		config = get_context()->config;
+
+		//do we need to restart the processing process to take into account the parameters ???
+		is_need_to_restart = false;
+
+		for( i=0; i<size; i++ ){
+			//update the config in the main process.
+			//this update will be transfered to its children once they are created (by using fork)
+			conf_override_element_by_id( config, params[i].ident, params[i].data );
+
+			if( dynamic_conf_need_to_restart_to_update( params[i].ident ) )
+				is_need_to_restart = true;
+		}
+
+		//the child processing process is running
+		//if need to restart the child to take into account the parameters
+		if( *pid > 0 && is_need_to_restart ){
+			//tell it to restart
+			kill( *pid, SIGRES );
+		}
+
 		break;
 
 	default: //must not happen
