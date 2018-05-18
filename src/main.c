@@ -240,7 +240,7 @@ void signal_handler(int type) {
 		if( context->config->input->input_mode == OFFLINE_ANALYSIS )
 			EXIT_NORMALLY();
 		else
-			EXIT_THEN_RESTART_BY_PARENT();
+			EXIT_TOBE_RESTARTED();
 
 		break;
 
@@ -254,7 +254,7 @@ void signal_handler(int type) {
 	case SIGRES:
 		log_write(LOG_ERR, "Restart signal received! Cleaning up before restarting!");
 		_stop_modules( context );
-		EXIT_THEN_RESTART_BY_PARENT();
+		EXIT_TOBE_RESTARTED();
 	}
 }
 
@@ -429,7 +429,7 @@ int main( int argc, char** argv ){
 		if( child_pid == 0 )
 			goto _next_iteration;
 
-		log_write(LOG_INFO, "Child process %d return code: %d", child_pid, status );
+		log_write( LOG_INFO, "Child process %d return code: %d", child_pid, status );
 
 		//4. parent will check to re-create a new instance of a child if it was killed by segmentation fault
 		//the child it exist normally, then lets keep it dead

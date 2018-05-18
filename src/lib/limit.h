@@ -149,7 +149,14 @@
 #endif
 
 //depending on exit value of a child process, the main process can restart or not the child process
-#define EXIT_NORMALLY()                _EXIT( EXIT_SUCCESS )
-#define EXIT_THEN_RESTART_BY_PARENT()  _EXIT( EXIT_FAILURE )
+/**
+ * Exit normally the current process, e.g., when user intends to exit the program
+ */
+#define EXIT_NORMALLY()        _EXIT( EXIT_SUCCESS )
+/**
+ * Exit the current process, then the main process will re-create a new child process to replace it.
+ * This is helpful to update some parameters, or when facing some errors.
+ */
+#define EXIT_TOBE_RESTARTED()  _EXIT( EXIT_FAILURE )
 
 #endif /* SRC_LIB_LIMIT_H_ */

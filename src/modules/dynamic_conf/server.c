@@ -32,9 +32,9 @@
 #include "../../configure_override.h"
 
 //we allocate buffer to be able to stock at least one command
-#define BUFFER_SIZE  ( sizeof( command_t) )
-#define LENGTH( string ) (sizeof( string ) - 1 )
-#define IS_CMD( buf, cmd ) (0 == strncmp( buf, cmd, sizeof( cmd ) - 1 ))
+#define BUFFER_SIZE        ( sizeof( command_t) )
+#define LENGTH( string )   (sizeof( string ) - 1 )
+#define IS_CMD( buf, cmd ) (0 == strncmp( buf, cmd, LENGTH( cmd ) ))
 
 #define NEW_LINE '\n'
 
@@ -263,67 +263,85 @@ static inline void _processing( int sock ) {
 	uint16_t reply_code;
 	const char *cmd_str = NULL;
 	command_t command;
+	int offset = 0;
 
 	do{
-		ret = recv( sock, buffer, BUFFER_SIZE, MSG_WAITALL);
-		if( ret == 0 ) break;
+		ret = recv( sock, buffer + offset, BUFFER_SIZE - offset, MSG_WAITALL);
+		offset += ret;
 
-		//if buffer is ended by null-terminated
-		if( buffer[ret - 1] == '\0' )
-			ret --;// ret = strlen( buffer )
-		else{
-			//buffer is full => reserve the last element to contain '\0'
-			if( ret == BUFFER_SIZE )
-				ret --;
-			buffer[ ret ] = '\0'; //well terminate the string
-		}
-
-		if( IS_CMD( buffer, CMD_LS_STR )){
-			_reply_list_of_update_parameters( sock );
-			continue;
-		}else if( IS_CMD( buffer, CMD_START_STR )){
-			command.id = DYN_CONF_CMD_START;
-			command.parameter_length = 0;
-			cmd_str = CMD_START_STR;
-		}else if( IS_CMD( buffer, CMD_STOP_STR )){
-			command.id = DYN_CONF_CMD_STOP;
-			command.parameter_length = 0;
-			cmd_str = CMD_STOP_STR;
-		}else if( IS_CMD( buffer, CMD_UPDATE_STR )){
-			ret = _parse_update_parameters( buffer + LENGTH( CMD_UPDATE_STR ), ret - LENGTH( CMD_UPDATE_STR ), command.parameter, sizeof(command.parameter), sock );
-			//syntax error. We notified the error inside _parse_update_parameters function
-			if( ret == 0 )
-				continue;
-
-			command.parameter_length = ret;
-			command.id = DYN_CONF_CMD_UPDATE;
-			cmd_str = CMD_UPDATE_STR;
-		}else{
-			_reply( sock, CMD_SYNTAX_ERROR , "Does not support the command: %s", buffer );
-			continue;
-		}
-
-		log_write( LOG_INFO, "Publish command id %d (%s)", command.id, cmd_str );
-
-		//4: 2bytes of id + 2bytes of paramter_length
-		ret = mmt_bus_publish( (char *) &command, 4 + command.parameter_length, NULL );
-
-		switch( ret ){
-		case MSG_BUS_OLD_MSG_NO_CONSUME:
-			_reply( sock, MSG_BUS_OLD_MSG_NO_CONSUME, "Old message is not consumed. Need to wait then resend again." );
-			break;
-		case MMT_BUS_SUCCESS:
-			_reply( sock, CMD_SUCCESS, "Successfully processed the command: %s", cmd_str );
-			break;
-		}
-
-		continue;
-
+		if( ret == 0 || offset >= BUFFER_SIZE ) break;
 	}while( true );
 
+
+	//if buffer is ended by null-terminated
+	if (buffer[offset - 1] == '\0')
+		offset--; // ret = strlen( buffer )
+	else {
+		//buffer is full => reserve the last element to contain '\0'
+		if (offset == BUFFER_SIZE)
+			offset--;
+		buffer[offset] = '\0'; //well terminate the string
+	}
+
+	//ls
+	if (IS_CMD(buffer, CMD_LS_STR) && offset == LENGTH( CMD_LS_STR )) {
+		_reply_list_of_update_parameters(sock);
+		goto _finish;
+	} else //start
+	if (IS_CMD(buffer, CMD_START_STR) && offset == LENGTH( CMD_START_STR )) {
+		command.id = DYN_CONF_CMD_START;
+		command.parameter_length = 0;
+		cmd_str = CMD_START_STR;
+	} else //stop
+	if (IS_CMD(buffer, CMD_STOP_STR) && offset == LENGTH( CMD_STOP_STR )) {
+		command.id = DYN_CONF_CMD_STOP;
+		command.parameter_length = 0;
+		cmd_str = CMD_STOP_STR;
+	} else //update
+	if (IS_CMD(buffer, CMD_UPDATE_STR)) {
+		ret = _parse_update_parameters(buffer + LENGTH(CMD_UPDATE_STR),
+				offset - LENGTH(CMD_UPDATE_STR), command.parameter,
+				sizeof(command.parameter), sock);
+
+		//syntax error. We notified the error inside _parse_update_parameters function
+		if (ret == 0)
+			goto _finish;
+
+		command.parameter_length = ret;
+		command.id = DYN_CONF_CMD_UPDATE;
+		cmd_str = CMD_UPDATE_STR;
+	} else {
+		_reply(sock, CMD_SYNTAX_ERROR, "Does not support the command: %s", buffer);
+		goto _finish;
+	}
+
+	log_write( LOG_INFO, "Publish command id %d (%s)", command.id, cmd_str);
+
+	//4: 2bytes of id + 2bytes of paramter_length
+	ret = mmt_bus_publish((char *) &command, 4 + command.parameter_length,
+			NULL);
+
+	switch (ret) {
+	case MSG_BUS_OLD_MSG_NO_CONSUME:
+		_reply(sock, MSG_BUS_OLD_MSG_NO_CONSUME,
+				"Old message is not consumed. Need to wait then resend again.");
+		break;
+	case MMT_BUS_SUCCESS:
+		_reply(sock, CMD_SUCCESS, "Successfully processed the command: %s",
+				cmd_str);
+		break;
+	}
+
+	_finish:
 	close( sock );
 }
 
+/**
+ * Tobe perfect: need signal-safety for
+ * - log_write
+ * - log_execution_trace
+ * @param type
+ */
 static void _signal_handler( int type ){
 	switch( type ){
 	case SIGINT:
@@ -342,13 +360,13 @@ static void _signal_handler( int type ){
 		log_execution_trace();
 
 		//Auto restart when segmentation fault
-		EXIT_THEN_RESTART_BY_PARENT();
+		EXIT_TOBE_RESTARTED();
 
 		break;
 
 	case SIGRES:
 		log_write(LOG_ERR, "Restart signal received! Cleaning up before restarting!");
-		EXIT_THEN_RESTART_BY_PARENT();
+		EXIT_TOBE_RESTARTED();
 	}
 }
 
