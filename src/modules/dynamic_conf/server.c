@@ -230,6 +230,7 @@ static inline void _reply_list_of_update_parameters( int sock ){
 			"boolean",
 			"uint16_t",
 			"uint32_t",
+			"string",
 			"string"
 	};
 	char message[ BUFFER_SIZE ];

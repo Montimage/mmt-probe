@@ -448,6 +448,63 @@ static inline  output_channel_conf_t _parse_output_channel( cfg_t *cfg ){
 	return out;
 }
 
+output_channel_conf_t conf_parse_output_channel( const char *string ){
+	output_channel_conf_t out = CONF_OUTPUT_CHANNEL_FILE; //default is to output to file
+
+	const size_t len = strlen(string) +  sizeof("output-channel={}");
+	char buffer[ len ];
+	//put string in form
+	snprintf( buffer, len, "output-channel={%s}", string );
+
+	cfg_opt_t opts[] = {
+			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
+			CFG_END()
+	};
+
+	cfg_t *cfg = cfg_init( opts, CFGF_NONE );
+	if( cfg_parse_buf(cfg, buffer) == CFG_PARSE_ERROR )
+		log_write(LOG_ERR, "Error: output-channel '%s' could not be parsed.", string );
+	else
+		out = _parse_output_channel( cfg );
+
+	cfg_free( cfg );
+	return out;
+}
+
+size_t conf_parse_list( const char *string, char ***proto_lst ){
+	size_t ret = 0;
+	int i;
+	char **lst;
+	const char *str;
+	const size_t len = strlen(string) +  sizeof("X={}");
+	char buffer[ len ];
+	ASSERT( proto_lst != NULL, "Must not be NULL" );
+	//put string in form
+	snprintf( buffer, len, "X={%s}", string );
+
+	cfg_opt_t opts[] = {
+			CFG_STR_LIST("X", "{}", CFGF_NONE),
+			CFG_END()
+	};
+
+	cfg_t *cfg = cfg_init( opts, CFGF_NONE );
+	if( cfg_parse_buf(cfg, buffer) == CFG_PARSE_ERROR )
+		log_write(LOG_ERR, "Error: protocols '%s' could not be parsed.", string );
+	else{
+		ret = cfg_size( cfg, "X");
+
+		lst = mmt_alloc( sizeof( void* ) * ret );
+
+		for( i=0; i<ret; i++) {
+			str = cfg_getnstr(cfg, "X", i);
+			lst[i] = mmt_strdup( str );
+		}
+		*proto_lst = lst;
+	}
+	cfg_free( cfg );
+	return ret;
+}
+
 static inline system_stats_conf_t *_parse_cpu_mem_block( cfg_t *cfg ){
 	if( (cfg = _get_first_cfg_block( cfg, "system-report")) == NULL )
 		return NULL;

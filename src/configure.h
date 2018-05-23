@@ -268,6 +268,14 @@ probe_conf_t* conf_load_from_file( const char* filename );
  */
 void conf_release( probe_conf_t * );
 
+/**
+ * Parse a string to get output_channel
+ * @param string contains set of output channels separated by comma. For example: "redis, kafka, file"
+ * @return
+ */
+output_channel_conf_t conf_parse_output_channel( const char *string );
+
+size_t conf_parse_list( const char *string, char ***proto_lst );
 
 int conf_validate( probe_conf_t *conf );
 

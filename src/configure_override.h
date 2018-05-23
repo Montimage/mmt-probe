@@ -11,13 +11,20 @@
 #include "configure.h"
 #include "lib/macro_apply.h"
 
+//TODO: remove the following defines
+#define MONGODB_MODULE
+#define PCAP_DUMP_MODULE
+#define KAFKA_MODULE
+#define REDIS_MODULE
+#define SECURITY_MODULE
 
 typedef enum{
    NO_SUPPORT,
    BOOL,
    UINT16_T,
    UINT32_T,
-   CHAR_STAR
+   CHAR_STAR,
+   LIST
 }data_type_t;
 
 typedef struct identity_struct{
@@ -138,62 +145,62 @@ DECLARE_CONF_ATT(
 
 #ifdef MONGODB_MODULE
 	//mongodb-output
-	(CONF_ATT__MONGODB_OUTPUT__ENABLE,     "mongodb-output.enable",     &conf->outputs.mongodb->is_enable,           BOOL),
-	(CONF_ATT__MONGODB_OUTPUT__HOSTNAME,   "mongodb-output.hostnam",    &conf->outputs.mongodb->host.host_name,     CHAR_STAR),
-	(CONF_ATT__MONGODB_OUTPUT__PORT,       "mongodb-output.port",       &conf->outputs.mongodb->host.port_number,      UINT16_T),
-	(CONF_ATT__MONGODB_OUTPUT__COLLECTION, "mongodb-output.collection", &conf->outputs.mongodb->collection_name, CHAR_STAR),
+	(CONF_ATT__MONGODB_OUTPUT__ENABLE,     "mongodb-output.enable",     &conf->outputs.mongodb->is_enable,         BOOL),
+	(CONF_ATT__MONGODB_OUTPUT__HOSTNAME,   "mongodb-output.hostnam",    &conf->outputs.mongodb->host.host_name,    CHAR_STAR),
+	(CONF_ATT__MONGODB_OUTPUT__PORT,       "mongodb-output.port",       &conf->outputs.mongodb->host.port_number,  UINT16_T),
+	(CONF_ATT__MONGODB_OUTPUT__COLLECTION, "mongodb-output.collection", &conf->outputs.mongodb->collection_name,   CHAR_STAR),
 	(CONF_ATT__MONGODB_OUTPUT__DATABASE,   "mongodb-output.database",   &conf->outputs.mongodb->database_name,     CHAR_STAR),
-	(CONF_ATT__MONGODB_OUTPUT__LIMIT_SIZE, "mongodb-output.limit-size", &conf->outputs.mongodb->limit_size,      UINT32_T),
+	(CONF_ATT__MONGODB_OUTPUT__LIMIT_SIZE, "mongodb-output.limit-size", &conf->outputs.mongodb->limit_size,        UINT32_T),
 #endif
 
 #ifdef KAFKA_MODULE
 	//kafka-output
-	(CONF_ATT__KAFKA_OUTPUT__ENABLE,   "kafka-output.enable", &conf->outputs.kafka->is_enable,        BOOL),
-	(CONF_ATT__KAFKA_OUTPUT__HOSTNAME, "kafka-output.hostname", &conf->outputs.kafka->host.host_name, CHAR_STAR),
-	(CONF_ATT__KAFKA_OUTPUT__PORT,     "kafka-output.port", &conf->outputs.kafka->host.port_number,   UINT16_T),
+	(CONF_ATT__KAFKA_OUTPUT__ENABLE,   "kafka-output.enable",   &conf->outputs.kafka->is_enable,        BOOL),
+	(CONF_ATT__KAFKA_OUTPUT__HOSTNAME, "kafka-output.hostname", &conf->outputs.kafka->host.host_name,   CHAR_STAR),
+	(CONF_ATT__KAFKA_OUTPUT__PORT,     "kafka-output.port",     &conf->outputs.kafka->host.port_number, UINT16_T),
 #endif
 
 #ifdef REDIS_MODULE
 	//redis-output
-	(CONF_ATT__REDIS_OUTPUT__ENABLE,   "redis-output.enable", &conf->outputs.redis->is_enable,        BOOL),
-	(CONF_ATT__REDIS_OUTPUT__HOSTNAME, "redis-output.hostname", &conf->outputs.redis->host.host_name, CHAR_STAR),
-	(CONF_ATT__REDIS_OUTPUT__PORT,     "redis-output.port", &conf->outputs.redis->host.port_number,   UINT16_T),
+	(CONF_ATT__REDIS_OUTPUT__ENABLE,   "redis-output.enable",   &conf->outputs.redis->is_enable,        BOOL),
+	(CONF_ATT__REDIS_OUTPUT__HOSTNAME, "redis-output.hostname", &conf->outputs.redis->host.host_name,   CHAR_STAR),
+	(CONF_ATT__REDIS_OUTPUT__PORT,     "redis-output.port",     &conf->outputs.redis->host.port_number, UINT16_T),
 #endif
 
 #ifdef PCAP_DUMP_MODULE
 	//dump-pcap
 	(CONF_ATT__DUMP_PCAP__ENABLE,       "dump-pcap.enable",       &conf->reports.pcap_dump->is_enable,            BOOL),
 	(CONF_ATT__DUMP_PCAP__OUTPUT_DIR,   "dump-pcap.output-dir",   &conf->reports.pcap_dump->directory,            CHAR_STAR),
-	//(CONF_ATT__DUMP_PCAP__PROTOCOLS,    "dump-pcap.protocols",    NULL, NO_SUPPORT),
+	(CONF_ATT__DUMP_PCAP__PROTOCOLS,    "dump-pcap.protocols",    &conf->reports.pcap_dump->protocols,            LIST),
 	(CONF_ATT__DUMP_PCAP__PERIOD,       "dump-pcap.period",       &conf->reports.pcap_dump->frequency,            UINT16_T),
 	(CONF_ATT__DUMP_PCAP__RETAIN_FILES, "dump-pcap.retain-files", &conf->reports.pcap_dump->retained_files_count, UINT16_T),
 	(CONF_ATT__DUMP_PCAP__SNAP_LEN,     "dump-pcap.snap-len",     &conf->reports.pcap_dump->snap_len,             UINT16_T),
 #endif
 
 	//system-report
-	(CONF_ATT__SYSTEM_REPORT__ENABLE, "system-report.enable", &conf->reports.cpu_mem->is_enable, BOOL),
-	(CONF_ATT__SYSTEM_REPORT__PERIOD, "system-report.period", &conf->reports.cpu_mem->frequency, UINT16_T),
-	(CONF_ATT__SYSTEM_REPORT__OUTPUT_CHANNEL, "system-report.output-channel", NULL, NO_SUPPORT), //NO SUPPORT
+	(CONF_ATT__SYSTEM_REPORT__ENABLE,         "system-report.enable", &conf->reports.cpu_mem->is_enable, BOOL),
+	(CONF_ATT__SYSTEM_REPORT__PERIOD,         "system-report.period", &conf->reports.cpu_mem->frequency, UINT16_T),
+	(CONF_ATT__SYSTEM_REPORT__OUTPUT_CHANNEL, "system-report.output-channel", &conf->reports.cpu_mem->output_channels, CHAR_STAR),
 
 	//behaviour
-	(CONF_ATT__BEHAVIOUR__ENABLE,     "behaviour.enable", &conf->reports.behaviour->is_enable, BOOL),
+	(CONF_ATT__BEHAVIOUR__ENABLE,     "behaviour.enable",     &conf->reports.behaviour->is_enable, BOOL),
 	(CONF_ATT__BEHAVIOUR__OUTPUT_DIR, "behaviour.output-dir", &conf->reports.behaviour->directory, CHAR_STAR),
 
 #ifdef SECURITY_MODULE
 	//security
-	(CONF_ATT__SECURITY__ENABLE,        "security.enable", &conf->reports.security->is_enable, BOOL ),
-	(CONF_ATT__SECURITY__THREAD_NB,     "security.thread-nb", &conf->reports.security->threads_size, UINT16_T),
-	(CONF_ATT__SECURITY__EXCLUDE_RULES, "security.exclude-rules", &conf->reports.security->excluded_rules, CHAR_STAR),
-	(CONF_ATT__SECURITY__RULES_MASK,    "security.rules-mask", &conf->reports.security->rules_mask, CHAR_STAR),
-	//No support (CONF_ATT__SECURITY__OUTPUT_CHANNEL, "security."),
+	(CONF_ATT__SECURITY__ENABLE,        "security.enable",          &conf->reports.security->is_enable,      BOOL ),
+	(CONF_ATT__SECURITY__THREAD_NB,     "security.thread-nb",       &conf->reports.security->threads_size,   UINT16_T),
+	(CONF_ATT__SECURITY__EXCLUDE_RULES, "security.exclude-rules",   &conf->reports.security->excluded_rules, CHAR_STAR),
+	(CONF_ATT__SECURITY__RULES_MASK,    "security.rules-mask",      &conf->reports.security->rules_mask,     CHAR_STAR),
+	(CONF_ATT__SECURITY__OUTPUT_CHANNEL, "security.output-channel", &conf->reports.security->output_channels, LIST),
 #endif
 
 	//reconstruct FTP
-	(CONF_ATT__RECONSTRUCT_DATA__FTP__ENABLE,     "reconstruct-data.ftp.enable", &conf->reconstructions.ftp->is_enable, BOOL),
+	(CONF_ATT__RECONSTRUCT_DATA__FTP__ENABLE,     "reconstruct-data.ftp.enable",     &conf->reconstructions.ftp->is_enable, BOOL),
 	(CONF_ATT__RECONSTRUCT_DATA__FTP__OUTPUT_DIR, "reconstruct-data.ftp.output-dir", &conf->reconstructions.ftp->directory, CHAR_STAR),
 
 	//reconstruct HTTP
-	(CONF_ATT__RECONSTRUCT_DATA__HTTP__ENABLE,     "reconstruct-data.http.enable", &conf->reconstructions.http->is_enable, BOOL),
+	(CONF_ATT__RECONSTRUCT_DATA__HTTP__ENABLE,     "reconstruct-data.http.enable",     &conf->reconstructions.http->is_enable, BOOL),
 	(CONF_ATT__RECONSTRUCT_DATA__HTTP__OUTPUT_DIR, "reconstruct-data.http.output-dir", &conf->reconstructions.http->directory, CHAR_STAR ),
 
 	//micro-flows
@@ -203,6 +210,7 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__MICRO_FLOWS__REPORT_PACKET_COUNT, "micro-flows.report-packet-count", &conf->reports.microflow->report_packets_count, UINT32_T ),
 	(CONF_ATT__MICRO_FLOWS__REPORT_BYTE_COUNT,   "micro-flows.report-bytes-count",  &conf->reports.microflow->report_bytes_count,   UINT32_T ),
 	(CONF_ATT__MICRO_FLOWS__REPORT_FLOWSCOUNT,   "micro-flows.report-flows-count",  &conf->reports.microflow->report_flows_count,   UINT32_T ),
+	(CONF_ATT__MICRO_FLOWS__OUTPUT_CHANNEL,      "micro-flows.output-channel",      &conf->reports.microflow->output_channels,      LIST),
 
 	//session-report
 	(CONF_ATT__SESSION_REPORT__ENABLE, "session-report.enable", &conf->reports.session->is_enable, BOOL),
@@ -210,9 +218,11 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__SESSION_REPORT__HTTP,   "session-report.http",   &conf->reports.session->is_http,   BOOL),
 	(CONF_ATT__SESSION_REPORT__RTP,    "session-report.rtp",    &conf->reports.session->is_rtp,    BOOL ),
 	(CONF_ATT__SESSION_REPORT__SSL,    "session-report.ssl",    &conf->reports.session->is_ssl,    BOOL),
+	(CONF_ATT__SESSION_REPORT__OUTPUT_CHANNEL, "session-report.output-channel",    &conf->reports.session->output_channels, LIST),
 	//radius-report
-	(CONF_ATT__RADIUS_REPORT__ENABLE,     "radius-report.enable",     &conf->reports.radius->is_enable,    BOOL),
-	(CONF_ATT__RADIUS_REPORT__MESSAGE_ID, "radius-report.message-id", &conf->reports.radius->message_code, UINT16_T )
+	(CONF_ATT__RADIUS_REPORT__ENABLE,         "radius-report.enable",         &conf->reports.radius->is_enable,       BOOL),
+	(CONF_ATT__RADIUS_REPORT__MESSAGE_ID,     "radius-report.message-id",     &conf->reports.radius->message_code,    UINT16_T ),
+	(CONF_ATT__RADIUS_REPORT__OUTPUT_CHANNEL, "radius-report.output-channel", &conf->reports.radius->output_channels, LIST )
 )
 
 static inline const identity_t* conf_get_identity_from_id( int id ){

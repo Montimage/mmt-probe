@@ -52,7 +52,7 @@ static inline void log_close(){
 
 #define ASSERT( exp, format, ... )                                          \
 	while( !(exp) ){                                                        \
-		log_write( LOG_ERR, format,## __VA_ARGS__ );                        \
+		log_write( LOG_ERR, "%s:%d"format,__FILE__, __LINE__,## __VA_ARGS__ );\
 		abort();                                                            \
 	}
 

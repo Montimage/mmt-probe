@@ -83,6 +83,7 @@ const char* conf_validate_data_value( const identity_t *ident, const char *data_
 
 static inline bool _override_element_by_ident( probe_conf_t *conf, const identity_t *ident, const char *value_str ){
 	uint32_t int_val = 0;
+	int i;
 	DEBUG("Update %s to %s", ident->ident, value_str );
 	void *field_ptr = conf_get_ident_attribute_field(conf, ident->val );
 
@@ -122,7 +123,34 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 		mmt_probe_free( *string_ptr );
 		*string_ptr = mmt_strdup( value_str );
 		return true;
+	case LIST:
+		switch( ident->val ){
+		case CONF_ATT__SECURITY__OUTPUT_CHANNEL:
+		case CONF_ATT__SESSION_REPORT__OUTPUT_CHANNEL:
+		case CONF_ATT__SYSTEM_REPORT__OUTPUT_CHANNEL:
+		case CONF_ATT__MICRO_FLOWS__OUTPUT_CHANNEL:
+		case CONF_ATT__RADIUS_REPORT__OUTPUT_CHANNEL:
+			int_val = conf_parse_output_channel( value_str );
+			if( int_val == *(output_channel_conf_t *) field_ptr )
+				return false;
+			(*(output_channel_conf_t *) field_ptr) = int_val;
+			return true;
+		case CONF_ATT__DUMP_PCAP__ENABLE:
+			//free old memory
+			if( conf->reports.pcap_dump ){
+				if( conf->reports.pcap_dump->protocols != NULL ){
+					for( i=0; i<conf->reports.pcap_dump->protocols_size; i++ )
+						mmt_probe_free( conf->reports.pcap_dump->protocols[i] );
+				}
+				mmt_probe_free( conf->reports.pcap_dump->protocols );
+			}else{
+				conf->reports.pcap_dump = mmt_alloc_and_init_zero( sizeof( pcap_dump_conf_t ));
+			}
 
+			conf->reports.pcap_dump->protocols_size = conf_parse_list( value_str, &conf->reports.pcap_dump->protocols );
+			return true;
+		}
+		break;
 	case BOOL:
 		int_val = _parse_bool( value_str );
 		//value does not change => do nothing
@@ -191,6 +219,7 @@ void conf_print_identities_list(){
 			"boolean",
 			"uint16_t",
 			"uint32_t",
+			"string",
 			"string"
 	};
 

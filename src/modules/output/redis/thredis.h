@@ -2,7 +2,7 @@
 #define THREDIS_H
 #include <hiredis/hiredis.h>
 typedef struct
-	thredis
+thredis
 thredis_t;
 
 thredis_t* thredis_new(redisContext* redis_ctx);

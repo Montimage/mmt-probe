@@ -40,11 +40,6 @@ string    := (.+)
 number    := [0-9]+
 
 
-## `ls`
-
-Get the list of parameters
-
-
 ```
 update{
 input.source="enp0s3"
@@ -60,3 +55,8 @@ file-output.retain-files=40
 - 1 if successfully after restarting the main processing
 - 2 if syntax error
 - 3 if internal error (cannot update) 
+
+
+## `ls`
+
+Get the list of parameters

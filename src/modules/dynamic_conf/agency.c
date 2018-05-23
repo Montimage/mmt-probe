@@ -46,6 +46,12 @@ bool dynamic_conf_agency_start(){
 }
 
 
+/**
+ * In this function we decide which parameters can be updated with/without restarting MMT-Probe
+ * @param ident represents the paramter identity
+ * @return true if we need to restart the main processing process to be able to update the parameter
+ *         false, otherwise
+ */
 bool dynamic_conf_need_to_restart_to_update( int ident ){
 	switch( ident ){
 	case CONF_ATT__NONE:
