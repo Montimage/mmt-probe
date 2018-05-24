@@ -1,3 +1,4 @@
+Dynamic configuration is automatically disabled when starting MMT-Probe in offline mode.
 
 #Commands
 

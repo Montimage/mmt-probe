@@ -12,11 +12,11 @@
 #include "lib/macro_apply.h"
 
 //TODO: remove the following defines
-#define MONGODB_MODULE
-#define PCAP_DUMP_MODULE
-#define KAFKA_MODULE
-#define REDIS_MODULE
-#define SECURITY_MODULE
+//#define MONGODB_MODULE
+//#define PCAP_DUMP_MODULE
+//#define KAFKA_MODULE
+//#define REDIS_MODULE
+//#define SECURITY_MODULE
 
 typedef enum{
    NO_SUPPORT,
@@ -40,9 +40,9 @@ const identity_t* conf_get_identity_from_string( const char * ident_str );
  * @param
  * @param ident: identifier of element will be overridden.
  * @param value: value will be overridden only if the value is different with the current one of the element.
- * @return true if the value has been overridden, otherwise false
+ * @return 0 if the value has been overridden, otherwise false
  */
-bool conf_override_element( probe_conf_t*, const char* ident, const char *value );
+int conf_override_element( probe_conf_t*, const char* ident, const char *value );
 
 bool conf_override_element_by_id( probe_conf_t *conf, int ident_val, const char *value_str );
 

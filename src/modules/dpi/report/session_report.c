@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include "session_report.h"
 
+//functions implemented by session_report_xxx.c
 int print_web_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);
 int print_ssl_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);
 int print_rtp_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);
@@ -159,21 +160,6 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	default:
 		DEBUG("Does not support stat_type = %d", session_stat->app_type );
 	}
-//	if (session->app_format_id == MMT_WEB_REPORT_FORMAT && probe_context->web_enable == 1)
-//		print_initial_web_report(dpi_session, session, message,valid);
-//	else if (session->app_format_id == MMT_RTP_REPORT_FORMAT && probe_context->rtp_enable == 1)
-//		print_initial_rtp_report(dpi_session, session, message,valid);
-//	else if (session->app_format_id == MMT_SSL_REPORT_FORMAT && session->stat.touched == 0 && probe_context->ssl_enable == 1)
-//		print_initial_ssl_report(dpi_session, session, message, valid);
-//	else if (session->app_format_id == MMT_FTP_REPORT_FORMAT && probe_context->ftp_enable == 1)
-//		print_initial_ftp_report(dpi_session, session, message, valid);
-//	else if(session->stat.touched == 0){
-//		sslindex = get_protocol_index_from_session(proto_hierarchy, PROTO_SSL);
-//		if (sslindex != -1 && probe_context->ssl_enable == 1 ){
-//			session->app_format_id = MMT_SSL_REPORT_FORMAT;
-//			print_initial_ssl_report(dpi_session, session, message, valid);
-//		}else print_initial_default_report(dpi_session, session, message, valid);
-//	}
 
 	struct timeval timestamp = get_session_last_activity_time( dpi_session );
 

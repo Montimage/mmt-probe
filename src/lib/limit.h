@@ -44,9 +44,10 @@
 #define LICENSE_CHECK
 #endif
 */
-#ifndef DYNAMIC_CONFIG_MODULE
-#define DYNAMIC_CONFIG_MODULE
-#endif
+//#ifndef DYNAMIC_CONFIG_MODULE
+//#define DYNAMIC_CONFIG_MODULE
+//#endif
+
 //end of block to be removed
 
 

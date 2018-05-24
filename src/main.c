@@ -56,6 +56,15 @@
 #include "modules/dynamic_conf/dynamic_conf.h"
 #endif
 
+#if defined DPDK_MODULE && defined PCAP_MODULE
+#error("Either DPDK_MODULE or PCAP_MODULE is defined but must not all of them")
+#endif
+
+#ifdef DEBUG_MODE
+	#warning "The debug compile option is reserved only for debugging"
+#endif
+
+
 /*
  * Default configuration file: either in the current folder or in /opt/mmt/probe
  * The former has a higher priority
@@ -181,18 +190,22 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 			if( *string_val == '\0' )
 				log_write( LOG_WARNING, "Input parameter '%s' is not well-formatted (must be in format parameter=value). Ignored it.", string_att );
 
-			if( conf_override_element(conf, string_att, string_val) )
+			switch( conf_override_element(conf, string_att, string_val) ){
+			case 0:
 				log_write( LOG_INFO, "Overridden value of configuration parameter '%s' by '%s'", string_att, string_val );
+				break;
+			case -1:
+				fprintf(stderr, "Unknown parameter identity %s", string_att );
+				exit( 1 );
+				break;
+			default: break;
+			}
+
 		}
 	}
 
 	return conf;
 }
-
-#ifdef DEBUG_MODE
-	#warning "The debug compile option is reserved only for debugging"
-#endif
-
 
 static inline void _stop_modules( probe_context_t *context){
 
@@ -327,16 +340,8 @@ static int _main_processing( int argc, char** argv ){
 }
 
 
-
-
-#if defined DPDK_MODULE && defined PCAP_MODULE
-#error("Either DPDK_MODULE or PCAP_MODULE is defined but must not all of them")
-#endif
-
-
 /**
- * Main process.
- * Main process will create 2 children processes:
+ * this function will create 2 children processes:
  *  - processing process: performs main jobs
  *  - control process:
  * @param argc
@@ -348,32 +353,20 @@ static int _main_processing( int argc, char** argv ){
 #define PID_NEED_TO_STOP  -1
 #define ANY_CHILD_PROCESS -1
 
-int main( int argc, char** argv ){
+static void _create_sub_processes( int argc, char** argv ){
 	pid_t child_pid;
 	pid_t children_pids[ 2 ] = {PID_NEED_TO_CREATE, PID_NEED_TO_CREATE};
 	int nb_children_processes = 1; //by default, only one sub-process for the main processing
 	int  status, i;
 
-	//ignore Ctrl+C in main process
-	signal( SIGINT, SIG_IGN );
-	log_open();
-
-	//read configuration from file and execution parameters
 	probe_context_t *context = get_context();
-	context->is_aborting = false;
-	context->config = _parse_options(argc, argv);
-	conf_validate( context->config );
-
-	IF_ENABLE_DEBUG(
-			log_write( LOG_WARNING, "Must not run debug mode in production environment" );
-	)
 
 	IF_ENABLE_DYNAMIC_CONFIG(
-		if( context->config->dynamic_conf->is_enable ){
-			//take into account control process
-			nb_children_processes = 2;
-			dynamic_conf_alloc_and_init( & children_pids[0] );
-		}
+			if( context->config->dynamic_conf->is_enable ){
+				//take into account control process
+				nb_children_processes = 2;
+				dynamic_conf_alloc_and_init( & children_pids[0] );
+			}
 	)
 
 	//an infinity loop to monitor the children processes: restart when it has crashed
@@ -386,7 +379,7 @@ int main( int argc, char** argv ){
 
 			if( child_pid < 0 ) {
 				ABORT( "Fork error: %s", strerror(errno) );
-				return EXIT_FAILURE;
+				exit( EXIT_FAILURE );
 			}
 
 			if (child_pid == 0) {
@@ -394,16 +387,16 @@ int main( int argc, char** argv ){
 				log_write( LOG_INFO, "Create a new sub-process %d for main processing", getpid() );
 
 				IF_ENABLE_DYNAMIC_CONFIG(
-					if( context->config->dynamic_conf->is_enable ){
-						dynamic_conf_agency_start() ;
-					}
+						if( context->config->dynamic_conf->is_enable ){
+							dynamic_conf_agency_start() ;
+						}
 				)
 
 				_main_processing( argc, argv );
 
 				//clean resource
 				_clean_resource();
-				return EXIT_SUCCESS;
+				exit( EXIT_SUCCESS );
 			}
 
 			//in parent process
@@ -458,6 +451,33 @@ int main( int argc, char** argv ){
 		_next_iteration:
 		//avoid exhaustively resource when having dense consecutive restarts: restart, crash, restart, crash, ...
 		sleep( 1 );
+	}
+
+}
+
+
+int main( int argc, char** argv ){
+
+	//ignore Ctrl+C in main process
+	signal( SIGINT, SIG_IGN );
+	log_open();
+
+	IF_ENABLE_DEBUG(
+			log_write( LOG_WARNING, "Must not run debug mode in production environment" );
+	)
+
+	//read configuration from file and execution parameters
+	probe_context_t *context = get_context();
+	context->is_aborting = false;
+	context->config = _parse_options(argc, argv);
+	conf_validate( context->config );
+
+	//if MMT-Probe is used to check pcap offline
+	// => no need to created sub processes
+	if( context->config->input->input_mode == OFFLINE_ANALYSIS ){
+		_main_processing( argc, argv );
+	}else{
+		_create_sub_processes( argc, argv );
 	}
 
 	log_write(LOG_INFO, "Exit normally MMT-Probe");

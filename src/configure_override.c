@@ -125,7 +125,9 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 		return true;
 	case LIST:
 		switch( ident->val ){
+#ifdef SECURITY_MODULE
 		case CONF_ATT__SECURITY__OUTPUT_CHANNEL:
+#endif
 		case CONF_ATT__SESSION_REPORT__OUTPUT_CHANNEL:
 		case CONF_ATT__SYSTEM_REPORT__OUTPUT_CHANNEL:
 		case CONF_ATT__MICRO_FLOWS__OUTPUT_CHANNEL:
@@ -135,6 +137,7 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 				return false;
 			(*(output_channel_conf_t *) field_ptr) = int_val;
 			return true;
+#ifdef PCAP_DUMP_MODULE
 		case CONF_ATT__DUMP_PCAP__ENABLE:
 			//free old memory
 			if( conf->reports.pcap_dump ){
@@ -149,6 +152,7 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 
 			conf->reports.pcap_dump->protocols_size = conf_parse_list( value_str, &conf->reports.pcap_dump->protocols );
 			return true;
+#endif
 		}
 		break;
 	case BOOL:
@@ -176,6 +180,8 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 			return false;
 		*((uint32_t *)field_ptr) = int_val;
 		return true;
+	default:
+		break;
 	}
 
 	log_write( LOG_INFO, "Unknown identifier '%s'", ident->ident );
@@ -189,16 +195,18 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
  * @param conf
  * @param ident
  * @param value
- * @return true if the new value is updated, otherwise false
+ * @return 0 if the new value is updated, otherwise false
  */
-bool conf_override_element( probe_conf_t *conf, const char *ident_str, const char *value_str ){
+int conf_override_element( probe_conf_t *conf, const char *ident_str, const char *value_str ){
 	const identity_t *ident = conf_get_identity_from_string( ident_str );
 
 	if( ident == NULL ){
 		log_write( LOG_WARNING, "Unknown parameter identity [%s]", ident_str );
-		return false;
+		return -1;
 	}
-	return _override_element_by_ident(conf, ident, value_str );
+	if( _override_element_by_ident(conf, ident, value_str ) )
+		return 0;
+	return 1;
 }
 
 bool conf_override_element_by_id( probe_conf_t *conf, int ident_val, const char *value_str ){

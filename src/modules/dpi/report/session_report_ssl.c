@@ -69,7 +69,7 @@ int print_ssl_report(char *message, size_t message_size, const mmt_session_t * d
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy( dpi_session );
 
     size_t ret = snprintf( message, message_size,
-            "\"%s\",%u",
+            ",\"%s\",%u",
             ssl->hostname,
 			(get_session_content_flags(dpi_session) & MMT_CONTENT_CDN) ? 2 : 0
     );
