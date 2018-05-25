@@ -160,6 +160,9 @@ system_stats_context_t *system_stats_alloc_init_start( const system_stats_conf_t
 }
 
 void system_stats_release( system_stats_context_t *context){
+	if( context == NULL )
+		return;
+
 	if( pthread_cancel( context->thread_handler ) )
 		log_write(LOG_WARNING, "Cannot stop thread for system_stats");
 	//waiting for the thread

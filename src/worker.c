@@ -150,8 +150,8 @@ void worker_on_stop( worker_context_t *worker_context ){
 void worker_on_timer_stat_period( worker_context_t *worker_context ){
 	struct timeval now;
 	//the first worker
-	if( worker_context->index == 0 ){
-	}
+//	if( worker_context->index == 0 ){
+//	}
 
 	//print a dummy message to inform that MMT-Probe is still alive
 	if( worker_context->probe_context->config->input->input_mode == ONLINE_ANALYSIS ){
