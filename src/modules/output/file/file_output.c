@@ -31,11 +31,10 @@ struct file_output_struct{
 };
 
 static int _load_filter( const struct dirent *entry ){
-	const char *data_out = ".csv";
-	//must end by .csv
-	char *ext = strstr( entry->d_name, data_out );
+	const char *data_out_name = ".sem";
+	char *ext = strstr( entry->d_name, data_out_name );
 	if( ext == NULL ) return 0;
-	return (strlen( ext ) == strlen( data_out ));
+	return (strlen( ext ) == strlen( data_out_name ));
 }
 
 /**
@@ -46,7 +45,7 @@ static int _load_filter( const struct dirent *entry ){
 static inline int _remove_old_sampled_files(const char *folder, size_t retains){
 	struct dirent **entries, *entry;
 	char file_name[ MAX_LENGTH_FULL_PATH_FILE_NAME ];
-	int i, n, ret, to_remove;
+	int i, n, ret, to_remove, len;
 
 	n = scandir( folder, &entries, _load_filter, alphasort );
 	if( n < 0 ) {
@@ -61,15 +60,21 @@ static inline int _remove_old_sampled_files(const char *folder, size_t retains){
 	for( i = 0 ; i < to_remove ; ++i ) {
 		entry = entries[i];
 
-		//delete semaphore
-		snprintf( file_name, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%s.sem", folder, entry->d_name );
+		//semaphore file
+		snprintf( file_name, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%s", folder, entry->d_name );
 
+		//semaphore is not here => its .csv file is not ready to be processed
+		//if( access( file_name, F_OK ) == -1 )
+		//    continue;
+
+		//delete semaphore
 		ret = unlink( file_name );
 		if( ret )
 			log_write( LOG_ERR, "Cannot delete semaphore of old sampled file '%s': %s", file_name, strerror( errno ));
 
 		//delete csv files
-		snprintf( file_name, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%s", folder, entry->d_name );
+		len = snprintf( file_name, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%s", folder, entry->d_name );
+		file_name[ len - 4 ] = '\0'; //cut .sem
 
 		ret = unlink( file_name );
 		if( ret )
@@ -111,6 +116,8 @@ static inline void _create_new_file( file_output_t *output ){
 file_output_t* file_output_alloc_init( const file_output_conf_t *config, uint16_t id ){
 	if( config->is_enable == false )
 		return NULL;
+
+
 
 	file_output_t *ret = mmt_alloc( sizeof( file_output_t) );
 	ret->file          = NULL;
@@ -164,6 +171,11 @@ void file_output_release( file_output_t *output ){
 			_create_semaphore_file( output );
 		output->file = NULL;
 	}
+
+	//use the first one to limit number of output files
+	if( output->id == 0 && output->config->retained_files_count > 0 )
+		_remove_old_sampled_files( output->config->directory, output->config->retained_files_count  );
+
 	mmt_probe_free( output );
 }
 
