@@ -36,55 +36,6 @@ struct pcap_probe_context_struct{
 	pcap_t *handler;
 };
 
-#define MICRO_SECOND 1000000
-
-/**
- * This function is called only in **single thread function mode**
- * @param signal
- */
-static void _alarm_handler( int signal ){
-	probe_context_t *context = get_context();
-	static size_t stat_period_counter = 0, output_to_file_period_counter = 0;
-
-	struct timeval start_time, end_time;
-	gettimeofday( &start_time, NULL );
-
-	if( context->config->outputs.file->is_sampled && context->config->outputs.file->is_enable ){
-		output_to_file_period_counter ++;
-		if( output_to_file_period_counter == context->config->outputs.cache_period ){
-			worker_on_timer_sample_file_period( context->smp[0] );
-			//reset counter
-			output_to_file_period_counter = 0;
-		}
-	}
-
-	//increase 1 second;
-	stat_period_counter ++;
-	if( stat_period_counter == context->config->stat_period ){
-		worker_on_timer_stat_period( context->smp[0] );
-		//reset counter
-		stat_period_counter = 0;
-	}
-
-	//calculate the rest of one second after executed the functions above
-	gettimeofday( &end_time, NULL );
-	size_t usecond = (end_time.tv_sec - start_time.tv_sec)*MICRO_SECOND + (end_time.tv_usec - start_time.tv_usec );
-
-	if( usecond >= MICRO_SECOND ){
-		log_write( LOG_ERR, "Too slow interval processing" );
-		_alarm_handler( SIGALRM );
-		return;
-	}
-
-	//DEBUG("next iterate in %zu us", MICRO_SECOND - usecond);
-
-	//call this handler again
-	if( usecond == 0 )
-		alarm( 1 ); //ualarm cannot be used for interval >= 1 second
-	else
-		ualarm( MICRO_SECOND - usecond, 0 );
-}
-
 /**
  * Hash function of an Ethernet packet
  */
@@ -238,10 +189,59 @@ static void *_worker_thread( void *arg){
 	return NULL;
 }
 
-static void _got_a_packet(u_char* user, const struct pcap_pkthdr *pcap_header, const u_char *pcap_data){
+static void _got_a_packet_smp(u_char* user, const struct pcap_pkthdr *pcap_header, const u_char *pcap_data){
 	probe_context_t *context =( probe_context_t *)user;
 
-	if( !IS_SMP_MODE( context ) ){
+	//multithreading
+
+	//dispatch a packet basing on its hash number
+	uint32_t pkt_index = _get_packet_hash_number(pcap_data, pcap_header->caplen );
+	pkt_index %= context->config->thread->thread_count;
+	//printf("%d\n", pkt_index);
+	//return;
+
+	//get context to the corresponding worker
+	// then push packet into fifo of the worker
+	worker_context_t *worker_context = context->smp[ pkt_index ];
+
+	pkthdr_t *pkt_header;
+	//get available space to put the packet into
+	data_spsc_ring_get_tmp_element( &worker_context->pcap->fifo,  (void**) &pkt_header );
+
+	/* fill smp_pkt fields and copy packet data from pcap buffer */
+	pkt_header->len       = pcap_header->len;
+	pkt_header->caplen    = pcap_header->caplen;
+	pkt_header->ts        = pcap_header->ts;
+	pkt_header->user_args = NULL;
+	//put data in the same memory segment but after sizeof( pkt )
+	void *pkt_data    =  pkt_header + 1;
+	memcpy( pkt_data, pcap_data, pcap_header->caplen );
+
+	//queue is full??
+	while(  unlikely( data_spsc_ring_push_tmp_element( &worker_context->pcap->fifo ) != QUEUE_SUCCESS )){
+		//in offline mode, we must not reject a packet when queue is full
+		// but we need to wait until we can insert the packet into queue
+		if( context->config->input->input_mode == OFFLINE_ANALYSIS )
+			nanosleep( (const struct timespec[]){{ .tv_sec = 0, .tv_nsec = 10000L}}, NULL );
+		else
+			worker_context->stat.pkt_dropped ++;
+	}
+}
+
+//this function is called only in single-thread mode to process packets
+static void _got_a_packet(u_char* user, const struct pcap_pkthdr *pcap_header, const u_char *pcap_data){
+	probe_context_t *context =( probe_context_t *)user;
+	worker_context_t *worker_context = context->smp[0];
+	const probe_conf_t *config = context->config;
+
+	static time_t next_stat_ts = 0; //moment we need to do statistic
+	static time_t next_output_ts = 0; //moment we need flush output to channels
+	static time_t now = 0; //current timestamp that is either
+	//- real timestamp of system when running online
+	//- packet timestamp when running offline
+
+	//when having packet data to process
+	if( pcap_data != NULL ){
 		pkthdr_t pkt_header;
 
 		//convert from pcap's header to mmt packet's header
@@ -251,40 +251,32 @@ static void _got_a_packet(u_char* user, const struct pcap_pkthdr *pcap_header, c
 		pkt_header.user_args = NULL;
 
 		worker_process_a_packet( context->smp[0], &pkt_header, pcap_data );
+		now = pcap_header->ts.tv_sec;
+	}
+
+	//we do not use packet timestamp for online analysis as
+	// there may be exist some moment having no packets => output will be blocked until a new packet comes
+	//get the current timestamp of system
+	if( config->input->input_mode == ONLINE_ANALYSIS )
+		now = time( NULL );
+
+	//first times: we need to initialize the 2 milestones
+	if( next_output_ts == 0 && now != 0 ){
+		next_stat_ts = now + config->stat_period;
+		next_output_ts = now + config->outputs.cache_period;
 	}else{
-		//multithreading
+		//statistic periodically
+		if( now > next_stat_ts  ){
+			next_stat_ts += config->stat_period;
+			//call worker
+			worker_on_timer_stat_period( worker_context );
+		}
 
-		//dispatch a packet basing on its hash number
-		uint32_t pkt_index = _get_packet_hash_number(pcap_data, pcap_header->caplen );
-		pkt_index %= context->config->thread->thread_count;
-		//printf("%d\n", pkt_index);
-		//return;
-
-		//get context to the corresponding worker
-		// then push packet into fifo of the worker
-		worker_context_t *worker_context = context->smp[ pkt_index ];
-
-		pkthdr_t *pkt_header;
-		//get available space to put the packet into
-		data_spsc_ring_get_tmp_element( &worker_context->pcap->fifo,  (void**) &pkt_header );
-
-		/* fill smp_pkt fields and copy packet data from pcap buffer */
-		pkt_header->len       = pcap_header->len;
-		pkt_header->caplen    = pcap_header->caplen;
-		pkt_header->ts        = pcap_header->ts;
-		pkt_header->user_args = NULL;
-		//put data in the same memory segment but after sizeof( pkt )
-		void *pkt_data    =  pkt_header + 1;
-		memcpy( pkt_data, pcap_data, pcap_header->caplen );
-
-		//queue is full??
-		while(  unlikely( data_spsc_ring_push_tmp_element( &worker_context->pcap->fifo ) != QUEUE_SUCCESS )){
-			//in offline mode, we must not reject a packet when queue is full
-			// but we need to wait until we can insert the packet into queue
-			if( context->config->input->input_mode == OFFLINE_ANALYSIS )
-				nanosleep( (const struct timespec[]){{ .tv_sec = 0, .tv_nsec = 10000L}}, NULL );
-			else
-				worker_context->stat.pkt_dropped ++;
+		//if we need to sample output file
+		if( config->outputs.file->is_sampled && now >  next_output_ts ){
+			next_output_ts += config->outputs.cache_period;
+			//call worker
+			worker_on_timer_sample_file_period( worker_context );
 		}
 	}
 }
@@ -374,7 +366,7 @@ void pcap_capture_start( probe_context_t *context ){
 	context->modules.pcap = mmt_alloc_and_init_zero( sizeof( struct pcap_probe_context_struct ));
 
 	//allocate context for each thread
-	context->smp = mmt_alloc( sizeof( worker_context_t ) * workers_count );
+	context->smp = mmt_alloc_and_init_zero( sizeof( worker_context_t ) * workers_count );
 
 	//allocate and initialize memory for each worker
 	for( i=0; i<workers_count; i++ ){
@@ -410,7 +402,7 @@ void pcap_capture_start( probe_context_t *context ){
 		}
 		else
 			//when there is only one worker running on the main thread
-			worker_on_start( context->smp[i] );
+			worker_on_start( context->smp[0] );
 	}
 
 	if( context->config->input->input_mode == OFFLINE_ANALYSIS ){
@@ -453,23 +445,48 @@ void pcap_capture_start( probe_context_t *context ){
 
 	context->modules.pcap->handler = pcap;
 
+	ret = 0;
 	//working in a single thread
 	if( !IS_SMP_MODE( context )){
-		signal( SIGALRM, _alarm_handler );
-		//call _alarm_handler 1 second latter
-		alarm( 1 );
+		//set in non-blocking mode in case of no threading
+		if( context->config->input->input_mode != OFFLINE_ANALYSIS ){
+			ret = pcap_setnonblock(pcap, true, errbuf );
+			if( ret == -1 )
+				ABORT("Cannot put pcap in non-blocking mode: %s", errbuf );
+		}
+
+		while( ! context->is_aborting ){
+			ret = pcap_dispatch( pcap, -1, _got_a_packet, (u_char*) context );
+//			0 if no packets were read from  a  live  capture  (if,  for
+//			       example,  they  were discarded because they didn't pass the packet filter
+//			       or if, on platforms that support a read timeout that starts before
+//			       any  packets  arrive, the timeout expires before any packets arrive, or
+//			       if the file descriptor for the capture device is in  non-blocking  mode
+//			       and  no  packets  were  available to be read) or if no more packets are
+//			       available in a ``savefile.''
+//			-1 if an error occurs
+//			-2 if  the  loop terminated due to a call to pcap_breakloop()
+//				 before any packets were processed.
+			if( ret == 0 ){
+				//if no more packets are available in a ``savefile.''
+				if( context->config->input->input_mode == OFFLINE_ANALYSIS )
+					break;
+				else
+					//we still call this function, even there is no packet, to processing timeout functions,
+					// such as, worker_on_timer_stat_period, worker_on_timer_sample_file_period
+					_got_a_packet( (u_char*) context, NULL, NULL );
+			}else
+				break;
+		}
+	}else{
+		//start processing
+		//this loop is ended when:
+		//- then end of pcap file, or,
+		//- pcap_breakloop() is called, or,
+		//- an error
+		//-1: unlimited number of packets to capture.
+		ret = pcap_loop( pcap, -1, _got_a_packet_smp, (u_char*) context );
 	}
-
-	//start processing
-
-	//this annotation to let valgrind know that the #pcap_loop() is called before pcap_breakloop()
-	EXEC_ONLY_IN_VALGRIND_MODE(ANNOTATE_HAPPENS_BEFORE( &( pcap ) ));
-	//this loop is ended when:
-	//- then end of pcap file, or,
-	//- pcap_breakloop() is called, or,
-	//- an error
-	//-1: unlimited number of packets to capture.
-	ret = pcap_loop( pcap, -1, _got_a_packet, (u_char*) context );
 
 	switch( ret ){
 	case 0: //no more packets are available
@@ -486,6 +503,7 @@ void pcap_capture_start( probe_context_t *context ){
 	//stop all workers
 	if( IS_SMP_MODE( context ) ){
 		pkthdr_t *pkt_header;
+
 		//send empty message to each thread to tell them to stop
 		for( i=0; i<context->config->thread->thread_count; i++ ){
 			data_spsc_ring_get_tmp_element( &context->smp[i]->pcap->fifo,  (void **)(&pkt_header) );
@@ -504,8 +522,6 @@ void pcap_capture_start( probe_context_t *context ){
 		}
 	}
 	else{
-		//cancel any currently active alarm
-		alarm( 0 );
 		//when there is only one worker running on the main thread
 		worker_on_stop( context->smp[0] );
 	}
