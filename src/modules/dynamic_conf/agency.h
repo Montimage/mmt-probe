@@ -29,4 +29,6 @@ bool dynamic_conf_need_to_restart_to_update( int ident );
  */
 bool dynamic_conf_agency_start();
 
+void dynamic_conf_agency_stop();
+
 #endif /* SRC_MODULES_DYNAMIC_CONF_AGENCY_H_ */

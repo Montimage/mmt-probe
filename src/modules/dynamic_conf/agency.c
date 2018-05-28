@@ -45,6 +45,10 @@ bool dynamic_conf_agency_start(){
 	return true;
 }
 
+void dynamic_conf_agency_stop(){
+	mmt_bus_unsubscribe();
+}
+
 
 /**
  * In this function we decide which parameters can be updated with/without restarting MMT-Probe
@@ -56,7 +60,7 @@ bool dynamic_conf_need_to_restart_to_update( int ident ){
 	switch( ident ){
 	case CONF_ATT__NONE:
 		return false;
-//currently suppose that all parameters are need to restart to be able to update
+//currently suppose that other parameters are need to restart to be able to update
 	default:
 		return true;
 	}

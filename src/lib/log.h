@@ -78,4 +78,13 @@ static inline void log_execution_trace () {
 
 	free (strings);
 }
+
+#define MY_MISTAKE( format, ... )                                           \
+	do{                                                                     \
+		log_write( LOG_ERR, format,## __VA_ARGS__ );                        \
+		printf( format,## __VA_ARGS__ );                                    \
+		log_execution_trace();                                              \
+		exit( 0 );                                                          \
+	}while( 0 )
+
 #endif /* SRC_LIB_LOG_H_ */

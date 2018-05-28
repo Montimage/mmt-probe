@@ -3,7 +3,8 @@
  *
  *  Created on: May 11, 2018
  *          by: Huu Nghia Nguyen
- * A communication bus among processes.
+ * A communication bus among processes and thread.
+ * Each subscriber is identified by its thread ID given by function gettid().
  */
 
 #ifndef SRC_LIB_MMT_BUS_H_
@@ -64,8 +65,6 @@ mmt_bus_code_t mmt_bus_publish( const char *message, size_t message_size, uint16
  * @param message_size
  * @param user_data
  *
- * @note: the functions used inside bus_subscriber_callback_t must be async-safe
- *  as they are called inside an interrupt handler.
  */
 typedef int (*bus_subscriber_callback_t)( const char *message, size_t message_size, void *user_data );
 
@@ -88,7 +87,6 @@ void mmt_bus_subcriber_check();
 /**
  * Unsubscribe the calling process from the bus.
  * After unsubscribing, its callbacks are not fire when someone publishes a message to the bus.
- * The signal_id is also re-attach to the default handler (using  SIG_DFL).
  * @return true if successfully, otherwise false
  */
 bool mmt_bus_unsubscribe();

@@ -197,6 +197,7 @@ void mmt_bus_subcriber_check(){
 						if( pthread_mutex_lock( &bus->mutex ) == 0){
 							//mark as being consumed by this subscriber
 							sub->is_consumed = true;
+
 							//update reply code if no one updates
 							if( bus->reply_code == DYN_CONF_CMD_REPLY_DO_NOTHING ){
 								bus->reply_code = ret;
@@ -234,6 +235,7 @@ bool mmt_bus_subscribe( bus_subscriber_callback_t cb, void *user_data ){
 		return false;
 	}
 
+	DEBUG("Number of subscribers: %d", bus->nb_subscribers );
 	//get the caller's thread ID (TID).  In a single-threaded
     //process, the thread ID is equal to the process ID (PID, as returned
     //by getpid(2)).  In a multithreaded process, all threads have the same
@@ -242,8 +244,12 @@ bool mmt_bus_subscribe( bus_subscriber_callback_t cb, void *user_data ){
 
 	for( i=0; i<MMT_BUS_MAX_SUBSCRIBERS; i++ ){
 		//already exist
-		if( bus->sub_lst[i].pid == pid )
+		if( bus->sub_lst[i].pid == pid ){
+			//this can be happened only by my mistake (the coder)
+			//when the function is called twice
+			MY_MISTAKE("subscriber %d was subscribed", pid );
 			return false;
+		}
 
 		//found one slot
 		if( bus->sub_lst[i].pid == 0 ){
@@ -251,7 +257,9 @@ bool mmt_bus_subscribe( bus_subscriber_callback_t cb, void *user_data ){
 			bus->sub_lst[i].pid = pid;
 			bus->sub_lst[i].callback = cb;
 			bus->sub_lst[i].user_data = user_data;
-
+			//Suppose that the new subscriber consumed old message
+			//=> it can receive only the messages coming after its subscription
+			bus->sub_lst[i].is_consumed = true;
 			bus->nb_subscribers ++;
 
 //			DEBUG("Number of subscribers: %d", bus->nb_subscribers );

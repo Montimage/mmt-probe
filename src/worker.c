@@ -20,6 +20,9 @@
 	#include "lib/license.h"
 #endif
 
+#ifdef DYNAMIC_CONFIG_MODULE
+	#include "modules/dynamic_conf/dynamic_conf.h"
+#endif
 /**
  * This function must be called by the main thread when allocating a worker
  * @return
@@ -129,6 +132,13 @@ void worker_on_start( worker_context_t *worker_context ){
 		if( !license_check_expiry( get_context()->config->license_file, worker_context->output ))
 			abort();
 #endif
+
+#ifdef DYNAMIC_CONFIG_MODULE
+	if( IS_SMP_MODE( worker_context->probe_context ))
+		if( worker_context->probe_context->config->dynamic_conf->is_enable ){
+			dynamic_conf_agency_start();
+		}
+#endif
 }
 
 /**
@@ -140,8 +150,22 @@ void worker_on_stop( worker_context_t *worker_context ){
 		worker_context->stat.alert_generated = security_worker_release( worker_context->security );
 	)
 	dpi_close( worker_context->dpi_context );
+
+#ifdef DYNAMIC_CONFIG_MODULE
+	dynamic_conf_agency_stop();
+#endif
 }
 
+
+#ifdef DYNAMIC_CONFIG_MODULE
+static inline void CALL_DYNAMIC_CONF_CHECK_IF_NEED( worker_context_t *worker_context ){
+	if( worker_context->probe_context->config->dynamic_conf->is_enable ){
+		dynamic_conf_check();
+	}
+}
+#else
+#define CALL_DYNAMIC_CONF_CHECK_IF_NEED( ... )
+#endif
 
 /**
  * This must be called periodically each x seconds depending on config.stats_period
@@ -149,6 +173,8 @@ void worker_on_stop( worker_context_t *worker_context ){
  */
 void worker_on_timer_stat_period( worker_context_t *worker_context ){
 	struct timeval now;
+
+	CALL_DYNAMIC_CONF_CHECK_IF_NEED( worker_context );
 	//the first worker
 //	if( worker_context->index == 0 ){
 //	}
@@ -173,6 +199,7 @@ void worker_on_timer_stat_period( worker_context_t *worker_context ){
  * @param worker_context
  */
 void worker_on_timer_sample_file_period( worker_context_t *worker_context ){
+	CALL_DYNAMIC_CONF_CHECK_IF_NEED( worker_context );
 
 	//the first worker
 //	if( worker_context->index == 0 ){

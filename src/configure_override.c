@@ -98,14 +98,14 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 		//input
 	case CONF_ATT__INPUT__MODE:
 		if( IS_EQUAL_STRINGS( value_str, "online") )
-			*((int *)field_ptr) = ONLINE_ANALYSIS;
+			*((uint16_t *)field_ptr) = ONLINE_ANALYSIS;
 		else if ( IS_EQUAL_STRINGS( value_str, "offline") )
-			*((int *)field_ptr) = OFFLINE_ANALYSIS;
+			*((uint16_t *)field_ptr) = OFFLINE_ANALYSIS;
 		else{
 			log_write( LOG_WARNING, "Unexpected value [%s] for [%s]", value_str, ident->ident );
 			return false;
 		}
-		break;
+		return true;
 	default:
 		break;
 	}
@@ -170,7 +170,7 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 		//value does not change ==> do nothing
 		if( int_val == *((uint16_t *)field_ptr) )
 			return false;
-		*((uint32_t *)field_ptr) = int_val;
+		*((uint16_t *)field_ptr) = int_val;
 		return true;
 
 	case UINT32_T:
