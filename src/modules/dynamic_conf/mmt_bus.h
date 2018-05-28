@@ -76,11 +76,15 @@ typedef int (*bus_subscriber_callback_t)( const char *message, size_t message_si
  * @param user_data
  * @return true if successfully, otherwise false
  *
- * @note: the functions used inside bus_subscriber_callback_t must be async-safe
- *  as they are called inside an interrupt handler.
+ * @note: each subscriber is unique by its thread ID (given by gettid())
  */
 bool mmt_bus_subscribe( bus_subscriber_callback_t cb, void *user_data );
 
+/**
+ * This function must be called periodically by subscribers to check data value in the bus.
+ * After checking, the callback function that was registered by `mmt_bus_subscribe` will be called.
+ */
+void mmt_bus_subcriber_check();
 /**
  * Unsubscribe the calling process from the bus.
  * After unsubscribing, its callbacks are not fire when someone publishes a message to the bus.

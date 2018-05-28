@@ -12,25 +12,21 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
 #include <pthread.h>
-#include <signal.h>
 
 #include "mmt_bus.h"
 #include "../../lib/tools.h"
 #include "../../lib/log.h"
-
-/**
- * The id signal to inform other processes to read data in the bus.
- * This signal must not be used elsewhere.
- */
-#define SIGNAL_ID SIGUSR1
+#include "../../lib/system_info.h"
 
 struct subscriber{
 	pid_t pid;
+	bool is_consumed;
 	void *user_data;
 	bus_subscriber_callback_t callback;
 };
@@ -126,6 +122,9 @@ mmt_bus_code_t mmt_bus_publish( const char*message, size_t message_size, uint16_
 
 		//the new message is fresh, no one consumes it
 		bus->reply_code = DYN_CONF_CMD_REPLY_DO_NOTHING;
+		//no subscriber consumes the message
+		for( i=0; i<MMT_BUS_MAX_SUBSCRIBERS; i++ )
+			bus->sub_lst[i].is_consumed = false;
 	}
 
 	//unblock
@@ -134,13 +133,6 @@ mmt_bus_code_t mmt_bus_publish( const char*message, size_t message_size, uint16_
 	//the previous message has not been yet consumed
 	if( !old_msg_is_consummed )
 		return MSG_BUS_OLD_MSG_NO_CONSUME;
-
-	//notify to all subscribers
-	for( i=0; i<MMT_BUS_MAX_SUBSCRIBERS; i++ )
-		if( bus->sub_lst[i].pid != 0 ){
-//			DEBUG("Wake up process %d", bus->sub_lst[i].pid );
-			kill( bus->sub_lst[i].pid, SIGNAL_ID );
-		}
 
 	//if publisher does not intend to wait for its message being consumed
 	if( reply_code == NULL )
@@ -172,37 +164,40 @@ mmt_bus_code_t mmt_bus_publish( const char*message, size_t message_size, uint16_
 	return MMT_BUS_SUCCESS;
 }
 
-/**
- * This function is a callback being called in subscribers when receiving a signal notification from a publisher.
- * @param type
- *
- * TODO: need signal-safety
- */
-static void _signal_handler( int type ){
+void mmt_bus_subcriber_check(){
 	int i;
 	char msg[ MMT_BUS_MAX_MESSAGE_SIZE ];
 	size_t msg_size = 0;
+	pid_t pid = gettid();
+	struct subscriber *sub;
+	bool is_consumed = true;
 
-//	DEBUG("Subscriber is waken up");
+	if( bus == NULL )
+		return;
+//	DEBUG("check from subscriber %d", pid );
 
-	pid_t pid = getpid();
-	for( i=0; i<MMT_BUS_MAX_SUBSCRIBERS; i++ )
-		if( bus->sub_lst[i].pid == pid ){
-			if( bus->sub_lst[i].callback != NULL ){
-				//TODO: pthread_mutex_lock is not signal-safety
+	for( i=0; i<MMT_BUS_MAX_SUBSCRIBERS; i++ ){
+		sub = &bus->sub_lst[i];
+		if( sub->pid == pid ){
+			if( sub->callback != NULL ){
 				if( pthread_mutex_lock( &bus->mutex ) == 0){
-					msg_size = bus->message_size;
-					memcpy( msg, bus->message, msg_size );
+					is_consumed = sub->is_consumed;
+					if( !is_consumed ){
+						msg_size = bus->message_size;
+						memcpy( msg, bus->message, msg_size );
+					}
 					pthread_mutex_unlock( &bus->mutex ); //unblock
 
-					//fire the callback of the subscriber
-					int ret = bus->sub_lst[i].callback( msg, msg_size, bus->sub_lst[i].user_data );
+					//fire the callback
+					if( ! is_consumed ){
 
-					//DEBUG("Reply code: %d", ret );
+						//fire the callback of the subscriber
+						int ret = sub->callback( msg, msg_size, sub->user_data );
 
-					//update reply code
-					if( ret != DYN_CONF_CMD_REPLY_DO_NOTHING ){
 						if( pthread_mutex_lock( &bus->mutex ) == 0){
+							//mark as being consumed by this subscriber
+							sub->is_consumed = true;
+							//update reply code if no one updates
 							if( bus->reply_code == DYN_CONF_CMD_REPLY_DO_NOTHING ){
 								bus->reply_code = ret;
 							}
@@ -217,6 +212,7 @@ static void _signal_handler( int type ){
 			log_write( LOG_ERR, "Callback off %d-th (pid = %d) is NULL", i, pid );
 			return;
 		}
+	}
 }
 
 /**
@@ -225,13 +221,10 @@ static void _signal_handler( int type ){
  * @param cb
  * @param user_data
  * @return true if successfully, otherwise false
- *
- * @note: the functions used inside bus_subscriber_callback_t must be async-safe
- *  as they are called inside an interrupt handler.
  */
 bool mmt_bus_subscribe( bus_subscriber_callback_t cb, void *user_data ){
 	int i;
-	pid_t pid = getpid();
+	pid_t pid;
 
 	if( bus == NULL )
 		return false;
@@ -240,6 +233,12 @@ bool mmt_bus_subscribe( bus_subscriber_callback_t cb, void *user_data ){
 		log_write( LOG_ERR, "Cannot lock mmt-bus for publishing: %s", strerror( errno) );
 		return false;
 	}
+
+	//get the caller's thread ID (TID).  In a single-threaded
+    //process, the thread ID is equal to the process ID (PID, as returned
+    //by getpid(2)).  In a multithreaded process, all threads have the same
+    //PID, but each one has a unique TID.
+	pid = gettid();
 
 	for( i=0; i<MMT_BUS_MAX_SUBSCRIBERS; i++ ){
 		//already exist
@@ -257,9 +256,6 @@ bool mmt_bus_subscribe( bus_subscriber_callback_t cb, void *user_data ){
 
 //			DEBUG("Number of subscribers: %d", bus->nb_subscribers );
 
-			//register a handler to respond to a notification from a publisher
-			signal( SIGNAL_ID , _signal_handler );
-
 			pthread_mutex_unlock( &bus->mutex );
 			return true;
 		}
@@ -273,7 +269,7 @@ bool mmt_bus_subscribe( bus_subscriber_callback_t cb, void *user_data ){
 
 bool mmt_bus_unsubscribe(){
 	int i;
-	pid_t pid = getpid();
+	pid_t pid = gettid();
 
 	if( bus == NULL )
 		return false;
@@ -291,9 +287,6 @@ bool mmt_bus_unsubscribe(){
 			bus->nb_subscribers --;
 
 			pthread_mutex_unlock( &bus->mutex );
-
-			//we need to release the signal handler to the default one
-			signal( SIGNAL_ID, SIG_DFL );
 
 			return true;
 		}

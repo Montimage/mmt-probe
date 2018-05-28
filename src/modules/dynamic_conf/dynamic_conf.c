@@ -70,6 +70,7 @@ static int _receive_message( const char *message, size_t message_size, void *use
 			//this update will be transfered to its children once they are created (by using fork)
 			conf_override_element_by_id( config, params[i].ident, params[i].data );
 
+			//do we need to restart the processing process to take into account this parameter??
 			if( dynamic_conf_need_to_restart_to_update( params[i].ident ) )
 				is_need_to_restart = true;
 		}
@@ -79,6 +80,14 @@ static int _receive_message( const char *message, size_t message_size, void *use
 		if( *pid > 0 && is_need_to_restart ){
 			//tell it to restart
 			kill( *pid, SIGRES );
+			//take in charge the command
+			return DYN_CONF_CMD_REPLY_OK;
+		}
+
+		//the processing process is not running => this process will take in charge the command
+		if( *pid < 0 ){
+			//take in charge the command
+			return DYN_CONF_CMD_REPLY_OK;
 		}
 
 		break;
@@ -99,6 +108,9 @@ void dynamic_conf_release(){
 	mmt_bus_release();
 }
 
+void dynamic_conf_check(){
+	mmt_bus_subcriber_check();
+}
 
 pid_t dynamcic_conf_create_new_process_to_receive_command( const char * unix_socket_domain_descriptor_name, void (*clean_resource)() ){
 	//duplicate the current process into 2 different processes

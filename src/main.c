@@ -208,7 +208,6 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 }
 
 static inline void _stop_modules( probe_context_t *context){
-
 	IF_ENABLE_PCAP(
 		pcap_capture_stop(context);
 	)
@@ -220,6 +219,7 @@ probe_context_t *get_context(){
 	return &context;
 }
 
+static sig_atomic_t main_processing_signal = 0;
 /**
  * This signal handler ensures clean exits.
  * Note: calling printf() from a signal handler is not safe since printf() is not async-signal-safe.
@@ -227,6 +227,7 @@ probe_context_t *get_context(){
  *      to care about the restore point of signal_handler.
  */
 void signal_handler(int type) {
+	main_processing_signal = type;
 	probe_context_t *context = get_context();
 	if(  context->is_aborting ){
 		log_write(LOG_ERR, "Received signal %d while processing other one. Exit immediately.", type );
@@ -240,7 +241,6 @@ void signal_handler(int type) {
 		context->is_aborting = true;
 
 		_stop_modules( context );
-		EXIT_NORMALLY();
 		break;
 
 		//segmentation fault
@@ -266,7 +266,6 @@ void signal_handler(int type) {
 	case SIGRES:
 		log_write(LOG_ERR, "Restart signal received! Cleaning up before restarting!");
 		_stop_modules( context );
-		EXIT_TOBE_RESTARTED();
 	}
 }
 
@@ -335,6 +334,14 @@ static int _main_processing( int argc, char** argv ){
 
 	routine_stop_and_release( routine );
 
+	//depending on signal received, exit using different value to notify the monitor process
+	switch( main_processing_signal ){
+	case SIGINT:
+		EXIT_NORMALLY();
+	case SIGRES:
+		EXIT_TOBE_RESTARTED();
+	}
+
 	return EXIT_SUCCESS;
 }
 
@@ -386,9 +393,8 @@ static void _create_sub_processes( int argc, char** argv ){
 				log_write( LOG_INFO, "Create a new sub-process %d for main processing", getpid() );
 
 				IF_ENABLE_DYNAMIC_CONFIG(
-						if( context->config->dynamic_conf->is_enable ){
-							dynamic_conf_agency_start() ;
-						}
+					if( context->config->dynamic_conf->is_enable )
+						dynamic_conf_agency_start() ;
 				)
 
 				_main_processing( argc, argv );
@@ -448,6 +454,10 @@ static void _create_sub_processes( int argc, char** argv ){
 			break;
 
 		_next_iteration:
+		IF_ENABLE_DYNAMIC_CONFIG(
+			if( context->config->dynamic_conf->is_enable )
+				dynamic_conf_check();
+		)
 		//avoid exhaustively resource when having dense consecutive restarts: restart, crash, restart, crash, ...
 		sleep( 1 );
 	}

@@ -24,6 +24,10 @@ bool dynamic_conf_alloc_and_init( pid_t *processing_pid );
  */
 pid_t dynamcic_conf_create_new_process_to_receive_command( const char * unix_socket_domain_descriptor_name, void (*clean_resource)() );
 
+/**
+ * This function must be called periodically by each process to check if there will be new configuration
+ */
+void dynamic_conf_check();
 
 void dynamic_conf_release();
 

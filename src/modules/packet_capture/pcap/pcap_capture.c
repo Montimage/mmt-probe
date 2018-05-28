@@ -475,7 +475,9 @@ void pcap_capture_start( probe_context_t *context ){
 					//we still call this function, even there is no packet, to processing timeout functions,
 					// such as, worker_on_timer_stat_period, worker_on_timer_sample_file_period
 					_got_a_packet( (u_char*) context, NULL, NULL );
-			}else
+			}else if( ret > 0 )
+				continue;
+			else
 				break;
 		}
 	}else{
@@ -498,6 +500,8 @@ void pcap_capture_start( probe_context_t *context ){
 	case -2: // if the loop terminated due to a call to pcap_breakloop() before any packets were processed.
 		log_write( LOG_INFO, "pcap_breakloop() is called" );
 		break;
+	default:
+		log_write( LOG_INFO, "Exit with pcap value: %d", ret );
 	}
 
 	//stop all workers
