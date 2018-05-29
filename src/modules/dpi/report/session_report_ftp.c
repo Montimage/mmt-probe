@@ -16,22 +16,29 @@ struct session_ftp_stat_struct {
 	char * response_value;
 	uint32_t file_size;
 	uint8_t data_type;
-	uint64_t response_time;
-	uint8_t data_response_time_seen;
+
 	char * filename;
 	uint16_t response_code;
 	uint64_t session_id_control_channel;
+
+#ifdef QOS_MODULE
+	uint64_t response_time;
+	uint8_t data_response_time_seen;
+
 	struct timeval file_download_starttime;
 	struct timeval file_download_finishtime;
+#endif
 };
 
 
 /* This function resets FTP session attributes */
 static void _reset_ftp( session_ftp_stat_t *ftp) {
+#ifdef QOS_MODULE
 	ftp->file_download_starttime.tv_sec = 0;
 	ftp->file_download_starttime.tv_usec = 0;
 	ftp->file_download_finishtime.tv_sec = 0;
 	ftp->file_download_finishtime.tv_usec = 0;
+#endif
 	if (ftp->filename != NULL)
 		free(ftp->filename);
 	ftp->filename = NULL;
@@ -103,6 +110,7 @@ static void _ftp_session_connection_type_handle(const ipacket_t * ipacket, attri
 	if (ftp->session_conn_type == 2) {
 		uint64_t * control_session_id = (uint64_t *) get_attribute_extracted_data(ipacket, PROTO_FTP, FTP_CONT_IP_SESSION_ID);
 		if (control_session_id != NULL)ftp->session_id_control_channel = * control_session_id;
+#ifdef QOS_MODULE
 		// Report response time
 		if (ftp->data_response_time_seen == 0) {
 			//need to identify the control session for corresponding data session
@@ -122,8 +130,8 @@ static void _ftp_session_connection_type_handle(const ipacket_t * ipacket, attri
 					DEBUG("[FTP_REPORT: %lu] ftp_response_time = %lu\n", ipacket->packet_id, ftp->response_time);
 				}
 			}
-
 		}
+#endif
 	}
 
 	uint8_t * direction = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_FTP, FTP_DATA_DIRECTION);
@@ -145,8 +153,11 @@ static void _ftp_session_connection_type_handle(const ipacket_t * ipacket, attri
 	uint16_t *response_code = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_FTP, FTP_PACKET_RESPONSE_CODE);
 	if( response_code != NULL ) {
 		ftp->response_code = *response_code;
+
+#ifdef QOS_MODULE
 		if (ftp->response_code == 150)
 			ftp->file_download_starttime  = ipacket->p_hdr->ts;
+#endif
 	}
 }
 /* This function is called, whenever packet contains FTP response value.
@@ -230,7 +241,11 @@ int print_ftp_report(char *message, size_t message_size, const mmt_session_t * d
 			(ftp->filename == NULL) ? "null" : ftp->filename,
 			ftp->direction,
 			ftp->session_id_control_channel,
+#ifdef QOS_MODULE
 			ftp->response_time
+#else
+			0L
+#endif
 	);
     return ret;
 }

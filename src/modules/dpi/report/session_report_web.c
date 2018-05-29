@@ -8,11 +8,13 @@
 
 #ifndef SIMPLE_REPORT
 struct session_web_stat_struct {
-	struct timeval first_request_time;
 
-	struct timeval method_time;
-	struct timeval interaction_time;
-	struct timeval response_time;
+#ifdef QOS_MODULE
+	struct timeval first_request_time; //moment we see the first request
+	struct timeval method_time;        //moment we see a method request
+	struct timeval interaction_time  ; //moment we see the last packet
+	struct timeval response_time;      //moment we see a response
+#endif
 
 	char mime_type[64];
 	char hostname[96];
@@ -40,17 +42,19 @@ static inline void _reset_report(session_web_stat_t *web){
 	reset_string( web->response );
 	reset_string( web->content_len );
 
+#ifdef QOS_MODULE
 	web->response_time.tv_sec = 0;
 	web->response_time.tv_usec = 0;
-	web->method_time.tv_sec = 0;
-	web->method_time.tv_usec = 0;
 
 	web->method_time.tv_sec = 0;
 	web->method_time.tv_usec = 0;
+
 	web->interaction_time.tv_sec = 0;
-	web->interaction_time.tv_usec = 0;
+	web->interaction_time.tv_usec  = 0;
+
 	web->first_request_time.tv_sec = 0;
 	web->first_request_time.tv_usec = 0;
+#endif
 
 	web->xcdn_seen = false;
 	web->state_http_request_response = 0;
@@ -68,7 +72,7 @@ static inline session_stat_t* _get_packet_session(const ipacket_t * ipacket) {
 
 	if( session->app_type != SESSION_STAT_TYPE_APP_IP
 			&& session->app_type != SESSION_STAT_TYPE_APP_WEB )
-		ABORT( "Impossible: stat_type must be %d, not %d",
+		MY_MISTAKE( "Impossible: stat_type must be %d, not %d",
 				SESSION_STAT_TYPE_APP_IP, session->app_type);
 
 	if( session->apps.web == NULL ){
@@ -112,6 +116,7 @@ static void _web_method_handle(const ipacket_t * ipacket, attribute_t * attribut
 
 	dpi_copy_string_value(web->method, sizeof( web->method ), attribute->data );
 
+#ifdef QOS_MODULE
 	//((web_session_attr_t *) temp_session->app_data)->trans_nb += 1;
 	if (web->trans_nb >= 1) {
 		web->method_time = ipacket->p_hdr->ts;
@@ -120,7 +125,7 @@ static void _web_method_handle(const ipacket_t * ipacket, attribute_t * attribut
 	if (web->trans_nb == 1){
 		web->first_request_time = ipacket->p_hdr->ts;
 	}
-
+#endif
 	//DEBUG("Web method: %s, session_id = %"PRIu64, web->method, session->session_id );
 }
 
@@ -132,10 +137,12 @@ static void _web_response_handle(const ipacket_t * ipacket, attribute_t * attrib
 
 	session_web_stat_t *web = session->apps.web;
 
+#ifdef QOS_MODULE
 	if (web->trans_nb >= 1) //Needed for response_time calculation
 		web->response_time = ipacket->p_hdr->ts;
 
 	web->interaction_time = ipacket->p_hdr->ts;
+#endif
 
 	dpi_copy_string_value(web->response, sizeof( web->response ), attribute->data );
 }
@@ -195,8 +202,7 @@ static void _web_xcdn_seen_handle(const ipacket_t * ipacket, attribute_t * attri
 
 	uint8_t *xcdn_seen = (uint8_t *) attribute->data;
 
-	if (xcdn_seen != NULL )
-		web->xcdn_seen = true;
+	web->xcdn_seen =  (xcdn_seen != NULL );
 }
 
 //This function is called by session_report.session_report_register to register HTTP extractions
@@ -244,10 +250,13 @@ int print_web_report(char *message, size_t message_size, const mmt_session_t * d
 			"\"%s\",\"%s\",\"%s\"" //URI, method, response
 			",\"%s\""   //content length
 			",%d",    //request-response indicator
+#ifdef QOS_MODULE
 			has_string(web->response) ? u_second_diff( &web->response_time, &web->method_time ) : 0,
 			has_string(web->response) ? web->trans_nb : 0,
 			has_string(web->response) ? u_second_diff( &web->interaction_time, &web->first_request_time) : 0,
-
+#else
+			0L, 0, 0L,
+#endif
 			web->hostname,
 			web->mime_type,
 			web->referer,
@@ -265,8 +274,10 @@ int print_web_report(char *message, size_t message_size, const mmt_session_t * d
 	if (web->state_http_request_response != 0)
 		web->state_http_request_response ++;
 
+#ifdef QOS_MODULE
 	web->response_time.tv_sec = 0;
 	web->response_time.tv_usec = 0;
+#endif
 
 	session_stat->is_touched = true;
 	return valid;

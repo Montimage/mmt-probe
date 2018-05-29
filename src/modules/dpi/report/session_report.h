@@ -81,19 +81,20 @@ typedef struct session_stat_struct {
 		session_ssl_stat_t *ssl;
 	}apps;
 
+#ifdef QOS_MODULE
 	uint64_t sum_rtt[2];
 	uint64_t rtt_min_usec[2];
 	uint64_t rtt_max_usec[2];
 	uint64_t rtt_avg_usec[2];
 	uint64_t rtt_counter[2];
 
-	bool is_touched;
 	struct timeval dtt_start_time;
 	uint64_t rtt_at_handshake;
+#endif
 
 	bool dtt_seen;
 	bool is_classified;
-
+	bool is_touched;
 
 #endif
 

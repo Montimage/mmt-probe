@@ -39,6 +39,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
 
 	uint64_t data_transfer_time = 0;
+#ifdef QOS_MODULE
 	// Data transfer time calculation
 	if (session_stat->dtt_seen ){
 		struct timeval t1;
@@ -48,9 +49,11 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 		else
 			t1 = get_session_last_data_packet_time_by_direction(dpi_session, 1);
 
+
 		data_transfer_time =  u_second_diff(&t1, &session_stat->dtt_start_time);
 		session_stat->dtt_start_time = t1;
 	}
+#endif
 
 	char path_ul[128], path_dl[128];
 
@@ -121,6 +124,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 
 			context->worker_index, //thread_id
 
+#ifdef QOS_MODULE
 			((session_stat->rtt_at_handshake == 0)? rtt_at_handshake : 0),
 			session_stat->rtt_min_usec[1],
 			session_stat->rtt_min_usec[0],
@@ -128,7 +132,9 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 			session_stat->rtt_max_usec[0],
 			session_stat->rtt_avg_usec[1],
 			session_stat->rtt_avg_usec[0],
-
+#else
+			0L,0L,0L,0L,0L,0L,0L,
+#endif
 			data_transfer_time,
 			(total_retrans - session_stat->retransmission_count),
 
@@ -182,6 +188,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	session_stat->packets.upload = ul_packets;
 	session_stat->packets.download = dl_packets;
 
+#ifdef QOS_MODULE
 	session_stat->rtt_min_usec[1] = 0;
 	session_stat->rtt_min_usec[0] = 0;
 	session_stat->rtt_max_usec[1] = 0;
@@ -193,6 +200,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	session_stat->sum_rtt[0]      = 0;
 	session_stat->sum_rtt[1]      = 0;
 	session_stat->rtt_at_handshake     = rtt_at_handshake;
+#endif
 }
 
 
@@ -391,6 +399,8 @@ void session_report_callback_on_ending_session(const mmt_session_t * dpi_session
 int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, session_stat_t * session_stat){
 
 #ifndef SIMPLE_REPORT
+
+#ifdef QOS_MODULE
 	//only for packet based on TCP
 	if (session_stat != NULL && session_stat->dtt_seen == false ){
 		struct timeval ts = get_session_rtt(ipacket->session);
@@ -412,6 +422,8 @@ int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, sessi
 			}
 		}
 	}
+#endif
+
 #endif
 
 	return 0;
@@ -453,9 +465,9 @@ static inline void
 	}
 }
 
-size_t get_session_web_handlers_to_register(const conditional_handler_t**);
-size_t get_session_ssl_handlers_to_register( const conditional_handler_t **ret );
-size_t get_session_rtp_handlers_to_register( const conditional_handler_t **ret );
+size_t get_session_web_handlers_to_register( const conditional_handler_t ** );
+size_t get_session_ssl_handlers_to_register( const conditional_handler_t ** );
+size_t get_session_rtp_handlers_to_register( const conditional_handler_t ** );
 
 bool session_report_register( mmt_handler_t *dpi_handler, session_report_conf_t *config ){
 	if( ! config->is_enable )
