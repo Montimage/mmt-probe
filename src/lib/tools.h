@@ -9,8 +9,13 @@
 #define SRC_LIB_TOOLS_H_
 #include <sys/time.h>
 #include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
+#include <errno.h>
 
 #include "optimization.h"
+#include "log.h"
 
 #define MIN( a, b ) (a>b? b : a )
 #define MAX( a, b ) (a<b? b : a )
@@ -81,4 +86,18 @@ static bool ALWAYS_INLINE is_started_by( const char *string, const char *prefix,
 #define SWAP(x, y, T) do { T tmp = x; x = y; y = tmp; } while (0)
 
 #define IS_EQUAL_STRINGS( s1, s2 ) (strcmp(s1, s2) == 0)
+
+
+static inline ssize_t append_data_to_file(const char *file_path, const void *content, size_t len) {
+	int fd;
+	fd = open( file_path, O_CREAT | O_WRONLY | O_APPEND | O_NOFOLLOW, S_IRWXU | S_IRWXG | S_IRWXO );
+	if ( fd < 0 ) {
+		log_write( LOG_ERR, "Error %d while writing data to \"%s\": %s", errno, file_path, strerror( errno ) );
+		return -1;
+	}
+
+	ssize_t ret = write( fd, content, len );
+	close ( fd );
+	return ret;
+}
 #endif /* SRC_LIB_TOOLS_H_ */

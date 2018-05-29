@@ -171,11 +171,20 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 	if( ! register_session_timer_handler( dpi_handler, _period_session_report, ret) )
 		ABORT( "Cannot register handler for periodically session reporting" );
 
+	IF_ENABLE_FTP_RECONSTRUCT(
+		if( config->reconstructions.ftp->is_enable )
+			ret->data_reconstruct.ftp = ftp_reconstruct_init( config->reconstructions.ftp, dpi_handler );
+	)
+
 	return ret;
 }
 
 //this happens before closing dpi_context->dpi_handler
 void dpi_close( dpi_context_t *dpi_context ){
+	IF_ENABLE_FTP_RECONSTRUCT(
+		ftp_reconstruct_release( dpi_context->data_reconstruct.ftp );
+	)
+
 	unregister_attribute_handler(dpi_context->dpi_handler, PROTO_IP, PROTO_SESSION, _starting_session_handler );
 	unregister_attribute_handler(dpi_context->dpi_handler, PROTO_IPV6, PROTO_SESSION, _starting_session_handler );
 

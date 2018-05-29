@@ -13,6 +13,7 @@
 #include "../../configure.h"
 #include "../output/output.h"
 
+#include "reconstruct/ftp/ftp_reconstruct.h"
 
 #ifdef STAT_REPORT
 #include "report/micro_flow_report.h"
@@ -45,6 +46,10 @@ typedef struct dpi_context_struct{
 		micro_flow_report_context_t *micro_reports;
 		radius_report_context_t *radius_report;
 	)
+
+	struct{
+		IF_ENABLE_FTP_RECONSTRUCT( ftp_reconstruct_context_t *ftp; )
+	}data_reconstruct;
 
 	//number of stat_period, e.g., 5s,
 	// => this number will increase 1 for each 5 seconds

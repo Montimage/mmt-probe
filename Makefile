@@ -127,6 +127,14 @@ else
 $(info -> Disable HTTP_RECONSTRUCT)
 endif
 
+ifdef FTP_RECONSTRUCT
+$(info - Enable FTP_RECONSTRUCT)
+	CFLAGS      += -DFTP_RECONSTRUCT_MODULE
+	MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/dpi/reconstruct/ftp/*.c)
+else
+$(info -> Disable FTP_RECONSTRUCT)
+endif
+
 ifdef KAFKA
 $(info - Enable KAFKA)
 	LIBS        += -lrdkafka
