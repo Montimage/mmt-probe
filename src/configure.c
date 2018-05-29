@@ -70,6 +70,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 
 	cfg_opt_t kafka_output_opts[] = {
 			CFG_STR("hostname", "localhost", CFGF_NONE),
+			CFG_STR("topic", "report", CFGF_NONE),
 			CFG_INT("port", 9092, CFGF_NONE),
 			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_END()
@@ -362,6 +363,7 @@ static inline kafka_output_conf_t *_parse_output_to_kafka( cfg_t *cfg ){
 	ret->is_enable        = cfg_getbool( cfg,  "enable" );
 	ret->host.host_name   = _cfg_get_str(cfg, "hostname");
 	ret->host.port_number = cfg_getint( cfg,  "port" );
+	ret->topic_name       = _cfg_get_str(cfg, "topic");
 
 	return ret;
 }
@@ -870,6 +872,7 @@ void conf_release( probe_conf_t *conf){
 	}
 	if( conf->outputs.kafka ){
 		mmt_probe_free( conf->outputs.kafka->host.host_name );
+		mmt_probe_free( conf->outputs.kafka->topic_name );
 		mmt_probe_free( conf->outputs.kafka );
 	}
 	if( conf->outputs.redis ){

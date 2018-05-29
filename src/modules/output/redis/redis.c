@@ -51,6 +51,7 @@ redis_output_t *redis_init( const redis_output_conf_t *conf ){
 void redis_release( redis_output_t *context){
 	if( context )
 		mmt_probe_free( context );
+
 	if( thredis ){
 		thredis_close( thredis );
 		thredis = NULL;

@@ -144,7 +144,7 @@ endif
 
 ifdef KAFKA
 $(info - Enable KAFKA)
-	LIBS        += -lrdkafka
+	LIBS        += -L/usr/local/lib/ -lrdkafka
 	CFLAGS      += -I /usr/local/include/librdkafka -DKAFKA_MODULE
 	MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/output/kafka/*.c)
 else

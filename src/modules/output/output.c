@@ -12,14 +12,9 @@
 
 #include "../../lib/memory.h"
 #include "file/file_output.h"
-
-#ifdef MONGODB_MODULE
-	#include "mongodb/mongodb.h"
-#endif
-
-#ifdef REDIS_MODULE
-	#include "redis/redis.h"
-#endif
+#include "kafka/kafka_output.h"
+#include "mongodb/mongodb.h"
+#include "redis/redis.h"
 
 struct output_struct{
 	uint16_t index;
@@ -30,17 +25,9 @@ struct output_struct{
 
 	struct output_modules_struct{
 		file_output_t *file;
-#ifdef REDIS_MODULE
-		redis_output_t *redis;
-#endif
-
-#ifdef KAFKA_MODULE
-
-#endif
-
-#ifdef MONGODB_MODULE
-		mongodb_output_t *mongodb;
-#endif
+		IF_ENABLE_REDIS(   redis_output_t *redis; )
+		IF_ENABLE_KAFKA(   kafka_output_t *kafka; )
+		IF_ENABLE_MONGODB( mongodb_output_t *mongodb; )
 	}modules;
 };
 
@@ -70,7 +57,8 @@ output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct
 #endif
 
 #ifdef KAFKA_MODULE
-
+	if( ret->config->kafka->is_enable )
+		ret->modules.kafka = kafka_output_init( ret->config->kafka );
 #endif
 
 #ifdef MONGODB_MODULE
@@ -100,8 +88,8 @@ static inline int _write( output_t *output, output_channel_conf_t channels, cons
 
 #ifdef KAFKA_MODULE
 	//output to Kafka
-	if( output->config->kafka->is_enable && IS_ENABLE_OUTPUT_TO( KAFKA, channels )){
-		ret ++;
+	if( output->modules.kafka && IS_ENABLE_OUTPUT_TO( KAFKA, channels )){
+		ret += kafka_output_send( output->modules.kafka, message );
 	}
 #endif
 
@@ -200,9 +188,9 @@ void output_release( output_t * output){
 
 	file_output_release( output->modules.file );
 
-#ifdef MONGODB_MODULE
-	mongodb_output_release( output->modules.mongodb );
-#endif
+	IF_ENABLE_MONGODB( mongodb_output_release( output->modules.mongodb ); )
+	IF_ENABLE_KAFKA( kafka_output_release( output->modules.kafka ); )
+	IF_ENABLE_REDIS( redis_release( output->modules.redis ); )
 
 	mmt_probe_free( output );
 }
