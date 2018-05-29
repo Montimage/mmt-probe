@@ -107,13 +107,13 @@ static inline int _write( output_t *output, output_channel_conf_t channels, cons
 
 #ifdef REDIS_MODULE
 	//output to redis
-	if( output->config->redis->is_enable && IS_ENABLE_OUTPUT_TO( REDIS, channels )){
+	if( output->modules.redis && IS_ENABLE_OUTPUT_TO( REDIS, channels )){
 		ret += redis_send( output->modules.redis, message );
 	}
 #endif
 
 #ifdef MONGODB_MODULE
-	if( output->config->mongodb->is_enable && IS_ENABLE_OUTPUT_TO( MONGODB, channels )){
+	if( output->modules.mongodb && IS_ENABLE_OUTPUT_TO( MONGODB, channels )){
 
 		//convert to JSON format
 		if( output->config->format != OUTPUT_FORMAT_JSON  ){
@@ -198,14 +198,10 @@ void output_flush( output_t *output ){
 void output_release( output_t * output){
 	if( !output ) return;
 
-	if( output->modules.file )
-		file_output_release( output->modules.file );
+	file_output_release( output->modules.file );
 
 #ifdef MONGODB_MODULE
-	if( output->config->mongodb != NULL
-			&& output->config->mongodb->is_enable
-			&& output->modules.mongodb != NULL )
-		mongodb_output_release( output->modules.mongodb );
+	mongodb_output_release( output->modules.mongodb );
 #endif
 
 	mmt_probe_free( output );

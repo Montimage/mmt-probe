@@ -32,13 +32,13 @@ struct session_web_stat_struct {
 /* This function resets http stats */
 static inline void _reset_report(session_web_stat_t *web){
 	web->trans_nb = 0;
-	web->mime_type[0]   = '\0';
-	web->hostname[0]    = '\0';
-	web->referer[0]     = '\0';
-	web->method[0]      = '\0';
-	web->uri[0]         = '\0';
-	web->response[0]    = '\0';
-	web->content_len[0] = '\0';
+	reset_string( web->mime_type );
+	reset_string( web->hostname );
+	reset_string( web->referer );
+	reset_string( web->method );
+	reset_string( web->uri );
+	reset_string( web->response );
+	reset_string( web->content_len );
 
 	web->response_time.tv_sec = 0;
 	web->response_time.tv_usec = 0;

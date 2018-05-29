@@ -48,6 +48,7 @@ endef
 
 $(eval $(call EXPORT_TARGET,VERBOSE,VERBOSE))
 $(eval $(call EXPORT_TARGET,DEBUG,DEBUG))
+$(eval $(call EXPORT_TARGET,QOS,QOS))
 $(eval $(call EXPORT_TARGET,MONGODB_MODULE,MONGODB))
 $(eval $(call EXPORT_TARGET,REDIS_MODULE,REDIS))
 $(eval $(call EXPORT_TARGET,KAFKA_MODULE,KAFKA))
@@ -62,6 +63,7 @@ $(eval $(call EXPORT_TARGET,FTP_RECONSTRUCT_MODULE,FTP_RECONSTRUCT))
 
 $(eval $(call EXPORT_TARGET,SIMPLE_REPORT,SIMPLE_REPORT))
 $(eval $(call EXPORT_TARGET,DISABLE_REPORT,DISABLE_REPORT))
+
 $(eval $(call EXPORT_TARGET,DPDK_CAPTURE,DPDK))
 
 
@@ -85,6 +87,11 @@ endif
 #for valgrind check
 ifdef VALGRIND
 	CFLAGS += -DVALGRIND_MODE
+endif
+
+#to calculate response time, transfer time, ...
+ifdef QOS
+	CFLAGS += -DQOS_MODULE
 endif
 
 # For showing message from debug(...)

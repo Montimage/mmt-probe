@@ -11,18 +11,9 @@
 #include "worker.h"
 
 #include "modules/output/output.h"
-
-#ifdef SECURITY_MODULE
-	#include "modules/security/security.h"
-#endif
-
-#ifdef LICENSE_CHECK
-	#include "lib/license.h"
-#endif
-
-#ifdef DYNAMIC_CONFIG_MODULE
-	#include "modules/dynamic_conf/dynamic_conf.h"
-#endif
+#include "modules/security/security.h"
+#include "lib/license.h"
+#include "modules/dynamic_conf/dynamic_conf.h"
 /**
  * This function must be called by the main thread when allocating a worker
  * @return
@@ -34,8 +25,7 @@ worker_context_t * worker_alloc_init(){
 	ret->dpi_handler = mmt_init_handler(DLT_EN10MB, 0, errbuf);
 
 	if( ret->dpi_handler == NULL ){
-		log_write( LOG_ERR, "Cannot initialize mmt-dpi handler: %s", errbuf );
-		exit( EXIT_FAILURE );
+		ABORT( "Cannot initialize mmt-dpi handler: %s", errbuf );
 	}
 
 	return ret;

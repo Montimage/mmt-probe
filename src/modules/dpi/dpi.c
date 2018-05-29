@@ -88,7 +88,7 @@ static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 			session = _create_session (ipacket, context);
 
 		IF_ENABLE_PCAP_DUMP(
-			if( context->pcap_dump != NULL)
+			if( context->pcap_dump )
 				pcap_dump_callback_on_receiving_packet( ipacket, context->pcap_dump );
 		)
 
@@ -140,8 +140,7 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 	ret->probe_config  = config;
 
 	IF_ENABLE_PCAP_DUMP(
-		if( config->reports.pcap_dump->is_enable )
-			ret->pcap_dump = pcap_dump_start( worker_index, config->reports.pcap_dump, dpi_handler )
+		ret->pcap_dump = pcap_dump_start( worker_index, config->reports.pcap_dump, dpi_handler )
 	);
 
 	IF_ENABLE_STAT_REPORT(
@@ -172,8 +171,7 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 		ABORT( "Cannot register handler for periodically session reporting" );
 
 	IF_ENABLE_FTP_RECONSTRUCT(
-		if( config->reconstructions.ftp->is_enable )
-			ret->data_reconstruct.ftp = ftp_reconstruct_init( config->reconstructions.ftp, dpi_handler );
+		ret->data_reconstruct.ftp = ftp_reconstruct_init( config->reconstructions.ftp, dpi_handler );
 	)
 
 	return ret;
@@ -205,8 +203,7 @@ void dpi_release( dpi_context_t *dpi_context ){
 	)
 
 	IF_ENABLE_PCAP_DUMP(
-		if( dpi_context->probe_config->reports.pcap_dump->is_enable )
-			pcap_dump_stop( dpi_context->pcap_dump );
+		pcap_dump_stop( dpi_context->pcap_dump );
 	)
 
 	mmt_probe_free( dpi_context );

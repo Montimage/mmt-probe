@@ -133,6 +133,11 @@
 	#define IF_ENABLE_FTP_RECONSTRUCT( x )
 #endif
 
+#ifdef QOS_MODULE
+	#define IF_ENABLE_QOS( x ) x
+#else
+	#define IF_ENABLE_QOS( x )
+#endif
 //a string contains list of compiled modules
 #define MODULES_LIST                                 \
 	"DPI"                                            \
@@ -147,6 +152,7 @@
 	IF_ENABLE_SIMPLE_REPORT( ", SIMPLE_REPORT" )     \
 	IF_ENABLE_DYNAMIC_CONFIG( ", DYNAMIC_CONF" )     \
 	IF_ENABLE_FTP_RECONSTRUCT( ", FTP_RECONSTRUCT" ) \
+	IF_ENABLE_QOS( ", QOS" )                        \
 	IF_ENABLE_SECURITY(", SECURITY ")
 
 

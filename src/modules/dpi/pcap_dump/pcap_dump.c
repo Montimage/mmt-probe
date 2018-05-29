@@ -170,6 +170,8 @@ pcap_dump_context_t* pcap_dump_start( uint16_t worker_index, pcap_dump_conf_t *c
 }
 
 void pcap_dump_stop( pcap_dump_context_t *context ){
+	if( context == NULL )
+		return;
 	_close_pcap_file( context->file );
 	context->file = NULL;
 	mmt_probe_free( context->proto_ids_lst );

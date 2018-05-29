@@ -39,6 +39,9 @@ mongodb_output_t* mongodb_output_alloc_init( const mongodb_output_conf_t*config,
 	static bool is_first_times = true;
 	char connection_string[ 1000 ];
 
+	if( ! config->is_enable )
+		return NULL;
+
 	//Register also the application name so we can track it in the profile logs on the server.
 	snprintf( connection_string, sizeof( connection_string), "mongodb://%s:%d/?appname=mmt-probe-%d",
 			config->host.host_name, config->host.port_number, id );
@@ -193,9 +196,10 @@ int mongodb_output_write( mongodb_output_t *mongo, const char *message ){
 }
 
 void mongodb_output_release( mongodb_output_t *mongo ){
-
 	static bool is_first_times = true;
 	int i;
+	if( mongo == NULL )
+		return;
 
 	mongodb_output_flush_to_database( mongo );
 
