@@ -62,6 +62,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 
 	cfg_opt_t redis_output_opts[] = {
 			CFG_STR("hostname", "localhost", CFGF_NONE),
+			CFG_STR("channel", "report", CFGF_NONE),
 			CFG_INT("port", 6379, CFGF_NONE),
 			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_END()
@@ -198,7 +199,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_SEC("output", output_opts, CFGF_NONE),
 			CFG_SEC("file-output", file_output_opts, CFGF_NONE),
 			CFG_SEC("redis-output", redis_output_opts, CFGF_NONE),
-			CFG_SEC("kafka-output", redis_output_opts, CFGF_NONE),
+			CFG_SEC("kafka-output", kafka_output_opts, CFGF_NONE),
 			CFG_SEC("data-output", data_output_opts, CFGF_NONE),
 			CFG_SEC("security", security2_opts, CFGF_NONE),
 			CFG_SEC("system-report", cpu_mem_report_opts, CFGF_NONE),
@@ -389,6 +390,7 @@ static inline redis_output_conf_t *_parse_output_to_redis( cfg_t *cfg ){
 
 	ret->is_enable        = cfg_getbool( cfg, "enable" );
 	ret->host.host_name   = _cfg_get_str(cfg, "hostname");
+	ret->channel_name     = _cfg_get_str(cfg, "channel");
 	ret->host.port_number = cfg_getint( cfg,  "port" );
 
 	return ret;
@@ -872,6 +874,7 @@ void conf_release( probe_conf_t *conf){
 	}
 	if( conf->outputs.redis ){
 		mmt_probe_free( conf->outputs.redis->host.host_name );
+		mmt_probe_free( conf->outputs.redis->channel_name );
 		mmt_probe_free( conf->outputs.redis );
 	}
 	if( conf->outputs.mongodb ){

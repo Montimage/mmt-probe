@@ -133,12 +133,12 @@ void worker_on_start( worker_context_t *worker_context ){
 			abort();
 #endif
 
-#ifdef DYNAMIC_CONFIG_MODULE
-	if( IS_SMP_MODE( worker_context->probe_context ))
-		if( worker_context->probe_context->config->dynamic_conf->is_enable ){
-			dynamic_conf_agency_start();
-		}
-#endif
+//#ifdef DYNAMIC_CONFIG_MODULE
+//	if( IS_SMP_MODE( worker_context->probe_context ))
+//		if( worker_context->probe_context->config->dynamic_conf->is_enable ){
+//			dynamic_conf_agency_start();
+//		}
+//#endif
 }
 
 /**
@@ -151,21 +151,21 @@ void worker_on_stop( worker_context_t *worker_context ){
 	)
 	dpi_close( worker_context->dpi_context );
 
-#ifdef DYNAMIC_CONFIG_MODULE
-	dynamic_conf_agency_stop();
-#endif
+//#ifdef DYNAMIC_CONFIG_MODULE
+//	dynamic_conf_agency_stop();
+//#endif
 }
 
 
-#ifdef DYNAMIC_CONFIG_MODULE
-static inline void CALL_DYNAMIC_CONF_CHECK_IF_NEED( worker_context_t *worker_context ){
-	if( worker_context->probe_context->config->dynamic_conf->is_enable ){
-		dynamic_conf_check();
-	}
-}
-#else
+//#ifdef DYNAMIC_CONFIG_MODULE
+//static inline void CALL_DYNAMIC_CONF_CHECK_IF_NEED( worker_context_t *worker_context ){
+//	if( worker_context->probe_context->config->dynamic_conf->is_enable ){
+//		dynamic_conf_check();
+//	}
+//}
+//#else
 #define CALL_DYNAMIC_CONF_CHECK_IF_NEED( ... )
-#endif
+//#endif
 
 /**
  * This must be called periodically each x seconds depending on config.stats_period

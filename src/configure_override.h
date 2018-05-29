@@ -162,9 +162,10 @@ DECLARE_CONF_ATT(
 
 #ifdef REDIS_MODULE
 	//redis-output
-	(CONF_ATT__REDIS_OUTPUT__ENABLE,   "redis-output.enable",   &conf->outputs.redis->is_enable,        BOOL),
-	(CONF_ATT__REDIS_OUTPUT__HOSTNAME, "redis-output.hostname", &conf->outputs.redis->host.host_name,   CHAR_STAR),
-	(CONF_ATT__REDIS_OUTPUT__PORT,     "redis-output.port",     &conf->outputs.redis->host.port_number, UINT16_T),
+	(CONF_ATT__REDIS_OUTPUT__ENABLE,       "redis-output.enable",   &conf->outputs.redis->is_enable,        BOOL),
+	(CONF_ATT__REDIS_OUTPUT__HOSTNAME,     "redis-output.hostname", &conf->outputs.redis->host.host_name,   CHAR_STAR),
+	(CONF_ATT__REDIS_OUTPUT__CHANNEL_NAME, "redis-output.channel",  &conf->outputs.redis->channel_name,     CHAR_STAR),
+	(CONF_ATT__REDIS_OUTPUT__PORT,         "redis-output.port",     &conf->outputs.redis->host.port_number, UINT16_T),
 #endif
 
 #ifdef PCAP_DUMP_MODULE

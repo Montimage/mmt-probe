@@ -17,6 +17,10 @@
 	#include "mongodb/mongodb.h"
 #endif
 
+#ifdef REDIS_MODULE
+	#include "redis/redis.h"
+#endif
+
 struct output_struct{
 	uint16_t index;
 	const char*input_src;
@@ -27,6 +31,7 @@ struct output_struct{
 	struct output_modules_struct{
 		file_output_t *file;
 #ifdef REDIS_MODULE
+		redis_output_t *redis;
 #endif
 
 #ifdef KAFKA_MODULE
@@ -58,6 +63,11 @@ output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct
 	if( ret->config->file->is_enable ){
 		ret->modules.file = file_output_alloc_init( ret->config->file, output_id );
 	}
+
+#ifdef REDIS_MODULE
+	if( ret->config->redis->is_enable )
+		ret->modules.redis = redis_init( ret->config->redis );
+#endif
 
 #ifdef KAFKA_MODULE
 
@@ -98,7 +108,7 @@ static inline int _write( output_t *output, output_channel_conf_t channels, cons
 #ifdef REDIS_MODULE
 	//output to redis
 	if( output->config->redis->is_enable && IS_ENABLE_OUTPUT_TO( REDIS, channels )){
-		ret ++;
+		ret += redis_send( output->modules.redis, message );
 	}
 #endif
 

@@ -42,6 +42,7 @@ typedef struct internet_service_address_struct{
 typedef struct redis_output_conf_struct{
 	bool is_enable;
 	internet_service_address_t host;
+	char *channel_name;
 }redis_output_conf_t;
 
 typedef struct kafka_output_conf_struct{
