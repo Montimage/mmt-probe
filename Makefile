@@ -49,9 +49,13 @@ endef
 $(eval $(call EXPORT_TARGET,VERBOSE,VERBOSE))
 $(eval $(call EXPORT_TARGET,DEBUG,DEBUG))
 $(eval $(call EXPORT_TARGET,QOS,QOS))
+
 $(eval $(call EXPORT_TARGET,MONGODB_MODULE,MONGODB))
 $(eval $(call EXPORT_TARGET,REDIS_MODULE,REDIS))
 $(eval $(call EXPORT_TARGET,KAFKA_MODULE,KAFKA))
+$(eval $(call EXPORT_TARGET,SOCKET_MODULE,SOCKET))
+
+
 $(eval $(call EXPORT_TARGET,LICENSE_MODULE,LICENSE))
 $(eval $(call EXPORT_TARGET,SECURITY_MODULE,SECURITY))
 
@@ -167,6 +171,14 @@ $(info - Enable REDIS)
 	MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/output/redis/*.c)
 else
 $(info -> Disable REDIS)
+endif
+
+ifdef SOCKET
+$(info - Enable SOCKET output)
+	CFLAGS      += -DSOCKET_MODULE
+	MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/output/socket/*.c)
+else
+$(info -> Disable SOCKET output)
 endif
 
 ifdef NETCONF

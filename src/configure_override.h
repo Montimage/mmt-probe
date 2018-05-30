@@ -169,6 +169,15 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__REDIS_OUTPUT__PORT,         "redis-output.port",     &conf->outputs.redis->host.port_number, UINT16_T),
 #endif
 
+#ifdef SOCKET_MODULE
+	//redis-output
+	(CONF_ATT__SOCKET_OUTPUT__ENABLE,       "socket-output.enable",     &conf->outputs.socket->is_enable,                   BOOL),
+	(CONF_ATT__SOCKET_OUTPUT__TYPE,         "socket-output.type",       &conf->outputs.socket->socket_type,                 UINT16_T),
+	(CONF_ATT__SOCKET_OUTPUT__HOSTNAME,     "socket-output.hostname",   &conf->outputs.socket->internet_socket.host_name,   CHAR_STAR),
+	(CONF_ATT__SOCKET_OUTPUT__PORT,         "socket-output.port",       &conf->outputs.socket->internet_socket.port_number, UINT16_T),
+	(CONF_ATT__SOCKET_OUTPUT__DESCRIPTOR,   "socket-output.descriptor", &conf->outputs.socket->unix_socket_descriptor,      CHAR_STAR),
+#endif
+
 #ifdef PCAP_DUMP_MODULE
 	//dump-pcap
 	(CONF_ATT__DUMP_PCAP__ENABLE,       "dump-pcap.enable",       &conf->reports.pcap_dump->is_enable,            BOOL),

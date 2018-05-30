@@ -99,6 +99,12 @@
 	#define IF_ENABLE_MONGODB( x )
 #endif
 
+#ifdef SOCKET_MODULE
+	#define IF_ENABLE_SOCKET( x ) x
+#else
+	#define IF_ENABLE_SOCKET( x )
+#endif
+
 
 #ifdef PCAP_DUMP_MODULE
 	#define IF_ENABLE_PCAP_DUMP( x ) x
@@ -146,6 +152,7 @@
 	IF_ENABLE_REDIS( ", REDIS" )                     \
 	IF_ENABLE_KAFKA( ", KAFKA" )                     \
 	IF_ENABLE_MONGODB( ", MONGODB" )                 \
+	IF_ENABLE_SOCKET( ", SOCKET" )                   \
 	IF_ENABLE_PCAP_DUMP( ", PCAP_DUMP" )             \
 	IF_ENABLE_PCAP( ", PCAP" )                       \
 	IF_ENABLE_DPDK( ", DPDK" )                       \

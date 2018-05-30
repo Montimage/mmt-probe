@@ -78,7 +78,10 @@ typedef enum {
 	CONF_OUTPUT_CHANNEL_REDIS   = 2,
 	CONF_OUTPUT_CHANNEL_KAFKA   = 4,
 	CONF_OUTPUT_CHANNEL_MONGODB = 8,
-	CONF_OUTPUT_CHANNEL_ALL     = CONF_OUTPUT_CHANNEL_FILE | CONF_OUTPUT_CHANNEL_REDIS | CONF_OUTPUT_CHANNEL_KAFKA | CONF_OUTPUT_CHANNEL_MONGODB
+	CONF_OUTPUT_CHANNEL_SOCKET  = 16,
+	CONF_OUTPUT_CHANNEL_ALL     = CONF_OUTPUT_CHANNEL_FILE | CONF_OUTPUT_CHANNEL_REDIS
+								| CONF_OUTPUT_CHANNEL_KAFKA | CONF_OUTPUT_CHANNEL_MONGODB
+								| CONF_OUTPUT_CHANNEL_SOCKET
 }output_channel_conf_t;
 
 #define IS_ENABLE_OUTPUT_TO( name, channels ) ( channels & CONF_OUTPUT_CHANNEL_ ##name )
@@ -140,25 +143,11 @@ typedef struct dpi_protocol_attribute_struct{
 
 typedef struct socket_output_conf_struct{
 	bool is_enable;
-	enum{ UNIX_SOCKET_TYPE, INTERNET_SOCKET_TYPE, ANY_SOCKET_TYPE } socket_type;
+	enum{ SOCKET_TYPE_ANY = 0, SOCKET_TYPE_UNIX, SOCKET_TYPE_INTERNET } socket_type;
 	//descriptor of UNIX socket if used
 	char *unix_socket_descriptor;
 
-	uint16_t internet_sockets_size;
-	struct internet_socket_output_conf_struct{
-		bool is_enable;
-		internet_service_address_t host;
-		uint16_t attributes_size;
-		//Indicates the list of attributes that are reported
-		dpi_protocol_attribute_t *attributes;
-	} *internet_sockets;
-
-	//If set to 0 the server contains multiple sockets to receive the reports.
-	//If set to 1 only one socket will receive the reports :
-	bool is_one_socket_server;
-
-	//indicates the number of report per message ( sockets ) .Default is 1.
-	uint16_t messages_per_report;
+	internet_service_address_t internet_socket;
 }socket_output_conf_t;
 
 typedef struct micro_flow_conf_struct{
@@ -213,6 +202,7 @@ typedef struct output_conf_struct{
 	redis_output_conf_t *redis;
 	kafka_output_conf_t *kafka;
 	mongodb_output_conf_t *mongodb;
+	socket_output_conf_t *socket;
 	enum {OUTPUT_FORMAT_CSV, OUTPUT_FORMAT_JSON} format;
 }output_conf_t;
 
@@ -236,7 +226,6 @@ typedef struct probe_conf_struct{
 		security_conf_t *security;
 		system_stats_conf_t *cpu_mem;
 		behaviour_conf_t   *behaviour;
-		socket_output_conf_t *socket;
 		micro_flow_conf_t *microflow;
 		session_report_conf_t *session;
 

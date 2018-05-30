@@ -41,6 +41,20 @@ int conf_parse_output_format(cfg_t *cfg, cfg_opt_t *opt, const char *value, void
 	return 0;
 }
 
+static int _conf_parse_socket_type(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
+	if (IS_EQUAL_STRINGS(value, "UNIX") )
+		*(int *) result = SOCKET_TYPE_UNIX;
+	else if (IS_EQUAL_STRINGS(value, "INTERNET") )
+		*(int *) result = SOCKET_TYPE_INTERNET;
+	else if (IS_EQUAL_STRINGS(value, "BOTH") )
+		*(int *) result = SOCKET_TYPE_ANY;
+	else{
+		cfg_error(cfg, "invalid value for option '%s': %s", cfg_opt_name(opt), value);
+		return -1;
+	}
+	return 0;
+}
+
 static inline cfg_t *_load_cfg_from_file(const char *filename) {
 	cfg_opt_t micro_flows_opts[] = {
 			CFG_BOOL("enable", false, CFGF_NONE),
@@ -161,12 +175,10 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 
 	cfg_opt_t socket_opts[] = {
 			CFG_BOOL("enable", false, CFGF_NONE),
-			CFG_INT("domain", 0, CFGF_NONE),
-			CFG_STR_LIST("port", "{}", CFGF_NONE),
-			CFG_STR_LIST("server-address", "{}", CFGF_NONE),
-			CFG_STR("socket-descriptor", "", CFGF_NONE),
-			CFG_INT("one-socket-server", 1, CFGF_NONE),
-			CFG_INT("num-of-report-per-msg", 1, CFGF_NONE),
+			CFG_INT_CB("type", 0, CFGF_NONE, _conf_parse_socket_type),
+			CFG_INT("port", 0, CFGF_NONE),
+			CFG_STR("hostname", "localhost", CFGF_NONE),
+			CFG_STR("descriptor", "/tmp/probe-output.sock", CFGF_NONE),
 			CFG_END()
 	};
 	cfg_opt_t session_report_opts[] = {
@@ -198,13 +210,16 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_SEC("micro-flows", micro_flows_opts, CFGF_NONE),
 			CFG_SEC("session-timeout", session_timeout_opts, CFGF_NONE),
 			CFG_SEC("output", output_opts, CFGF_NONE),
+
 			CFG_SEC("file-output", file_output_opts, CFGF_NONE),
 			CFG_SEC("redis-output", redis_output_opts, CFGF_NONE),
 			CFG_SEC("kafka-output", kafka_output_opts, CFGF_NONE),
 			CFG_SEC("data-output", data_output_opts, CFGF_NONE),
+			CFG_SEC("socket-output", socket_opts, CFGF_NONE),
+
 			CFG_SEC("security", security2_opts, CFGF_NONE),
 			CFG_SEC("system-report", cpu_mem_report_opts, CFGF_NONE),
-			CFG_SEC("socket", socket_opts, CFGF_NONE),
+
 			CFG_SEC("behaviour", behaviour_opts, CFGF_NONE),
 			CFG_SEC("reconstruct-data", reconstruct_data_opts, CFGF_TITLE | CFGF_MULTI ),
 			CFG_SEC("mongodb-output", mongodb_output_opts, CFGF_NONE),
@@ -633,34 +648,17 @@ static inline session_timeout_conf_t *_parse_session_timeout_block( cfg_t *cfg )
 
 static inline socket_output_conf_t *_parse_socket_block( cfg_t *cfg ){
 	int i;
-	cfg_t *c = _get_first_cfg_block( cfg, "socket");
+	cfg_t *c = _get_first_cfg_block( cfg, "socket-output");
 	if( c == NULL )
 		return NULL;
 
 	socket_output_conf_t *ret = mmt_alloc( sizeof( socket_output_conf_t ));
 	ret->is_enable = cfg_getbool( c, "enable" );
-	switch( cfg_getint( c, "domain")  ){
-	case 0:
-		ret->socket_type = UNIX_SOCKET_TYPE;
-		break;
-	case 1:
-		ret->socket_type = INTERNET_SOCKET_TYPE;
-		break;
-	case 2:
-		ret->socket_type = ANY_SOCKET_TYPE;
-		break;
-	}
-	ret->unix_socket_descriptor = _cfg_get_str(c, "socket-descriptor" );
-	ret->is_one_socket_server =  (cfg_getint( c, "one-socket-server") == 1);
-	ret->messages_per_report  = cfg_getint( c, "num-of-report-per-msg");
+	ret->socket_type = cfg_getint( c, "type");
+	ret->unix_socket_descriptor = _cfg_get_str(c, "descriptor" );
 
-	ret->internet_sockets_size = cfg_size( c, "port" );
-	if( ret->internet_sockets_size > cfg_size( c, "server-address") ){
-		printf( "Error: Number of socket.port and socket.server-address are different" );
-		exit( 1 );
-	}
-
-	ret->internet_sockets = NULL;// alloc( sizeof (internet_socket_output_conf_struct ))
+	ret->internet_socket.port_number = cfg_getint( c, "port" );
+	ret->internet_socket.host_name = _cfg_get_str(c, "hostname" );
 
 	return ret;
 }
@@ -737,10 +735,12 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 	conf->outputs.kafka = _parse_output_to_kafka( cfg );
 	conf->outputs.redis = _parse_output_to_redis( cfg );
 	conf->outputs.mongodb = _parse_output_to_mongodb( cfg );
+	conf->outputs.socket = _parse_socket_block( cfg );
 	//a global
 	conf->outputs.is_enable = ( (conf->outputs.file != NULL && conf->outputs.file->is_enable )
 									|| (conf->outputs.redis != NULL && conf->outputs.redis->is_enable)
-									|| (conf->outputs.kafka != NULL && conf->outputs.kafka->is_enable ));
+									|| (conf->outputs.kafka != NULL && conf->outputs.kafka->is_enable )
+									|| (conf->outputs.socket != NULL && conf->outputs.socket->is_enable ));
 
 	conf->dynamic_conf = _parse_dynamic_config_block( cfg );
 	//
@@ -760,7 +760,7 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 
 	conf->reports.security = _parse_security_block( cfg );
 	conf->reports.session = _parse_session_block( cfg );
-	conf->reports.socket = _parse_socket_block( cfg );
+
 
 	conf->reports.pcap_dump = _parse_dump_to_file(cfg);
 	conf->reports.radius   = _parse_radius_block( cfg );
@@ -829,15 +829,6 @@ void conf_release( probe_conf_t *conf){
 
 	mmt_probe_free( conf->reports.session );
 
-	if( conf->reports.socket ){
-		mmt_probe_free( conf->reports.socket->unix_socket_descriptor );
-		for( i=0; i<conf->reports.socket->internet_sockets_size; i++){
-			//xfree(conf->reports.socket->internet_sockets[i].host.host_name );
-		}
-		mmt_probe_free( conf->reports.socket->internet_sockets );
-		mmt_probe_free( conf->reports.socket );
-	}
-
 	if( conf->reports.pcap_dump ){
 		mmt_probe_free( conf->reports.pcap_dump->directory );
 		for( i=0; i<conf->reports.pcap_dump->protocols_size; i++ )
@@ -885,6 +876,12 @@ void conf_release( probe_conf_t *conf){
 		mmt_probe_free( conf->outputs.mongodb->database_name );
 		mmt_probe_free( conf->outputs.mongodb->host.host_name );
 		mmt_probe_free( conf->outputs.mongodb );
+	}
+
+	if( conf->outputs.socket ){
+		mmt_probe_free( conf->outputs.socket->unix_socket_descriptor );
+		mmt_probe_free( conf->outputs.socket->internet_socket.host_name );
+		mmt_probe_free( conf->outputs.socket );
 	}
 
 	if( conf->dynamic_conf ){

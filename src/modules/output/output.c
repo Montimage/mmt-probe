@@ -13,6 +13,7 @@
 #include "../../lib/memory.h"
 #include "file/file_output.h"
 #include "kafka/kafka_output.h"
+#include "socket/socket_output.h"
 #include "mongodb/mongodb.h"
 #include "redis/redis.h"
 
@@ -28,6 +29,7 @@ struct output_struct{
 		IF_ENABLE_REDIS(   redis_output_t *redis; )
 		IF_ENABLE_KAFKA(   kafka_output_t *kafka; )
 		IF_ENABLE_MONGODB( mongodb_output_t *mongodb; )
+		IF_ENABLE_SOCKET(  socket_output_t *socket; )
 	}modules;
 };
 
@@ -66,6 +68,10 @@ output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct
 		ret->modules.mongodb = mongodb_output_alloc_init( ret->config->mongodb, ret->config->cache_max, output_id );
 #endif
 
+#ifdef SOCKET_MODULE
+	if( ret->config->socket->is_enable )
+		ret->modules.socket = socket_output_init( ret->config->socket );
+#endif
 	return ret;
 }
 
@@ -115,6 +121,11 @@ static inline int _write( output_t *output, output_channel_conf_t channels, cons
 	}
 #endif
 
+#ifdef SOCKET_MODULE
+	if( output->modules.socket && IS_ENABLE_OUTPUT_TO( SOCKET, channels )){
+		ret += socket_output_send( output->modules.socket, message );
+	}
+#endif
 	return ret;
 }
 
@@ -191,6 +202,6 @@ void output_release( output_t * output){
 	IF_ENABLE_MONGODB( mongodb_output_release( output->modules.mongodb ); )
 	IF_ENABLE_KAFKA( kafka_output_release( output->modules.kafka ); )
 	IF_ENABLE_REDIS( redis_release( output->modules.redis ); )
-
+	IF_ENABLE_SOCKET( socket_output_release( output->modules.socket ); )
 	mmt_probe_free( output );
 }
