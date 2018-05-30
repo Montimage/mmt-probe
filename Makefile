@@ -80,14 +80,6 @@ else
 $(info -> Disable HTTP_RECONSTRUCT module)
 endif
 
-ifdef TCP_RECONSTRUCT
-$(info - Enable TCP_RECONSTRUCT module)
-	CFLAGS += -DTCP_RECONSTRUCT
-	MODULES_LIST +=  TCP_RECONSTRUCT
-else
-$(info -> Disable TCP_RECONSTRUCT module)
-endif
-
 ifdef TCP_PAYLOAD_DUMP
 $(info - Enable TCP_PAYLOAD_DUMP module)
 	LIBS   += -L /opt/mmt/reassembly/lib -lmmt_reassembly -lntoh

@@ -319,8 +319,6 @@ typedef struct mmt_probe_context_struct {
 	char license_location[256 + 1];
 	char behaviour_output_location[256 + 1];
 	char ftp_reconstruct_output_location[256 + 1];
-	char tcp_reconstruct_output_location[256 + 1];
-	uint32_t tcp_reconstruct_enable;
 
 #ifdef TCP_PAYLOAD_DUMP
 	char tcp_payload_dump_location[256 + 1];
