@@ -21,9 +21,12 @@ else
 	DEB_NAME = mmt-probe_$(VERSION)_$(GIT_VERSION)_$(SYS_NAME)_$(SYS_VERSION)_pcap
 endif
 
+#list of module names
+MODULES_LIST := "DPI"
+
 #get git version abbrev
 GIT_VERSION := $(shell git log --format="%h" -n 1)
-VERSION     := 1.2.3
+VERSION     := 1.3.1
 
 $(info Building MMT-Probe version $(VERSION) $(GIT_VERSION))
 
@@ -54,6 +57,7 @@ ifdef KAFKA
 $(info - Enable KAFKA module)
 	LIBS    += -lrdkafka
 	CFLAGS  += -I /usr/local/include/librdkafka -DKAFKA
+	MODULES_LIST +=  KAFKA
 else
 $(info -> Disable KAFKA module)
 endif
@@ -62,6 +66,7 @@ ifdef REDIS
 $(info - Enable REDIS module)
 	LIBS    += -lhiredis
 	CFLAGS  +=  -DREDIS
+	MODULES_LIST +=  REDIS
 else
 $(info -> Disable REDIS module)
 endif
@@ -70,6 +75,7 @@ ifdef HTTP_RECONSTRUCT
 $(info - Enable HTTP_RECONSTRUCT module)
 	LIBS   += -lhtmlstreamparser -lz
 	CFLAGS += -DHTTP_RECONSTRUCT
+	MODULES_LIST +=  HTTP_RECONSTRUCT
 else
 $(info -> Disable HTTP_RECONSTRUCT module)
 endif
@@ -77,6 +83,7 @@ endif
 ifdef TCP_RECONSTRUCT
 $(info - Enable TCP_RECONSTRUCT module)
 	CFLAGS += -DTCP_RECONSTRUCT
+	MODULES_LIST +=  TCP_RECONSTRUCT
 else
 $(info -> Disable TCP_RECONSTRUCT module)
 endif
@@ -86,6 +93,7 @@ ifdef SECURITY_V1
 $(info - Enable SECURITY_V1 module)
 	LIBS   += -lmmt_security -lxml2
 	CFLAGS += -DSECURITY_V1
+	MODULES_LIST += SECURITY_V1
 else
 $(info -> Disable SECURITY_V1 module)
 endif
@@ -95,6 +103,7 @@ ifdef SECURITY
 $(info - Enable SECURITY module)
 	LIBS   += -lmmt_security2 -lxml2
 	CFLAGS += -I /opt/mmt/security/include -DSECURITY
+	MODULES_LIST +=  SECURITY
 else
 $(info -> Disable SECURITY module)
 endif
@@ -187,6 +196,7 @@ FACE_ROOT_DIR=/tmp/probe/$(INSTALL_DIR)
 		$(FACE_ROOT_DIR)/result/behaviour/offline \
 		$(FACE_ROOT_DIR)/result/security/online \
 		$(FACE_ROOT_DIR)/result/security/offline \
+		$(FACE_ROOT_DIR)/files \
       $(FACE_ROOT_DIR)/pcaps
 #copy probe to existing dir from buit in DPDK
 ifdef DPDK
@@ -238,8 +248,8 @@ install: --private-check-root --private-copy-files
 	@echo "/opt/mmt/probe/lib" >> $(DEB_NAME)/etc/ld.so.conf.d/mmt-probe.conf
 
 	$(QUIET) $(MKDIR) $(DEB_NAME)/etc/init.d/
-	$(QUIET) $(CP) daemon-service.sh  $(ETC_SERVICE_FILE_PATH)
-	$(QUIET) chmod 0755               $(ETC_SERVICE_FILE_PATH)
+	$(QUIET) $(CP) daemon-service.sh  $(DEB_NAME)$(ETC_SERVICE_FILE_PATH)
+	$(QUIET) chmod 0755               $(DEB_NAME)$(ETC_SERVICE_FILE_PATH)
 
 	$(QUIET) $(MKDIR) $(DEB_NAME)$(INSTALL_DIR)
 	$(QUIET) $(CP) -r $(FACE_ROOT_DIR)/* $(DEB_NAME)$(INSTALL_DIR)
@@ -251,21 +261,30 @@ endif
 ifdef KAFKA
 	$(QUIET) $(CP) /usr/local/lib/librdkafka.so.*  $(DEB_NAME)$(INSTALL_DIR)/lib
 endif
-	$(QUIET) $(CP) /lib64/libconfuse.so.*  $(DEB_NAME)$(INSTALL_DIR)/lib/
+	$(QUIET) $(CP) /usr/lib/x86_64-linux-gnu/libconfuse.so.*  $(DEB_NAME)$(INSTALL_DIR)/lib/
+
+#List of packages mmt-probe depends on
+RPM_DEPENDING_PACKAGES := mmt-dpi >= 1.6.13
+DEB_DEPENDING_PACKAGES := mmt-dpi (>= 1.6.13)
+ifdef SECURITY
+	RPM_DEPENDING_PACKAGES += mmt-security >= 1.2.0
+	DEB_DEPENDING_PACKAGES += mmt-security (>= 1.2.0)
+endif
 
 #build .deb file for Debian
 deb: --private-prepare-build
 	$(QUIET) $(MKDIR) $(DEB_NAME)/DEBIAN
-	$(QUIET) echo "Package: mmt-probe \
-        \nVersion: $(VERSION) \
-        \nSection: base \
-        \nPriority: standard \
-        \nDepends: mmt-dpi, mmt-security \
+	$(QUIET) echo "Package: mmt-probe\
+        \nVersion: $(VERSION)\
+        \nSection: base\
+        \nPriority: standard\
+        \nDepends: $(DEB_DEPENDING_PACKAGES)\
         \nArchitecture: all \
         \nMaintainer: Montimage <contact@montimage.com> \
-        \nDescription: MMT-Probe:  \
-        \n  Version id: $(GIT_VERSION). Build time: `date +"%Y-%m-%d %H:%M:%S"` \
-        \nHomepage: http://www.montimage.com" \
+        \nDescription: MMT-Probe:\
+        \n  Version id: $(GIT_VERSION). Build time: `date +"%Y-%m-%d %H:%M:%S"`\
+        \n  Modules: $(MODULES_LIST)\
+        \nHomepage: http://www.montimage.com"\
 		> $(DEB_NAME)/DEBIAN/control
 
 	$(QUIET) dpkg-deb -b $(DEB_NAME)
@@ -284,11 +303,12 @@ rpm: --private-prepare-build
       \nGroup: Development/Tools\
       \nURL: http://montimage.com/\
       \n\
-      \nRequires:  mmt-dpi >= 1.6.9, mmt-security >= 1.1.5\
+      \nRequires:  $(RPM_DEPENDING_PACKAGES)\
       \nBuildRoot: %{_topdir}/BUILD/%{name}-%{version}-%{release}\
       \n\
       \n%description\
       \nMMT-Probe is a tool to analyze network traffic.\
+      \nModules: $(MODULES_LIST) \
       \nBuild date: `date +"%Y-%m-%d %H:%M:%S"`\
       \n\
       \n%prep\
