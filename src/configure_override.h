@@ -12,11 +12,15 @@
 #include "lib/macro_apply.h"
 
 //TODO: remove the following defines
-//#define MONGODB_MODULE
-//#define PCAP_DUMP_MODULE
-//#define KAFKA_MODULE
-//#define REDIS_MODULE
-//#define SECURITY_MODULE
+#if 0
+#define MONGODB_MODULE
+#define PCAP_DUMP_MODULE
+#define KAFKA_MODULE
+#define REDIS_MODULE
+#define SECURITY_MODULE
+#define SOCKET_MODULE
+#define LICENSE_CHECK
+#endif
 
 typedef enum{
    NO_SUPPORT,

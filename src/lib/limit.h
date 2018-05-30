@@ -149,6 +149,7 @@
 	"DPI"                                            \
 	IF_ENABLE_DEBUG( ", DEBUG" )                     \
 	IF_ENABLE_LICENSE_CHECK( ", LICENSE" )           \
+	IF_ENABLE_STAT_REPORT(", REPORT" )               \
 	IF_ENABLE_REDIS( ", REDIS" )                     \
 	IF_ENABLE_KAFKA( ", KAFKA" )                     \
 	IF_ENABLE_MONGODB( ", MONGODB" )                 \

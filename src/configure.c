@@ -271,7 +271,7 @@ static inline char * _cfg_get_str( cfg_t *cfg, const char *header ){
 static inline cfg_t* _get_first_cfg_block( cfg_t *cfg, const char* block_name ){
 	if( ! cfg_size( cfg, block_name) )
 		return NULL;
-	DEBUG( "Parsing block '%s'", block_name );
+	//DEBUG( "Parsing block '%s'", block_name );
 	return cfg_getnsec( cfg, block_name, 0 );
 }
 
@@ -461,8 +461,10 @@ static inline  output_channel_conf_t _parse_output_channel( cfg_t *cfg ){
 			out |= CONF_OUTPUT_CHANNEL_REDIS;
 		else if ( strncmp( channel_name, "mongodb", 5 ) == 0 )
 			out |= CONF_OUTPUT_CHANNEL_MONGODB;
+		else if ( strncmp( channel_name, "socket", 5 ) == 0 )
+			out |= CONF_OUTPUT_CHANNEL_SOCKET;
 		else
-			log_write( LOG_WARNING, "Unexpected channel %s", channel_name );
+			log_write( LOG_WARNING, "Unexpected channel '%s'", channel_name );
 	}
 	return out;
 }
