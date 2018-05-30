@@ -36,3 +36,7 @@ src/examples/simple_probe/mmt_probe
 src/examples/simple_probe/smp_mmt
 src/examples/proto_attributes_iterator
 /Debug/
+license.key
+license_key_donot_cpy.key
+license_key_generator
+probe
