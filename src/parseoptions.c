@@ -1218,6 +1218,20 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 #endif // End of TCP_RECONSTRUCT
 					}
 
+					// LN: Add condition for dumping TCP payload
+					if(strncmp(temp_condn->condition.condition, "TCP_PAYLOAD_DUMP",16) == 0){
+#ifdef TCP_PAYLOAD_DUMP
+						if (temp_condn->enable == 1) {
+							strncpy(mmt_conf->tcp_payload_dump_location, temp_condn->condition.location, 256);
+							mmt_conf->tcp_payload_dump_enable = 1;
+							// printf("[debug] Enable tcp reconstruction\n");
+						}
+						if (temp_condn->enable == 0) mmt_conf->tcp_payload_dump_enable = 0;
+#else
+						temp_condn->enable = 0;
+#endif // End of TCP_PAYLOAD_DUMP
+					}
+
 					if (temp_condn->enable == 1){
 						condition_attributes_nb = cfg_size(condition_opts, "attributes");
 						temp_condn->attributes_nb = condition_attributes_nb;

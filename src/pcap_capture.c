@@ -77,6 +77,10 @@ __IF_SECURITY(
 	pthread_spin_lock(&spin_lock);
 	//pthread_mutex_lock(&mutex_lock);
 	th->mmt_handler = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
+#ifdef TCP_PAYLOAD_DUMP
+	// Initialize MMT_REASSEMBLY
+	init_reassembly(th->mmt_handler, reassembly_callback);
+#endif
 	//pthread_mutex_unlock(&mutex_lock);
 	pthread_spin_unlock(&spin_lock);
 
@@ -243,6 +247,10 @@ __IF_SECURITY(
 		if (cleanup_registered_handlers (th) == 0){
 			fprintf(stderr, "Error while unregistering attribute  handlers thread_nb = %u !\n",th->thread_index);
 		}
+#ifdef TCP_PAYLOAD_DUMP
+		// Close MMT_REASSEMBLY
+		close_reassembly();
+#endif
 
 		mmt_close_handler(th->mmt_handler);
 		th->mmt_handler = NULL;
@@ -728,13 +736,16 @@ __IF_SECURITY_V1(
 		mmt_probe->smp_threads->pcap_current_packet_time = 0;
 #ifdef HTTP_RECONSTRUCT
 		mmt_probe->smp_threads->list_http_session_data = NULL;
-#endif		
+#endif
 		//One thread for reading packets and processing them
 		//Initialize an MMT handler
 		mmt_probe->smp_threads->mmt_handler = mmt_init_handler(DLT_EN10MB, 0, mmt_errbuf);
+#ifdef TCP_PAYLOAD_DUMP
+		// Initialize MMT_REASSEMBLY
+    	init_reassembly(mmt_probe->smp_threads->mmt_handler, reassembly_callback);
+#endif
 		if (!mmt_probe->smp_threads->mmt_handler) { /* pcap error ? */
-			fprintf(stderr, "MMT handler init failed for the following reason: %s\n", mmt_errbuf);
-			mmt_log(mmt_probe->mmt_conf, MMT_L_ERROR, MMT_E_INIT_ERROR, "MMT Extraction handler initialization error! Exiting!");
+fprintf(stderr, "MMT handler init failed for the following reason: %s\n", mmt_errbuf);			mmt_log(mmt_probe->mmt_conf, MMT_L_ERROR, MMT_E_INIT_ERROR, "MMT Extraction handler initialization error! Exiting!");
 			return EXIT_FAILURE;
 		}
 
@@ -810,7 +821,7 @@ __IF_SECURITY_V1(
 			mmt_probe->smp_threads[i].thread_index = i;
 #ifdef HTTP_RECONSTRUCT
 			mmt_probe->smp_threads[i].list_http_session_data = NULL;
-#endif			
+#endif
 			if( data_spsc_ring_init( &mmt_probe->smp_threads[i].fifo, mmt_probe->mmt_conf->thread_queue_plen, mmt_probe->mmt_conf->requested_snap_len ) != 0 ){
 				perror("Not enough memory. Please reduce thread-queue or thread-nb in .conf");
 				//free memory allocated
