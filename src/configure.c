@@ -17,9 +17,9 @@
 
 /* parse values for the input-mode option */
 static int _conf_parse_input_mode(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
-	if (IS_EQUAL_STRINGS(value, "online") )
+	if (IS_EQUAL_STRINGS(value, "ONLINE") )
 		*(int *) result = ONLINE_ANALYSIS;
-	else if (IS_EQUAL_STRINGS(value, "offline") )
+	else if (IS_EQUAL_STRINGS(value, "OFFLINE") )
 		*(int *) result = OFFLINE_ANALYSIS;
 	else {
 		cfg_error(cfg, "invalid value for option '%s': %s", cfg_opt_name(opt), value);
@@ -195,6 +195,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_INT_CB("mode", 0, CFGF_NONE, _conf_parse_input_mode),
 			CFG_STR("source", "", CFGF_NONE),
 			CFG_INT("snap-len", 65535, CFGF_NONE),
+			CFG_STR("dpdk-option", "", CFGF_NONE ),
 			CFG_END()
 	};
 
@@ -313,6 +314,7 @@ static inline input_source_conf_t * _parse_input_source( cfg_t *cfg ){
 
 #ifdef DPDK_MODULE
 	ret->capture_mode = DPDK_CAPTURE;
+	ret->dpdk_options = _cfg_get_str(cfg, "dpdk-option");
 #endif
 
 #ifdef PCAP_MODULE
@@ -915,5 +917,17 @@ int conf_validate( probe_conf_t *conf ){
 		if( conf->reports.pcap_dump->frequency == 0 )
 			conf->reports.pcap_dump->frequency = 3600;
 	}
+
+#ifdef DPDK_MODULE
+	if( conf->input->input_mode == OFFLINE_ANALYSIS ){
+		log_write(LOG_ERR, "input.mode must be ONLINE in DPDK mode");
+		ret ++;
+	}
+
+	if( conf->thread->thread_count == 0 ){
+		log_write(LOG_ERR, "thread-nb must be greater than 0 in DPDK mode");
+		ret ++;
+	}
+#endif
 	return ret;
 }

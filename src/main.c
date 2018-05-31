@@ -73,12 +73,14 @@
 #define DEFAULT_CONFIG_FILE_OPT "/opt/mmt/probe/mmt-probe.conf"
 
 static void _print_usage(const char * prg_name) {
-	printf("%s [<option>]\n", prg_name);
+	printf("%s [<Option>]\n", prg_name);
 	printf("Option:\n");
 	printf("\t-v               : Print version information, then exits.\n");
 	printf("\t-c <config file> : Gives the path to the configuration file (default: %s, %s).\n",
 				DEFAULT_CONFIG_FILE, DEFAULT_CONFIG_FILE_OPT);
+IF_ENABLE_PCAP(
 	printf("\t-t <trace file>  : Gives the trace file for offline analyse.\n");
+)
 	printf("\t-i <interface>   : Gives the interface name for live traffic analysis.\n");
 	printf("\t-X attr=value    : Override configuration attributes.\n");
 	printf("\t                    For example \"-X file-output.enable=true -Xfile-output.output-dir=/tmp/\" will enable output to file and change output directory to /tmp.\n");
@@ -107,8 +109,11 @@ static inline void _override_string_conf( char **conf, const char*new_val ){
 static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 	int opt, optcount = 0;
 	int val;
-
+#ifdef DPDK_MODULE
+	const char *options = "c:i:vhxX:"; //not allow -t to analyze pcap files
+#else
 	const char *options = "c:t:i:vhxX:";
+#endif
 	const char *config_file = DEFAULT_CONFIG_FILE;
 	probe_conf_t *conf = NULL;
 
@@ -312,7 +317,9 @@ static int _main_processing( int argc, char** argv ){
 	probe_context_t *context = get_context();
 
 #ifdef DPDK_MODULE
-	ret = rte_eal_init( argc, argv );
+	char *dpdk_argv[ 100 ];
+	int dpdk_argc = string_split( context->config->input->dpdk_options, " ", dpdk_argv, 10 );
+	ret = rte_eal_init( dpdk_argc, dpdk_argv );
 	if (ret < 0)
 		rte_exit_failure("Error with EAL initialization\n");
 #endif
@@ -506,7 +513,8 @@ int main( int argc, char** argv ){
 	//This variable is false only when user want to stop MMT-Probe by sending SIGINT signal, e.g., pressing Ctrl+C
 	context->is_exiting = false;
 	context->config = _parse_options(argc, argv);
-	conf_validate( context->config );
+	if( conf_validate( context->config ) > 0 )
+		return EXIT_FAILURE;
 
 	//if MMT-Probe is used to check pcap offline
 	// => no need to created sub processes

@@ -13,6 +13,7 @@
 #include <inttypes.h> //for uint64_t PRIu64
 #include <stdbool.h>
 #include <errno.h>
+#include "lib/limit.h"
 
 #define MMT_USER_AGENT_THRESHOLD 0x20 //32KB
 
@@ -69,6 +70,7 @@ typedef struct input_source_conf_struct{
 	//input source for PCAP online mode (interface name) and for offline mode (pcap name), however for DPDK its interface port number
 	char *input_source;
 	uint16_t snap_len;
+	IF_ENABLE_DPDK( char *dpdk_options; )
 }input_source_conf_t;
 
 

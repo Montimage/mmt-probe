@@ -100,4 +100,20 @@ static inline ssize_t append_data_to_file(const char *file_path, const void *con
 	close ( fd );
 	return ret;
 }
+
+
+static inline size_t string_split(
+		char       *buffer,     ///< In/Out : Modifiable String Buffer To Tokenise
+		const char *separator,  ///< In     : Separator
+		char       *argv[],     ///< Out    : Argument String Vector Array
+		size_t     argv_length  ///< In     : Maximum Count For `*argv[]`
+)
+{ /* Tokenise string buffer into argc and argv format (req: string.h) */
+	int i = 0;
+	for( ; i < argv_length ; i++){ /* Fill argv via strtok_r() */
+		if ( NULL == (argv[i] = strtok_r( NULL, separator, &buffer)) )
+			break;
+	}
+	return i; // Argument Count
+}
 #endif /* SRC_LIB_TOOLS_H_ */

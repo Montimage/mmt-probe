@@ -20,6 +20,7 @@
 #define SECURITY_MODULE
 #define SOCKET_MODULE
 #define LICENSE_CHECK
+#define DPDK_MODULE
 #endif
 
 typedef enum{
@@ -131,10 +132,12 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__THREAD_QUEUE, "thread-queue",&conf->thread->thread_queue_packet_threshold, UINT32_T),
 
 	//input
-	(CONF_ATT__INPUT__MODE,     "input.mode",     &conf->input->input_mode,   UINT16_T),
-	(CONF_ATT__INPUT__SOURCE,   "input.source",   &conf->input->input_source, CHAR_STAR),
-	(CONF_ATT__INPUT__SNAP_LEN, "input.snap-len", &conf->input->snap_len,     UINT16_T),
-
+	(CONF_ATT__INPUT__MODE,        "input.mode",        &conf->input->input_mode,   UINT16_T),
+	(CONF_ATT__INPUT__SOURCE,      "input.source",      &conf->input->input_source, CHAR_STAR),
+	(CONF_ATT__INPUT__SNAP_LEN,    "input.snap-len",    &conf->input->snap_len,     UINT16_T),
+#ifdef DPDK_MODULE
+	(CONF_ATT__INPUT__DPDK_OPTION, "input.dpdk-option", &conf->input->dpdk_options, CHAR_STAR),
+#endif
 	//output
 	(CONF_ATT__OUTPUT__FORMAT,       "output.format",       &conf->outputs.format,       UINT16_T),
 	(CONF_ATT__OUTPUT__CACHE_MAX,    "output.cache-max",    &conf->outputs.cache_max,    UINT32_T),
