@@ -224,8 +224,6 @@ static void _got_a_packet_smp(u_char* user, const struct pcap_pkthdr *pcap_heade
 	//dispatch a packet basing on its hash number
 	uint32_t pkt_index = _get_packet_hash_number(pcap_data, pcap_header->caplen );
 	pkt_index %= context->config->thread->thread_count;
-	//printf("%d\n", pkt_index);
-	//return;
 
 	//get context to the corresponding worker
 	// then push packet into fifo of the worker
@@ -250,8 +248,11 @@ static void _got_a_packet_smp(u_char* user, const struct pcap_pkthdr *pcap_heade
 		// but we need to wait until we can insert the packet into queue
 		if( context->config->input->input_mode == OFFLINE_ANALYSIS )
 			nanosleep( (const struct timespec[]){{ .tv_sec = 0, .tv_nsec = 10000L}}, NULL );
-		else
+		else{
+			//in online mode, we drop the packet
 			worker_context->stat.pkt_dropped ++;
+			return;
+		}
 	}
 }
 
