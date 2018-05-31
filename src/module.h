@@ -40,12 +40,6 @@
 	#define __IF_SECURITY_V1( x )
 #endif
 
-#ifdef TCP_RECONSTRUCT
-	#define __IF_TCP_RECONSTRUCT( x ) x
-#else
-	#define __IF_TCP_RECONSTRUCT( x )
-#endif
-
 //a string contains list of compiled modules
 #define __MODULES                   \
 	""                              \
@@ -53,7 +47,6 @@
 	__IF_KAFKA( "KAFKA " )          \
 	__IF_REDIS( "REDIS " )          \
 	__IF_SECURITY("SECURITY ")      \
-	__IF_SECURITY_V1("SECURITY_V1 ")\
-	__IF_TCP_RECONSTRUCT("TCP_RECONSTRUCT ")
+	__IF_SECURITY_V1("SECURITY_V1 ")
 
 #endif /* SRC_MODULE_H_ */

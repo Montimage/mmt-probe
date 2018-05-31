@@ -232,7 +232,7 @@ static int _worker_thread( void *args_ptr ){
 			if (mmt_conf->enable_proto_without_session_stats == 1 || mmt_conf->enable_IP_fragmentation_report == 1 || mmt_conf->enable_all_proto_stats == 1)
 				iterate_through_protocols(protocols_stats_iterator, th);
 		}
-                
+
 		// Get burst of RX packets, from first port
 		nb_rx = rte_eth_rx_burst( input_port, th->thread_index, bufs, BURST_SIZE );
 
@@ -385,7 +385,11 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 			th->mmt_handler  = mmt_init_handler( DLT_EN10MB, 0, mmt_errbuf );
 #ifdef HTTP_RECONSTRUCT
 			th->list_http_session_data = NULL;
-#endif			
+#endif
+#ifdef TCP_PAYLOAD_DUMP
+			// Initialize MMT_REASSEMBLY
+    		init_reassembly(th->mmt_handler, reassembly_callback);
+#endif
 			if (! th->mmt_handler ) { /* pcap error ?*/
 				fprintf(stderr, "MMT handler init failed for the following reason: %s\n", mmt_errbuf);
 				return EXIT_FAILURE;
@@ -429,14 +433,19 @@ int dpdk_capture (int argc, char **argv, struct mmt_probe_struct * mmt_probe){
 	//statistic of DPDK
 	_print_dpdk_stats( mmt_conf );
 
+#ifdef TCP_PAYLOAD_DUMP
+	// Close MMT_REASSEMBLY
+	close_reassembly();
+#endif
+
 	//close dpi handler
 	for( thread_index=0; thread_index< mmt_conf->thread_nb; thread_index++ )
 		mmt_close_handler( mmt_probe->smp_threads[thread_index].mmt_handler );
-	
+
 	//release security rules
 	if( mmt_conf->security2_enable )
 		close_security();
-	
+
 	return 0;
 
 }

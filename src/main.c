@@ -173,7 +173,7 @@ void session_expiry_handle(const mmt_session_t * expired_session, void * args) {
     fprintf(out_file, "%"PRIu64",%lu.%06lu,%lu.%06lu,"
             "%u,%s,%s,%hu,%hu,%hu,"
             "%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%s,%s,%s"
-            "\n", 
+            "\n",
             get_session_id(expired_session),
             end_time.tv_sec, end_time.tv_usec,
             init_time.tv_sec, init_time.tv_usec,
@@ -227,7 +227,10 @@ int main(int argc, const char **argv) {
         fprintf(stderr, "MMT handler init failed for the following reason: %s\n", mmt_errbuf);
         return EXIT_FAILURE;
     }
-
+    #ifdef TCP_PAYLOAD_DUMP
+		// Initialize MMT_REASSEMBLY
+    	init_reassembly(th->mmt_handler, reassembly_callback);
+    #endif
     // customized packet and session handling functions are then registered
     register_session_timeout_handler(mmt_handler, session_expiry_handle, NULL);
 
@@ -264,6 +267,10 @@ int main(int argc, const char **argv) {
         }
         packets_count++;
     }
+
+#ifdef TCP_PAYLOAD_DUMP
+    close_reassembly();
+#endif
 
     mmt_close_handler(mmt_handler);
 

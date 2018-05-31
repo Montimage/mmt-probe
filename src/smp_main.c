@@ -342,7 +342,7 @@ __IF_SECURITY_V1(
 	if (mmt_conf->thread_nb == 1) {
 		//One thread for processing packets
 		//Cleanup the MMT handler
-#ifdef PCAP		
+#ifdef PCAP
 __IF_SECURITY(
 		clean_up_security2(&mmt_probe);
 )
@@ -354,6 +354,10 @@ __IF_SECURITY(
 		//process_session_timer_handler(mmt_probe.->mmt_handler);
 		if (mmt_probe.smp_threads->report_counter == 0)mmt_probe.smp_threads->report_counter++;
 		if (mmt_conf->enable_proto_without_session_stats == 1 || mmt_conf->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, (void *) mmt_probe.smp_threads);
+#ifdef TCP_PAYLOAD_DUMP
+		// Close MMT_REASSEMBLY
+		close_reassembly();
+#endif
 		mmt_close_handler(mmt_probe.smp_threads->mmt_handler);
 #endif
 
@@ -424,6 +428,10 @@ __IF_SECURITY(
 					//process_session_timer_handler(mmt_probe.smp_threads[i].mmt_handler);
 					if (mmt_probe.smp_threads[i].report_counter == 0)mmt_probe.smp_threads[i].report_counter++;
 					if (mmt_conf->enable_proto_without_session_stats == 1 || mmt_conf->enable_IP_fragmentation_report == 1)iterate_through_protocols(protocols_stats_iterator, &mmt_probe.smp_threads[i]);
+#ifdef TCP_PAYLOAD_DUMP
+					// Close MMT_REASSEMBLY
+					close_reassembly();
+#endif
 					mmt_close_handler(mmt_probe.smp_threads[i].mmt_handler);
 					mmt_probe.smp_threads[i].mmt_handler = NULL;
 					free(mmt_probe.smp_threads[i].cache_message_list);
@@ -652,7 +660,7 @@ int main(int argc, char **argv) {
 
 	mmt_probe_context_t * mmt_conf = get_probe_context_config();
 	mmt_probe.mmt_conf = mmt_conf;
-	
+
 	if (!init_extraction()) { // general ixE initialization
 		fprintf(stderr, "MMT extract init error\n");
 		mmt_log(mmt_conf, MMT_L_ERROR, MMT_E_INIT_ERROR, "MMT Extraction engine initialization error! Exiting!");

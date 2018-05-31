@@ -80,12 +80,14 @@ else
 $(info -> Disable HTTP_RECONSTRUCT module)
 endif
 
-ifdef TCP_RECONSTRUCT
-$(info - Enable TCP_RECONSTRUCT module)
-	CFLAGS += -DTCP_RECONSTRUCT
-	MODULES_LIST +=  TCP_RECONSTRUCT
+ifdef TCP_PAYLOAD_DUMP
+$(info - Enable TCP_PAYLOAD_DUMP module)
+	LIBS   += -L /opt/mmt/reassembly/lib -lmmt_reassembly -lntoh
+	CFLAGS += -I /opt/mmt/reassembly/include -DTCP_PAYLOAD_DUMP
+	MODULES_LIST +=  TCP_PAYLOAD_DUMP
+
 else
-$(info -> Disable TCP_RECONSTRUCT module)
+$(info -> Disable TCP_PAYLOAD_DUMP module)
 endif
 
 #old security that is inside mmt-dpi

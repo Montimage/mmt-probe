@@ -15,6 +15,8 @@ extern "C" {
 
 #include <semaphore.h>
 
+#include "tcp_reassembly.h"
+
 #ifdef KAFKA
 	#include <rdkafka.h>
 #endif
@@ -317,7 +319,11 @@ typedef struct mmt_probe_context_struct {
 	char license_location[256 + 1];
 	char behaviour_output_location[256 + 1];
 	char ftp_reconstruct_output_location[256 + 1];
-	char tcp_reconstruct_output_location[256 + 1];
+
+#ifdef TCP_PAYLOAD_DUMP
+	char tcp_payload_dump_location[256 + 1];
+	uint32_t tcp_payload_dump_enable;
+#endif
 	char dynamic_config_file[256 + 1];
 
 	uint32_t gtp_enable;
@@ -331,7 +337,6 @@ typedef struct mmt_probe_context_struct {
 	uint32_t condition_based_reporting_enable;
 	uint32_t enable_security_report;
 
-	uint32_t tcp_reconstruct_enable;
 	uint32_t ftp_reconstruct_enable;
 	uint32_t radius_enable;
 	uint32_t default_session_timeout;
