@@ -30,7 +30,7 @@ typedef struct probe_context_struct{
 	//array of thread workers
 	worker_context_t **smp;
 
-	volatile sig_atomic_t is_aborting;
+	volatile sig_atomic_t is_exiting;
 
 	struct{
 #ifdef PCAP_MODULE

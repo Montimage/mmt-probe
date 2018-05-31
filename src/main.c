@@ -87,12 +87,23 @@ static void _print_usage(const char * prg_name) {
 	printf("\t-h               : Prints this help, then exits.\n");
 }
 
+/**
+ * Free a string pointer before clone data to it
+ */
 static inline void _override_string_conf( char **conf, const char*new_val ){
 	free( *conf );
 	*conf = strdup( new_val );
 }
 
 
+/**
+ * 1) Parse options from execution command line to get location of configuration file.
+ * 2) Load configuration from the file
+ * 3) Override the configuration parameters, that was loaded from file, by the ones given from execution command line
+ * @param argc
+ * @param argv
+ * @return
+ */
 static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 	int opt, optcount = 0;
 	int val;
@@ -214,6 +225,7 @@ static inline void _stop_modules( probe_context_t *context){
 
 }
 
+//global context of MMT-Probe
 probe_context_t *get_context(){
 	static probe_context_t context;
 	return &context;
@@ -227,9 +239,11 @@ static sig_atomic_t main_processing_signal = 0;
  *      to care about the restore point of signal_handler.
  */
 void signal_handler(int type) {
+	//remember signal type in order to restart its process
 	main_processing_signal = type;
+
 	probe_context_t *context = get_context();
-	if(  context->is_aborting ){
+	if(  context->is_exiting ){
 		log_write(LOG_ERR, "Received signal %d while processing other one. Exit immediately.", type );
 		fflush( stdout );
 		EXIT_NORMALLY();
@@ -238,7 +252,7 @@ void signal_handler(int type) {
 	switch( type ){
 	case SIGINT:
 		log_write(LOG_INFO, "Received SIGINT. Main processing process is releasing resource ...");
-		context->is_aborting = true;
+		context->is_exiting = true;
 
 		_stop_modules( context );
 		break;
@@ -246,7 +260,7 @@ void signal_handler(int type) {
 		//segmentation fault
 	case SIGSEGV:
 		log_write(LOG_ERR, "Segv signal received!");
-		log_execution_trace();
+		log_execution_trace(); //this function uses non signal-safety functions
 
 		//Auto restart when segmentation fault
 		//restart only if exec in online mode
@@ -269,6 +283,7 @@ void signal_handler(int type) {
 	}
 }
 
+//need to clean resource before exiting each process
 static void _clean_resource(){
 	probe_context_t *context = get_context();
 	IF_ENABLE_DYNAMIC_CONFIG(
@@ -279,6 +294,12 @@ static void _clean_resource(){
 	log_close();
 }
 
+/**
+ * This is the main processing process of MMT-Probe.
+ * Every packets processing are done here.
+ * argc and argv are the ones from main()
+ * @return
+ */
 static int _main_processing( int argc, char** argv ){
 	//must not handle SIGUSR1 as it is used by mmt_bus
 	signal(SIGINT,  signal_handler);
@@ -322,10 +343,8 @@ static int _main_processing( int argc, char** argv ){
 	pcap_capture_start( context );
 #endif
 
-
 	//end
 	close_extraction();
-
 
 	IF_ENABLE_SECURITY(
 		if( context->config->reports.security != NULL && context->config->reports.security->is_enable )
@@ -348,13 +367,17 @@ static int _main_processing( int argc, char** argv ){
 
 /**
  * this function will create 2 children processes:
- *  - processing process: performs main jobs
- *  - control process:
+ *  - processing process: performs main jobs realising by _main_processing
+ *  - control process: receives control commands via UNIX domain socket and broadcast the commands to
+ *  the 2 other processes (parent - or the monitor process, and the processing process)
+ * The parent process - or the monitor process - monitors its children to recreate them if need, e.g., when they was crashed.
+ * The parent can also stop or start the processing process depending on command received from the control process.
  * @param argc
  * @param argv
  * @return
  */
 
+//special process id (value of pid_t)
 #define PID_NEED_TO_CREATE 0
 #define PID_NEED_TO_STOP  -1
 #define ANY_CHILD_PROCESS -1
@@ -375,7 +398,7 @@ static void _create_sub_processes( int argc, char** argv ){
 			}
 	)
 
-	//an infinity loop to monitor the children processes: restart when it has crashed
+	//an infinity loop to monitor the children processes: restart when it has been crashed
 	while( true ){
 
 		//1. create a child process for main processing
@@ -408,7 +431,7 @@ static void _create_sub_processes( int argc, char** argv ){
 			children_pids[0] = child_pid;
 		}
 
-		//2. create a child process for dynamic configuration
+		//2. create a control process for dynamic configuration
 		//this process receives external commands via an UNIX domain socket, then send them to the main processing
 #ifdef DYNAMIC_CONFIG_MODULE
 		if( context->config->dynamic_conf->is_enable && children_pids[ 1 ] == PID_NEED_TO_CREATE ){
@@ -455,9 +478,11 @@ static void _create_sub_processes( int argc, char** argv ){
 
 		_next_iteration:
 		IF_ENABLE_DYNAMIC_CONFIG(
+			//we need to check periodically if there are new commands that have been broadcasted by the control process
 			if( context->config->dynamic_conf->is_enable )
 				dynamic_conf_check();
 		)
+
 		//avoid exhaustively resource when having dense consecutive restarts: restart, crash, restart, crash, ...
 		sleep( 1 );
 	}
@@ -472,12 +497,14 @@ int main( int argc, char** argv ){
 	log_open();
 
 	IF_ENABLE_DEBUG(
-			log_write( LOG_WARNING, "Must not run debug mode in production environment" );
+		log_write( LOG_WARNING, "Must not run debug mode in production environment" );
 	)
 
 	//read configuration from file and execution parameters
 	probe_context_t *context = get_context();
-	context->is_aborting = false;
+	//MMT-Probe is running.
+	//This variable is false only when user want to stop MMT-Probe by sending SIGINT signal, e.g., pressing Ctrl+C
+	context->is_exiting = false;
 	context->config = _parse_options(argc, argv);
 	conf_validate( context->config );
 

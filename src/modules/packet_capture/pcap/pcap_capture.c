@@ -19,10 +19,6 @@
 
 #define BREAK_PCAP_NUMBER 0
 
-#ifndef PCAP_MODULE
-#define PCAP_MODULE
-#endif
-
 #include "pcap_capture.h"
 
 //for one thread
@@ -36,10 +32,30 @@ struct pcap_probe_context_struct{
 	pcap_t *handler;
 };
 
+
+//native: do nothing
+//#define hash( x ) x
+
+//Knuth's multiplicative method:
+//#define hash( i ) (i*2654435761 >> 8 )
+
+//http://stackoverflow.com/a/12996028/1069256
+static inline uint32_t hash(uint32_t x) {
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = (x >> 16) ^ x;
+    return x;
+}
+
 /**
- * Hash function of an Ethernet packet
+ * Hash function of an IP packet. The function give a hash number to represent
+ *   a tuple (IP-src, Port-src, IP-dst, Port-dst).
+ * This hash function must be symmetric, that is,
+ * (IP-src, Port-src, IP-dst, Port-dst) and (IP-dst, Port-dst, IP-src, Port-src) must have the same hash number.
+ * Two different tuples may get the same hash number, but a tuple must give only one hash number.
  */
 static inline uint32_t _get_packet_hash_number( const uint8_t *packet, size_t pkt_len ){
+	static int id = 0;
 	//Ethernet structure
 	struct __ethernet_struct {
 		uint8_t src[6];
@@ -47,8 +63,10 @@ static inline uint32_t _get_packet_hash_number( const uint8_t *packet, size_t pk
 		uint16_t proto;
 	} *eth;
 
-	uint32_t a1, a2;
-	uint16_t ip_off;
+	uint32_t ip_src, ip_dst;
+	uint16_t port_src, port_dst;
+	uint16_t ip_offset;
+	uint8_t proto_id; //ID of protocol after IP
 
 	if ( unlikely( pkt_len < 38))
 		return 0; //TODO: this is not elegant check IP, IPv6 etc.
@@ -59,40 +77,49 @@ static inline uint32_t _get_packet_hash_number( const uint8_t *packet, size_t pk
 	switch( eth->proto ){
 	//IP
 	case 0x08:
-		ip_off = 26;
+		ip_offset = 26;
 		break;
 	//vlan
 	case 0x81:
-		ip_off = 30;
+		ip_offset = 30;
 		break;
 	default:
 		//for other protocol
 		return 0;
 	}
 
-	a1 = *((uint32_t *) &packet[ ip_off     ]);
-	a2 = *((uint32_t *) &packet[ ip_off + 4 ]);
+	ip_src = *((uint32_t *) &packet[ ip_offset     ]);
+	ip_dst = *((uint32_t *) &packet[ ip_offset + 4 ]);
 //
-//	/*proto_id = *((uint8_t *) &packet[ ip_src_off - 3 ]);
-//	//src and dst ports of TCP or UDP
-//	if( likely(proto_id == 6 || proto_id == 17 )){
-//		p1 = *((uint16_t *) &packet[ ip_src_off + 8]);
-//		p2 = *((uint16_t *) &packet[ ip_src_off + 8 + 2]);
-//	}
-//	else
-//		p1 = p2 = 0;*/
-//
-//	printf("%s src: %03d.%03d.%03d.%03d, dst: %03d.%03d.%03d.%03d \n",
-//			proto_id == 6? "TCP" :( proto_id == 17? "UDP" : "---"),
-//			(a1 >> 24), ((a1 << 8) >> 24), ((a1 << 16) >> 24), ((a1 << 24) >> 24),
-//			(a2 >> 24), ((a2 << 8) >> 24), ((a2 << 16) >> 24), ((a2 << 24) >> 24)
-//			);
-//	//exit( 0 );
+	proto_id = *((uint8_t *) &packet[ ip_offset - 3 ]);
+	//src and dst ports of TCP or UDP
+	if( likely(proto_id == 6 || proto_id == 17 )){
+		port_src = *((uint16_t *) &packet[ ip_offset + 8]);
+		port_dst = *((uint16_t *) &packet[ ip_offset + 8 + 2]);
+	}
+	else
+		port_dst = port_src = 0;
+
+	//native symmetric hash function
+	uint32_t hash_number = (ip_src | ip_dst ) |  ( port_src | port_dst );
+	//try to get uniform distribution
+	hash_number = hash( hash_number );
+
+//	DEBUG("%4d %s %03d.%03d.%03d.%03d:%d -> %03d.%03d.%03d.%03d:%d == %u",
+//			++id,
+//			(proto_id == 6 )? "TCP" : "UDP",
+//			((ip_src << 24) >> 24), ((ip_src << 16) >> 24), ((ip_src << 8) >> 24), (ip_src >> 24),
+//			ntohs( port_src ),
+//			((ip_dst << 24) >> 24), ((ip_dst << 16) >> 24), ((ip_dst << 8) >> 24), (ip_dst >> 24),
+//			ntohs( port_dst ),
+//			hash
+//	);
 //
 ////	a1 = (a1 >> 24) + (a1 >> 16) + (a1 >> 8) + a1;
 ////	a2 = (a2 >> 24) + (a2 >> 16) + (a2 >> 8) + a2;
 //
-	return (a1 & a2) ^ (a1 | a2);
+	//return (ip_src & ip_dst) ^ (ip_src | ip_dst);
+	return hash_number;
 }
 
 //worker thread
@@ -447,13 +474,15 @@ void pcap_capture_start( probe_context_t *context ){
 	//working in a single thread
 	if( !IS_SMP_MODE( context )){
 		//set in non-blocking mode in case of no threading
+		// we need non-blocking mode in order to not be blocked when there are no packets.
+		// This allows us to periodically output reports to files/mongodb/...
 		if( context->config->input->input_mode != OFFLINE_ANALYSIS ){
 			ret = pcap_setnonblock(pcap, true, errbuf );
 			if( ret == -1 )
 				ABORT("Cannot put pcap in non-blocking mode: %s", errbuf );
 		}
 
-		while( ! context->is_aborting ){
+		while( ! context->is_exiting ){
 			ret = pcap_dispatch( pcap, -1, _got_a_packet, (u_char*) context );
 //			0 if no packets were read from  a  live  capture  (if,  for
 //			       example,  they  were discarded because they didn't pass the packet filter

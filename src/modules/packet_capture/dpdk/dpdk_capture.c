@@ -276,7 +276,7 @@ static int _reader_thread( void *arg ){
 
 	int q=0;
 	/* Run until the application is quit or killed. */
-	while ( likely( !probe_context->is_aborting )) {
+	while ( likely( !probe_context->is_exiting )) {
 			// Get burst of RX packets, from first port
 			nb_rx = rte_eth_rx_burst( input_port, q, bufs, READER_BURST_SIZE );
 
@@ -532,6 +532,7 @@ void dpdk_capture_start ( probe_context_t *context){
 	if( ret != 0 )
 		rte_exit_failure("Cannot start reader. The remote lcore is not in a WAIT state");
 
+	//TODO: remove this block
 	//print stat each second
 	signal( SIGALRM, _print_stats );
 	alarm( 1 );
