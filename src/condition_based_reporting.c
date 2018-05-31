@@ -92,6 +92,7 @@ void * get_handler_by_name(char * func_name){
 	}
 	// END of HTTP reconstruct
 #endif // end of HTTP_RECONSTRUCT
+	return NULL;
 }
 
 /* This function registers attributes and attribute handlers for different condition_reports (if enabled in a configuration file).

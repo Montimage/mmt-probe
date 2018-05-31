@@ -26,7 +26,7 @@ MODULES_LIST := "DPI"
 
 #get git version abbrev
 GIT_VERSION := $(shell git log --format="%h" -n 1)
-VERSION     := 1.3.1
+VERSION     := 1.3.2
 
 $(info Building MMT-Probe version $(VERSION) $(GIT_VERSION))
 
