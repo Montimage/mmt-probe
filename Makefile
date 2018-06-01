@@ -9,6 +9,11 @@ SRC_DIR := $(TOP_DIR)src
 
 #installation directory
 INSTALL_DIR = /opt/mmt/probe
+#install directory is given from cmd parameter
+ifdef PREFIX
+	INSTALL_DIR $= $(PREFIX)
+endif
+
 #Name of executable file to generate
 APP = probe
 

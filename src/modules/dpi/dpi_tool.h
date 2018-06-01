@@ -11,11 +11,12 @@
 #include <mmt_core.h>
 #include "../../configure.h"
 #include "../../lib/memory.h"
+#include "../../lib/string_builder.h"
 
 static inline uint32_t dpi_get_proto_id_from_session( const mmt_session_t * dpi_session ){
 	const proto_hierarchy_t *proto_hierarchy = get_session_protocol_hierarchy( dpi_session );
 	int len = proto_hierarchy->len;
-	if( len > 16 )
+	if( unlikely( len > 16 ))
 		len = 16;
 	return proto_hierarchy->proto_path[ len - 1 ];
 }
@@ -107,10 +108,11 @@ static inline int dpi_proto_hierarchy_ids_to_str(const proto_hierarchy_t * proto
 	int offset = 0;
 	int index = 1;
 	if (proto_hierarchy->len >= 1) {
-		offset += snprintf(dest, max_length - offset, "%u", proto_hierarchy->proto_path[index]);
+		offset += append_number(dest, max_length - offset, proto_hierarchy->proto_path[index]);
 		index++;
 		for (; index < proto_hierarchy->len && index < 16; index++) {
-			offset += snprintf(&dest[offset], max_length - offset, ".%u", proto_hierarchy->proto_path[index]);
+			offset += append_char(  &dest[offset], max_length - offset, '.');
+			offset += append_number(&dest[offset], max_length - offset, proto_hierarchy->proto_path[index]);
 		}
 	}
 
