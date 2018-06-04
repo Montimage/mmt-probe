@@ -10,14 +10,32 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include <stdarg.h>
+#include <string.h>
+#include <sys/time.h>
 #include "optimization.h"
+#include "macro_apply.h"
+#include "log.h"
 
 static ALWAYS_INLINE int append_char( char *dst, size_t dst_size, char c ){
 	if( unlikely( dst_size == 0 ))
 		return 0;
-	dst[1] = c;
+	dst[0] = c;
 	return 1;
+}
+
+static ALWAYS_INLINE int append_string_without_quote( char *dst, size_t dst_size, const char *src ){
+	if( unlikely( dst_size == 0 ))
+		return 0;
+
+	size_t src_size = strlen( src );
+	//cannot contain all source string
+	if( src_size > dst_size )
+		src_size = dst_size;
+
+	//open quote
+	memcpy( dst, src, src_size );
+	//close quote
+	return src_size;
 }
 
 static ALWAYS_INLINE int append_string( char *dst, size_t dst_size, const char *src ){
@@ -31,24 +49,70 @@ static ALWAYS_INLINE int append_string( char *dst, size_t dst_size, const char *
 
 	size_t src_size = strlen( src );
 	dst_size -= 2; //2 characters for " and "
+	//cannot contain all source string
 	if( src_size > dst_size )
 		src_size = dst_size;
 
 	//open quote
 	dst[0] = '"';
-	memcpy( &dst[1], src, src_size );
+	if( src_size != 0 )
+		memcpy( &dst[1], src, src_size );
 	//close quote
 	dst[ src_size + 1 ] = '"';
 	return src_size + 2;
 }
 
 /**
+ * Append a hexa number
+ * @param dst
+ * @param dst_size
+ * @param val
+ * @return
+ */
+static ALWAYS_INLINE int append_hex( char *dst, size_t dst_size, uint8_t val ){
+	//wee need at least 2 characters: XY
+	if( unlikely( dst_size < 2 ))
+		return 0;
+	const char *digits = "0123456789ABCDEF";
+	dst[0] = digits[ val >> 4  ];
+	dst[1] = digits[ val & 0xF ];
+	return 2;
+}
+
+static ALWAYS_INLINE int append_mac( char *dst, size_t dst_size, const uint8_t *t ){
+	//wee need at least 2+6*2+5 characters: "11:22:33:44:55:66"
+	if( unlikely( dst_size < 19 ))
+		return 0;
+
+	int offset = 0;
+	dst[ offset ++ ] = '"';
+	offset += append_hex( dst + offset, 2, t[0] );
+	dst[ offset ++ ] = ':';
+
+	offset += append_hex( dst + offset, 2, t[1] );
+	dst[ offset ++ ] = ':';
+
+	offset += append_hex( dst + offset, 2, t[2] );
+	dst[ offset ++ ] = ':';
+
+	offset += append_hex( dst + offset, 2, t[3] );
+	dst[ offset ++ ] = ':';
+
+	offset += append_hex( dst + offset, 2, t[4] );
+	dst[ offset ++ ] = ':';
+
+	offset += append_hex( dst + offset, 2, t[5] );
+	dst[ offset ++ ] = '"';
+	return offset;
+}
+/**
  * Convert number to string
  * @param string
  * @param val
  * @return
+ * @note //TODO currently being limited by 13 digits
  */
-static inline int append_number( char *string, size_t dst_size, uint64_t val ){
+static inline int append_number( char *dst, size_t dst_size, uint64_t val ){
 	const char digit_pairs[201] = {
 			"00010203040506070809"
 			"10111213141516171819"
@@ -65,21 +129,31 @@ static inline int append_number( char *string, size_t dst_size, uint64_t val ){
 	int size = 1; //by default, there exists at least one digit
 
 	if( val < 10 && dst_size > 0 ) {
-		string[0] = '0' + val;
+		dst[0] = '0' + val;
 		return 1;
 	}
 
-
+	//get number of digits
 	if(val>=10000)
 	{
 		if(val>=10000000)
 		{
-			if(val>=1000000000)
-				size=10;
-			else if(val>=100000000)
-				size=9;
-			else
-				size=8;
+			if( val >= 10000000000){
+				if( val >= 1000000000000)
+					size = 13;
+				else if( val >= 100000000000)
+					size = 12;
+				else
+					size = 11;
+			}
+			else{
+				if(val>=1000000000)
+					size=10;
+				else if(val>=100000000)
+					size=9;
+				else
+					size=8;
+			}
 		}
 		else
 		{
@@ -112,7 +186,7 @@ static inline int append_number( char *string, size_t dst_size, uint64_t val ){
 	if( size > dst_size )
 		return 0;
 
-	char *c = &string[ size-1 ];
+	char *c = &dst[ size-1 ];
 	int pos;
 
 	//do each 2 digits
@@ -131,5 +205,93 @@ static inline int append_number( char *string, size_t dst_size, uint64_t val ){
 	return size;
 }
 
+
+
+static ALWAYS_INLINE int append_timeval( char *dst, size_t dst_size, const struct timeval *t ){
+	//wee need at least 12 characters: xxxxxx.
+	if( unlikely( dst_size < 12 ))
+		return 0;
+	int offset = append_number( dst, dst_size, t->tv_sec );
+	ASSERT( offset <= 12, "Impossible (%d > 12)", offset );
+
+	//not enough for the nanosecond
+	if( dst_size < offset + 7 )
+		return offset;
+
+	dst += offset;
+	*dst = '.';
+	dst ++;
+
+	//tmp char
+	char tmp[6];
+	int len = append_number( tmp, sizeof( tmp ), t->tv_usec );
+	//put tmp to end of 6 bytes of dst (left align), for example: with offset = 4
+	// tmp =   1234
+	// dst = 001234
+	//1. pre-fill zero
+	dst[0] = '0';
+	dst[1] = '0';
+	dst[2] = '0';
+	dst[3] = '0';
+	dst[4] = '0';
+	dst[5] = '0';
+	//2. copy tmp to end of dst
+	int i;
+	for( i=0; i<len; i ++ )
+		dst[i + (sizeof(tmp)-len) ] = tmp[i];
+
+	return offset + 1 + sizeof(tmp); //1 is '.'
+}
+
+/**
+ * These helpers are used only inside STRING_BUILDER macro
+ */
+#define __ARR(x)   append_string_without_quote ( ptr+i, n-i, x )
+#define __STR(x)   append_string(                ptr+i, n-i, x )
+#define __INT(x)   append_number(                ptr+i, n-i, x )
+#define __CHAR(x)  append_char  (                ptr+i, n-i, x )
+#define __TIME(x)  append_timeval(               ptr+i, n-i, x )
+#define __HEX(x)   append_hex(                   ptr+i, n-i, x )
+#define __MAC(x)   append_mac(                   ptr+i, n-i, x )
+
+#define __BUILDER( X ) i += X;
+#define __EMPTY()
+#define __SEPARATOR() i+= append_string_without_quote( ptr+i, n-i, sepa );
+
+/**
+ * Create a macro to build a string.
+ * For example, to build a string:  "1,\"GET\", we can do:
+ * char msg[100];
+ * int valid = 0;
+ * valid += append_number( msg+valid, sizeof(msg)-valid, 1);
+ * valid += append_char  ( msg+valid, sizeof(msg)-valid, ',');
+ * valid += append_char  ( msg+valid, sizeof(msg)-valid, "GET");
+ *
+ * The code above can be replaced by using this macro:
+ *  int valid = 0;
+ *  STRING_BUILDER( valid, msg, sizeof(msg), __INT(1), __CHAR(','), __STR("GET"));
+ */
+#define STRING_BUILDER( valid, dst, dst_size, ... )      \
+do{                                                      \
+	int i = valid, n=dst_size;                           \
+	char *ptr = dst;                                     \
+	APPLY( __EMPTY, __BUILDER, __VA_ARGS__ )             \
+	ptr[i] = '\0';                                       \
+	valid = i;                                           \
+}while( 0 )
+
+
+/**
+ * Same as STRING_BUILDER but adding a separator between two elements
+ */
+#define STRING_BUILDER_WITH_SEPARATOR( valid, dst, dst_size, separator,... ) \
+do{                                                                          \
+	int i = valid, n=dst_size;                                               \
+	char *ptr = dst;                                                         \
+	const char *sepa = separator;                                            \
+	APPLY( __SEPARATOR, __BUILDER, __VA_ARGS__  )                            \
+	ptr[i] = '\0';                                                           \
+	valid = i;                                                               \
+}while( 0 )
 
 #endif /* SRC_LIB_STRING_BUILDER_H_ */

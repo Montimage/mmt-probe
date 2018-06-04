@@ -29,6 +29,7 @@ static inline packet_session_t * _create_session (const ipacket_t * ipacket, dpi
 
 	packet_session_t *session = mmt_alloc(sizeof (packet_session_t));
 	session->session_id = get_session_id( dpi_session );
+	session->context    = context;
 
 	IF_ENABLE_STAT_REPORT(
 		session->session_stat = session_report_callback_on_starting_session( ipacket );

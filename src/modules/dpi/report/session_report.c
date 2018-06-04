@@ -8,10 +8,13 @@
 #include <arpa/inet.h>
 #include "session_report.h"
 
+#include "../../../lib/string_builder.h"
+
 //functions implemented by session_report_xxx.c
 int print_web_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);
 int print_ssl_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);
 int print_rtp_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);
+
 
 #ifndef SIMPLE_REPORT
 //This callback is called by DPI periodically
@@ -75,73 +78,47 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	struct timeval start_time = get_session_init_time(dpi_session);
 
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
-
-	int valid = snprintf(message, MAX_LENGTH_REPORT_MESSAGE,
-			"%zu," //index of a stat period
-			"%u,"  //protocol
-			"\"%s\",\"%s\"," //upload - download path
-			"%"PRIu64","    //active sessions count
-			"%"PRIu64",%"PRIu64",%"PRIu64"," //data, payload, packets
-			"%"PRIu64",%"PRIu64",%"PRIu64"," // upload  data, payload, packets
-			"%"PRIu64",%"PRIu64",%"PRIu64"," //download data, payload, packets
-			"%lu.%06lu," //start timestamp of this session
-			"\"%s\",\"%s\"," //ip src - dst
-			"\""PRETTY_MAC_FORMAT"\",\""PRETTY_MAC_FORMAT"\"," //mac src - dst
-			"%"PRIu64"," //session_id
-			"%hu,%hu,"   //port src dst
-			"%u,"        //thread_id
-			"%"PRIu64"," //rtt
-			"%"PRIu64",%"PRIu64"," //rtt min dst, src
-			"%"PRIu64",%"PRIu64"," //rtt max dst, src
-			"%"PRIu64",%"PRIu64"," //rtt avg dst, src
-			"%"PRIu64"," //data transfer time
-			"%"PRIu64"," //retransmission
-			"%d," //format of the next app report, either http, ssl, ftp, rtp
-			"%d,%d", //app family, content class
-			context->stat_periods_index,
-			proto_id,
-			path_ul, path_dl,
-			total_active_sessions,
-
-			total_volumes - (session_stat->volumes.upload + session_stat->volumes.download),
-			total_payload - (session_stat->payload.upload + session_stat->payload.download),
-			total_packets - (session_stat->packets.upload + session_stat->packets.download),
-
-			ul_volumes - session_stat->volumes.upload,
-			ul_payload - session_stat->payload.upload,
-			ul_packets - session_stat->packets.upload,
-
-			dl_volumes - session_stat->volumes.download,
-			dl_payload - session_stat->payload.download,
-			dl_packets - session_stat->packets.download,
-
-			start_time.tv_sec, start_time.tv_usec,
-			session_stat->ip_src.ip_string, session_stat->ip_dst.ip_string,
-			MAC_ELEMENT( session_stat->mac_src ),//src_mac_pretty,
-			MAC_ELEMENT( session_stat->mac_dst ),//dst_mac_pretty,
-			get_session_id( dpi_session ),
-			session_stat->port_dst, session_stat->port_src,
-
-			context->worker_index, //thread_id
-
-#ifdef QOS_MODULE
-			((session_stat->rtt_at_handshake == 0)? rtt_at_handshake : 0),
-			session_stat->rtt_min_usec[1],
-			session_stat->rtt_min_usec[0],
-			session_stat->rtt_max_usec[1],
-			session_stat->rtt_max_usec[0],
-			session_stat->rtt_avg_usec[1],
-			session_stat->rtt_avg_usec[0],
-#else
-			0L,0L,0L,0L,0L,0L,0L,
-#endif
-			data_transfer_time,
-			(total_retrans - session_stat->retransmission_count),
-
-			session_stat->app_type,
-
-			get_application_class_by_protocol_id( proto_id ),
-			session_stat->content_class
+	int valid = 0;
+	STRING_BUILDER_WITH_SEPARATOR( valid, message, MAX_LENGTH_REPORT_MESSAGE, ",",
+		__INT( context->stat_periods_index),
+		__INT( proto_id),
+		__STR( path_ul),
+		__STR( path_dl),
+		__INT( total_active_sessions),
+		__INT( total_volumes - (session_stat->volumes.upload + session_stat->volumes.download)),
+		__INT( total_payload - (session_stat->payload.upload + session_stat->payload.download)),
+		__INT( total_packets - (session_stat->packets.upload + session_stat->packets.download)),
+		__INT( ul_volumes - session_stat->volumes.upload),
+		__INT( ul_payload - session_stat->payload.upload),
+		__INT( ul_packets - session_stat->packets.upload),
+		__INT( dl_volumes - session_stat->volumes.download),
+		__INT( dl_payload - session_stat->payload.download),
+		__INT( dl_packets - session_stat->packets.download),
+		__TIME( &start_time ),
+		__STR( session_stat->ip_src.ip_string ),
+		__STR( session_stat->ip_dst.ip_string ),
+		__MAC( session_stat->mac_src ),
+		__MAC( session_stat->mac_dst),
+		__INT( get_session_id( dpi_session ) ),
+		__INT( session_stat->port_dst ),
+		__INT( session_stat->port_src),
+		__INT( context->worker_index),
+	#ifdef QOS_MODULE
+		__INT( ((session_stat->rtt_at_handshake == 0)? rtt_at_handshake : 0)),
+		__INT( session_stat->rtt_min_usec[1]),
+		__INT( session_stat->rtt_min_usec[0]),
+		__INT( session_stat->rtt_max_usec[1]),
+		__INT( session_stat->rtt_max_usec[0]),
+		__INT( session_stat->rtt_avg_usec[1]),
+		__INT( session_stat->rtt_avg_usec[0]),
+	#else
+		__ARR( "0,0,0,0,0,0,0" ), //string without closing by quotes
+	#endif
+		__INT(    data_transfer_time),
+		__INT(    (total_retrans - session_stat->retransmission_count)),
+		__INT(    session_stat->app_type),
+		__INT(    get_application_class_by_protocol_id( proto_id )),
+		__INT(    session_stat->content_class)
 	);
 
 	//get_application_class_by_protocol_id( session->proto_id )

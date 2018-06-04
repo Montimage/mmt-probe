@@ -9,7 +9,8 @@
 #define SRC_LIB_UNIT_H_
 
 #define KILO 1000
-#define MEGA (1000*1000)
-#define GIGA (1000*1000*1000)
+#define MEGA (1000000)
+#define GIGA (1000000000)
+#define TERA (1000000000000)
 
 #endif /* SRC_LIB_UNIT_H_ */

@@ -45,22 +45,18 @@ int output_write( output_t *output, output_channel_conf_t channels, const char *
  * @param report_type
  * @param input_src
  * @param ts
- * @param format
+ * @param message_body
  * @return number of channels being received the output message
  */
+int output_write_report( output_t *output, output_channel_conf_t channels,
+		report_type_t report_type, const struct timeval *ts,
+		const char* message_body);
+
 int output_write_report_with_format( output_t *output, output_channel_conf_t channels,
 		report_type_t report_type, const struct timeval *ts,
 		const char* format, ...)
 __attribute__((format (printf, 5, 6)));
 
-static inline int output_write_report( output_t *output, output_channel_conf_t channels,
-		report_type_t report_type, const struct timeval *ts,
-		const char* message_body){
-	if( message_body == NULL )
-		return output_write_report_with_format( output, channels, report_type, ts, NULL );
-	else
-		return output_write_report_with_format( output, channels, report_type, ts, "%s", message_body );
-}
 
 void output_flush( output_t *output );
 

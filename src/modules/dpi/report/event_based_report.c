@@ -68,7 +68,8 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 		offset ++;
 
 		if( attr_extract == NULL ){
-			offset += snprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, "null" );
+			//offset += snprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, "null" );
+			offset += append_string( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, "null" );
 		}else{
 			_add_quote_if_need( message, &offset, attribute );
 			offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, attr_extract );

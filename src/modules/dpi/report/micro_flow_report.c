@@ -9,6 +9,7 @@
 #include "micro_flow_report.h"
 #include "../../../lib/memory.h"
 #include "../dpi_tool.h"
+#include "../../../lib/string_builder.h"
 
 typedef struct micro_flow_stats_struct {
 	struct timeval last_time;
@@ -47,12 +48,19 @@ bool is_micro_flow( micro_flow_report_context_t *mf, const mmt_session_t * dpi_s
 
 
 static inline void _print_micro_flow_report( micro_flow_stats_t *stat, output_t *output, output_channel_conf_t channel ){
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+
 	//App id, Nb of flows, DL Packet Count, UL Packet Count, DL Byte Count, UL Byte Count
-	output_write_report_with_format(output, channel, MICRO_FLOW_REPORT_TYPE, &stat->last_time,
-	            "%u,%u,%u,%u,%u,%u",
-	            stat->application_id, stat->flows_nb,
-				stat->dl_pcount, stat->ul_pcount,
-				stat->dl_bcount, stat->ul_bcount);
+	int offset = 0;
+	STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_REPORT_MESSAGE, ",",
+			__INT( stat->application_id ),
+			__INT( stat->flows_nb ),
+			__INT( stat->dl_pcount ),
+			__INT( stat->ul_pcount ),
+			__INT( stat->dl_bcount ),
+			__INT( stat->ul_bcount )
+	 );
+	output_write_report(output, channel, MICRO_FLOW_REPORT_TYPE, &stat->last_time, message );
 }
 
 void micro_flow_report__update( micro_flow_report_context_t *mf, const mmt_session_t * dpi_session ){

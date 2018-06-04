@@ -11,6 +11,7 @@
 #include "output.h"
 
 #include "../../lib/memory.h"
+#include "../../lib/string_builder.h"
 #include "file/file_output.h"
 #include "kafka/kafka_output.h"
 #include "socket/socket_output.h"
@@ -82,7 +83,12 @@ static inline int _write( output_t *output, output_channel_conf_t channels, cons
 	//put message inside an array: [message]
 	if( output->config->format == OUTPUT_FORMAT_JSON  ){
 		char new_msg[ MAX_LENGTH_REPORT_MESSAGE ];
-		snprintf( new_msg, MAX_LENGTH_REPORT_MESSAGE, "[%s]", message );
+		//surround message by [ and ]
+		new_msg[0] = '[';
+		size_t len = strlen( message );
+		memcpy( new_msg + 1, message, len );
+		new_msg[ len+1 ] = ']';
+		new_msg[ len+2 ] = '\0';
 		message = new_msg;
 	}
 
@@ -111,9 +117,14 @@ static inline int _write( output_t *output, output_channel_conf_t channels, cons
 
 		//convert to JSON format
 		if( output->config->format != OUTPUT_FORMAT_JSON  ){
-				char new_msg[ MAX_LENGTH_REPORT_MESSAGE ];
-				snprintf( new_msg, MAX_LENGTH_REPORT_MESSAGE, "[%s]", message );
-				message = new_msg;
+			char new_msg[ MAX_LENGTH_REPORT_MESSAGE ];
+			//surround message by [ and ]
+			new_msg[0] = '[';
+			size_t len = strlen( message );
+			memcpy( new_msg + 1, message, len );
+			new_msg[ len+1 ] = ']';
+			new_msg[ len+2 ] = '\0';
+			message = new_msg;
 		}
 
 		mongodb_output_write( output->modules.mongodb, message );
@@ -129,6 +140,39 @@ static inline int _write( output_t *output, output_channel_conf_t channels, cons
 	return ret;
 }
 
+int output_write_report( output_t *output, output_channel_conf_t channels,
+		report_type_t report_type, const struct timeval *ts,
+		const char* message_body){
+
+	//global output is disable or no output on this channel
+	if( output == NULL
+			|| output->config == NULL
+			|| ! output->config->is_enable
+			|| IS_DISABLE_OUTPUT( channels ) )
+		return 0;
+
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	int offset = 0;
+	STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
+			__INT( report_type ),
+			__INT( output->probe_id ),
+			__STR( output->input_src ),
+			__TIME( ts )
+	);
+
+	if( message_body != NULL ){
+		message[ offset ++ ] = ',';
+		size_t len = strlen( message_body );
+		memcpy( message+offset, message_body, len+1 ); //copy also '\0' at the end of message_body
+	}
+
+	int ret = _write( output, channels, message );
+	output->last_report_ts.tv_sec  = ts->tv_sec;
+	output->last_report_ts.tv_usec = ts->tv_usec;
+
+	return ret;
+}
+
 int output_write_report_with_format( output_t *output, output_channel_conf_t channels,
 		report_type_t report_type, const struct timeval *ts,
 		const char* format, ...){
@@ -141,35 +185,20 @@ int output_write_report_with_format( output_t *output, output_channel_conf_t cha
 		return 0;
 
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	int offset;
 
 	if( unlikely( format == NULL )){
-		snprintf( message, MAX_LENGTH_REPORT_MESSAGE, "%d,%"PRIu32",\"%s\",%lu.%06lu",
-			report_type,
-			output->probe_id,
-			output->input_src,
-			ts->tv_sec, ts->tv_usec );
+		return output_write_report( output, channels, report_type, ts, NULL);
 	} else {
-		int offset = snprintf( message, MAX_LENGTH_REPORT_MESSAGE, "%d,%"PRIu32",\"%s\",%lu.%06lu,",
-					report_type,
-					output->probe_id,
-					output->input_src,
-					ts->tv_sec,
-					ts->tv_usec);
-
 		va_list args;
-
+		offset = 0;
 		va_start( args, format );
 		offset += vsnprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, format, args);
 		va_end( args );
+
+		return output_write_report( output, channels, report_type, ts, message );
 	}
-
-	int ret = _write( output, channels, message );
-	output->last_report_ts.tv_sec  = ts->tv_sec;
-	output->last_report_ts.tv_usec = ts->tv_usec;
-
-	return ret;
 }
-
 
 //public API
 int output_write( output_t *output, output_channel_conf_t channels, const char *message ){

@@ -232,20 +232,24 @@ int print_ftp_report(char *message, size_t message_size, const mmt_session_t * d
 	if( unlikely( ftp == NULL || session_stat->app_type != SESSION_STAT_TYPE_APP_FTP ))
 		return 0;
 
-	size_t ret = snprintf( message, message_size,
-			"%"PRIu8",\"%s\",\"%s\",%"PRIu32",\"%s\",%"PRIu8",%"PRIu64",%"PRIu64"",
-			ftp->session_conn_type,
-			(ftp->session_username == NULL) ? "null" : ftp->session_username,
-			(ftp->session_password == NULL) ? "null" : ftp->session_password,
-			ftp->file_size,
-			(ftp->filename == NULL) ? "null" : ftp->filename,
-			ftp->direction,
-			ftp->session_id_control_channel,
+	//a comma separator between basic report part and ftp report part
+	*message = ',';
+	message ++;
+
+	int valid = 0;
+	STRING_BUILDER_WITH_SEPARATOR( valid, message, message_size, ",",
+			__INT( ftp->session_conn_type ),
+			__STR( (ftp->session_username == NULL) ? "null" : ftp->session_username ),
+			__STR( (ftp->session_password == NULL) ? "null" : ftp->session_password ),
+			__INT( ftp->file_size ),
+			__STR( (ftp->filename == NULL) ? "null" : ftp->filename ),
+			__INT( ftp->direction ),
+			__INT( ftp->session_id_control_channel ),
 #ifdef QOS_MODULE
-			ftp->response_time
+			__INT( ftp->response_time )
 #else
-			0L
+			__CHAR( '0' )
 #endif
 	);
-    return ret;
+    return valid;
 }

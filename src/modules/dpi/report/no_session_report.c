@@ -65,7 +65,8 @@ static void _protocols_stats_iterator(uint32_t proto_id, void * args) {
 
 	//printf ("report_number = %lu \n", th->report_counter);
 	char proto_path_str[128];
-	int i;
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	int i, offset;
 	proto_hierarchy_t proto_hierarchy;
 	while (proto_stats != NULL) {
 
@@ -79,14 +80,18 @@ static void _protocols_stats_iterator(uint32_t proto_id, void * args) {
 		//Count for fragmented and defragmented packets
 		if( context->is_enable_ip_fragementation_stat ){
 			if (proto_id == PROTO_IP && (proto_stats->ip_frag_packets_count + proto_stats->ip_df_packets_count > 0)){
-				output_write_report_with_format(context->output, CONF_OUTPUT_CHANNEL_ALL,
-						IP_FRAG_REPORT_TYPE, &proto_stats->last_packet_time,
-						"\"%s\",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64,
-						proto_path_str,
-						proto_stats->ip_frag_data_volume, proto_stats->ip_frag_packets_count,
-						proto_stats->ip_df_data_volume,   proto_stats->ip_df_packets_count,
-						(proto_stats->ip_frag_data_volume + proto_stats->ip_df_data_volume),
-						(proto_stats->ip_frag_packets_count + proto_stats->ip_df_packets_count));
+				offset = 0;
+				STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
+						__STR( proto_path_str ),
+						__INT( proto_stats->ip_frag_data_volume ),
+						__INT( proto_stats->ip_frag_packets_count ),
+						__INT( proto_stats->ip_df_data_volume ),
+						__INT( proto_stats->ip_df_packets_count ),
+						__INT( (proto_stats->ip_frag_data_volume + proto_stats->ip_df_data_volume) ),
+						__INT( (proto_stats->ip_frag_packets_count + proto_stats->ip_df_packets_count) )
+				);
+				output_write_report(context->output, CONF_OUTPUT_CHANNEL_ALL,
+										IP_FRAG_REPORT_TYPE, &proto_stats->last_packet_time, message );
 			}
 		}
 
@@ -104,23 +109,20 @@ static void _protocols_stats_iterator(uint32_t proto_id, void * args) {
 
 			//report the stats instance if there is anything to report
 			if(proto_stats->touched) {
-				output_write_report_with_format(context->output, CONF_OUTPUT_CHANNEL_ALL,
-						NON_SESSION_REPORT_TYPE, &proto_stats->last_packet_time,
-						"%u,\"%s\",%u,%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%u,%u,%u,%lu.%06lu"
-								//",\"%s\",\"%s\",\"%s\",\"%s\",%u,%u,%u"
-						,
-						proto_id,
-						proto_path_str,
-						0,
-						proto_stats->data_volume, proto_stats->payload_volume,
-						proto_stats->packets_count,
-						0, 0, 0,
-						0, 0, 0,
+				offset = 0;
+				STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
+						__INT( proto_id ),
+						__STR( proto_path_str ),
+						__INT( 0 ),
+						__INT( proto_stats->data_volume ),
+						__INT( proto_stats->payload_volume ),
+						__INT( proto_stats->packets_count ),
+						__ARR( "0,0,0,0,0,0" ),
 						//session initial time
-						proto_stats->first_packet_time.tv_sec, proto_stats->first_packet_time.tv_usec
-						//, "null", "null", "null", "null", 0, 0, 0
+						__TIME( &proto_stats->first_packet_time )
 				);
-
+				output_write_report(context->output, CONF_OUTPUT_CHANNEL_ALL,
+										IP_FRAG_REPORT_TYPE, &proto_stats->last_packet_time, message);
 			}
 		}
 

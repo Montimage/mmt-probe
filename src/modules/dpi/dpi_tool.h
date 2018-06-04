@@ -111,8 +111,8 @@ static inline int dpi_proto_hierarchy_ids_to_str(const proto_hierarchy_t * proto
 		offset += append_number(dest, max_length - offset, proto_hierarchy->proto_path[index]);
 		index++;
 		for (; index < proto_hierarchy->len && index < 16; index++) {
-			offset += append_char(  &dest[offset], max_length - offset, '.');
-			offset += append_number(&dest[offset], max_length - offset, proto_hierarchy->proto_path[index]);
+			offset += append_char(  dest+offset, max_length - offset, '.');
+			offset += append_number(dest+offset, max_length - offset, proto_hierarchy->proto_path[index]);
 		}
 	}
 

@@ -75,26 +75,28 @@ static void _radius_code_handle(const ipacket_t *ipacket, attribute_t *attribute
 		inet_ntop(AF_INET, ggsn_ip_address, ggsn_ip, INET_ADDRSTRLEN);
 	}
 
+	int offset = 0;
 		//format id, timestamp, msg code, IP address, MSISDN, Acct_session_id, Acct_status_type, IMSI, IMEI, GGSN IP, SGSN IP, SGSN-MCC-MNC, RAT type, Charging class, LAC id, Cell id
-	output_write_report_with_format( context->output, context->config->output_channels,
-			RADIUS_REPORT_TYPE, &ipacket->p_hdr->ts,
-			"%i,\"%s\",\"%s\",%i,\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",%i,\"%s\",%i,%i",
-			*radius_code,
-			(framed_ip_address != NULL)   ? f_ipv4                 : "",
-			(calling_station_id != NULL)  ? &calling_station_id[4] : "",
-			(account_status_type != NULL) ? *account_status_type   : 0,
-			(account_session_id != NULL)  ? &account_session_id[4] : "",
-			(imsi != NULL)            ? &imsi[4]                   : "",
-			(imei != NULL)            ? &imei[4]                   : "",
-			(ggsn_ip_address != NULL) ? ggsn_ip                    : "",
-			(sgsn_ip_address != NULL) ? sgsn_ip                    : "",
-			(sgsn_mccmnc != NULL)     ? &sgsn_mccmnc[4]            : "",
-			(rat_type != NULL)        ? *((uint8_t *) rat_type)    : 0,
-			(charg_charact != NULL)   ? &charg_charact[4]          : "",
-			(user_loc != NULL)        ? ntohs( user_loc->cell_lac) : 0,
-			(user_loc != NULL)        ? ntohs( user_loc->cell_id)  : 0
+//			"%i,\"%s\",\"%s\",%i,\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",%i,\"%s\",%i,%i",
+	STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
+			__INT( *radius_code ),
+			__STR( (framed_ip_address != NULL)   ? f_ipv4                 : "" ),
+			__STR( (calling_station_id != NULL)  ? &calling_station_id[4] : "" ),
+			__INT( (account_status_type != NULL) ? *account_status_type   : 0  ),
+			__STR( (account_session_id != NULL)  ? &account_session_id[4] : "" ),
+			__STR( (imsi != NULL)            ? &imsi[4]                   : "" ),
+			__STR( (imei != NULL)            ? &imei[4]                   : "" ),
+			__STR( (ggsn_ip_address != NULL) ? ggsn_ip                    : "" ),
+			__STR( (sgsn_ip_address != NULL) ? sgsn_ip                    : "" ),
+			__STR( (sgsn_mccmnc != NULL)     ? &sgsn_mccmnc[4]            : "" ),
+			__INT( (rat_type != NULL)        ? *((uint8_t *) rat_type)    : 0 ),
+			__STR( (charg_charact != NULL)   ? &charg_charact[4]          : "" ),
+			__INT( (user_loc != NULL)        ? ntohs( user_loc->cell_lac) : 0  ),
+			__INT( (user_loc != NULL)        ? ntohs( user_loc->cell_id)  : 0  )
 	);
 
+	output_write_report( context->output, context->config->output_channels,
+				RADIUS_REPORT_TYPE, &ipacket->p_hdr->ts, message);
 }
 
 static const conditional_handler_t handlers[] = {

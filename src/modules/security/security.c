@@ -13,6 +13,7 @@
 #include <stdlib.h>
 
 #include "../../lib/memory.h"
+#include "../../lib/string_builder.h"
 
 #define SECURITY_DPI_PACKET_HANDLER_ID 10
 
@@ -98,17 +99,20 @@ static void _print_security_verdict(
 	struct timeval ts;
 	mmt_sec_decode_timeval(timestamp, &ts );
 
-	output_write_report_with_format( security_context->output,
-			security_context->config->output_channels,
-			SECURITY_REPORT_TYPE,
-			&ts,
-			"%"PRIu32",\"%s\",\"%s\",\"%s\",%s",
-			rule->id,
-			verdict_type_string[verdict],
-			rule->type_string,
-			description,
-			exec_trace
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	int offset = 0;
+	STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
+			__INT( rule->id ),
+			__STR( verdict_type_string[verdict] ),
+			__STR( rule->type_string ),
+			__STR( description ),
+			__ARR( exec_trace ) //string without quotes
 	);
+	output_write_report( security_context->output,
+				security_context->config->output_channels,
+				SECURITY_REPORT_TYPE,
+				&ts,
+				message);
 }
 
 /**

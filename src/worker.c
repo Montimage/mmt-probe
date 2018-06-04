@@ -11,9 +11,12 @@
 #include "worker.h"
 
 #include "modules/output/output.h"
-#include "modules/security/security.h"
 #include "lib/license.h"
 #include "modules/dynamic_conf/dynamic_conf.h"
+
+#ifdef SECURITY_MODULE
+#include "modules/security/security.h"
+#endif
 /**
  * This function must be called by the main thread when allocating a worker
  * @return
@@ -173,7 +176,7 @@ void worker_on_timer_stat_period( worker_context_t *worker_context ){
 	if( worker_context->probe_context->config->input->input_mode == ONLINE_ANALYSIS ){
 		gettimeofday( &now, NULL );
 		//output to all channels
-		output_write_report_with_format(worker_context->output, CONF_OUTPUT_CHANNEL_ALL, DUMMY_REPORT_TYPE,
+		output_write_report(worker_context->output, CONF_OUTPUT_CHANNEL_ALL, DUMMY_REPORT_TYPE,
 				&now, NULL );
 	}
 

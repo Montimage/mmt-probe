@@ -5,6 +5,7 @@
  *          by: Huu Nghia
  */
 #include "session_report.h"
+#include "../../../lib/string_builder.h"
 
 #ifndef SIMPLE_REPORT
 struct session_web_stat_struct {
@@ -241,36 +242,29 @@ int print_web_report(char *message, size_t message_size, const mmt_session_t * d
 	else if (get_session_content_flags( dpi_session ) & MMT_CONTENT_CDN)
 		cdn_flag = 2;
 
-	int valid = snprintf(message, message_size,
-			",%ld," //response time
-			"%d,"   //transaction nb
-			"%ld,"  //interaction time
-			"\"%s\",\"%s\",\"%s\"," //host, mime, referrer
-			"%d,"    //CDN flag
-			"\"%s\",\"%s\",\"%s\"" //URI, method, response
-			",\"%s\""   //content length
-			",%d",    //request-response indicator
+	//a comma separator between basic report part and web report part
+	*message = ',';
+	message ++;
+
+	int valid = 0;
+	STRING_BUILDER_WITH_SEPARATOR( valid, message, message_size, ",",
 #ifdef QOS_MODULE
-			has_string(web->response) ? u_second_diff( &web->response_time, &web->method_time ) : 0,
-			has_string(web->response) ? web->trans_nb : 0,
-			has_string(web->response) ? u_second_diff( &web->interaction_time, &web->first_request_time) : 0,
+			__INT( has_string(web->response) ? u_second_diff( &web->response_time, &web->method_time ) : 0 ),
+			__INT( has_string(web->response) ? web->trans_nb : 0 ),
+			__INT( has_string(web->response) ? u_second_diff( &web->interaction_time, &web->first_request_time) : 0 ),
 #else
-			0L, 0, 0L,
+			__ARR( "0,0,0" ), //string without closing by quotes
 #endif
-			web->hostname,
-			web->mime_type,
-			web->referer,
-
-			cdn_flag,
-
-			web->uri,
-			web->method,
-			web->response,
-			web->content_len,
-
-			web->state_http_request_response
-	);
-
+			__STR( web->hostname ),
+			__STR( web->mime_type ),
+			__STR( web->referer ),
+			__INT( cdn_flag ),
+			__STR( web->uri ),
+			__STR( web->method ),
+			__STR( web->response ),
+			__STR( web->content_len ),
+			__INT( web->state_http_request_response )
+			);
 	if (web->state_http_request_response != 0)
 		web->state_http_request_response ++;
 
