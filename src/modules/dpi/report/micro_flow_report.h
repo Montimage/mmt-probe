@@ -13,7 +13,23 @@
 #include "../../../configure.h"
 #include "../../output/output.h"
 
-typedef struct micro_flow_report_context_struct micro_flow_report_context_t;
+typedef struct micro_flow_stats_struct {
+	struct timeval last_time;
+	uint32_t application_id;
+	uint32_t flows_nb;
+	uint32_t dl_pcount;
+	uint32_t ul_pcount;
+	uint32_t dl_bcount;
+	uint32_t ul_bcount;
+} micro_flow_stats_t;
+
+
+typedef struct micro_flow_report_context_struct{
+	const micro_flow_conf_t *config;
+	output_t *output;
+	//each proto/app having a stat
+	micro_flow_stats_t stats[ PROTO_MAX_IDENTIFIER ];
+}micro_flow_report_context_t;
 
 /**
  * Create a context that is available during whole execution time of MMT-Probe
@@ -30,8 +46,12 @@ micro_flow_report_context_t *micro_flow_report_alloc_init( const micro_flow_conf
  * @param expired_session
  * @return
  */
-bool is_micro_flow( micro_flow_report_context_t *mf, const mmt_session_t * expired_session );
-
+static inline bool is_micro_flow( micro_flow_report_context_t *mf, const mmt_session_t * dpi_session ){
+	if( mf->config->byte_threshold >= get_session_byte_count( dpi_session )
+			|| mf->config->packet_threshold >= get_session_packet_count( dpi_session )  )
+		return true;
+	return false;
+}
 /**
  * Update a micro flow
  * @param mf

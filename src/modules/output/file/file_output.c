@@ -21,6 +21,7 @@
 
 #include "../../../lib/limit.h"
 #include "../../../lib/memory.h"
+#include "../../../lib/memory.h"
 
 struct file_output_struct{
 	uint16_t id;
@@ -30,11 +31,11 @@ struct file_output_struct{
 	const file_output_conf_t *config;
 };
 
+#define SEMAPHORE_EXT ".sem"
 static int _load_filter( const struct dirent *entry ){
-	const char *data_out_name = ".sem";
-	char *ext = strstr( entry->d_name, data_out_name );
+	char *ext = strstr( entry->d_name, SEMAPHORE_EXT );
 	if( ext == NULL ) return 0;
-	return (strlen( ext ) == strlen( data_out_name ));
+	return (strlen( ext ) == (sizeof( SEMAPHORE_EXT ) - 1) );
 }
 
 /**
@@ -133,12 +134,13 @@ static inline void _create_semaphore_file( const file_output_t *output ){
 	char filename[ MAX_LENGTH_FULL_PATH_FILE_NAME ];
 
 	//create semaphore
-	snprintf( filename, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%lu-%06zu_%02d_%s.sem",
+	snprintf( filename, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%lu-%06zu_%02d_%s%s",
 			output->config->directory,
 			output->created_time_of_file.tv_sec,
 			output->created_time_of_file.tv_usec,
 			output->id,
-			output->config->filename );
+			output->config->filename,
+			SEMAPHORE_EXT);
 
 	FILE *file = fopen( filename,"w");
 	if( file == NULL )

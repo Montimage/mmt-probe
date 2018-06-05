@@ -9,6 +9,7 @@
 #include "session_report.h"
 
 #include "../../../lib/string_builder.h"
+#include "../../../lib/inet.h"
 
 //functions implemented by session_report_xxx.c
 int print_web_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);
@@ -313,8 +314,8 @@ session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * 
 			session_stat->ip_dst.ipv4 = (*ip_dst);
 
 
-		inet_ntop(AF_INET, (void *) &session_stat->ip_src.ipv4, session_stat->ip_src.ip_string, INET_ADDRSTRLEN);
-		inet_ntop(AF_INET, (void *) &session_stat->ip_dst.ipv4, session_stat->ip_dst.ip_string, INET_ADDRSTRLEN);
+		inet_ntop4(session_stat->ip_src.ipv4, session_stat->ip_src.ip_string);
+		inet_ntop4(session_stat->ip_dst.ipv4, session_stat->ip_dst.ip_string);
 
 		uint16_t * cport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_CLIENT_PORT);
 		uint16_t * dport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_SERVER_PORT);

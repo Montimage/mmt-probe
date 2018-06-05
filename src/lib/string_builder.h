@@ -265,7 +265,7 @@ static ALWAYS_INLINE int append_timeval( char *dst, size_t dst_size, const struc
  * int valid = 0;
  * valid += append_number( msg+valid, sizeof(msg)-valid, 1);
  * valid += append_char  ( msg+valid, sizeof(msg)-valid, ',');
- * valid += append_char  ( msg+valid, sizeof(msg)-valid, "GET");
+ * valid += append_string( msg+valid, sizeof(msg)-valid, "GET");
  *
  * The code above can be replaced by using this macro:
  *  int valid = 0;
@@ -282,7 +282,7 @@ do{                                                      \
 
 
 /**
- * Same as STRING_BUILDER but adding a separator between two elements
+ * Same as STRING_BUILDER but adding a separator between two consecutive elements
  */
 #define STRING_BUILDER_WITH_SEPARATOR( valid, dst, dst_size, separator,... ) \
 do{                                                                          \
