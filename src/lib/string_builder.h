@@ -206,7 +206,14 @@ static inline int append_number( char *dst, size_t dst_size, uint64_t val ){
 }
 
 
-
+/**
+ * Append a struct timeval to string using format tv_sec.tv_usec
+ * This function corresponds to sprintf( dst, dst_size, "%u.%06u", t->tv_sec, tv_usec)
+ * @param dst
+ * @param dst_size
+ * @param t
+ * @return
+ */
 static ALWAYS_INLINE int append_timeval( char *dst, size_t dst_size, const struct timeval *t ){
 	//wee need at least 12 characters: xxxxxx.
 	if( unlikely( dst_size < 12 ))
@@ -256,7 +263,7 @@ static ALWAYS_INLINE int append_timeval( char *dst, size_t dst_size, const struc
 
 #define __BUILDER( X ) i += X;
 #define __EMPTY()
-#define __SEPARATOR() i+= append_string_without_quote( ptr+i, n-i, sepa );
+#define __SEPARATOR()  i += append_string_without_quote( ptr+i, n-i, sepa );
 
 /**
  * Create a macro to build a string.

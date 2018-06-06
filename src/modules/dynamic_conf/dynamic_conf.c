@@ -16,7 +16,6 @@
 #include "../../configure.h"
 #include "../../context.h"
 #include "../../configure_override.h"
-#include "../../lib/linked_list.h"
 #include "../../lib/memory.h"
 
 #include "mmt_bus.h"

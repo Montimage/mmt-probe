@@ -224,7 +224,7 @@ static inline int _parse_update_parameters( char *buffer, size_t buffer_len, cha
 }
 
 static inline void _reply_list_of_update_parameters( int sock ){
-	int i, size;
+	int i, size, ret, total_bytes_to_write;
 	const char *data_type_strings[] = {
 			"",
 			"boolean",
@@ -240,13 +240,18 @@ static inline void _reply_list_of_update_parameters( int sock ){
 
 	//number of elements
 	size = snprintf( message, BUFFER_SIZE, "%zu\n", nb_parameters - 1 ); //-NO_SUPPORT
-	write( sock, message, size );
+
+	total_bytes_to_write = size;
+	ret = write( sock, message, size );
 
 	for( i=0; i<nb_parameters; i++ )
 		if( identities[i].data_type !=NO_SUPPORT  ){
 			size = snprintf( message, BUFFER_SIZE, "%s (%s)\n", identities[i].ident, data_type_strings[identities[i].data_type]);
-			write( sock, message, size );
+			total_bytes_to_write += size;
+			ret   += write( sock, message, size );
 		}
+	if( ret != total_bytes_to_write )
+		log_write( LOG_ERR, "Error while writing response (%d < %d bytes)", ret, total_bytes_to_write );
 }
 
 static int socket_fd = 0;
