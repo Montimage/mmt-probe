@@ -14,6 +14,7 @@
 #include "../output/output.h"
 
 #include "reconstruct/ftp/ftp_reconstruct.h"
+#include "reconstruct/http/http_reconstruct.h"
 
 #ifdef STAT_REPORT
 #include "report/micro_flow_report.h"
@@ -49,6 +50,7 @@ typedef struct dpi_context_struct{
 
 	struct{
 		IF_ENABLE_FTP_RECONSTRUCT( ftp_reconstruct_context_t *ftp; )
+		IF_ENABLE_HTTP_RECONSTRUCT( http_reconstruct_t *http; )
 	}data_reconstruct;
 
 	//number of stat_period, e.g., 5s,

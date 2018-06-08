@@ -13,13 +13,15 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <stdbool.h>
 
 #include "optimization.h"
 #include "log.h"
 
 #define MIN( a, b ) (a>b? b : a )
 #define MAX( a, b ) (a<b? b : a )
-#
+#define SWAP(x, y, T) do { T tmp = x; x = y; y = tmp; } while (0)
+
 #define MICRO_PER_SEC 1000000
 
 /**
@@ -74,7 +76,7 @@ static ALWAYS_INLINE size_t m_second( const struct timeval *ts ){
  * @param prefix_len
  * @return
  */
-static bool ALWAYS_INLINE is_started_by( const char *string, const char *prefix, size_t prefix_len ){
+static ALWAYS_INLINE bool is_started_by( const char *string, const char *prefix, size_t prefix_len ){
 	int i;
 	for( i=0; i<prefix_len; i++ )
 		if( string[i] != prefix[i] )
@@ -83,14 +85,12 @@ static bool ALWAYS_INLINE is_started_by( const char *string, const char *prefix,
 }
 
 
-#define SWAP(x, y, T) do { T tmp = x; x = y; y = tmp; } while (0)
-
 #define IS_EQUAL_STRINGS( s1, s2 ) (strcmp(s1, s2) == 0)
 
 
 static inline ssize_t append_data_to_file(const char *file_path, const void *content, size_t len) {
 	int fd;
-	fd = open( file_path, O_CREAT | O_WRONLY | O_APPEND | O_NOFOLLOW, S_IRWXU | S_IRWXG | S_IRWXO );
+	fd = open( file_path, O_CREAT | O_WRONLY | O_APPEND | O_NOFOLLOW, S_IRUSR | S_IWUSR );
 	if ( fd < 0 ) {
 		log_write( LOG_ERR, "Error %d while writing data to \"%s\": %s", errno, file_path, strerror( errno ) );
 		return -1;

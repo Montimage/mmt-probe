@@ -36,7 +36,6 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
-#ifdef HTTP_RECONSTRUCT_MODULE
 #include "html_integration.h"
 
 /**
@@ -85,7 +84,7 @@ void http_write_data_to_file ( char * path, const char * content, size_t len) {
 http_content_processor_t * get_http_content_processor_from_packet(const ipacket_t * ipacket){
     session_struct_t *temp_session = (session_struct_t *)get_user_session_context_from_packet(ipacket);
     if(temp_session == NULL) return NULL;
-    return temp_session->http_content_processor; 
+    return temp_session->http_content_processor;
 }
 
 
@@ -446,7 +445,7 @@ void http_data_handle(const ipacket_t * ipacket, attribute_t * attribute, void *
         http_write_data_to_file (http_session_data->filename, ((mmt_header_line_t *) attribute->data)->ptr, ((mmt_header_line_t *) attribute->data)->len);
         http_add_data_packet(http_session_data,ipacket->packet_id);
     }
-    
+
     // debug("%lu: data_handle - 8\n", ipacket->packet_id);
     // debug("%lu: %s.%s: %i\n", ipacket->packet_id,get_protocol_name_by_id(attribute->proto_id),get_attribute_name_by_protocol_and_attribute_ids(attribute->proto_id, attribute->field_id),((mmt_header_line_t *) attribute->data)->len);
     // debug("%lu: data_handle - 9\n", ipacket->packet_id);
@@ -454,12 +453,12 @@ void http_data_handle(const ipacket_t * ipacket, attribute_t * attribute, void *
 
 int http_packet_handler(const ipacket_t * ipacket, void * user_args) {
     // printf("[debug] http_packet_handler 1 :%lu\n", ipacket->packet_id);
-    
+
     if (ipacket->session == NULL) {
         // fprintf(stderr, "[error] %lu: Packet does not have session\n", ipacket->packet_id);
         return 0;
     }
-    
+
     uint64_t session_id = get_session_id(ipacket->session);
 
     mmt_probe_context_t * probe_context = get_probe_context_config();
@@ -471,7 +470,7 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args) {
 
     if(probe_context->HTTP_RECONSTRUCT_MODULE_enable == 0){
         printf("[debug] %lu HTTP_RECONSTRUCT_MODULE is not enabled\n", ipacket->packet_id);
-        return 0;   
+        return 0;
     }
 
     if(is_http_packet(ipacket)==0) return 0;
@@ -530,7 +529,7 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args) {
                     default_name[len - 1] = '\0';
                 }
             } else {
-                
+
                 if(strstr(uri_data,"?")!=NULL){
                     default_name = str_subvalue(uri_data,NULL,"?");
                 }else{
@@ -543,8 +542,8 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args) {
                     }
                     http_session_data->filename = str_copy(default_name);
                     if(strstr(http_session_data->filename,".")){
-                        http_session_data->file_has_extension = 1;    
-                    }    
+                        http_session_data->file_has_extension = 1;
+                    }
                 }else{
                     int len = 7;
                     default_name = malloc(len * sizeof(char));
@@ -552,7 +551,7 @@ int http_packet_handler(const ipacket_t * ipacket, void * user_args) {
                     default_name[len - 1] = '\0';
                 }
             }
-            
+
             if(http_session_data->filename!=NULL){
                 free(http_session_data->filename);
                 // http_session_data->filename = NULL;
@@ -646,4 +645,3 @@ void HTTP_RECONSTRUCT_MODULE_init(void *arg){
     // printf("[debug] HTTP_RECONSTRUCT_MODULE_init\n");
 }
 
-#endif // End of HTTP_RECONSTRUCT_MODULE

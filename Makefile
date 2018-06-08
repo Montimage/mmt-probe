@@ -136,9 +136,9 @@ MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/routine/*.c)
 # For HTTP reconstruction option
 ifdef HTTP_RECONSTRUCT
 $(info - Enable HTTP_RECONSTRUCT)
-	LIBS        += -lhtmlstreamparser -lz
+	LIBS        += -lz
 	CFLAGS      += -DHTTP_RECONSTRUCT_MODULE
-	MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/construct_http/*.c)
+	MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/dpi/reconstruct/http/*.c)
 else
 $(info -> Disable HTTP_RECONSTRUCT)
 endif

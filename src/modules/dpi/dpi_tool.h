@@ -9,6 +9,7 @@
 #define SRC_MODULES_DPI_DPI_TOOL_H_
 
 #include <mmt_core.h>
+#include <tcpip/mmt_tcpip.h>
 #include "../../configure.h"
 #include "../../lib/memory.h"
 #include "../../lib/string_builder.h"
