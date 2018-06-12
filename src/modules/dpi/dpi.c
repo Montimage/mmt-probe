@@ -22,6 +22,10 @@
 #include "pcap_dump/pcap_dump.h"
 #endif
 
+#ifdef TCP_REASSEMBLY_MODULE
+#include "reassembly/tcp_reassembly.h"
+#endif
+
 #define DPI_PACKET_HANDLER_ID 6
 
 static inline packet_session_t * _create_session (const ipacket_t * ipacket, dpi_context_t *context){
@@ -31,10 +35,15 @@ static inline packet_session_t * _create_session (const ipacket_t * ipacket, dpi
 	session->session_id = get_session_id( dpi_session );
 	session->context    = context;
 
+	//initialize for reporting
 	IF_ENABLE_STAT_REPORT(
 		session->session_stat = session_report_callback_on_starting_session( ipacket );
 	)
 
+	//initialize
+	IF_ENABLE_HTTP_RECONSTRUCT( session->http_session = NULL );
+
+	//attach to tcp/ip session
 	set_user_session_context( dpi_session, session);
 	return session;
 }
@@ -43,7 +52,7 @@ static inline packet_session_t * _create_session (const ipacket_t * ipacket, dpi
 //callback when starting a new session
 static void _starting_session_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	dpi_context_t *context = (dpi_context_t *) user_args;
-	packet_session_t *session = (packet_session_t *) get_user_session_context_from_packet(ipacket);
+	packet_session_t *session = dpi_get_packet_session(ipacket);
 
 	if( session == NULL )
 		session = _create_session (ipacket, context);
@@ -52,6 +61,11 @@ static void _starting_session_handler(const ipacket_t * ipacket, attribute_t * a
 static void _ending_session_handler(const mmt_session_t * dpi_session, void * user_args) {
 	dpi_context_t *context = (dpi_context_t *) user_args;
 	packet_session_t * session = get_user_session_context( dpi_session );
+
+#ifdef HTTP_RECONSTRUCT_MODULE
+	http_reconstruct_flush_session_to_file_and_free( session->http_session );
+	session->http_session = NULL;
+#endif
 
 #ifdef STAT_REPORT
 		//a session statistic is processed as either micro-flow or normal-flow
@@ -83,7 +97,7 @@ static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 
 	//when packet is below to one session
 	if( ipacket->session != NULL ){
-		packet_session_t *session = (packet_session_t *) get_user_session_context_from_packet(ipacket);
+		packet_session_t *session = dpi_get_packet_session(ipacket);
 
 		if( session == NULL )
 			session = _create_session (ipacket, context);
@@ -98,6 +112,12 @@ static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 				session_report_callback_on_receiving_packet( ipacket, session->session_stat );
 		)
 	}
+	return 0;
+}
+
+//callback when a tcp segment is re-constructed
+static int _tcp_reassembly_handler(const ipacket_t * ipacket, void * user_args) {
+	//DEBUG("got tcp segment %"PRIu64, ipacket->packet_id );
 	return 0;
 }
 /// <=== end of packet handler=============================
@@ -147,15 +167,20 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 	IF_ENABLE_STAT_REPORT(
 		ret->micro_reports = micro_flow_report_alloc_init(config->reports.microflow, output);
 		ret->event_reports = event_based_report_register(dpi_handler, config->reports.events, config->reports.events_size, output);
-		ret->no_session_report = no_session_report_alloc_init(dpi_handler, output, config->is_enable_ip_fragementation_report, config->is_enable_proto_no_session_report );
+		ret->no_session_report = no_session_report_alloc_init(dpi_handler, output, config->is_enable_ip_fragmentation_report, config->is_enable_proto_no_session_report );
 
 		session_report_register( dpi_handler, config->reports.session );
 
 		ret->radius_report = radius_report_register(dpi_handler, config->reports.radius, output);
 	)
 
+	//This callback is fired before the packets have been reordered and reassembled by mmt_reassembly
 	if(! register_packet_handler( dpi_handler, DPI_PACKET_HANDLER_ID, _packet_handler, ret ) )
 		ABORT( "Cannot register handler for processing packet" );
+
+	IF_ENABLE_TCP_REASSEMBLY(
+		tcp_reassembly_alloc_init(config->is_enable_tcp_reassembly, dpi_handler, _tcp_reassembly_handler);
+	)
 
 	//callback when starting a new IP session
 	if( ! register_attribute_handler(dpi_handler, PROTO_IP, PROTO_SESSION, _starting_session_handler, NULL, ret ) )
@@ -200,6 +225,7 @@ void dpi_close( dpi_context_t *dpi_context ){
 
 //this happens after closing dpi_context->dpi_handler
 void dpi_release( dpi_context_t *dpi_context ){
+	IF_ENABLE_TCP_REASSEMBLY( tcp_reassembly_release(); )
 	IF_ENABLE_STAT_REPORT(
 		no_session_report_release(dpi_context->no_session_report );
 		micro_flow_report_release( dpi_context->micro_reports );

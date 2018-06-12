@@ -1,0 +1,29 @@
+%{
+%}
+%ignore-case
+%language=ANSI-C
+%define lookup-function-name get_transfer_encoding
+%define hash-function-name   get_transfer_encoding_hash
+%define slot-name            ident_string
+%enum
+%includes
+%struct-type
+%readonly-tables
+%compare-strncmp
+
+struct transfer_encoding{
+   const char* ident_string;
+    enum{
+      TRANSFER_ENCODING_CHUNKED,
+      TRANSFER_ENCODING_COMPRESS,
+      TRANSFER_ENCODING_DEFLATE,
+      TRANSFER_ENCODING_GZIP,
+      TRANSFER_ENCODING_IDENTITY
+   } ident_number;
+}
+%%
+chunked,    TRANSFER_ENCODING_CHUNKED
+compress,   TRANSFER_ENCODING_COMPRESS
+deflate,    TRANSFER_ENCODING_DEFLATE
+gzip,       TRANSFER_ENCODING_GZIP
+identity,   TRANSFER_ENCODING_IDENTITY

@@ -1,0 +1,33 @@
+%{
+%}
+%ignore-case
+%language=ANSI-C
+%define lookup-function-name get_file_extension_from_content_type
+%define hash-function-name   get_content_type_hash
+%define slot-name            content_type
+%enum
+%includes
+%struct-type
+%readonly-tables
+%compare-strncmp
+
+struct file_extension{
+   const char* content_type;
+   const char* file_extension;
+}
+%%
+text/html,                     "html"
+text/plain,                    "txt"
+text/xml,                      "xml"
+text/css,                      "css"
+image/png,                     "png"
+image/jpg,                     "jpg"
+image/jpeg,                    "jpeg"
+image/gif,                     "gif"
+zip,                           "zip"
+mp3,                           "mp3"
+mp4,                           "mp4"
+svg,                           "svg"
+application/x-javascript,      "js"
+application/javascript,        "js"
+application/x-shockwave-flash, "swf"

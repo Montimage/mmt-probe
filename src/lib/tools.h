@@ -101,6 +101,18 @@ static inline ssize_t append_data_to_file(const char *file_path, const void *con
 	return ret;
 }
 
+static inline ssize_t write_data_to_file(const char *file_path, const void *content, size_t len) {
+	int fd;
+	fd = open( file_path, O_CREAT | O_WRONLY | O_NOFOLLOW, S_IRUSR | S_IWUSR );
+	if ( fd < 0 ) {
+		log_write( LOG_ERR, "Error %d while writing data to \"%s\": %s", errno, file_path, strerror( errno ) );
+		return -1;
+	}
+
+	ssize_t ret = write( fd, content, len );
+	close ( fd );
+	return ret;
+}
 
 static inline size_t string_split(
 		char       *buffer,     ///< In/Out : Modifiable String Buffer To Tokenise

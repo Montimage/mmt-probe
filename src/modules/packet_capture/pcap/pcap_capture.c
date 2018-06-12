@@ -33,7 +33,7 @@ struct pcap_probe_context_struct{
 };
 
 
-//native: do nothing
+//naif: do nothing
 //#define hash( x ) x
 
 //Knuth's multiplicative method:
@@ -100,7 +100,7 @@ static inline uint32_t _get_packet_hash_number( const uint8_t *packet, size_t pk
 	else
 		port_dst = port_src = 0;
 
-	//native symmetric hash function
+	//naif symmetric hash function
 	uint32_t hash_number = (ip_src | ip_dst ) |  ( port_src | port_dst );
 	//try to get uniform distribution
 	hash_number = hash( hash_number );
@@ -115,10 +115,6 @@ static inline uint32_t _get_packet_hash_number( const uint8_t *packet, size_t pk
 //			hash
 //	);
 //
-////	a1 = (a1 >> 24) + (a1 >> 16) + (a1 >> 8) + a1;
-////	a2 = (a2 >> 24) + (a2 >> 16) + (a2 >> 8) + a2;
-//
-	//return (ip_src & ip_dst) ^ (ip_src | ip_dst);
 	return hash_number;
 }
 

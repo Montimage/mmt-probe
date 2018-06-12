@@ -133,6 +133,12 @@
 	#define IF_ENABLE_LICENSE_CHECK( x )
 #endif
 
+#ifdef TCP_REASSEMBLY_MODULE
+	#define IF_ENABLE_TCP_REASSEMBLY( x ) x
+#else
+	#define IF_ENABLE_TCP_REASSEMBLY( x )
+#endif
+
 #ifdef FTP_RECONSTRUCT_MODULE
 	#define IF_ENABLE_FTP_RECONSTRUCT( x ) x
 #else
@@ -165,6 +171,7 @@
 	IF_ENABLE_DPDK( ", DPDK" )                         \
 	IF_ENABLE_SIMPLE_REPORT( ", SIMPLE_REPORT" )       \
 	IF_ENABLE_DYNAMIC_CONFIG( ", DYNAMIC_CONF" )       \
+	IF_ENABLE_TCP_REASSEMBLY(", TCP_REASSEMBLY" )      \
 	IF_ENABLE_FTP_RECONSTRUCT( ", FTP_RECONSTRUCT" )   \
 	IF_ENABLE_HTTP_RECONSTRUCT( ", HTTP_RECONSTRUCT" ) \
 	IF_ENABLE_QOS( ", QOS" )                           \

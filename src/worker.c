@@ -12,6 +12,7 @@
 
 #include "modules/output/output.h"
 #include "lib/license.h"
+#include "lib/string_builder.h"
 #include "modules/dynamic_conf/dynamic_conf.h"
 
 #ifdef SECURITY_MODULE
@@ -166,6 +167,8 @@ void worker_on_stop( worker_context_t *worker_context ){
  */
 void worker_on_timer_stat_period( worker_context_t *worker_context ){
 	struct timeval now;
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	int valid;
 
 	CALL_DYNAMIC_CONF_CHECK_IF_NEED( worker_context );
 	//the first worker
@@ -175,9 +178,19 @@ void worker_on_timer_stat_period( worker_context_t *worker_context ){
 	//print a dummy message to inform that MMT-Probe is still alive
 	if( worker_context->probe_context->config->input->input_mode == ONLINE_ANALYSIS ){
 		gettimeofday( &now, NULL );
+		valid = 0;
+		//build message
+		STRING_BUILDER_WITH_SEPARATOR(valid, message, sizeof( message ), ",",
+				__INT( worker_context->stat.pkt_processed - worker_context->stat.last_pkt_processed ),
+				__INT( worker_context->stat.pkt_dropped - worker_context->stat.last_pkt_dropped ));
+
+		//update stat
+		worker_context->stat.last_pkt_processed = worker_context->stat.pkt_processed;
+		worker_context->stat.last_pkt_dropped   = worker_context->stat.pkt_dropped;
+
 		//output to all channels
 		output_write_report(worker_context->output, CONF_OUTPUT_CHANNEL_ALL, DUMMY_REPORT_TYPE,
-				&now, NULL );
+				&now, message );
 	}
 
 	dpi_callback_on_stat_period( worker_context->dpi_context );

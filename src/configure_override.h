@@ -119,10 +119,17 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__LICENSE,      "license",  &conf->license_file,  CHAR_STAR),
 #endif
 	(CONF_ATT__STATS_PERIOD, "stats-period", &conf->stat_period, UINT16_T ),
+
 	(CONF_ATT__ENABLE_PROTO_WITHOUT_SESSION_REPORT, "enable-proto-without-session-report",
 			&conf->is_enable_proto_no_session_report, BOOL),
 	(CONF_ATT__ENABLE_IP_FRAGEMENTATION_REPORT,     "enable-ip-fragmentation-report",
-			&conf->is_enable_ip_fragementation_report, BOOL ),
+			&conf->is_enable_ip_fragmentation_report, BOOL ),
+
+	(CONF_ATT__ENABLE_IP_DEFRAGEMENTATION, "enable-ip-defragmentation", &conf->is_enable_ip_defragmentation, BOOL ),
+
+#ifdef TCP_REASSEMBLY_MODULE
+	(CONF_ATT__ENABLE_TCP_REASSEMBLY,      "enable-tcp-reassembly",     &conf->is_enable_tcp_reassembly,     BOOL ),
+#endif
 
 	//dynamic configuration
 	(CONF_ATT__DYN_CONF__ENABLE,     "dynamic-config.enable",      &conf->dynamic_conf->is_enable,   BOOL),

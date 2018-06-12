@@ -28,6 +28,10 @@ typedef struct session_stat_struct session_stat_t;
 #include "pcap_dump/pcap_dump.h"
 #endif
 
+#ifdef HTTP_RECONSTRUCT_MODULE
+#include "reconstruct/http/http_reconstruct.h"
+#endif
+
 //the instances of this structure are used on global scope: during running time of MMT-Probe
 typedef struct dpi_context_struct{
 	uint16_t worker_index;
@@ -65,8 +69,12 @@ typedef struct packet_session_struct {
 	//reference to others
 	dpi_context_t *context;
 	IF_ENABLE_STAT_REPORT( session_stat_t *session_stat ; )
+	IF_ENABLE_HTTP_RECONSTRUCT( http_session_t *http_session; )
 } packet_session_t;
 
+static inline packet_session_t *dpi_get_packet_session( const ipacket_t *ipacket ){
+	return (packet_session_t *) get_user_session_context_from_packet(ipacket);
+}
 
 /**
  * This must be called by worker when it is initialize

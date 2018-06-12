@@ -37,6 +37,19 @@ MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/output/file/*.c)
 MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/dpi/*.c)
 MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/routine/*.c)
 
+#generate C-code for perfect-minimum hash using gperf
+#Create a recusive wildcard
+rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
+#List of all *.gperf files in ./src
+GPERF_FILES := $(call rwildcard,$(SRC_DIR)/,*.gperf)
+GPERF_H     := $(patsubst %.gperf,%.h, $(GPERF_FILES))
+gperf: $(GPERF_H)
+%.h: %.gperf
+	@echo "[GENERATE] $@"
+	$(QUIET) gperf $< > $@ 
+clean-gperf:
+	$(QUIET) $(RM) $(GPERF_H)
+
 #intermediate targets
 #This function will create a target naming by its first parameter, e.g., MONGODB_MODULE
 # when user call the target, it will set an environment variable naming by the second parameter
@@ -65,6 +78,8 @@ $(eval $(call EXPORT_TARGET,LICENSE_MODULE,LICENSE))
 $(eval $(call EXPORT_TARGET,SECURITY_MODULE,SECURITY))
 
 $(eval $(call EXPORT_TARGET,DYNAMIC_CONFIG_MODULE,DYNAMIC_CONFIG))
+
+$(eval $(call EXPORT_TARGET,TCP_REASSEMBLY_MODULE,TCP_REASSEMBLY))
 
 $(eval $(call EXPORT_TARGET,PCAP_DUMP_MODULE,PCAP_DUMP))
 $(eval $(call EXPORT_TARGET,HTTP_RECONSTRUCT_MODULE,HTTP_RECONSTRUCT))
@@ -132,6 +147,15 @@ MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/routine/*.c)
 #################################################
 ########### MODULES #############################
 #################################################
+
+ifdef TCP_REASSEMBLY
+$(info - Enable TCP_REASSEMBLY)
+	LIBS        += -L/opt/mmt/reassembly/lib -lmmt_reassembly -lntoh
+	CFLAGS      += -DTCP_REASSEMBLY_MODULE -I/opt/mmt/reassembly/include
+	MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/dpi/reassembly/*.c)
+else
+$(info -> Disable HTTP_RECONSTRUCT)
+endif
 
 # For HTTP reconstruction option
 ifdef HTTP_RECONSTRUCT
@@ -290,7 +314,7 @@ all: $(ALL_OBJS)
 %.o: %.c
 	@echo "[COMPILE] $(notdir $@)"
 	$(QUIET) $(CC) $(CFLAGS) $(CLDFLAGS) -c -o $@ $<
-clean:
+clean: clean-gperf
 	$(QUIET) $(RM) $(APP)
 #remove all object files
 	$(QUIET) find $(SRC_DIR)/ -name \*.o -type f -delete

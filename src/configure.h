@@ -212,8 +212,12 @@ typedef struct output_conf_struct{
  * Configuration of MMT-Probe
  */
 typedef struct probe_conf_struct{
-	bool is_enable_ip_fragementation_report;
-	bool is_enable_proto_no_session_report;
+
+	bool is_enable_ip_fragmentation_report;
+	bool is_enable_proto_no_session_report; //report informations about fragmentation
+	bool is_enable_ip_defragmentation;      //perform de-fragmentation
+	bool is_enable_tcp_reassembly;
+
 
 	uint32_t probe_id;
 
@@ -241,7 +245,6 @@ typedef struct probe_conf_struct{
 	struct reconstruct_data_struct{
 		reconstruct_data_conf_t *http;
 		reconstruct_data_conf_t *ftp;
-		reconstruct_data_conf_t *tcp;
 	}reconstructions;
 
 

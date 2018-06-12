@@ -1,0 +1,29 @@
+%{
+%}
+%ignore-case
+%language=ANSI-C
+%define lookup-function-name get_content_encoding
+%define hash-function-name   get_content_encoding_hash
+%define slot-name            ident_string
+%enum
+%includes
+%struct-type
+%readonly-tables
+%compare-strncmp
+
+struct content_encoding{
+   const char* ident_string;
+    enum{
+      CONTENT_ENCODING_GZIP,
+      CONTENT_ENCODING_COMPRESS,
+      CONTENT_ENCODING_DEFLATE,
+      CONTENT_ENCODING_IDENTITY,
+      CONTENT_ENCODING_BR
+   } ident_number;
+}
+%%
+gzip,     CONTENT_ENCODING_GZIP
+compress, CONTENT_ENCODING_COMPRESS
+deflate,  CONTENT_ENCODING_DEFLATE
+identity, CONTENT_ENCODING_IDENTITY
+br,       CONTENT_ENCODING_BR

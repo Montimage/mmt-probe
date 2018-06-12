@@ -230,6 +230,8 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_INT("stats-period", 5, CFGF_NONE),
 			CFG_BOOL("enable-proto-without-session-report", false, CFGF_NONE),
 			CFG_BOOL("enable-ip-fragmentation-report", false, CFGF_NONE),
+			CFG_BOOL("enable-ip-defragmentation", false, CFGF_NONE),
+			CFG_BOOL("enable-tcp-reassembly", false, CFGF_NONE),
 
 			CFG_INT("thread-nb", 1, CFGF_NONE),
 			CFG_INT("thread-queue", 0, CFGF_NONE),
@@ -728,8 +730,11 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 	conf->probe_id     = cfg_getint(cfg, "probe-id");
 	conf->stat_period  = cfg_getint(cfg, "stats-period");
 	conf->license_file = _cfg_get_str(cfg, "license" );
+
 	conf->is_enable_proto_no_session_report  = cfg_getbool(cfg, "enable-proto-without-session-report");
-	conf->is_enable_ip_fragementation_report = cfg_getbool(cfg, "enable-ip-fragmentation-report");
+	conf->is_enable_ip_fragmentation_report  = cfg_getbool(cfg, "enable-ip-fragmentation-report");
+	conf->is_enable_ip_defragmentation       = cfg_getbool(cfg, "enable-ip-defragmentation");
+	conf->is_enable_tcp_reassembly           = cfg_getbool(cfg, "enable-tcp-reassembly");
 
 	conf->input = _parse_input_source( cfg );
 
@@ -774,7 +779,6 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 	//
 	conf->reconstructions.ftp = _parse_reconstruct_data_block(cfg, "ftp");
 	conf->reconstructions.http = _parse_reconstruct_data_block(cfg, "http");
-	conf->reconstructions.tcp = _parse_reconstruct_data_block(cfg, "tcp");
 	cfg_free( cfg );
 
 	//validate default values
@@ -854,11 +858,6 @@ void conf_release( probe_conf_t *conf){
 		mmt_probe_free( conf->reconstructions.http );
 	}
 
-	if( conf->reconstructions.tcp ){
-		mmt_probe_free( conf->reconstructions.tcp->directory );
-		mmt_probe_free( conf->reconstructions.tcp );
-	}
-
 	mmt_probe_free( conf->thread );
 	if( conf->outputs.file ){
 		mmt_probe_free( conf->outputs.file->directory );
@@ -917,6 +916,20 @@ int conf_validate( probe_conf_t *conf ){
 		if( conf->reports.pcap_dump->frequency == 0 )
 			conf->reports.pcap_dump->frequency = 3600;
 	}
+
+#ifdef TCP_REASSEMBLY_MODULE
+	if( ! conf->is_enable_ip_defragmentation && conf->is_enable_tcp_reassembly ){
+		log_write( LOG_ERR, "enable-tcp-reassembly=true needs enable-ip-defragmentation=true");
+		ret ++;
+	}
+#endif
+
+	if( ! conf->is_enable_tcp_reassembly && (conf->reconstructions.ftp->is_enable
+			|| conf->reconstructions.http->is_enable)){
+		log_write( LOG_ERR, "Reconstruction data needs enable-tcp-reassembly=true" );
+		ret ++;
+	}
+
 
 #ifdef DPDK_MODULE
 	if( conf->input->input_mode == OFFLINE_ANALYSIS ){
