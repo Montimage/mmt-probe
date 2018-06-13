@@ -49,7 +49,9 @@ static inline packet_session_t * _create_session (const ipacket_t * ipacket, dpi
 }
 
 ////session handler========================================
-//callback when starting a new session
+/**
+ * callback when starting a new session
+ */
 static void _starting_session_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	dpi_context_t *context = (dpi_context_t *) user_args;
 	packet_session_t *session = dpi_get_packet_session(ipacket);
@@ -57,11 +59,16 @@ static void _starting_session_handler(const ipacket_t * ipacket, attribute_t * a
 	if( session == NULL )
 		session = _create_session (ipacket, context);
 }
-//callback when a session is expiring
+
+/**
+ * callback when a session is expiring
+ * It is also called for the last time when close mmt-handler
+ */
 static void _ending_session_handler(const mmt_session_t * dpi_session, void * user_args) {
 	dpi_context_t *context = (dpi_context_t *) user_args;
 	packet_session_t * session = get_user_session_context( dpi_session );
 
+	//free http stream eventually
 #ifdef HTTP_RECONSTRUCT_MODULE
 	http_reconstruct_flush_session_to_file_and_free( session->http_session );
 	session->http_session = NULL;
@@ -209,10 +216,6 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 
 //this happens before closing dpi_context->dpi_handler
 void dpi_close( dpi_context_t *dpi_context ){
-	IF_ENABLE_FTP_RECONSTRUCT(
-		ftp_reconstruct_release( dpi_context->data_reconstruct.ftp );
-	)
-
 	unregister_attribute_handler(dpi_context->dpi_handler, PROTO_IP, PROTO_SESSION, _starting_session_handler );
 	unregister_attribute_handler(dpi_context->dpi_handler, PROTO_IPV6, PROTO_SESSION, _starting_session_handler );
 
@@ -222,6 +225,10 @@ void dpi_close( dpi_context_t *dpi_context ){
 		session_report_unregister( dpi_context->dpi_handler, dpi_context->probe_config->reports.session );
 		event_based_report_unregister( dpi_context->event_reports );
 		radius_report_unregister( dpi_context->radius_report );
+	)
+
+	IF_ENABLE_HTTP_RECONSTRUCT(
+		http_reconstruct_close( dpi_context->dpi_handler, dpi_context->data_reconstruct.http );
 	)
 }
 
@@ -235,6 +242,14 @@ void dpi_release( dpi_context_t *dpi_context ){
 
 	IF_ENABLE_PCAP_DUMP(
 		pcap_dump_stop( dpi_context->pcap_dump );
+	)
+
+	IF_ENABLE_FTP_RECONSTRUCT(
+		ftp_reconstruct_release( dpi_context->data_reconstruct.ftp );
+	)
+
+	IF_ENABLE_HTTP_RECONSTRUCT(
+		http_reconstruct_release( dpi_context->data_reconstruct.http );
 	)
 
 	mmt_probe_free( dpi_context );

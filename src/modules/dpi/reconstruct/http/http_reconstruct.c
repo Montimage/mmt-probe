@@ -3,8 +3,6 @@
  *    sudo apt-get install zlib1g zlib1g-dev
  */
 
-
-
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -39,7 +37,7 @@ struct http_session_struct{
 	char *data;
 };
 
-#define MAX_MESSAGE_SIZE 100000
+#define MAX_HTTP_MESSAGE_SIZE 100000
 
 /**
  * unzip data
@@ -151,19 +149,17 @@ static void _http_uri_handle(const ipacket_t * ipacket, attribute_t * attribute,
 
 	const mmt_header_line_t *data = (mmt_header_line_t *)attribute->data;
 
-	//1. We try firstly create filename from URI
+	//1. we first use session-id
+	int session_id  = get_session_id_from_packet( ipacket );
+	valid = append_number(file_name, sizeof( file_name), session_id);
+
+	//2. then append URI eventually
 	if( data && data->len > 0 ){
-		valid = data->len;
-		if( valid > sizeof( file_name ) )
-			valid = sizeof( file_name );
-		memcpy(file_name, data->ptr, valid );
-		string_format_file_name( file_name, valid );
+		int data_len = MIN( data->len, 100); //use maximally 100 characters for URI
+		memcpy(file_name + valid, data->ptr, data_len );
+		valid += string_format_file_name( file_name + valid, data_len );
 	}
-	else{
-		//2. If no URI, we use session-id as file name
-		int session_id  = get_session_id_from_packet( ipacket );
-		valid = append_number(file_name, sizeof( file_name), session_id);
-	}
+
 	file_name[valid] = '\0'; //well NULL-terminated
 	session->file_name = mmt_memdup( file_name, valid+1 ); //+1 to copy also '\0' at the end
 }
@@ -190,6 +186,12 @@ static void _http_response_handle(const ipacket_t * ipacket, attribute_t * attri
 		return;
 
 	http_session_t *session = packet_session->http_session;
+
+	//two response consecutive in the same TCP/IP session => ignore this response
+	if( session->data != NULL ){
+		//http_reconstruct_flush_session_to_file_and_free( session );
+		return;
+	}
 
 	//initialize information for HTTP stream
 	session->content_length = content_length;
@@ -252,6 +254,7 @@ static void _http_end_message_handle(const ipacket_t * ipacket, attribute_t * at
 		//we check evenly
 	if( packet_session == NULL )
 		MY_MISTAKE("Impossible having http meanwhile no tcp session");
+	//has not been created before
 	if( packet_session->http_session == NULL )
 		return;
 
@@ -260,21 +263,23 @@ static void _http_end_message_handle(const ipacket_t * ipacket, attribute_t * at
 	http_reconstruct_flush_session_to_file_and_free( session );
 }
 
+static const conditional_handler_t handlers[] = {
+		{.proto_id = PROTO_HTTP, .att_id = RFC2822_RESPONSE,         .handler = _http_response_handle},
+		{.proto_id = PROTO_HTTP, .att_id = HTTP_DATA,                .handler = _http_data_handle},
+		{.proto_id = PROTO_HTTP, .att_id = HTTP_MESSAGE_END,         .handler = _http_end_message_handle},
+		{.proto_id = PROTO_HTTP, .att_id = RFC2822_CONTENT_LEN,      .handler = NULL},
+		{.proto_id = PROTO_HTTP, .att_id = RFC2822_CONTENT_TYPE,     .handler = NULL},
+		{.proto_id = PROTO_HTTP, .att_id = RFC2822_CONTENT_ENCODING, .handler = NULL},
+		{.proto_id = PROTO_HTTP, .att_id = RFC2822_URI,              .handler = _http_uri_handle},
+		{.proto_id = PROTO_TCP,  .att_id = PROTO_PAYLOAD,            .handler = NULL},
+		{.proto_id = PROTO_TCP,  .att_id = TCP_PAYLOAD_LEN,          .handler = NULL}
+};
+
 http_reconstruct_t *http_reconstruct_init( const reconstruct_data_conf_t *config, mmt_handler_t *dpi_handler ){
 	//	if( config->is_enable == false )
 	//		return NULL;
 	//struct to register attributes
-	static const conditional_handler_t handlers[] = {
-			{.proto_id = PROTO_HTTP, .att_id = RFC2822_RESPONSE,         .handler = _http_response_handle},
-			{.proto_id = PROTO_HTTP, .att_id = HTTP_DATA,                .handler = _http_data_handle},
-			{.proto_id = PROTO_HTTP, .att_id = HTTP_MESSAGE_END,         .handler = _http_end_message_handle},
-			{.proto_id = PROTO_HTTP, .att_id = RFC2822_CONTENT_LEN,      .handler = NULL},
-			{.proto_id = PROTO_HTTP, .att_id = RFC2822_CONTENT_TYPE,     .handler = NULL},
-			{.proto_id = PROTO_HTTP, .att_id = RFC2822_CONTENT_ENCODING, .handler = NULL},
-			{.proto_id = PROTO_HTTP, .att_id = RFC2822_URI,              .handler = _http_uri_handle},
-			{.proto_id = PROTO_TCP,  .att_id = PROTO_PAYLOAD,            .handler = NULL},
-			{.proto_id = PROTO_TCP,  .att_id = TCP_PAYLOAD_LEN,          .handler = NULL}
-	};
+
 
 	http_reconstruct_t *ret = mmt_alloc_and_init_zero( sizeof( http_reconstruct_t ));
 	ret->config = config;
@@ -283,7 +288,22 @@ http_reconstruct_t *http_reconstruct_init( const reconstruct_data_conf_t *config
 	return ret;
 }
 
+void http_reconstruct_close( mmt_handler_t *dpi_handler, http_reconstruct_t *context){
+	if( context == NULL )
+			return;
+		dpi_unregister_conditional_handler( dpi_handler,  (sizeof (handlers) / sizeof( conditional_handler_t)), handlers );
+}
 
+void http_reconstruct_release( http_reconstruct_t *context){
+	if( context == NULL )
+		return;
+	mmt_probe_free( context );
+}
+
+/**
+ * Write a HTTP stream to file and free it
+ * @param session
+ */
 void http_reconstruct_flush_session_to_file_and_free( http_session_t *session ){
 	if( session == NULL )
 		return;
@@ -298,7 +318,7 @@ void http_reconstruct_flush_session_to_file_and_free( http_session_t *session ){
 				session->current_data_length);
 	}
 
-	char buffer[ MAX_MESSAGE_SIZE ];
+	char buffer[ MAX_HTTP_MESSAGE_SIZE ];
 	char file_name[ MAX_LENGTH_FULL_PATH_FILE_NAME ];
 
 	//build file name

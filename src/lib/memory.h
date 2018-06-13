@@ -55,13 +55,17 @@ static ALWAYS_INLINE char * mmt_strdup( const char *str ) {
 }
 
 static ALWAYS_INLINE void * mmt_memdup( const void *src, size_t size ) {
+	if( size == 0 )
+		return NULL;
 	void *tmp = mmt_alloc( size );
 	memcpy( tmp, src, size );
 	return tmp;
 }
 
 static ALWAYS_INLINE char * mmt_strndup( const char *str, size_t size ) {
-	return mmt_memdup( str, size );
+	char *s = mmt_memdup( str, size +1 );
+	s[ size ] = '\0'; //well NULL-terminated
+	return s;
 }
 
 static ALWAYS_INLINE void assign_8bytes( void *dest, const void *source){

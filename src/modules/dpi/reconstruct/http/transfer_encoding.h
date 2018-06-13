@@ -1,5 +1,6 @@
+/* Generated on Wed Jun 13 15:39:44 CEST 2018 */
 /* ANSI-C code produced by gperf version 3.0.4 */
-/* Command-line: gperf src/modules/dpi/reconstruct/http/tranfer_encoding.gperf  */
+/* Command-line: gperf src/modules/dpi/reconstruct/http/transfer_encoding.gperf  */
 /* Computed positions: -k'1' */
 
 #if !((' ' == 32) && ('!' == 33) && ('"' == 34) && ('#' == 35) \
@@ -29,9 +30,9 @@
 #error "gperf generated tables don't work with this execution character set. Please report a bug to <bug-gnu-gperf@gnu.org>."
 #endif
 
-#line 1 "src/modules/dpi/reconstruct/http/tranfer_encoding.gperf"
+#line 1 "src/modules/dpi/reconstruct/http/transfer_encoding.gperf"
 
-#line 14 "src/modules/dpi/reconstruct/http/tranfer_encoding.gperf"
+#line 14 "src/modules/dpi/reconstruct/http/transfer_encoding.gperf"
 struct transfer_encoding{
    const char* ident_string;
     enum{
@@ -138,7 +139,7 @@ __inline
 __attribute__ ((__gnu_inline__))
 #endif
 #endif
-const struct tranfer_encoding *
+const struct transfer_encoding *
 get_transfer_encoding (register const char *str, register unsigned int len)
 {
   enum
@@ -150,26 +151,26 @@ get_transfer_encoding (register const char *str, register unsigned int len)
       MAX_HASH_VALUE = 13
     };
 
-  static const struct tranfer_encoding wordlist[] =
+  static const struct transfer_encoding wordlist[] =
     {
       {""}, {""}, {""}, {""},
-#line 28 "src/modules/dpi/reconstruct/http/tranfer_encoding.gperf"
+#line 28 "src/modules/dpi/reconstruct/http/transfer_encoding.gperf"
       {"gzip",       TRANSFER_ENCODING_GZIP},
       {""}, {""},
-#line 27 "src/modules/dpi/reconstruct/http/tranfer_encoding.gperf"
+#line 27 "src/modules/dpi/reconstruct/http/transfer_encoding.gperf"
       {"deflate",    TRANSFER_ENCODING_DEFLATE},
-#line 29 "src/modules/dpi/reconstruct/http/tranfer_encoding.gperf"
+#line 29 "src/modules/dpi/reconstruct/http/transfer_encoding.gperf"
       {"identity",   TRANSFER_ENCODING_IDENTITY},
       {""}, {""}, {""},
-#line 25 "src/modules/dpi/reconstruct/http/tranfer_encoding.gperf"
+#line 25 "src/modules/dpi/reconstruct/http/transfer_encoding.gperf"
       {"chunked",    TRANSFER_ENCODING_CHUNKED},
-#line 26 "src/modules/dpi/reconstruct/http/tranfer_encoding.gperf"
+#line 26 "src/modules/dpi/reconstruct/http/transfer_encoding.gperf"
       {"compress",   TRANSFER_ENCODING_COMPRESS}
     };
 
   if (len <= MAX_WORD_LENGTH && len >= MIN_WORD_LENGTH)
     {
-      register int key = get_tranfer_encoding_hash (str, len);
+      register int key = get_transfer_encoding_hash (str, len);
 
       if (key <= MAX_HASH_VALUE && key >= 0)
         {

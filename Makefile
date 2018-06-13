@@ -46,7 +46,8 @@ GPERF_H     := $(patsubst %.gperf,%.h, $(GPERF_FILES))
 gperf: $(GPERF_H)
 %.h: %.gperf
 	@echo "[GENERATE] $@"
-	$(QUIET) gperf $< > $@ 
+	@echo "/* Generated on $(shell date) */" > $@
+	$(QUIET) gperf $< >> $@ 
 clean-gperf:
 	$(QUIET) $(RM) $(GPERF_H)
 
