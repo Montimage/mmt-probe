@@ -14,6 +14,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdbool.h>
+#include <ctype.h>
 
 #include "optimization.h"
 #include "log.h"
@@ -127,5 +128,35 @@ static inline size_t string_split(
 			break;
 	}
 	return i; // Argument Count
+}
+
+/**
+ * Replace unreadable characters and slash by underscore character
+ * @param file_name
+ * @param size is size of file_name, set to zero to reach until NULL character
+ * @return length of file_name
+ */
+static inline int string_format_file_name( char *file_name, size_t size ){
+	int i;
+	if( size == 0 )
+		size = INT16_MAX;
+	for( i=0; i<size && file_name[i] != '\0'; i++ )
+		if( isalnum( file_name[i] )   )
+			continue;
+		else{
+			switch( file_name[i] ){
+			case '/':
+				file_name[i] = '-';
+				continue;
+			case '%':
+			case '+':
+			case ' ':
+			case '.':
+				continue;
+			default:
+				file_name[i] = '_';
+			}
+		}
+	return i;
 }
 #endif /* SRC_LIB_TOOLS_H_ */

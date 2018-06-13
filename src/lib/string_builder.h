@@ -16,6 +16,8 @@
 #include "macro_apply.h"
 #include "log.h"
 
+#define INET_ADDRSTRLEN 16
+
 static ALWAYS_INLINE int append_char( char *dst, size_t dst_size, char c ){
 	if( unlikely( dst_size == 0 ))
 		return 0;
@@ -105,6 +107,7 @@ static ALWAYS_INLINE int append_mac( char *dst, size_t dst_size, const uint8_t *
 	dst[ offset ++ ] = '"';
 	return offset;
 }
+
 /**
  * Convert number to string
  * @param string
@@ -205,6 +208,27 @@ static inline int append_number( char *dst, size_t dst_size, uint64_t val ){
 	return size;
 }
 
+/**
+ * Convert IPv4 from 32bit number to human readable string
+ * @param ip
+ * @param dst must point to a memory segment having at least INET_ADDRSTRLEN bytes
+ * @return length of buf
+ * @return
+ */
+static ALWAYS_INLINE int append_ipv4( char *dst, size_t dst_size, uint32_t ip  ){
+	if( dst_size < INET_ADDRSTRLEN )
+		return 0;
+	const uint8_t *p = (const uint8_t *) &ip;
+	int valid = 0;
+	valid += append_number(dst+valid, dst_size-valid, p[0]);
+	dst[valid++] = '.';
+	valid += append_number(dst+valid, dst_size-valid, p[1]);
+	dst[valid++] = '.';
+	valid += append_number(dst+valid, dst_size-valid, p[2]);
+	dst[valid++] = '.';
+	valid += append_number(dst+valid, dst_size-valid, p[3]);
+	return valid;
+}
 
 /**
  * Append a struct timeval to string using format tv_sec.tv_usec
@@ -260,6 +284,7 @@ static ALWAYS_INLINE int append_timeval( char *dst, size_t dst_size, const struc
 #define __TIME(x)  append_timeval(               ptr+i, n-i, x )
 #define __HEX(x)   append_hex(                   ptr+i, n-i, x )
 #define __MAC(x)   append_mac(                   ptr+i, n-i, x )
+#define __IPv4(x)  append_ipv4(                  ptr+i, n-i, x )
 
 #define __BUILDER( X ) i += X;
 #define __EMPTY()

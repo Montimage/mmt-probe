@@ -91,7 +91,7 @@ static void _ending_session_handler(const mmt_session_t * dpi_session, void * us
 /// <=== end of session handler============================
 
 /// packet handler=========================================
-//callback when a packet is coming
+//this callback is called each time when a packet is coming
 static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 	dpi_context_t *context = (dpi_context_t *)user_args;
 
@@ -122,20 +122,22 @@ static int _tcp_reassembly_handler(const ipacket_t * ipacket, void * user_args) 
 }
 /// <=== end of packet handler=============================
 
-
+//This callback is called periodically when `dpi_callback_on_stat_period` is called.
+//It is called for each session.
 static void _period_session_report (const mmt_session_t * dpi_session, void *user_args){
 	dpi_context_t    *context = (dpi_context_t *) user_args;
 	packet_session_t *session = (packet_session_t *) get_user_session_context( dpi_session );
 
 	IF_ENABLE_STAT_REPORT(
-		bool is_micro = false;
 		//if session report is enable?
 		if( session->session_stat ){
+			//by default, this session is not considered as a micro session
+			bool is_micro = false;
 			//need to check if a flow is micro ???
 			if( context->micro_reports )
 				is_micro = is_micro_flow( context->micro_reports, dpi_session);
 
-			//do report if the flow is not micro
+			//do report if the session is not a micro one
 			if( !is_micro )
 				session_report_do_report( dpi_session, session->session_stat, context );
 		}
@@ -251,7 +253,7 @@ void dpi_callback_on_stat_period( dpi_context_t *dpi_context){
 		no_session_report( dpi_context->no_session_report );
 	)
 
-	//push SDK to perform session callback
+	//push DPI to perform session callback: DPI will call `_period_session_report` for each session its has
 	if( dpi_context->probe_config->reports.session->is_enable )
 		process_session_timer_handler( dpi_context->dpi_handler );
 }

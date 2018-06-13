@@ -8,7 +8,7 @@
 #ifndef SRC_LIB_LIMIT_H_
 #define SRC_LIB_LIMIT_H_
 //maximal length of an absolute path
-#define MAX_LENGTH_FULL_PATH_FILE_NAME  256
+#define MAX_LENGTH_FULL_PATH_FILE_NAME  255
 #define MAX_LENGTH_REPORT_MESSAGE      3000
 
 //TODO: remove this block

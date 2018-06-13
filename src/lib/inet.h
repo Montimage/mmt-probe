@@ -15,6 +15,8 @@
 #include <errno.h>
 #include <stdint.h>
 
+#include "string_builder.h"
+
 #define INET_ADDRSTRLEN 16
 
 /**
@@ -23,6 +25,10 @@
  * @param buf must point to a memory segment having at least INET_ADDRSTRLEN bytes
  * @return length of buf
  */
-int inet_ntop4( uint32_t addr, char *buf );
+static ALWAYS_INLINE int inet_ntop4( uint32_t addr, char *buf ){
+	int ret = append_ipv4(buf, INET_ADDRSTRLEN, addr );
+	buf[ret] = '\0'; //well NULL-terminated
+	return ret;
+}
 
 #endif /* SRC_LIB_INET_H_ */
