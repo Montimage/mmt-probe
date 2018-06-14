@@ -924,11 +924,19 @@ int conf_validate( probe_conf_t *conf ){
 	}
 #endif
 
-	if( ! conf->is_enable_tcp_reassembly && (conf->reconstructions.ftp->is_enable
-			|| conf->reconstructions.http->is_enable)){
-		log_write( LOG_ERR, "Reconstruction data needs enable-tcp-reassembly=true" );
+#ifdef FTP_RECONSTRUCT_MODULE
+	if( ! conf->is_enable_tcp_reassembly && conf->reconstructions.ftp->is_enable){
+		log_write( LOG_ERR, "FTP data reconstruction needs enable-tcp-reassembly=true" );
 		ret ++;
 	}
+#endif
+
+#ifdef HTTP_RECONSTRUCT_MODULE
+	if( ! conf->is_enable_tcp_reassembly && conf->reconstructions.http->is_enable){
+		log_write( LOG_ERR, "HTTP data reconstruction needs enable-tcp-reassembly=true" );
+		ret ++;
+	}
+#endif
 
 
 #ifdef DPDK_MODULE

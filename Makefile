@@ -149,18 +149,11 @@ MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/routine/*.c)
 ########### MODULES #############################
 #################################################
 
-ifdef TCP_REASSEMBLY
-$(info - Enable TCP_REASSEMBLY)
-	LIBS        += -L/opt/mmt/reassembly/lib -lmmt_reassembly -lntoh
-	CFLAGS      += -DTCP_REASSEMBLY_MODULE -I/opt/mmt/reassembly/include
-	MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/dpi/reassembly/*.c)
-else
-$(info -> Disable HTTP_RECONSTRUCT)
-endif
 
 # For HTTP reconstruction option
 ifdef HTTP_RECONSTRUCT
 $(info - Enable HTTP_RECONSTRUCT)
+TCP_REASSEMBLY=1
 	LIBS        += -lz
 	CFLAGS      += -DHTTP_RECONSTRUCT_MODULE
 	MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/dpi/reconstruct/http/*.c)
@@ -170,11 +163,22 @@ endif
 
 ifdef FTP_RECONSTRUCT
 $(info - Enable FTP_RECONSTRUCT)
+TCP_REASSEMBLY=1
 	CFLAGS      += -DFTP_RECONSTRUCT_MODULE
 	MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/dpi/reconstruct/ftp/*.c)
 else
 $(info -> Disable FTP_RECONSTRUCT)
 endif
+
+ifdef TCP_REASSEMBLY
+$(info - Enable TCP_REASSEMBLY)
+	LIBS        += -L/opt/mmt/reassembly/lib -lmmt_reassembly -lntoh
+	CFLAGS      += -DTCP_REASSEMBLY_MODULE -I/opt/mmt/reassembly/include
+	MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/dpi/reassembly/*.c)
+else
+$(info -> Disable HTTP_RECONSTRUCT)
+endif
+
 
 ifdef KAFKA
 $(info - Enable KAFKA)
@@ -315,7 +319,7 @@ all: $(ALL_OBJS)
 %.o: %.c
 	@echo "[COMPILE] $(notdir $@)"
 	$(QUIET) $(CC) $(CFLAGS) $(CLDFLAGS) -c -o $@ $<
-clean: clean-gperf
+clean:
 	$(QUIET) $(RM) $(APP)
 #remove all object files
 	$(QUIET) find $(SRC_DIR)/ -name \*.o -type f -delete

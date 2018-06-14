@@ -122,11 +122,13 @@ static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 	return 0;
 }
 
+#ifdef TCP_REASSEMBLY_MODULE
 //callback when a tcp segment is re-constructed
 static int _tcp_reassembly_handler(const ipacket_t * ipacket, void * user_args) {
 	//DEBUG("got tcp segment %"PRIu64, ipacket->packet_id );
 	return 0;
 }
+#endif
 /// <=== end of packet handler=============================
 
 //This callback is called periodically when `dpi_callback_on_stat_period` is called.
