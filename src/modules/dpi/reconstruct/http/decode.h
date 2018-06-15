@@ -5,8 +5,8 @@
  *          by: Huu Nghia Nguyen
  */
 
-#ifndef SRC_MODULES_DPI_RECONSTRUCT_HTTP_DECHUNKED_H_
-#define SRC_MODULES_DPI_RECONSTRUCT_HTTP_DECHUNKED_H_
+#ifndef SRC_MODULES_DPI_RECONSTRUCT_HTTP_DECODE_H_
+#define SRC_MODULES_DPI_RECONSTRUCT_HTTP_DECODE_H_
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -22,4 +22,7 @@
  */
 uint32_t chunk_decode( char *buffer, const char *chunks, uint32_t chunk_size );
 
-#endif /* SRC_MODULES_DPI_RECONSTRUCT_HTTP_DECHUNKED_H_ */
+
+uint32_t zip_decode( const char *output_file_name, const char  *input_file_name );
+
+#endif /* SRC_MODULES_DPI_RECONSTRUCT_HTTP_DECODE_H_ */

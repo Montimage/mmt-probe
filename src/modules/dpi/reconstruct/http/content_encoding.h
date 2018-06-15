@@ -1,4 +1,4 @@
-/* Generated on Wed Jun 13 15:39:44 CEST 2018 */
+/* Generated on Fri Jun 15 15:07:56 CEST 2018 */
 /* ANSI-C code produced by gperf version 3.0.4 */
 /* Command-line: gperf src/modules/dpi/reconstruct/http/content_encoding.gperf  */
 /* Computed positions: -k'1' */

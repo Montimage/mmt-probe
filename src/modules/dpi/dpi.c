@@ -190,7 +190,7 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 		ABORT( "Cannot register handler for processing packet" );
 
 	IF_ENABLE_TCP_REASSEMBLY(
-		tcp_reassembly_alloc_init(config->is_enable_tcp_reassembly, dpi_handler, _tcp_reassembly_handler);
+		ret->tcp_reassembly = tcp_reassembly_alloc_init(config->is_enable_tcp_reassembly, dpi_handler, _tcp_reassembly_handler);
 	)
 
 	//callback when starting a new IP session
@@ -232,11 +232,13 @@ void dpi_close( dpi_context_t *dpi_context ){
 	IF_ENABLE_HTTP_RECONSTRUCT(
 		http_reconstruct_close( dpi_context->dpi_handler, dpi_context->data_reconstruct.http );
 	)
+
+	IF_ENABLE_TCP_REASSEMBLY( tcp_reassembly_close( dpi_context->tcp_reassembly ); )
 }
 
 //this happens after closing dpi_context->dpi_handler
 void dpi_release( dpi_context_t *dpi_context ){
-	IF_ENABLE_TCP_REASSEMBLY( tcp_reassembly_release(); )
+
 	IF_ENABLE_STAT_REPORT(
 		no_session_report_release(dpi_context->no_session_report );
 		micro_flow_report_release( dpi_context->micro_reports );

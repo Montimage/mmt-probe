@@ -32,6 +32,10 @@ typedef struct session_stat_struct session_stat_t;
 #include "reconstruct/http/http_reconstruct.h"
 #endif
 
+#ifdef TCP_REASSEMBLY_MODULE
+#include "reassembly/tcp_reassembly.h"
+#endif
+
 //the instances of this structure are used on global scope: during running time of MMT-Probe
 typedef struct dpi_context_struct{
 	uint16_t worker_index;
@@ -56,6 +60,8 @@ typedef struct dpi_context_struct{
 		IF_ENABLE_FTP_RECONSTRUCT( ftp_reconstruct_context_t *ftp; )
 		IF_ENABLE_HTTP_RECONSTRUCT( http_reconstruct_t *http; )
 	}data_reconstruct;
+
+	IF_ENABLE_TCP_REASSEMBLY( tcp_reassembly_t *tcp_reassembly; )
 
 	//number of stat_period, e.g., 5s,
 	// => this number will increase 1 for each 5 seconds

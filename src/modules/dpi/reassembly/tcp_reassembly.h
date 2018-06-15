@@ -12,13 +12,10 @@
 #include <mmt_core.h>
 #include <mmt_reassembly.h>
 
-static inline void tcp_reassembly_alloc_init( bool is_enable, mmt_handler_t *dpi_handler, int (*cb)(const ipacket_t *ipacket, void *user_args) ){
-	if( is_enable )
-		init_reassembly( dpi_handler, cb );
-}
+typedef struct tcp_reassembly_struct tcp_reassembly_t;
 
-static inline void tcp_reassembly_release(){
-	close_reassembly();
-}
+tcp_reassembly_t* tcp_reassembly_alloc_init( bool is_enable, mmt_handler_t *dpi_handler, int (*cb)(const ipacket_t *ipacket, void *user_args) );
+
+void tcp_reassembly_close(tcp_reassembly_t*);
 
 #endif /* SRC_MODULES_DPI_REASSEMBLY_TCP_REASSEMBLY_H_ */

@@ -286,7 +286,7 @@ static ALWAYS_INLINE int append_timeval( char *dst, size_t dst_size, const struc
 #define __MAC(x)   append_mac(                   ptr+i, n-i, x )
 #define __IPv4(x)  append_ipv4(                  ptr+i, n-i, x )
 
-#define __BUILDER( X ) i += X;
+#define __BUILDER( X ) if( n > i ) i += X;
 #define __EMPTY()
 #define __SEPARATOR()  i += append_string_without_quote( ptr+i, n-i, sepa );
 
@@ -305,7 +305,7 @@ static ALWAYS_INLINE int append_timeval( char *dst, size_t dst_size, const struc
  */
 #define STRING_BUILDER( valid, dst, dst_size, ... )      \
 do{                                                      \
-	int i = valid, n=dst_size;                           \
+	int i = valid, n=dst_size-1;                         \
 	char *ptr = dst;                                     \
 	APPLY( __EMPTY, __BUILDER, __VA_ARGS__ )             \
 	ptr[i] = '\0';                                       \
@@ -318,7 +318,7 @@ do{                                                      \
  */
 #define STRING_BUILDER_WITH_SEPARATOR( valid, dst, dst_size, separator,... ) \
 do{                                                                          \
-	int i = valid, n=dst_size;                                               \
+	int i = valid, n=dst_size-1;                                             \
 	char *ptr = dst;                                                         \
 	const char *sepa = separator;                                            \
 	APPLY( __SEPARATOR, __BUILDER, __VA_ARGS__  )                            \
