@@ -33,6 +33,7 @@ struct http_session_struct{
 	char *file_name;
 	const struct content_encoding *content_encoding;
 	const struct transfer_encoding *transfer_encoding;
+
 	//we use tcp_port_source to determine packet direction
 	// since we save only payload of packets from server to client, not from client to server
 	uint16_t tcp_port_source;
@@ -175,7 +176,6 @@ static inline FILE *_create_file( http_session_t *session, const char *file_exte
 //We use HTTP.URI for filename of reconstructed files
 static void _http_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	http_reconstruct_t *context = (http_reconstruct_t *)user_args;
-	const mmt_header_line_t *data = (mmt_header_line_t *)attribute->data;
 
 	packet_session_t *packet_session = dpi_get_packet_session( ipacket );
 	//we check evenly
@@ -192,21 +192,31 @@ static void _http_method_handle(const ipacket_t * ipacket, attribute_t * attribu
 	packet_session->http_session = session;
 
 	session->context   = context;
-
 	int valid = 0;
 	char file_name[ MAX_LENGTH_FULL_PATH_FILE_NAME ];
 
 	//get request URI
-	data = (mmt_header_line_t *)get_attribute_extracted_data(ipacket, PROTO_HTTP, RFC2822_URI );
+	const mmt_header_line_t *uri  = (mmt_header_line_t *)get_attribute_extracted_data(ipacket, PROTO_HTTP, RFC2822_URI );
+	const mmt_header_line_t *host = (mmt_header_line_t *)get_attribute_extracted_data(ipacket, PROTO_HTTP, RFC2822_HOST );
 
 	//1. we first use session-id
 	int session_id  = get_session_id_from_packet( ipacket );
 	valid = append_number(file_name, sizeof( file_name), session_id);
 
-	//2. then append URI eventually
-	if( data && data->len > 0 ){
-		int data_len = MIN( data->len, 100); //use maximally 100 characters for URI
-		memcpy(file_name + valid, data->ptr, data_len );
+	//2. then append HOST eventually
+	if( uri && uri->len > 0 ){
+		file_name[valid++] = '-';
+		int data_len = MIN( host->len, 50 ); //use maximally 5 characters for HOST
+		memcpy(file_name + valid, host->ptr, data_len );
+
+		valid += string_format_file_name( file_name + valid, data_len );
+	}
+
+	//3. then append URI eventually
+	if( uri && uri->len > 0 ){
+		file_name[valid++] = '-';
+		int data_len = MIN( uri->len, 100); //use maximally 100 characters for URI
+		memcpy(file_name + valid, uri->ptr, data_len );
 		valid += string_format_file_name( file_name + valid, data_len );
 	}
 
@@ -235,8 +245,14 @@ static void _http_response_handle(const ipacket_t * ipacket, attribute_t * attri
 	http_session_t *session = packet_session->http_session;
 
 	//two response consecutive in the same TCP/IP session => ignore this response
+	//this can also happen when _http_data_handle is called before this function call
 	if( session->file != NULL )
 		return;
+
+	//Request Method did not occurs
+	if( session->file_name == NULL )
+		//call this function manually to assign session-id to session->file_name
+		_http_method_handle( ipacket, NULL, user_args );
 
 	//content is empty
 	//initialize information for HTTP stream
@@ -304,23 +320,24 @@ static void _http_response_handle(const ipacket_t * ipacket, attribute_t * attri
 
 //3.x This callback is called for every HTTP body data chunk
 static void _http_data_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-	const mmt_header_line_t *data = (mmt_header_line_t *)attribute->data;
+	const mmt_header_line_t *data;
 
 	packet_session_t *packet_session = dpi_get_packet_session( ipacket );
 	//we check evenly
 	if( packet_session == NULL )
 		MY_MISTAKE("Impossible having http meanwhile no tcp session");
 	http_session_t *session = packet_session->http_session;
-	if( session == NULL //this data chunk arrives before URI
-			|| session->content_length == 0 //this data chunk arrives before RESPONSE
-			|| session->file == NULL
+	if( session == NULL  //this data chunk arrives before URI
+			|| session->file == NULL //this data chunk arrives before RESPONSE
 			)
 		return;
+
 	uint16_t *src_port = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_TCP,  TCP_SRC_PORT );
 	//ensure that the packet is the from server to client
 	if( unlikely( src_port == NULL || session->tcp_port_source != *src_port))
 		return;
 
+	data = (mmt_header_line_t *)attribute->data;
 	_append_data( session,  data->ptr, data->len);
 }
 
@@ -333,25 +350,29 @@ static void _http_end_message_handle(const ipacket_t * ipacket, attribute_t * at
 		//we check evenly
 	if( packet_session == NULL )
 		MY_MISTAKE("Impossible having http meanwhile no tcp session");
+	http_session_t *session = packet_session->http_session;
 	//has not been created before
-	if( packet_session->http_session == NULL )
+	if( session == NULL
+		|| session->file == NULL //this can happen when this function is called before _http_response_handle
+	)
 		return;
 
-	http_session_t *session = packet_session->http_session;
+
 	packet_session->http_session = NULL;
 	http_reconstruct_flush_session_to_file_and_free( session );
 }
 
 static const conditional_handler_t handlers[] = {
+		{.proto_id = PROTO_HTTP, .att_id = RFC2822_METHOD,           .handler = _http_method_handle},
 		{.proto_id = PROTO_HTTP, .att_id = RFC2822_RESPONSE,         .handler = _http_response_handle},
 		{.proto_id = PROTO_HTTP, .att_id = HTTP_DATA,                .handler = _http_data_handle},
 		{.proto_id = PROTO_HTTP, .att_id = HTTP_MESSAGE_END,         .handler = _http_end_message_handle},
+		{.proto_id = PROTO_HTTP, .att_id = RFC2822_HOST,             .handler = NULL},
 		{.proto_id = PROTO_HTTP, .att_id = RFC2822_CONTENT_LEN,      .handler = NULL},
 		{.proto_id = PROTO_HTTP, .att_id = RFC2822_CONTENT_TYPE,     .handler = NULL},
 		{.proto_id = PROTO_HTTP, .att_id = RFC2822_CONTENT_ENCODING, .handler = NULL},
 		{.proto_id = PROTO_HTTP, .att_id = RFC2822_TRANSFER_ENCODING,.handler = NULL},
 		{.proto_id = PROTO_HTTP, .att_id = RFC2822_URI,              .handler = NULL},
-		{.proto_id = PROTO_HTTP, .att_id = RFC2822_METHOD,           .handler = _http_method_handle},
 		{.proto_id = PROTO_TCP,  .att_id = PROTO_PAYLOAD,            .handler = NULL},
 		{.proto_id = PROTO_TCP,  .att_id = TCP_PAYLOAD_LEN,          .handler = NULL},
 		{.proto_id = PROTO_TCP,  .att_id = TCP_SRC_PORT,             .handler = NULL}

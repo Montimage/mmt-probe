@@ -78,6 +78,11 @@ typedef struct packet_session_struct {
 	IF_ENABLE_HTTP_RECONSTRUCT( http_session_t *http_session; )
 } packet_session_t;
 
+/**
+ * Get packet_session that was attached on each tcp session
+ * @param ipacket
+ * @return
+ */
 static inline packet_session_t *dpi_get_packet_session( const ipacket_t *ipacket ){
 	return (packet_session_t *) get_user_session_context_from_packet(ipacket);
 }
@@ -95,10 +100,14 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *, mmt_handler_t *, output_t *
 void dpi_callback_on_stat_period( dpi_context_t * );
 
 /**
- * This mest be called by worker when it is released
+ * This must be called by worker when it is released
  */
 void dpi_release( dpi_context_t *dpi );
 
+/**
+ * This function must be called before calling dpi_release to unregister protocols and their attributes with MMT_DPI
+ * @param dpi_context
+ */
 void dpi_close( dpi_context_t *dpi_context );
 
 #endif /* SRC_MODULES_DPI_FLOW_STAT_H_ */
