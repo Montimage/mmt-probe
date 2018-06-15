@@ -37,6 +37,7 @@ static inline bool _read_cpu_info( unsigned long *cpu_user, unsigned long *cpu_s
 			&user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal, &guest, &guest_nice) != 10){
 
 		log_write( LOG_ERR, "Error in fscanf the cpu stat");
+		fclose( fp );
 		return false;
 	}
 	fclose(fp);
@@ -60,6 +61,7 @@ static inline bool _read_mem_info( unsigned long *mem_avail, unsigned long *mem_
 	if (fp == NULL
 			|| fscanf(fp, "%*s %lu %*s %*s %lu %*s %*s %lu %*s", mem_total, &mem_free, mem_avail) != 3){
 		log_write( LOG_ERR, "Error in fscanf the mem info");
+		fclose( fp );
 		return false;
 	}
 	fclose( fp );
@@ -106,8 +108,9 @@ static void * _stats_routine(void * args){
 		timer_1 ++;
 		timer_2 ++;
 
-		//using usleep to wake up when having a signal
-		usleep( MICRO_PER_SEC ); //sleep 1 second
+		//using nanosleep to wake up when having a signal
+		//sleep 1 second
+		nanosleep( (const struct timespec[]){{ .tv_sec = 1, .tv_nsec = 0}}, NULL );
 
 		//do statistics
 		if( timer_1 == 5 ){// context->config->frequency ){

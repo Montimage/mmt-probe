@@ -99,7 +99,7 @@ void _close_pcap_file( FILE *file ) {
 int pcap_dump_callback_on_receiving_packet(const ipacket_t * ipacket, pcap_dump_context_t *context) {
 	char file_name[MAX_LENGTH_FULL_PATH_FILE_NAME ];
 
-	uint64_t last_proto = ipacket->proto_hierarchy->proto_path[ipacket->proto_hierarchy->len-1];
+	//uint64_t last_proto = ipacket->proto_hierarchy->proto_path[ipacket->proto_hierarchy->len-1];
 	int i, j;
 
 	//for each protocol need to be dump

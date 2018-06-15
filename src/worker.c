@@ -112,8 +112,6 @@ void worker_on_start( worker_context_t *worker_context ){
 	worker_context->dpi_context = dpi_alloc_init( worker_context->probe_context->config,
 			worker_context->dpi_handler, worker_context->output, worker_context->index );
 
-	uint32_t *cores_id = (uint32_t []){0,1};
-
 	IF_ENABLE_SECURITY(
 			worker_context->security = security_worker_alloc_init(
 				worker_context->probe_context->config->reports.security,

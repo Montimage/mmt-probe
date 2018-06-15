@@ -76,7 +76,7 @@ static inline int _get_host_mac_address( unsigned char *mac_addresses ){
  */
 static inline int _decode_license_file( const char* license_file_name, license_content_t *li  ){
 	int len = 0, i;
-	char ch;
+	int ch;
 	char license_decrypt_key[1000];
 	char string[10];
 	int mac_len;
@@ -97,8 +97,10 @@ static inline int _decode_license_file( const char* license_file_name, license_c
 	license_decrypt_key [len] = '\0';
 
 	//license file is not conform
-	if( len < 11 )
+	if( len < 11 ){
+		fclose( file );
 		return 2;
+	}
 
 	//decode content structure
 	strncpy(string, &license_decrypt_key[0], 4);
@@ -118,8 +120,10 @@ static inline int _decode_license_file( const char* license_file_name, license_c
 	li->mac_count = atoi( string );
 
 	mac_len = li->mac_count * 12;
-	if( len-11 < mac_len )
+	if( len-11 < mac_len ){
+		fclose( file );
 		return MMT_LICENSE_MODIFIED;
+	}
 
 	//copy mac addresses and calculate its total value
 	sum_license = 0;
@@ -132,9 +136,11 @@ static inline int _decode_license_file( const char* license_file_name, license_c
 
 	//last check the integrity of license file
 	val = atol( &license_decrypt_key[ 11 + mac_len ] );
-	if( val != sum_license )
+	if( val != sum_license ){
+		fclose( file );
 		return MMT_LICENSE_MODIFIED;
-
+	}
+	fclose( file );
 	return 0;
 }
 
@@ -253,6 +259,7 @@ bool license_check_expiry( const char *license_file, output_t *output ){
 	//cannot get any mac address of the current machine
 	if( nb_of_mac_to_verify == 0 ){
 		log_write( LOG_WARNING, "Cannot read MAC of the machine");
+		free( mac_address );
 		return false;
 	}
 

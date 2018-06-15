@@ -155,7 +155,7 @@ mmt_bus_code_t mmt_bus_publish( const char*message, size_t message_size, uint16_
 		//unblock
 		pthread_mutex_unlock( &bus->mutex );
 
-		usleep( 10000 );
+		nanosleep( (const struct timespec[]){{ .tv_sec = 0, .tv_nsec = 10000L}}, NULL );
 	}
 
 	_end:

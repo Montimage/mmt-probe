@@ -175,7 +175,7 @@ security_context_t* security_worker_alloc_init( const security_conf_t *config,
 		rule_info_t const* const* rules_array = NULL;
 		//remove the last comma
 		att_registed[ strlen( att_registed ) - 1 ] = '\0';
-		log_write( LOG_INFO,"Registered %d proto.atts to process %zu rules: %s",
+		log_write( LOG_INFO,"Registered %u proto.atts to process %zu rules: %s",
 				ret->proto_atts_count,
 				mmt_sec_get_rules_info( &rules_array ),
 				att_registed );

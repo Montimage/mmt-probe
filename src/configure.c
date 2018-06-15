@@ -561,8 +561,7 @@ static inline uint16_t _parse_attributes_helper( cfg_t *cfg, const char* name, d
 	if( size == 0 )
 		return size;
 
-	dpi_protocol_attribute_t *ret = NULL;
-	ret = mmt_alloc( sizeof( dpi_protocol_attribute_t ) * size );
+	dpi_protocol_attribute_t *ret = mmt_alloc( sizeof( dpi_protocol_attribute_t ) * size );
 	for( i=0; i<size; i++ )
 		_parse_dpi_protocol_attribute( &ret[i], cfg_getnstr( cfg, name, i ) );
 
