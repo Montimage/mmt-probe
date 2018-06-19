@@ -3,6 +3,7 @@
  *
  *  Created on: Dec 19, 2017
  *          by: Huu Nghia
+ *  Collection of functions for registering or unregistering for MMT-DPI some attributes to extract
  */
 
 #ifndef SRC_MODULES_DPI_DPI_TOOL_H_

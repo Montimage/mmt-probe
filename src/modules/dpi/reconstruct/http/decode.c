@@ -53,20 +53,20 @@ uint32_t chunk_decode( char *buffer, const char *data, uint32_t data_len ){
 			chunk_size = data_len - j;
 
 		//copy real data to buffer
-		for( i=0; i<chunk_size; i++ ){
+		for( i=0; i<chunk_size; i++ )
 			buffer[ index ++ ] = data[ j++ ];
-		}
 
+		//data does not contain a complete chunk
 		//no CRLF?
 		if( j+2 > data_len )
-			goto _chunk_not_end;
+			goto _chunk_not_finish;
 
 		if( ! _is_new_line( data+j ))
-			goto _chunk_not_end;
+			goto _chunk_not_finish;
 		j += 2; //jump over CRLF
 	}
 
-	_chunk_not_end:
+	_chunk_not_finish:
 	return index;
 
 	//Chunk is not well-formatted

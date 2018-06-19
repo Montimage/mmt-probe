@@ -18,6 +18,14 @@
 
 #define INET_ADDRSTRLEN 16
 
+/**
+ * Append a  character to a string
+ * @param dst
+ * @param dst_size
+ * @param c
+ * @return
+ * @note this function does not append '\0' to the final result
+ */
 static ALWAYS_INLINE int append_char( char *dst, size_t dst_size, char c ){
 	if( unlikely( dst_size == 0 ))
 		return 0;
@@ -25,6 +33,14 @@ static ALWAYS_INLINE int append_char( char *dst, size_t dst_size, char c ){
 	return 1;
 }
 
+/**
+ * Append an array of characters to a string
+ * @param dst
+ * @param dst_size
+ * @param src
+ * @return
+ * @note this function may not append '\0' to the final result
+ */
 static ALWAYS_INLINE int append_string_without_quote( char *dst, size_t dst_size, const char *src ){
 	if( unlikely( dst_size == 0 ))
 		return 0;
@@ -40,6 +56,14 @@ static ALWAYS_INLINE int append_string_without_quote( char *dst, size_t dst_size
 	return src_size;
 }
 
+/**
+ * Append a string src to another string. The final result will contain the string src surrounded by quotes
+ * @param dst
+ * @param dst_size
+ * @param src
+ * @return
+ * @note this function may not append '\0' to the final result
+ */
 static ALWAYS_INLINE int append_string( char *dst, size_t dst_size, const char *src ){
 	if( unlikely( dst_size < 2 ))
 		return 0;
@@ -65,11 +89,12 @@ static ALWAYS_INLINE int append_string( char *dst, size_t dst_size, const char *
 }
 
 /**
- * Append a hexa number
+ * Append a hex number to a string. The hex number must be less than 0xFF
  * @param dst
  * @param dst_size
  * @param val
  * @return
+ * @note this function does not append '\0' to the final result
  */
 static ALWAYS_INLINE int append_hex( char *dst, size_t dst_size, uint8_t val ){
 	//wee need at least 2 characters: XY
@@ -81,6 +106,14 @@ static ALWAYS_INLINE int append_hex( char *dst, size_t dst_size, uint8_t val ){
 	return 2;
 }
 
+/**
+ * Append a MAC address to a string. The result MAC address will be surrounded by quotes
+ * @param dst
+ * @param dst_size
+ * @param t
+ * @return
+ * @note this function does not append '\0' to the final result
+ */
 static ALWAYS_INLINE int append_mac( char *dst, size_t dst_size, const uint8_t *t ){
 	//wee need at least 2+6*2+5 characters: "11:22:33:44:55:66"
 	if( unlikely( dst_size < 19 ))

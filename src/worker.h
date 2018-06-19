@@ -53,13 +53,15 @@ struct worker_context_struct{
 	output_t *output;
 
 	dpi_context_t *dpi_context;
-;;
-	//input
+
+	//input capturing, either PCAP or DPDK capture is used but not both of them
+	//This checking is done in main.c when compiling
 	IF_ENABLE_PCAP(
 			struct pcap_worker_context_struct *pcap );
 
 	IF_ENABLE_DPDK(
 			struct dpdk_worker_context_struct *dpdk );
+
 
 	IF_ENABLE_SECURITY(
 			struct security_context_struct *security );
@@ -69,6 +71,14 @@ struct worker_context_struct{
 	pid_t    pid;
 };
 
+/**
+ * Main processing of a worker.
+ * This function simply transfers packets to MMT-DPI to classify.
+ * Once the packet being classified, MMT-DPI will trigger our callbacks to do reports, reconstruction, ...
+ * @param worker_context
+ * @param pkt_header
+ * @param pkt_data
+ */
 static inline void worker_process_a_packet( worker_context_t *worker_context, struct pkthdr *pkt_header, const u_char *pkt_data ){
 	//printf("%d %5d %5d\n", worker_context->index, header->caplen, header->len );
 	//fflush( stdout );
@@ -107,6 +117,10 @@ void worker_on_timer_stat_period( worker_context_t *worker_context );
 void worker_on_timer_sample_file_period( worker_context_t *worker_context );
 
 
+/**
+ * Print common statistics for both DPDK and pcap captures, such as, number of packets being captured,
+ * @param context
+ */
 void worker_print_common_statistics( const probe_context_t *context );
 
 #endif /* SRC_LIB_WORKER_H_ */

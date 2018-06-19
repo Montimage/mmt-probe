@@ -3,7 +3,22 @@
  *
  *  Created on: Dec 20, 2016
  *      Author: montimage
+ *
+ * We use:
+ * - 1 thread for Reader to read packets from NIC and put them into a queue Q
+ * - 1 thread for Distributer to read packets from queue Q and distribute them to corresponding queue of each Worker
+ * - n thread for Worker to read packets form its queue, process packets, and output statistic information
+ *
+ *     ________       _____________     ==> [ Worker ]
+ *    |        |     |             |   ||=> [ Worker ]
+ * ==>| Reader | ==> | Distributer | =====> [ Worker ]
+ *    |________|     |_____________|   ||=> [ Worker ]
+ *                                      ..............
  */
+
+#ifndef DPDK_MODULE
+#define DPDK_MODULE
+#endif
 
 #include <semaphore.h>
 
@@ -173,9 +188,10 @@ static int _worker_thread( void *arg ){
 				pkt_header.ts.tv_sec  = t->tv_sec;
 				pkt_header.ts.tv_usec = t->tv_usec;
 
-				//packet data
+				//get packet data
 				pkt_data = (bufs[i]->buf_addr + bufs[i]->data_off);
 
+				//process packet
 				worker_process_a_packet( worker_context, &pkt_header, pkt_data );
 
 				//do a small processing
@@ -199,7 +215,7 @@ static int _worker_thread( void *arg ){
 		//if we need to sample output file
 		if( config->outputs.file->is_sampled && now >=  next_output_ts ){
 			next_output_ts += config->outputs.cache_period;
-			//call worker
+			//call worker to flush statistic information to output channels (file, mongo, ..)
 			worker_on_timer_sample_file_period( worker_context );
 		}
 	}
@@ -240,11 +256,16 @@ static int _distributor_thread( void *arg ){
 		}
 	}
 
+	//send a NULL packet to all workers to tell them to exit
 	distributor_send_pkt_to_all_workers( distributor, NULL );
 
 	return 0;
 }
 
+/**
+ * This is Reader thread.
+ * It receives packets from NIC then forward them to Distributer
+ */
 static int _reader_thread( void *arg ){
 	int i;
 	uint16_t nb_rx;
@@ -296,13 +317,13 @@ static int _reader_thread( void *arg ){
 				//for each received packet,
 				// we remember the moment the packet is received
 				for (i = 0; i < nb_rx; i++){
-					//cumulate total data this reader received
-					total_bytes += bufs[i]->data_len;
-
 					struct timeval64 *t = ( struct timeval64 * )& bufs[i]->udata64;
 					t->tv_sec = now.tv_sec;
 					//suppose that each packet arrives after one microsecond
 					t->tv_usec = now.tv_usec + i;
+
+					//cumulate total data this reader received
+					total_bytes += bufs[i]->data_len;
 				}
 
 				uint32_t sent = rte_ring_sp_enqueue_burst(ring, (void*)bufs, nb_rx, NULL);
@@ -552,6 +573,7 @@ void dpdk_capture_start ( probe_context_t *context){
 	//statistic of DPDK
 	_print_dpdk_stats( input_port );
 
+	distributor_release( param->distributor );
 	_dpdk_capture_release( context );
 	fflush( stdout );
 }

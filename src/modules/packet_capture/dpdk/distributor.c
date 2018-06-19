@@ -41,6 +41,21 @@ distributor_t *distributor_create( unsigned int socket_id, uint16_t nb_workers, 
 	return d;
 }
 
+void distributor_release( distributor_t *dis ){
+	if( dis == NULL )
+		return;
+	int i;
+
+	rte_free( dis->packets );
+	rte_free( dis->unprocessed_packets );
+
+	for( i=0; i<dis->nb_workers; i++ ){
+		rte_free( dis->worker_buffers[i] );
+		rte_ring_free( dis->worker_rings[i] );
+	}
+	rte_free( dis );
+}
+
 static inline bool _is_full( const struct worker_buffer *buf ){
 	return (buf->nb_packets == DIST_BURST_SIZE);
 }
@@ -54,9 +69,10 @@ static inline void _process_packets( distributor_t *d ){
 
 	//for each packet
 	for( i=0; i<d->nb_packets; i++ ){
-		target_worker_id = d->packets[i]->hash.usr % d->nb_workers;
+		//get ID of a worker that will process this packet
+		target_worker_id = d->packets[i]->hash.usr;
 
-		//assign to a worker
+		//get buffer of the worker
 		buffer = d->worker_buffers[ target_worker_id ];
 
 		//the worker is busy ???
@@ -87,10 +103,15 @@ static inline void _process_packets( distributor_t *d ){
 void distributor_process_packets( distributor_t *d, struct rte_mbuf **bufs, uint16_t count ){
 	int i=0;
 	while( i<count ){
-		//copy bufs' pointers to data;
+
+		//put bufs' pointers to data;
 		for( ; i<count && d->nb_packets < DIST_BURST_SIZE; i++ ){
+			//get ID of a worker that will process this packet
+			bufs[i]->hash.usr %= d->nb_workers;
+
 			d->packets[ d->nb_packets++ ] = bufs[i];
 		}
+
 		_process_packets( d );
 	}
 }

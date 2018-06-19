@@ -256,6 +256,11 @@ typedef struct probe_conf_struct{
 }probe_conf_t;
 
 
+/**
+ * Load configuration from a file
+ * @param filename
+ * @return
+ */
 probe_conf_t* conf_load_from_file( const char* filename );
 
 /**
@@ -271,8 +276,21 @@ void conf_release( probe_conf_t * );
  */
 output_channel_conf_t conf_parse_output_channel( const char *string );
 
+/**
+ * Split a string into an array of string segments with separator is comma
+ * @param string
+ * @param proto_lst is a pointer to a the result array that will be created by the function.
+ * @return number of segments in proto_lst
+ * @note: user needs to free the segments in proto_lst and also proto_lst after using them
+ */
 size_t conf_parse_list( const char *string, char ***proto_lst );
 
+/**
+ * Validate a configuration to avoid any conflict among its parameters, such as,
+ * if you enable http reconstruction, then tcp reassembly must be enabled also.
+ * @param conf
+ * @return
+ */
 int conf_validate( probe_conf_t *conf );
 
 #endif /* SRC_LIB_CONFIGURE_H_ */

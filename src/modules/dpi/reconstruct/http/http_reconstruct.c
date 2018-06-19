@@ -7,6 +7,10 @@
  * - Transfer-Encoding: chunked
  */
 
+#ifndef HTTP_RECONSTRUCT_MODULE
+#define HTTP_RECONSTRUCT_MODULE
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <time.h>

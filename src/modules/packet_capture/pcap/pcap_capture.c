@@ -5,7 +5,9 @@
  *          by: Huu Nghia
  */
 
-
+#ifndef PCAP_MODULE
+#define PCAP_MODULE
+#endif
 
 #include <pthread.h>
 #include <pcap.h>

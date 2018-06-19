@@ -21,7 +21,7 @@
 
 
 /**
- * Open system log file
+ * Open system log file. This function must be called before any calls of log_write
  */
 static inline void log_open(){
 	openlog( "mmt-probe", LOG_NDELAY | LOG_CONS | LOG_PERROR, LOG_USER);
@@ -43,24 +43,24 @@ static inline void log_close(){
 	closelog();
 }
 
-
+/**
+ * Abort the current execution.
+ */
 #define ABORT( format, ... )                                                \
 	do{                                                                     \
 		log_write( LOG_ERR, format,## __VA_ARGS__ );                        \
 		abort();                                                            \
 	}while( 0 )
 
+/**
+ * Ensure that exp is true, otherwise, we will abort the current execution
+ */
 #define ASSERT( exp, format, ... )                                          \
 	while( !(exp) ){                                                        \
 		log_write( LOG_ERR, "%s:%d"format,__FILE__, __LINE__,## __VA_ARGS__ );\
 		abort();                                                            \
 	}
 
-#define RESTART( format, ... )                                              \
-	do{                                                                     \
-		log_write( LOG_ERR, format,## __VA_ARGS__ );                        \
-		raise( SIGRES );                                                    \
-	}while( 0 )
 
 /**
  *  Obtain a back-trace
@@ -79,6 +79,10 @@ static inline void log_execution_trace () {
 	free (strings);
 }
 
+/**
+ * This macro can be used to detect error causing by inconsistency of using library functions.
+ * For example, the calling of function A requires the calling of B before, but programmer does not do.
+ */
 #define MY_MISTAKE( format, ... )                                           \
 	do{                                                                     \
 		log_write( LOG_ERR, format,## __VA_ARGS__ );                        \

@@ -25,7 +25,7 @@
 
 struct worker_buffer{
 	struct rte_mbuf *packets[ DIST_BURST_SIZE ];
-	uint32_t nb_packets;
+	uint16_t nb_packets;
 };
 
 typedef struct distributor{
@@ -35,7 +35,7 @@ typedef struct distributor{
 
 	struct rte_mbuf **packets;
 	struct rte_mbuf **unprocessed_packets;
-	uint32_t nb_packets;
+	uint16_t nb_packets;
 
 
 	uint16_t nb_workers;
@@ -51,6 +51,7 @@ static inline void dpdk_pause( uint16_t cycles ){
 }
 
 distributor_t *distributor_create( unsigned int socket_id, uint16_t nb_workers, unsigned worker_buffer_size );
+void distributor_release( distributor_t *dis );
 
 void distributor_process_packets( distributor_t *d, struct rte_mbuf **bufs, uint16_t count );
 
