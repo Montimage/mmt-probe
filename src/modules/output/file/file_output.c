@@ -21,7 +21,7 @@
 
 #include "../../../lib/limit.h"
 #include "../../../lib/memory.h"
-#include "../../../lib/memory.h"
+#include "../../../lib/string_builder.h"
 
 struct file_output_struct{
 	uint16_t id;
@@ -32,6 +32,9 @@ struct file_output_struct{
 };
 
 #define SEMAPHORE_EXT ".sem"
+//number of characters in a literal string (-1 to exclude '\0' character at the end)
+#define STR_LITERAL_LEN( x ) (sizeof( x ) - 1)
+
 static int _load_filter( const struct dirent *entry ){
 	char *ext = strstr( entry->d_name, SEMAPHORE_EXT );
 	if( ext == NULL ) return 0;
@@ -46,7 +49,7 @@ static int _load_filter( const struct dirent *entry ){
 static inline int _remove_old_sampled_files(const char *folder, size_t retains){
 	struct dirent **entries, *entry;
 	char file_name[ MAX_LENGTH_FULL_PATH_FILE_NAME ];
-	int i, n, ret, to_remove, len;
+	int i, n, ret, to_remove, len, offset;
 
 	n = scandir( folder, &entries, _load_filter, alphasort );
 	if( n < 0 ) {
@@ -58,28 +61,44 @@ static inline int _remove_old_sampled_files(const char *folder, size_t retains){
 	//printf("total file %d, retains: %zu, to remove %d\n", n, retains, to_remove );
 	if( to_remove < 0 ) to_remove = 0;
 
+	//preserve folder in file_name
+	offset = strlen( folder );
+	memcpy( file_name, folder, offset );
+	//ensure folder is end by /
+	if( file_name[ offset - 1 ] != '/' )
+		file_name[ offset - 1 ] = '/';
+
+	//list of semaphore file
 	for( i = 0 ; i < to_remove ; ++i ) {
 		entry = entries[i];
 
-		//semaphore file
-		snprintf( file_name, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%s", folder, entry->d_name );
+		len = strlen( entry->d_name );
 
-		//semaphore is not here => its .csv file is not ready to be processed
-		//if( access( file_name, F_OK ) == -1 )
-		//    continue;
+		//not enough room to contain file name
+		if( len + offset >= sizeof( file_name ) ){
+			log_write( LOG_WARNING, "Filename is too big: %s%s", file_name, entry->d_name );
+			continue;
+		}
+
+		//semaphore file
+		memcpy(file_name + offset, entry->d_name, len + 1 ); //+1 to copy also '\0' character
 
 		//delete semaphore
 		ret = unlink( file_name );
 		if( ret )
 			log_write( LOG_ERR, "Cannot delete semaphore of old sampled file '%s': %s", file_name, strerror( errno ));
 
-		//delete csv files
-		len = snprintf( file_name, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%s", folder, entry->d_name );
-		file_name[ len - 4 ] = '\0'; //cut .sem
+		//get csv file name by excluding .sem
+		file_name[ offset + len - STR_LITERAL_LEN( SEMAPHORE_EXT ) ] = '\0'; //cut .sem
 
+		//csv file is not here, why???
+		//if( access( file_name, F_OK ) == -1 )
+		//    continue;
+
+		//delete csv files
 		ret = unlink( file_name );
 		if( ret )
-			log_write( LOG_ERR, "Cannot delete old sampled files: %s", strerror( errno ));
+			log_write( LOG_ERR, "Cannot delete old sampled files %s: %s", file_name, strerror( errno ));
 	}
 
 	for( i = 0; i < n; i++ )
@@ -91,34 +110,32 @@ static inline int _remove_old_sampled_files(const char *folder, size_t retains){
 
 static inline void _create_new_file( file_output_t *output ){
 	char filename[ MAX_LENGTH_FULL_PATH_FILE_NAME ];
-
+	int valid = 0;
 	//create output file
 	gettimeofday( &output->created_time_of_file, NULL );
 
-	snprintf( filename, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%lu-%06zu_%02d_%s",
-			output->config->directory,
-			output->created_time_of_file.tv_sec,
-			output->created_time_of_file.tv_usec,
-			output->id,
-			output->config->filename );
+	STRING_BUILDER( valid, filename, MAX_LENGTH_FULL_PATH_FILE_NAME,
+			//"%s/%lu-%06zu_%02d_%s",
+			__ARR( output->config->directory ),
+			__TIME( &output->created_time_of_file ),
+			__CHAR( '_' ),
+			__INT( output->id ),
+			__CHAR( '_' ),
+			__ARR( output->config->filename )
+	);
 	output->file = fopen( filename,"w");
 
 	if( output->file == NULL )
 		log_write( LOG_ERR, "Cannot create data file %s: %s", filename, strerror( errno ) );
 
-	//log_debug("Create file output %s", filename );
-
 	//use the first one to limit number of output files
 	if( output->id == 0 && output->config->retained_files_count > 0 )
 		_remove_old_sampled_files( output->config->directory, output->config->retained_files_count  );
-
 }
 
 file_output_t* file_output_alloc_init( const file_output_conf_t *config, uint16_t id ){
 	if( config->is_enable == false )
 		return NULL;
-
-
 
 	file_output_t *ret = mmt_alloc( sizeof( file_output_t) );
 	ret->file          = NULL;
@@ -132,15 +149,19 @@ file_output_t* file_output_alloc_init( const file_output_conf_t *config, uint16_
 
 static inline void _create_semaphore_file( const file_output_t *output ){
 	char filename[ MAX_LENGTH_FULL_PATH_FILE_NAME ];
+	int valid = 0;
 
 	//create semaphore
-	snprintf( filename, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s/%lu-%06zu_%02d_%s%s",
-			output->config->directory,
-			output->created_time_of_file.tv_sec,
-			output->created_time_of_file.tv_usec,
-			output->id,
-			output->config->filename,
-			SEMAPHORE_EXT);
+	STRING_BUILDER( valid, filename, MAX_LENGTH_FULL_PATH_FILE_NAME,
+				//"%s/%lu-%06zu_%02d_%s",
+				__ARR( output->config->directory ),
+				__TIME( &output->created_time_of_file ),
+				__CHAR( '_' ),
+				__INT( output->id ),
+				__CHAR( '_' ),
+				__ARR( output->config->filename ),
+				__ARR( SEMAPHORE_EXT )
+		);
 
 	FILE *file = fopen( filename,"w");
 	if( file == NULL )
@@ -185,8 +206,6 @@ int file_output_write( file_output_t *output, const char *message ){
 	EXPECT( output != NULL && output->file != NULL && message != NULL, 0 );
 
 	int ret = fprintf( output->file, "%s\n", message );
-	//int ret = fwrite( message, strlen( message ), 1, output->file );
-	//printf( "%s\n", message );
 	return ret;
 }
 

@@ -79,17 +79,26 @@ output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct
 
 static inline int _write( output_t *output, output_channel_conf_t channels, const char *message ){
 	int ret = 0;
+	char new_msg[ MAX_LENGTH_REPORT_MESSAGE ];
 
-	//put message inside an array: [message]
-	if( output->config->format == OUTPUT_FORMAT_JSON  ){
-		char new_msg[ MAX_LENGTH_REPORT_MESSAGE ];
+	//we surround message inside [] to convert it to JSON
+	//this is done when output format is JSON or when we need to output to MongoDB
+	if( output->config->format == OUTPUT_FORMAT_JSON
+#ifdef MONGODB_MODULE
+			|| (output->modules.mongodb && IS_ENABLE_OUTPUT_TO( MONGODB, channels ) )
+#endif
+			){
+
 		//surround message by [ and ]
 		new_msg[0] = '[';
 		size_t len = strlen( message );
 		memcpy( new_msg + 1, message, len );
 		new_msg[ len+1 ] = ']';
 		new_msg[ len+2 ] = '\0';
-		message = new_msg;
+
+		//use new_msg when output format is JSON
+		if( output->config->format == OUTPUT_FORMAT_JSON )
+			message = new_msg;
 	}
 
 	//output to file
@@ -114,20 +123,8 @@ static inline int _write( output_t *output, output_channel_conf_t channels, cons
 
 #ifdef MONGODB_MODULE
 	if( output->modules.mongodb && IS_ENABLE_OUTPUT_TO( MONGODB, channels )){
-
-		//convert to JSON format
-		if( output->config->format != OUTPUT_FORMAT_JSON  ){
-			char new_msg[ MAX_LENGTH_REPORT_MESSAGE ];
-			//surround message by [ and ]
-			new_msg[0] = '[';
-			size_t len = strlen( message );
-			memcpy( new_msg + 1, message, len );
-			new_msg[ len+1 ] = ']';
-			new_msg[ len+2 ] = '\0';
-			message = new_msg;
-		}
-
-		mongodb_output_write( output->modules.mongodb, message );
+		//here we output new_msg (not message)
+		mongodb_output_write( output->modules.mongodb, new_msg );
 		ret ++;
 	}
 #endif
