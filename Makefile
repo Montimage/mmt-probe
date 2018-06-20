@@ -256,7 +256,13 @@ endif
 ifndef DISABLE_REPORT
 $(info - Enable REPORT)
 	CFLAGS      += -DSTAT_REPORT
-	MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/dpi/report/*.c)
+	
+	#simple report uses only session_report.c. It does not take into account FTP, HTTP, RTP, micro session, radius
+	ifdef SIMPLE_REPORT
+		MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/dpi/report/session_report.c)
+	else
+		MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/dpi/report/*.c)
+	endif
 else
 $(info -> Disable REPORT)
 endif

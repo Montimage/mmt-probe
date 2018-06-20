@@ -77,12 +77,13 @@ static void _ending_session_handler(const mmt_session_t * dpi_session, void * us
 #ifdef STAT_REPORT
 		//a session statistic is processed as either micro-flow or normal-flow
 		bool is_micro = false;
+#ifndef SIMPLE_REPORT
 		if( context->micro_reports ){
 			is_micro = is_micro_flow( context->micro_reports, dpi_session);
 			if( is_micro )
 				micro_flow_report__update( context->micro_reports, dpi_session);
 		}
-
+#endif
 		if( context->probe_config->reports.session->is_enable ){
 			//do statistic only if the session is not micro one
 			if( ! is_micro  )
@@ -175,14 +176,14 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 		ret->pcap_dump = pcap_dump_start( worker_index, config->reports.pcap_dump, dpi_handler )
 	);
 
-	IF_ENABLE_STAT_REPORT(
+	IF_ENABLE_STAT_REPORT_FULL(
 		ret->micro_reports = micro_flow_report_alloc_init(config->reports.microflow, output);
 		ret->event_reports = event_based_report_register(dpi_handler, config->reports.events, config->reports.events_size, output);
 		ret->no_session_report = no_session_report_alloc_init(dpi_handler, output, config->is_enable_ip_fragmentation_report, config->is_enable_proto_no_session_report );
-
-		session_report_register( dpi_handler, config->reports.session );
-
 		ret->radius_report = radius_report_register(dpi_handler, config->reports.radius, output);
+	)
+	IF_ENABLE_STAT_REPORT(
+		session_report_register( dpi_handler, config->reports.session );
 	)
 
 	//This callback is fired before the packets have been reordered and reassembled by mmt_reassembly
@@ -223,7 +224,7 @@ void dpi_close( dpi_context_t *dpi_context ){
 
 	unregister_packet_handler(dpi_context->dpi_handler, DPI_PACKET_HANDLER_ID );
 
-	IF_ENABLE_STAT_REPORT(
+	IF_ENABLE_STAT_REPORT_FULL(
 		session_report_unregister( dpi_context->dpi_handler, dpi_context->probe_config->reports.session );
 		event_based_report_unregister( dpi_context->event_reports );
 		radius_report_unregister( dpi_context->radius_report );
@@ -239,7 +240,7 @@ void dpi_close( dpi_context_t *dpi_context ){
 //this happens after closing dpi_context->dpi_handler
 void dpi_release( dpi_context_t *dpi_context ){
 
-	IF_ENABLE_STAT_REPORT(
+	IF_ENABLE_STAT_REPORT_FULL(
 		no_session_report_release(dpi_context->no_session_report );
 		micro_flow_report_release( dpi_context->micro_reports );
 	)
@@ -267,7 +268,7 @@ void dpi_release( dpi_context_t *dpi_context ){
 void dpi_callback_on_stat_period( dpi_context_t *dpi_context){
 	dpi_context->stat_periods_index ++;
 
-	IF_ENABLE_STAT_REPORT(
+	IF_ENABLE_STAT_REPORT_FULL(
 		//do report for no-session protocols
 		no_session_report( dpi_context->no_session_report );
 	)
