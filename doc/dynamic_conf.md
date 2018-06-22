@@ -1,4 +1,19 @@
-Dynamic configuration is automatically disabled when starting MMT-Probe in offline mode.
+This document is applicable when MMT-Probe is built with option `DYNAMIC_CONFIG_MODULE`.
+
+Dynamic configuration is enable or disable by `dynamic-config.enable` option when running in online mode.
+It is automatically disabled when starting MMT-Probe in offline mode.
+
+
+# Architecture
+
+MMT-Probe creates 2 children processes:
+
+- `processing process`: this this main processing of MMT-Probe
+- `control process`: it receives control commands via an UNIX domain socket, check them, then broadcast them to the other processes. The location of the UNIX domain socket is defined by `dynamic-config.descriptor` parameter.
+
+There are totally 3 processes: 2 children + dispatcher (main).
+
+The dispatch monitors their children, and re-create a child if it has crashed. It receives also a command from the `control process` to start or stop the `processing process`.
 
 #Commands
 
