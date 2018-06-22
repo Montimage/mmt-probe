@@ -271,6 +271,22 @@ static inline char * _cfg_get_str( cfg_t *cfg, const char *header ){
 	return mmt_strdup( str );
 }
 
+static inline char * _cfg_get_dir( cfg_t *cfg, const char *header ){
+	const char *str = cfg_getstr( cfg, header );
+	if (str == NULL)
+		return NULL;
+	size_t len = strlen( str );
+	//ensure that a directory path is always end by '/'
+	char *dir = mmt_alloc( len + 1 + 1 ); //+1 for '\0'; +1 for eventually '/'
+	memcpy( dir, str, len + 1 ); //+1 for '\0'
+
+	if( dir[ len - 1 ] != '/' ){
+		dir[ len ]    = '/';  //append '/' if it is not there
+		dir[ len + 1] = '\0'; //ensure NULL-terminated
+	}
+	return dir;
+}
+
 static inline cfg_t* _get_first_cfg_block( cfg_t *cfg, const char* block_name ){
 	if( ! cfg_size( cfg, block_name) )
 		return NULL;
@@ -340,7 +356,7 @@ static inline file_output_conf_t *_parse_output_to_file( cfg_t *cfg ){
 	file_output_conf_t *ret = mmt_alloc( sizeof( file_output_conf_t ));
 
 	ret->is_enable  = cfg_getbool( c, "enable" );
-	ret->directory  = _cfg_get_str(c, "output-dir");
+	ret->directory  = _cfg_get_dir(c, "output-dir");
 	ret->filename   = _cfg_get_str(c, "output-file");
 	ret->is_sampled    = cfg_getbool(c, "sample-file");
 	ret->retained_files_count = cfg_getint( c, "retain-files" );
@@ -356,7 +372,7 @@ static inline pcap_dump_conf_t *_parse_dump_to_file( cfg_t *cfg ){
 	pcap_dump_conf_t *ret = mmt_alloc( sizeof( pcap_dump_conf_t ));
 
 	ret->is_enable  = cfg_getbool( cfg, "enable" );
-	ret->directory  = _cfg_get_str(cfg, "output-dir");
+	ret->directory  = _cfg_get_dir(cfg, "output-dir");
 	ret->frequency  = cfg_getint( cfg, "period");
 	ret->retained_files_count = cfg_getint( cfg, "retain-files" );
 	ret->snap_len = cfg_getint( cfg, "snap-len" );
@@ -444,7 +460,7 @@ static inline behaviour_conf_t *_parse_behaviour_block( cfg_t *cfg ){
 
 	behaviour_conf_t *ret = mmt_alloc( sizeof( behaviour_conf_t ));
 	ret->is_enable = cfg_getbool( cfg, "enable" );
-	ret->directory = _cfg_get_str(cfg, "output-dir");
+	ret->directory = _cfg_get_dir(cfg, "output-dir");
 	return ret;
 }
 
@@ -690,7 +706,7 @@ static inline reconstruct_data_conf_t *_parse_reconstruct_data_block( cfg_t *cfg
 
 		reconstruct_data_conf_t *ret = mmt_alloc( sizeof( reconstruct_data_conf_t ));
 		ret->is_enable = cfg_getbool( c, "enable" );
-		ret->directory = _cfg_get_str(c, "output-dir" );
+		ret->directory = _cfg_get_dir(c, "output-dir" );
 		ret->output_channels = _parse_output_channel( c );
 		return ret;
 	}
@@ -897,7 +913,6 @@ void conf_release( probe_conf_t *conf){
 	mmt_probe_free( conf->license_file );
 	mmt_probe_free( conf );
 }
-
 
 int conf_validate( probe_conf_t *conf ){
 	int ret = 0;
