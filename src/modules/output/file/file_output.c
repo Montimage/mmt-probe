@@ -64,9 +64,10 @@ static inline int _remove_old_sampled_files(const char *folder, size_t retains){
 	//preserve folder in file_name
 	offset = strlen( folder );
 	memcpy( file_name, folder, offset );
+
 	//ensure folder is end by /
 	if( file_name[ offset - 1 ] != '/' )
-		file_name[ offset - 1 ] = '/';
+		file_name[ offset ++ ] = '/';
 
 	//list of semaphore file
 	for( i = 0 ; i < to_remove ; ++i ) {
