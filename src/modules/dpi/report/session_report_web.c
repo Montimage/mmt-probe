@@ -242,10 +242,6 @@ int print_web_report(char *message, size_t message_size, const mmt_session_t * d
 	else if (get_session_content_flags( dpi_session ) & MMT_CONTENT_CDN)
 		cdn_flag = 2;
 
-	//a comma separator between basic report part and web report part
-	*message = ',';
-	message ++;
-
 	int valid = 0;
 	STRING_BUILDER_WITH_SEPARATOR( valid, message, message_size, ",",
 #ifdef QOS_MODULE

@@ -187,6 +187,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_BOOL("rtp", false, CFGF_NONE),
 			CFG_BOOL("http", false, CFGF_NONE),
 			CFG_BOOL("ssl", false, CFGF_NONE),
+			CFG_BOOL("gtp", false, CFGF_NONE),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
 	};
@@ -651,6 +652,7 @@ static inline session_report_conf_t *_parse_session_block( cfg_t *cfg ){
 	ret->is_rtp    = cfg_getbool( cfg, "rtp" );
 	ret->is_http   = cfg_getbool( cfg, "http" );
 	ret->is_ssl    = cfg_getbool( cfg, "ssl" );
+	ret->is_gtp    = cfg_getbool( cfg, "gtp" );
 	ret->output_channels = _parse_output_channel( cfg );
 	return ret;
 }
@@ -931,23 +933,34 @@ int conf_validate( probe_conf_t *conf ){
 			conf->reports.pcap_dump->frequency = 3600;
 	}
 
+	if( conf->reports.session->is_enable ){
+		if( conf->reports.session->is_gtp
+			&& (conf->reports.session->is_http
+			 || conf->reports.session->is_ssl
+			 || conf->reports.session->is_ftp
+			 || conf->reports.session->is_rtp )){
+			log_write( LOG_ERR, "session-report.is_gtp=true needs to disable other options: is_http, is_ftp, is_rtp, is_ssl are false");
+			ret ++;
+		}
+	}
+
 #ifdef TCP_REASSEMBLY_MODULE
 	if( ! conf->is_enable_ip_defragmentation && conf->is_enable_tcp_reassembly ){
-		log_write( LOG_ERR, "enable-tcp-reassembly=true needs enable-ip-defragmentation=true");
+		log_write( LOG_ERR, "enable-tcp-reassembly=true needs to enable-ip-defragmentation=true");
 		ret ++;
 	}
 #endif
 
 #ifdef FTP_RECONSTRUCT_MODULE
 	if( ! conf->is_enable_tcp_reassembly && conf->reconstructions.ftp->is_enable){
-		log_write( LOG_ERR, "FTP data reconstruction needs enable-tcp-reassembly=true" );
+		log_write( LOG_ERR, "FTP data reconstruction needs to enable enable-tcp-reassembly=true" );
 		ret ++;
 	}
 #endif
 
 #ifdef HTTP_RECONSTRUCT_MODULE
 	if( ! conf->is_enable_tcp_reassembly && conf->reconstructions.http->is_enable){
-		log_write( LOG_ERR, "HTTP data reconstruction needs enable-tcp-reassembly=true" );
+		log_write( LOG_ERR, "HTTP data reconstruction needs to enable-tcp-reassembly=true" );
 		ret ++;
 	}
 #endif

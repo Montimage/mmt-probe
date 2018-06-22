@@ -186,6 +186,7 @@ typedef struct session_report_conf_struct{
 	bool is_http;
 	bool is_ssl;
 	bool is_rtp;
+	bool is_gtp;
 }session_report_conf_t;
 
 typedef struct radius_report_conf_struct{

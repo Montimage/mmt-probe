@@ -66,18 +66,8 @@ int print_ssl_report(char *message, size_t message_size, const mmt_session_t * d
 	if( unlikely( ssl == NULL || session_stat->app_type != SESSION_STAT_TYPE_APP_SSL ))
 		return 0;
 
-    //case 1://missing dev_prop, cdn_flag
-	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy( dpi_session );
-
-//    size_t ret = snprintf( message, message_size,
-//            ",\"%s\",%u",
-//            ssl->hostname,
-//			(get_session_content_flags(dpi_session) & MMT_CONTENT_CDN) ? 2 : 0
-//    );
-
     int  ret = 0;
     STRING_BUILDER( ret, message, message_size,
-    		__CHAR(','),
 			__STR(ssl->hostname),
 			__CHAR(','),
 			__INT((get_session_content_flags(dpi_session) & MMT_CONTENT_CDN) ? 2 : 0));

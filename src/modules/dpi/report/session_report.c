@@ -14,7 +14,9 @@
 //functions implemented by session_report_xxx.c
 int print_web_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);
 int print_ssl_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);
+int print_ftp_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);
 int print_rtp_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);
+int print_gtp_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);
 
 
 #ifndef SIMPLE_REPORT
@@ -122,27 +124,37 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 		__INT(    session_stat->content_class)
 	);
 
-	//get_application_class_by_protocol_id( session->proto_id )
-	//append stats of application beyond IP
-	switch( session_stat->app_type ){
-	case SESSION_STAT_TYPE_APP_IP:
-		break;
-	case SESSION_STAT_TYPE_APP_WEB:
-		valid += print_web_report( &message[ valid ], MAX_LENGTH_REPORT_MESSAGE - valid,
-				dpi_session, session_stat, context );
-		break;
-	case SESSION_REPORT_SSL_TYPE:
-		valid += print_ssl_report( &message[ valid ], MAX_LENGTH_REPORT_MESSAGE - valid,
-						dpi_session, session_stat, context );
-		break;
-	case SESSION_REPORT_FTP_TYPE:
-		break;
-	case SESSION_REPORT_RTP_TYPE:
-		valid += print_rtp_report( &message[ valid ], MAX_LENGTH_REPORT_MESSAGE - valid,
-						dpi_session, session_stat, context );
-		break;
-	default:
-		DEBUG("Does not support stat_type = %d", session_stat->app_type );
+	if( session_stat->app_type ){
+		message[ valid ++ ] = ','; //a comma separator between basic report part and ftp report part
+
+		//get_application_class_by_protocol_id( session->proto_id )
+		//append stats of application beyond IP
+		switch( session_stat->app_type ){
+		case SESSION_STAT_TYPE_APP_IP:
+			break;
+		case SESSION_STAT_TYPE_APP_WEB:
+			valid += print_web_report( &message[ valid ], MAX_LENGTH_REPORT_MESSAGE - valid,
+					dpi_session, session_stat, context );
+			break;
+		case SESSION_STAT_TYPE_APP_SSL:
+			valid += print_ssl_report( &message[ valid ], MAX_LENGTH_REPORT_MESSAGE - valid,
+					dpi_session, session_stat, context );
+			break;
+		case SESSION_STAT_TYPE_APP_FTP:
+			valid += print_ftp_report( &message[ valid ], MAX_LENGTH_REPORT_MESSAGE - valid,
+					dpi_session, session_stat, context );
+			break;
+		case SESSION_STAT_TYPE_APP_RTP:
+			valid += print_rtp_report( &message[ valid ], MAX_LENGTH_REPORT_MESSAGE - valid,
+					dpi_session, session_stat, context );
+			break;
+		case SESSION_STAT_TYPE_APP_GTP:
+			valid += print_gtp_report( &message[ valid ], MAX_LENGTH_REPORT_MESSAGE - valid,
+					dpi_session, session_stat, context );
+			break;
+		default:
+			DEBUG("Does not support stat_type = %d", session_stat->app_type );
+		}
 	}
 
 	struct timeval timestamp = get_session_last_activity_time( dpi_session );
@@ -281,7 +293,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 //}
 
 
-session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * ipacket ){
+session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * ipacket, dpi_context_t *context ){
 	mmt_session_t * dpi_session = ipacket->session;
 	if(dpi_session == NULL) return NULL;
 
@@ -446,6 +458,7 @@ static inline void
 size_t get_session_web_handlers_to_register( const conditional_handler_t ** );
 size_t get_session_ssl_handlers_to_register( const conditional_handler_t ** );
 size_t get_session_rtp_handlers_to_register( const conditional_handler_t ** );
+size_t get_session_gtp_handlers_to_register( const conditional_handler_t ** );
 
 bool session_report_register( mmt_handler_t *dpi_handler, session_report_conf_t *config ){
 	if( ! config->is_enable )
@@ -473,6 +486,10 @@ bool session_report_register( mmt_handler_t *dpi_handler, session_report_conf_t 
 
 	if( config->is_rtp ){
 		size = get_session_rtp_handlers_to_register( &handlers );
+		dpi_register_conditional_handler( dpi_handler, size, handlers, NULL );
+	}
+	if( config->is_gtp ){
+		size = get_session_gtp_handlers_to_register( &handlers );
 		dpi_register_conditional_handler( dpi_handler, size, handlers, NULL );
 	}
 #endif
@@ -503,6 +520,10 @@ bool session_report_unregister( mmt_handler_t *dpi_handler, session_report_conf_
 	}
 	if( config->is_rtp ){
 		size = get_session_rtp_handlers_to_register( &handlers );
+		dpi_unregister_conditional_handler( dpi_handler, size, handlers );
+	}
+	if( config->is_gtp ){
+		size = get_session_gtp_handlers_to_register( &handlers );
 		dpi_unregister_conditional_handler( dpi_handler, size, handlers );
 	}
 #endif

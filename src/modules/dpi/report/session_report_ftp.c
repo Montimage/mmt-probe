@@ -232,10 +232,6 @@ int print_ftp_report(char *message, size_t message_size, const mmt_session_t * d
 	if( unlikely( ftp == NULL || session_stat->app_type != SESSION_STAT_TYPE_APP_FTP ))
 		return 0;
 
-	//a comma separator between basic report part and ftp report part
-	*message = ',';
-	message ++;
-
 	int valid = 0;
 	STRING_BUILDER_WITH_SEPARATOR( valid, message, message_size, ",",
 			__INT( ftp->session_conn_type ),

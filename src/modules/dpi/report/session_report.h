@@ -6,8 +6,12 @@
  */
 
 #ifndef SRC_MODULES_DPI_HEADER_H_
-
 #define SRC_MODULES_DPI_HEADER_H_
+
+
+#ifndef STAT_REPORT
+#define STAT_REPORT
+#endif
 
 #include "../dpi.h"
 #include "../dpi_tool.h"
@@ -30,7 +34,8 @@ typedef enum{
 	SESSION_STAT_TYPE_APP_WEB = 1,
 	SESSION_STAT_TYPE_APP_SSL = 2,
 	SESSION_STAT_TYPE_APP_RTP = 3,
-	SESSION_STAT_TYPE_APP_FTP = 4
+	SESSION_STAT_TYPE_APP_FTP = 4,
+	SESSION_STAT_TYPE_APP_GTP = 5
 }session_stat_type_t;
 
 
@@ -51,6 +56,7 @@ typedef struct session_web_stat_struct session_web_stat_t;
 typedef struct session_ftp_stat_struct session_ftp_stat_t;
 typedef struct session_rtp_stat_struct session_rtp_stat_t;
 typedef struct session_ssl_stat_struct session_ssl_stat_t;
+typedef struct session_gtp_stat_struct session_gtp_stat_t;
 
 typedef struct session_stat_struct {
 	mmt_ipv4_ipv6_t ip_src;
@@ -79,6 +85,7 @@ typedef struct session_stat_struct {
 		session_ftp_stat_t *ftp;
 		session_rtp_stat_t *rtp;
 		session_ssl_stat_t *ssl;
+		session_gtp_stat_t *gtp;
 	}apps;
 
 #ifdef QOS_MODULE
@@ -112,7 +119,7 @@ static inline session_stat_t *session_report_get_session_stat(const ipacket_t * 
 }
 
 //This function must be called when starting a session
-session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * ipacket );
+session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * ipacket, dpi_context_t *context );
 
 /**
  * This function must be called on each coming packet

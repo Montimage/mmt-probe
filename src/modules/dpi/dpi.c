@@ -37,7 +37,7 @@ static inline packet_session_t * _create_session (const ipacket_t * ipacket, dpi
 
 	//initialize for reporting
 	IF_ENABLE_STAT_REPORT(
-		session->session_stat = session_report_callback_on_starting_session( ipacket );
+		session->session_stat = session_report_callback_on_starting_session( ipacket, context );
 	)
 
 	//initialize
