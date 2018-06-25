@@ -14,15 +14,17 @@ Common report is generic to all the report.
 ## Common report
 
 | # | Column Name | Column Description | 
-| - | --- | --- | 
+| - | ----------- | ------------------ | 
 | 1 | *format id* | Identifier of the format of the encapsulated application report | 
-| 2 | *probe* | Identifier of the probe generating the report | 
-| 3 | *source* | Identifier of the data source whether it is a trace file name or a network interface | 
+| 2 | *probe*     | Identifier of the probe generating the report | 
+| 3 | *source*    | Identifier of the data source whether it is a trace file name or a network interface | 
 | 4 | *timestamp* | Timestamp (seconds.micros) corresponding to the time when the output row was reported | 
 
 ## Status Report id = 200
 
 It allows us to know that probe is still running even there are no data/traffic in the monitored network.
+
+This report is available only when running in ONLINE mode
 
 This report is created periodically. The period depends on the parameters `stats-period` in the configuration file.
 
@@ -60,7 +62,7 @@ If protocol without session is enabled, MMT probe will periodically report stati
 ### Protocol and Application statistics report has **format id = 99**
 
 | # | Column Name | Column Description | 
-| - | --- | --- | 
+| - | ----------- | ------------------ | 
 | 5 | *report_number* | Number of reporting events |
 | 6 | *Protocol/Application ID* | Identifier of the MMT protocol or application. |
 | 7 | *Protocol_Path* | Full protocol path. This is to differentiate different paths for the same protocol (like: eth.ip.tcp.http.facebook and eth.ip.tcp.ssl.facebook) |
@@ -96,7 +98,7 @@ Channel name: `protocol.flow.stat`
 This report is a session based reporting (When session report is enable). Session is based on IP source, IP destination, source port and destination port. 
 
 | # | Column Name | Column Description | 
-| - | --- | --- | 
+| - | ----------- | ------------------ | 
 | 5 | *report_number* | Number of reporting events |
 | 6 | *Protocol/Application ID* | Identifier of the MMT protocol or application. |
 | 7 | *Protocol_Path_uplink* | Full protocol path for uplink. This is to differentiate different paths for the same protocol (like: eth.ip.tcp.http.facebook and eth.ip.tcp.ssl.facebook) |
@@ -129,7 +131,10 @@ This report is a session based reporting (When session report is enable). Sessio
 | 34 | *rtt_avg_client* | Sampled avg client rtt (DATA-ACK) in usec|
 | 35 | Data_transfer_time  | sample data transfer time in usec (Time difference between  first data packet time and the last packet time received in the sample interval|
 | 36 | *retransmission_count* | Sampled TCP retransmission count for each session|
-
+| 37 | *format* | Identifier of the format of the encapsulated application report | 
+|    |          | We determine the extension part of report based on this number's value |
+| 38 | *Application_Family* | Identifier of the application family (like Web, Network, P2P, etc.). |
+| 39 | *Content Class* | Identifier of the content class (like text, image, video, etc.) |
 
 **Note**: only the app/protocol at the end of protocol path (hierarchy) are reported. For example, if a packet has a protocol path `Ethernet.IP.TCP.HTTP` then only `HTTP` is reported. The data volume in the report is length of the packet, the payload volume is the payload of `HTTP` in the packet.
 
@@ -143,19 +148,13 @@ Extension of report 100: The extension provides application specific attributes 
 Format id: 0 (default)
 
 | # | Column Name | Column Description | 
-| - | --- | --- | 
-| 37 | *format* | Identifier of the format of the encapsulated application report | 
-| 38 | *Application_Family* | Identifier of the application family (like Web, Network, P2P, etc.). |
-| 39 | *Content Class* | Identifier of the content class (like text, image, video, etc.) |
+| - | ----------- | ------------------ | 
 
 
 Format id: 1 (HTTP)
 
 | # | Column Name | Column Description | 
-| - | --- | --- | 
-| 37 | *format* | Identifier of the format of the encapsulated application report | 
-| 38 | *Application_Family* | Identifier of the application family (like Web, Network, P2P, etc.). |
-| 39 | *Content Class* | Identifier of the content class (like text, image, video, etc.) |
+| - | ----------- | ------------------ | 
 | 40 | *Response time* | Response time of the last Request/Reply of the flow |
 | 41 | *Transactions Nb* | Number of HTTP requests/replies per one TCP session|
 | 42 | *Interaction time* | This is the time between the first request and the lest response. If this is zero then the flow has one request reply |
@@ -172,20 +171,14 @@ Format id: 1 (HTTP)
 Format id: 2(SSL)
 
 | # | Column Name | Column Description | 
-| - | --- | --- | 
-| 37 | *format* | Identifier of the format of the encapsulated application report | 
-| 38 | *Application_Family* | Identifier of the application family (like Web, Network, P2P, etc.). |
-| 39 | *Content Class* | Identifier of the content class (like text, image, video, etc.) |
+| - | ----------- | ------------------ | 
 | 40 | *Servername* | Servername as reported in the SSL/TLS negotiation. It is not always possible to extract this field. will be empty in that case. |
 | 41 | *CDN_Flag* | **0**: CDN not detected (This does not mean it is not used :)). **1**: 1 means CDN flags identified in the message. The referrer should identify the application. Will not be present in HTTPS flows. **2**: CDN delivery, the application name should identify the application. However, we might see Akamai as 
 
 Format id: 3 (RTP)
 
 | # | Column Name | Column Description | 
-| - | --- | --- | 
-| 37 | *format* | Identifier of the format of the encapsulated application report | 
-| 38 | *Application_Family* | Identifier of the application family (like Web, Network, P2P, etc.). |
-| 39 | *Content Class* | Identifier of the content class (like text, image, video, etc.) |
+| - | ----------- | ------------------ | 
 | 40 | *Packet loss rate* | Global packet loss rate of the flow | 
 | 41 | *Packet loss burstiness* | Average packet loss burstiness of the flow | 
 | 42 | *max jitter* | Maximum jitter value for the flow |
@@ -194,13 +187,10 @@ Format id: 3 (RTP)
 
 Format id: 4 (FTP)
 
-| # | Column Name | Column Description | 
-| - | --- | --- | 
-| 37 | *format* | Identifier of the format of the encapsulated application report | 
-| 38 | *Application_Family* | Identifier of the application family (like Web, Network, P2P, etc.). |
-| 39 | *Session connection type* | Connection type Data or Control | 
+| # | Column Name  | Column Description | 
+| - | ------------ | ------------------ | 
 | 40 | *User name* | User name for the particular the ftp session | 
-| 41 | *Password* | Password for the particular ftp session |
+| 41 | *Password*  | Password for the particular ftp session |
 | 42 | *File size* | Total size of the file to be downloaded |
 | 43 | *File name* | Download file name  |
 | 44 | *Direction* | Direction of the flow  |
@@ -210,16 +200,16 @@ Format id: 4 (FTP)
 Format id: 5 (GTP)
 
 | # | Column Name | Column Description | 
-| - | --- | --- | 
-| 37 | *ip src* | IP src after GTP | 
-| 38 | *ip dst* | IP dst after GTP |
-| 39 | *teid 1* | First TEID being found in the session | 
-| 40 | *teid 2* | Second TEID being found in the session | 
+| - | ----------- | ------------------ | 
+| 40 | *ip src*   | IP src after GTP | 
+| 41 | *ip dst*   | IP dst after GTP |
+| 42 | *teid 1*   | First TEID being found in the session | 
+| 43 | *teid 2*   | Second TEID being found in the session | 
 
 Format id : 2000 (inside web report (format field), then it is MP2T ) 
 
 | # | Column Name | Column Description | 
-| - | --- | --- | 
+| - | ----------- | ------------------ | 
 | 52 | Average_network_bitrate | Average Network bitrates in bytes/sec of a video segment |
 | 53 | Average_video_bitrate  | Average Video bitrates in bytes/sec of a video segment |
 | 54 | Retransmission_count  | Retransmission count of a video segment |
@@ -229,7 +219,7 @@ Format id : 2000 (inside web report (format field), then it is MP2T )
 Format : 2001 (inside web report (formatfield), then it is M3U8 ) 
 
 | # | Column Name | Column Description | 
-| - | --- | --- | 
+| - | ----------- | ------------------ | 
 | 52 | Version | Version of M3U8 |
 | 53 | Media sequence | Media Sequence|
 | 54 | Target duration | Target duration for each segment |
@@ -245,7 +235,7 @@ Format id: 10
 This reports security problems detected by MMT-Security 
 
 | # | Column Name   | Column Description | 
-| - | ------------- | --- | 
+| - | ------------- | ------------------ | 
 | 5 | *property_id* | Number: identifying the property |
 | 6 | *verdict*     | Word: respected or not respected or detected or not detected giving respectively the status of a security rule and and attack `["detected", "not_detected", "respected", "not_respected", "unknown"]`|
 | 7 | *type*        | Word: type of property detected `["attack", "security", "test", "evasion"]`|
@@ -265,30 +255,28 @@ Format id: 1000
 This reports is for event based reporting. Whenever a event is present, the attributes that are registered for extraction are extracted.
 
 | # | Column Name     | Column Description | 
-| - | --------------- | --- | 
+| - | --------------- | ------------------ | 
 | 5 | *report_number* | Number of reporting events |
 | 6 | *event*         | Event that triggers the extraction of attributes |
 | 7 | *attribute 1*   | Attribute that is registered for extraction  |
 | 8 | *attribute 2*   | Attribute that is registered for extraction  |
-.
-.
-
+| ..| *attribute i*   | .... |
 ### IP Fragmentation event report
 
 | # | Column Name | Column Description | 
-| - | --- | --- | 
+| - | ----------- | ------------------ | 
 | 5 | *evasion_id* | Id of evasion event |
 | 6 | *data* | data relate to the evasion event |
 
 With the value of evasion_id and data as follow
 
 | # | evasion_id | value | data | 
-| - | --- | --- | --- | 
-| 1 | EVA_IP_FRAGMENT_PACKET | 1 | number of fragment in current packet | 
-| 2 | EVA_IP_FRAGMENT_SESSION | 2 | number of fragment in current session | 
+| - | -----------| ------|---------- | 
+| 1 | EVA_IP_FRAGMENT_PACKET           | 1 | number of fragment in current packet | 
+| 2 | EVA_IP_FRAGMENT_SESSION          | 2 | number of fragment in current session | 
 | 3 | EVA_IP_FRAGMENTED_PACKET_SESSION | 3 | number of fragmented packet in current session | 
-| 4 | EVA_IP_FRAGMENT_OVERLAPPED | 4 | Type of overlap | 
-| 5 | EVA_IP_FRAGMENT_DUPLICATED | 5 | Type of duplicated | 
+| 4 | EVA_IP_FRAGMENT_OVERLAPPED       | 4 | Type of overlap | 
+| 5 | EVA_IP_FRAGMENT_DUPLICATED       | 5 | Type of duplicated | 
 
 Type of overlapped and duplicated:
 
@@ -313,19 +301,19 @@ Format id: 30
 
 This reports the statistics of the license owned by the devices
 
- # | Column Name | Column Description | 
-| - | --- | --- | 
+| # | Column Name | Column Description | 
+| - | ----------- | ------------------ | 
 | 1 | *format* | Identifier of the format of the encapsulated application report | 
 | 2 | *probe* | Identifier of the probe generating the report | 
 | 3 | *source* | Identifier of the data source whether it is a trace file name or a network interface | 
 | 4 | *timestamp* | Timestamp (seconds.micros) when the probe was started | 
 | 5 | *license_info_id* | Identifier for the the license report |
-|  |  |                   1 = BUY_MMT_LICENSE_FOR_THIS_DEVICE
-|  |  |                   2 = MMT_LICENSE_EXPIRED
-|  |  |                   3 = MMT_LICENSE_WILL_EXPIRE_SOON
-|  |  |                   4 = MMT_LICENSE_MODIFIED
-|  |  |                   5 = MMT_LICENSE_KEY_DOES_NOT_EXIST
-|  |  |                   6 = MMT_LICENSE_INFO |
+|   |                   |  1 = BUY_MMT_LICENSE_FOR_THIS_DEVICE
+|   |                   |  2 = MMT_LICENSE_EXPIRED
+|   |                   |  3 = MMT_LICENSE_WILL_EXPIRE_SOON
+|   |                   |  4 = MMT_LICENSE_MODIFIED
+|   |                   |  5 = MMT_LICENSE_KEY_DOES_NOT_EXIST
+|   |                   |  6 = MMT_LICENSE_INFO |
 | 6 | *Number_of_MAC* | Number of MACs which has license |
 | 7 | *MAC_address* |Corresponding MAC addresses |
 | 8 | *expiry_date* | Timestamp (seconds.micros) when the probe will expire  |
@@ -339,8 +327,8 @@ This reports the statistics of the license owned by the devices
 ```
 ## Security report through socket
 
- # | Column Name | Column Description | 
-| - | --- | --- | 
+| # | Column Name | Column Description | 
+| - | ----------- | ------------------ | 
 | 1 | *Report length (4 bytes)* | Total length of the report | 
 | 2 | *Number of attributes(1 bytes)* | Number of attributes present in the particular report | 
 | 3 | *Timestamp (16 bytes)* | Time when the report was created | 
