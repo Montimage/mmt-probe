@@ -212,7 +212,7 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 		ret->data_reconstruct.ftp = ftp_reconstruct_init( config->reconstructions.ftp, dpi_handler );
 	)
 	IF_ENABLE_HTTP_RECONSTRUCT(
-			ret->data_reconstruct.http = http_reconstruct_init( config->reconstructions.http, dpi_handler );
+			ret->data_reconstruct.http = http_reconstruct_init( config->reconstructions.http, dpi_handler, output );
 	)
 	return ret;
 }

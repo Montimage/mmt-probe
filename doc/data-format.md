@@ -246,6 +246,37 @@ This reports security problems detected by MMT-Security
 ```JSON
 10,123,"eth1",1452523000.331799,4,"detected","attack","Two successive TCP SYN requests but with different destnation addresses.",{"event_12":{"timestamp":1452523000.158154,"description":"SYN request","attributes":[{"ip.src":"192.168.0.20"},{"ip.dst":"67.196.156.65"},{"tcp.flags":"2"}]},"event_13":{"timestamp":1452523000.329879,"description":"SYN request","attributes":[{"ip.src":"192.168.0.20"},{"ip.dst":"66.235.120.127"},{"tcp.flags":"2"}]}}
 ```
+
+
+## HTTP reconstruction reports
+
+Format id: 301
+
+This reports meta data of files being reconstructed from HTTP flows.
+
+| # | Column Name        | Column Description | 
+| - | ------------------ | ------------------ | 
+| 5 | *status*           | Number: status of reconstructed files:|
+|   |                    | - 0: successfully reconstruct |
+|   |                    | - 1: did not receive all chunk as declared by `Content-Length` |
+|   |                    | - 2: received all chunk data but cannot decode |
+|   |                    | - 3: unsupport encoding (currently we support `Content-Encoding: gzip`, `Transfer-Encoding: chunked` |
+| 6 | *content-length*   | Number: number of bytes of http flow designed by `Content-Lenght` tag |
+| 7 | *received-data*    | Number: number of bytes of data received by MMT |
+| 8 | *content-encoding* | Number: identity of `Content-Encoding`  |
+|   |                    |  - 0: CONTENT_ENCODING_GZIP,            |
+|   |                    |  - 1: CONTENT_ENCODING_COMPRESS,        |
+|   |                    |  - 2: CONTENT_ENCODING_DEFLATE,         |
+|   |                    |  - 3: CONTENT_ENCODING_IDENTITY,        |
+|   |                    |  - 4: CONTENT_ENCODING_BR               |
+| 9 | *tranfer-encoding* | Number: identity of `Transfer-Encoding` |
+|   |                    |  - 0: TRANSFER_ENCODING_CHUNKED,   |
+|   |                    |  - 1: TRANSFER_ENCODING_COMPRESS,  |
+|   |                    |  - 2: TRANSFER_ENCODING_DEFLATE,   |
+|   |                    |  - 3: TRANSFER_ENCODING_GZIP,      |
+|   |                    |  - 4: TRANSFER_ENCODING_IDENTITY   |
+| 10| *file-name*        | String: path to reconstructed file |
+
 ## Event report
 
 Channel name: `event.report`

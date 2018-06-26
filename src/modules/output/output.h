@@ -13,16 +13,18 @@
 typedef struct output_struct output_t;
 
 typedef enum{
-	MICRO_FLOW_REPORT_TYPE  =    8,
-	RADIUS_REPORT_TYPE      =    9,
-	SECURITY_REPORT_TYPE    =   10,
-	LICENSE_REPORT_TYPE     =   30,
-	NON_SESSION_REPORT_TYPE =   99,
-	SESSION_REPORT_TYPE     =  100,
-	IP_FRAG_REPORT_TYPE     =  101,
-	DUMMY_REPORT_TYPE       =  200,
-	SYSTEM_REPORT_TYPE      =  201,
-	EVENT_REPORT_TYPE       = 1000,
+	MICRO_FLOW_REPORT_TYPE        =    8,
+	RADIUS_REPORT_TYPE            =    9,
+	SECURITY_REPORT_TYPE          =   10,
+	LICENSE_REPORT_TYPE           =   30,
+	NON_SESSION_REPORT_TYPE       =   99,
+	SESSION_REPORT_TYPE           =  100,
+	IP_FRAG_REPORT_TYPE           =  101,
+	DUMMY_REPORT_TYPE             =  200,
+	SYSTEM_REPORT_TYPE            =  201,
+	HTTP_RECONSTRUCT_REPORT_TYPE  =  301,
+	FTP_RECONSTRUCT_REPORT_TYPE   =  302,
+	EVENT_REPORT_TYPE             = 1000,
 }report_type_t;
 
 /**

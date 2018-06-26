@@ -80,13 +80,13 @@ static inline void log_execution_trace () {
 }
 
 /**
- * This macro can be used to detect error causing by inconsistency of using library functions.
- * For example, the calling of function A requires the calling of B before, but programmer does not do.
+ * This macro can be used to raise errors causing by inconsistency of using library functions.
+ * For example, the calling of function A requires the calling of B before, but programmers did not do.
  */
 #define MY_MISTAKE( format, ... )                                           \
 	do{                                                                     \
 		log_write( LOG_ERR, format,## __VA_ARGS__ );                        \
-		printf( format,## __VA_ARGS__ );                                    \
+		fprintf( stderr, format,## __VA_ARGS__ );                           \
 		log_execution_trace();                                              \
 		exit( 0 );                                                          \
 	}while( 0 )

@@ -29,6 +29,9 @@
 
 struct http_reconstruct_struct{
 	const reconstruct_data_conf_t *config;
+
+	//output reports
+	output_t *report_output;
 };
 
 
@@ -45,6 +48,7 @@ struct http_session_struct{
 	// if not, content_length = 0
 	uint32_t content_length;
 	uint32_t current_data_length; //
+	struct timeval ts;
 	//for each packet, we will append its content to data
 	//current_data_length is the current size of data. It must be always less than or equal to  content_length
 	FILE *file;
@@ -183,7 +187,7 @@ static void _http_method_handle(const ipacket_t * ipacket, attribute_t * attribu
 
 	packet_session_t *packet_session = dpi_get_packet_session( ipacket );
 	//we check evenly
-	if( packet_session == NULL )
+	if( unlikely( packet_session == NULL ))
 		MY_MISTAKE("Impossible having HTTP meanwhile no tcp session");
 
 	http_session_t *session = packet_session->http_session;
@@ -195,7 +199,9 @@ static void _http_method_handle(const ipacket_t * ipacket, attribute_t * attribu
 	session  = mmt_alloc_and_init_zero( sizeof( http_session_t) );
 	packet_session->http_session = session;
 
+	//we link each HTTP session to the global context of HTTP reconstruction
 	session->context   = context;
+	session->ts        = ipacket->p_hdr->ts;
 	int valid = 0;
 	char file_name[ MAX_LENGTH_FULL_PATH_FILE_NAME ];
 
@@ -310,7 +316,7 @@ static void _http_response_handle(const ipacket_t * ipacket, attribute_t * attri
 				http_data = data_buffer;
 				data_len  = ret;
 			}else{
-				log_write( LOG_INFO, "Chunked-encoding is incorrect for packet %"PRIu64, ipacket->packet_id );
+				//log_write( LOG_INFO, "Chunked-encoding is incorrect for packet %"PRIu64, ipacket->packet_id );
 			}
 			break;
 		default:
@@ -328,7 +334,7 @@ static void _http_data_handle(const ipacket_t * ipacket, attribute_t * attribute
 
 	packet_session_t *packet_session = dpi_get_packet_session( ipacket );
 	//we check evenly
-	if( packet_session == NULL )
+	if( unlikely( packet_session == NULL ))
 		MY_MISTAKE("Impossible having http meanwhile no tcp session");
 	http_session_t *session = packet_session->http_session;
 	if( session == NULL  //this data chunk arrives before URI
@@ -352,7 +358,7 @@ static void _http_end_message_handle(const ipacket_t * ipacket, attribute_t * at
 	http_reconstruct_t *context = (http_reconstruct_t *)user_args;
 	packet_session_t *packet_session = dpi_get_packet_session( ipacket );
 		//we check evenly
-	if( packet_session == NULL )
+	if( unlikely( packet_session == NULL ))
 		MY_MISTAKE("Impossible having http meanwhile no tcp session");
 	http_session_t *session = packet_session->http_session;
 	//has not been created before
@@ -382,14 +388,14 @@ static const conditional_handler_t handlers[] = {
 		{.proto_id = PROTO_TCP,  .att_id = TCP_SRC_PORT,             .handler = NULL}
 };
 
-http_reconstruct_t *http_reconstruct_init( const reconstruct_data_conf_t *config, mmt_handler_t *dpi_handler ){
+http_reconstruct_t *http_reconstruct_init( const reconstruct_data_conf_t *config, mmt_handler_t *dpi_handler, output_t *report ){
 		if( config->is_enable == false )
 			return NULL;
 	//struct to register attributes
 
 	http_reconstruct_t *ret = mmt_alloc_and_init_zero( sizeof( http_reconstruct_t ));
 	ret->config = config;
-
+	ret->report_output = report;
 	dpi_register_conditional_handler( dpi_handler,  (sizeof (handlers) / sizeof( conditional_handler_t)), handlers, ret );
 	return ret;
 }
@@ -411,8 +417,11 @@ void http_reconstruct_release( http_reconstruct_t *context){
  * @param session
  */
 void http_reconstruct_flush_session_to_file_and_free( http_session_t *session ){
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+
 	if( session == NULL )
 		return;
+	http_reconstruct_status_t status = HTTP_RECONSTRUCT_SUCCESS;
 	if( session->file == NULL )
 		goto _free_data;
 
@@ -420,8 +429,10 @@ void http_reconstruct_flush_session_to_file_and_free( http_session_t *session ){
 	fclose( session->file );
 
 	//do not have any data
-	if( session->current_data_length == 0 )
-		goto _free_data;
+	if( session->current_data_length == 0 ){
+		status = HTTP_RECONSTRUCT_INCOMPLETE_CHUNK;
+		goto _do_report;
+	}
 
 	char src_file_name[ MAX_LENGTH_FULL_PATH_FILE_NAME ];
 	int valid = 0, ret = 0;
@@ -430,15 +441,14 @@ void http_reconstruct_flush_session_to_file_and_free( http_session_t *session ){
 			|| (session->current_data_length == session->content_length ));
 
 	if( !is_having_full_data ){
-		log_write( LOG_INFO, "http chunk %s is not complete (expected %d bytes, got %d bytes)",
-				session->file_name,
-				session->content_length,
-				session->current_data_length);
-
-		goto _free_data;
+		status = HTTP_RECONSTRUCT_INCOMPLETE_CHUNK;
+		goto _do_report;
 	}
 
+	int content_encoding = 0;
 	if( session->content_encoding ){
+		content_encoding = session->content_encoding->ident_number;
+
 		//uncompress data if need
 		STRING_BUILDER( valid, src_file_name, sizeof( src_file_name),
 				__ARR( session->file_name ),
@@ -451,11 +461,34 @@ void http_reconstruct_flush_session_to_file_and_free( http_session_t *session ){
 			//remove source file if unzip successfully
 			if( ret )
 				unlink( src_file_name );
+			else
+				status = HTTP_RECONSTRUCT_FILE_CORRUPTED;
 			break;
 		default:
+			status = HTTP_RECONSTRUCT_UNSUPPORT_ENCODING;
 			break;
 		}
 	}
+
+	int transfer_encoding = 0;
+	if( session->transfer_encoding )
+		transfer_encoding = session->transfer_encoding->ident_number;
+
+	_do_report:
+
+	//report meta data of the reconstructed file
+	valid = 0;
+	STRING_BUILDER_WITH_SEPARATOR( valid, message, sizeof( message ), "," ,
+			__INT( status ),
+			__INT( session->content_length ),
+			__INT( session->current_data_length ),
+			__INT( content_encoding ),
+			__INT( transfer_encoding ),
+			__STR( session->file_name )
+			);
+
+	//write report to its output channels
+	output_write_report( session->context->report_output, session->context->config->output_channels, HTTP_RECONSTRUCT_REPORT_TYPE, &session->ts, message);
 
 	_free_data:
 	mmt_probe_free( session->file_name );
