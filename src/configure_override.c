@@ -220,6 +220,9 @@ bool conf_override_element_by_id( probe_conf_t *conf, int ident_val, const char 
 }
 
 
+/**
+ * Public API
+ */
 void conf_print_identities_list(){
 	int i;
 	const char *data_type_strings[] = {

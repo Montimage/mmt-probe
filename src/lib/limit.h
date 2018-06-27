@@ -3,6 +3,7 @@
  *
  *  Created on: Dec 19, 2017
  *          by: Huu Nghia
+ * This file enable/disable some macro when compiling MMT-Probe.
  */
 
 #ifndef SRC_LIB_LIMIT_H_

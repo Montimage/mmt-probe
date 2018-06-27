@@ -29,6 +29,9 @@ static inline void log_open(){
 
 #define log_write syslog
 
+/**
+ * A macro for outputting message only when debugging
+ */
 #ifdef DEBUG_MODE
 #define DEBUG( format, ... ) \
     printf( "DEBUG %s:%d: " format "\n", __FILE__, __LINE__ ,## __VA_ARGS__ )
@@ -37,7 +40,8 @@ static inline void log_open(){
 #endif
 
 /**
- * Close log file
+ * Close log file.
+ * This must be done only at the end of the execution of MMT-Probe
  */
 static inline void log_close(){
 	closelog();
@@ -63,7 +67,7 @@ static inline void log_close(){
 
 
 /**
- *  Obtain a back-trace
+ *  Obtain the current execution trace
  */
 static inline void log_execution_trace () {
 	void *array[10];

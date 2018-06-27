@@ -23,11 +23,15 @@
 
 #define MIN( a, b ) (a>b? b : a )
 #define MAX( a, b ) (a<b? b : a )
+
 /**
  * Swap values of two variables x and y typing T
  */
 #define SWAP(x, y, T) do { T tmp = x; x = y; y = tmp; } while (0)
 
+/**
+ * Number of microseconds per second
+ */
 #define MICRO_PER_SEC 1000000
 
 /**

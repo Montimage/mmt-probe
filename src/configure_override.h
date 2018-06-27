@@ -23,6 +23,9 @@
 #define DPDK_MODULE
 #endif
 
+/**
+ * Data type using by the attributes of the configuration
+ */
 typedef enum{
    NO_SUPPORT,
    BOOL,
@@ -30,7 +33,7 @@ typedef enum{
    UINT32_T,
    CHAR_STAR,
    LIST
-}data_type_t;
+} data_type_t;
 
 typedef struct identity_struct{
 	int val;
@@ -41,7 +44,7 @@ typedef struct identity_struct{
 const identity_t* conf_get_identity_from_string( const char * ident_str );
 
 /**
- *
+ * Override an attribute in configuration.
  * @param
  * @param ident: identifier of element will be overridden.
  * @param value: value will be overridden only if the value is different with the current one of the element.
@@ -49,6 +52,13 @@ const identity_t* conf_get_identity_from_string( const char * ident_str );
  */
 int conf_override_element( probe_conf_t*, const char* ident, const char *value );
 
+/**
+ * Override an attribute in configuration.
+ * @param conf
+ * @param ident_val
+ * @param value_str
+ * @return
+ */
 bool conf_override_element_by_id( probe_conf_t *conf, int ident_val, const char *value_str );
 
 /**
@@ -101,7 +111,7 @@ static inline void* conf_get_ident_attribute_field(                       \
 }
 
 /**
- * In the following declaration, each line uses the sturcture:
+ * In the following declaration, each line uses the structure:
  *  (ident-number, ident-string, pointer-field, data-type)
  * - ident-number: is used to define enum element
  * - ident-string: is string of configuration attribute.
@@ -250,6 +260,11 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__RADIUS_REPORT__OUTPUT_CHANNEL, "radius-report.output-channel", &conf->reports.radius->output_channels, LIST )
 )
 
+/**
+ * Get identity_t object from a number ID.
+ * @param id
+ * @return
+ */
 static inline const identity_t* conf_get_identity_from_id( int id ){
 	const identity_t *identities;
 	size_t nb_parameters = conf_get_identities( &identities );

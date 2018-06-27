@@ -15,14 +15,23 @@
 #include "../../lib/memory.h"
 #include "../../lib/string_builder.h"
 
+/**
+ * Get the last protocol ID on the current protocol hierarchy of the session
+ * @param dpi_session
+ * @return
+ */
 static inline uint32_t dpi_get_proto_id_from_session( const mmt_session_t * dpi_session ){
 	const proto_hierarchy_t *proto_hierarchy = get_session_protocol_hierarchy( dpi_session );
-	int len = proto_hierarchy->len;
-	if( unlikely( len > 16 ))
-		len = 16;
-	return proto_hierarchy->proto_path[ len - 1 ];
+	return proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
 }
 
+/**
+ * Get protocol and attribute IDs from their names
+ * @param att
+ * @param proto_id
+ * @param att_id
+ * @return
+ */
 static inline bool dpi_get_proto_id_and_att_id( const dpi_protocol_attribute_t *att, uint32_t *proto_id, uint32_t *att_id ){
 	*proto_id = get_protocol_id_by_name( att->proto_name );
 	if( *proto_id != 0 )
@@ -32,7 +41,15 @@ static inline bool dpi_get_proto_id_and_att_id( const dpi_protocol_attribute_t *
 	return *proto_id != 0 && *att_id != 0;
 }
 
-
+/**
+ * Register a list of protocols and attributes to DPI
+ * @param atts
+ * @param count
+ * @param dpi_handler
+ * @param handler_fct
+ * @param args
+ * @return
+ */
 static inline int dpi_register_attribute( const dpi_protocol_attribute_t *atts, size_t count,
 	mmt_handler_t *dpi_handler, attribute_handler_function handler_fct, void *args ){
 	int i, ret = 0;
@@ -67,7 +84,14 @@ static inline int dpi_register_attribute( const dpi_protocol_attribute_t *atts, 
 	return ret;
 }
 
-
+/**
+ * Unregister
+ * @param atts
+ * @param count
+ * @param dpi_handler
+ * @param handler_fct
+ * @return
+ */
 static inline int dpi_unregister_attribute( const dpi_protocol_attribute_t *atts, size_t count,
 	mmt_handler_t *dpi_handler, attribute_handler_function handler_fct ){
 	int i, ret = 0;
@@ -105,14 +129,20 @@ static inline int dpi_unregister_attribute( const dpi_protocol_attribute_t *atts
 	return ret;
 }
 
-
+/**
+ * Convert protocol hierarchy to a string, e.g., 99.178
+ * @param proto_hierarchy
+ * @param dest
+ * @param max_length
+ * @return
+ */
 static inline int dpi_proto_hierarchy_ids_to_str(const proto_hierarchy_t * proto_hierarchy, char * dest, int max_length ) {
 	int offset = 0;
 	int index = 1;
 	if (proto_hierarchy->len >= 1) {
 		offset += append_number(dest, max_length - offset, proto_hierarchy->proto_path[index]);
 		index++;
-		for (; index < proto_hierarchy->len && index < 16; index++) {
+		for (; index < proto_hierarchy->len; index++) {
 			offset += append_char(  dest+offset, max_length - offset, '.');
 			offset += append_number(dest+offset, max_length - offset, proto_hierarchy->proto_path[index]);
 		}
@@ -124,7 +154,8 @@ static inline int dpi_proto_hierarchy_ids_to_str(const proto_hierarchy_t * proto
 }
 
 /**
- * Copy string value of a mmt_header_line_t
+ * Copy string value of a mmt_header_line_t.
+ * The function also replace invalid-json-string characters by dots
  * @param target
  * @param target_size
  * @param val
@@ -149,7 +180,7 @@ static inline bool dpi_copy_string_value( char *target, size_t target_size, mmt_
 		case '\n': //  New line
 		case '\r': //  Carriage return
 		case '\t': //  Tab
-		case '\\': //  Backslash characte
+		case '\\': //  Backslash character
 			target[i] = '.';
 			break;
 		case '"': //  Double quote
