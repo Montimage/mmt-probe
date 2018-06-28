@@ -297,15 +297,13 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 
 session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * ipacket, dpi_context_t *context ){
 	mmt_session_t * dpi_session = ipacket->session;
-	//no session
-	if( dpi_session == NULL )
-		return NULL;
+	if(dpi_session == NULL) return NULL;
 
 	session_stat_t *session_stat = mmt_alloc_and_init_zero( sizeof (session_stat_t));
 
-	IF_ENABLE_SIMPLE_REPORT(
-			session_stat->app_type    = SESSION_STAT_TYPE_APP_IP;)
-
+#ifndef SIMPLE_REPORT
+	session_stat->app_type    = SESSION_STAT_TYPE_APP_IP;
+#endif
 	// Flow extraction
 	int ip_index = get_protocol_index_by_id(ipacket, PROTO_IP);
 
@@ -459,9 +457,6 @@ static inline void
 	}
 }
 
-/*
- * The following functions are implemented in session_report_xxx.c
- */
 size_t get_session_web_handlers_to_register( const conditional_handler_t ** );
 size_t get_session_ssl_handlers_to_register( const conditional_handler_t ** );
 size_t get_session_rtp_handlers_to_register( const conditional_handler_t ** );
