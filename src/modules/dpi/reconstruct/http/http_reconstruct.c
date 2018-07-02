@@ -445,10 +445,7 @@ void http_reconstruct_flush_session_to_file_and_free( http_session_t *session ){
 		goto _do_report;
 	}
 
-	int content_encoding = 0;
 	if( session->content_encoding ){
-		content_encoding = session->content_encoding->ident_number;
-
 		//uncompress data if need
 		STRING_BUILDER( valid, src_file_name, sizeof( src_file_name),
 				__ARR( session->file_name ),
@@ -470,10 +467,6 @@ void http_reconstruct_flush_session_to_file_and_free( http_session_t *session ){
 		}
 	}
 
-	int transfer_encoding = 0;
-	if( session->transfer_encoding )
-		transfer_encoding = session->transfer_encoding->ident_number;
-
 	_do_report:
 
 	//report meta data of the reconstructed file
@@ -482,8 +475,8 @@ void http_reconstruct_flush_session_to_file_and_free( http_session_t *session ){
 			__INT( status ),
 			__INT( session->content_length ),
 			__INT( session->current_data_length ),
-			__INT( content_encoding ),
-			__INT( transfer_encoding ),
+			__INT( session->content_encoding  ? session->content_encoding->ident_number  : 0 ),
+			__INT( session->transfer_encoding ? session->transfer_encoding->ident_number : 0 ),
 			__STR( session->file_name )
 			);
 
