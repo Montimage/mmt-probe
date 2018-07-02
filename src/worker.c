@@ -112,19 +112,21 @@ void worker_on_start( worker_context_t *worker_context ){
 	worker_context->dpi_context = dpi_alloc_init( worker_context->probe_context->config,
 			worker_context->dpi_handler, worker_context->output, worker_context->index );
 
+#ifdef SECURITY_MODULE
+	//TODO: detail core_id for security
 	uint32_t *cores_id = (uint32_t []){0,1};
 
-	IF_ENABLE_SECURITY(
-			worker_context->security = security_worker_alloc_init(
-				worker_context->probe_context->config->reports.security,
-				worker_context->dpi_handler, cores_id,
-				(worker_context->index == 0), //verbose for only the first worker
-				worker_context->output ));
+	worker_context->security = security_worker_alloc_init(
+		worker_context->probe_context->config->reports.security,
+		worker_context->dpi_handler, cores_id,
+		(worker_context->index == 0), //verbose for only the first worker
+		worker_context->output );
+#endif
 
 #ifdef LICENSE_CHECK
 	if( worker_context->index == 0 )
 		if( !license_check_expiry( get_context()->config->license_file, worker_context->output ))
-			abort();
+			ABORT("Licence is either expired or incorrect");
 #endif
 
 //#ifdef DYNAMIC_CONFIG_MODULE

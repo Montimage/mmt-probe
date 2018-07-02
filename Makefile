@@ -72,7 +72,9 @@ ifndef NDEBUG
 endif
 
 
--include mk/*.mk
+-include mk/gperf.mk
+
+-include mk/modules.mk
 
 CFLAGS += $(MODULE_FLAGS)
 LIBS   += $(MODULE_LIBS)
@@ -87,51 +89,12 @@ LIB_SRCS = $(wildcard $(SRC_DIR)/lib/*.c) \
 #all source code
 ALL_SRCS  := $(LIB_SRCS) $(MODULE_SRCS) $(MAIN_SRCS)
 
-#################################################
-############ BUILD & CLEAN  #####################
-#################################################
-
-ifdef DPDK_CAPTURE #use makefiles of dpdk
-#dpdk makefile
-RTE_SDK    ?= /home/mmt/dpdk-stable-17.11.1
-RTE_TARGET ?= build
-
-#avoid being overried by DPDK
-_OLD_CFLAGS := $(CFLAGS)
-
-include $(RTE_SDK)/mk/rte.vars.mk
-
-#build is not a file target, 
-.PHONY : build
-#default target
-.DEFAULT_GOAL := build
-
-#DPDK variable
-CFLAGS += $(_OLD_CFLAGS)
-LDLIBS += $(LIBS)
-SRCS-y := $(ALL_SRCS)
-V       = $(VERBOSE)
-
-#copy probe from folder build to the current folder
-POSTBUILD += --private-copy-probe
---private-copy-probe:
-	$(QUIET) $(CP) $(TOP_DIR)/build/$(APP) $(TOP_DIR)
-
-include $(RTE_SDK)/mk/rte.extapp.mk
-   
-else #for PCAP
-
-ALL_OBJS    := $(patsubst %.c,%.o, $(ALL_SRCS))
-
-build: $(ALL_OBJS)
-	@echo "[COMPILE] probe"
-	$(QUIET) $(CC) -o $(APP) $(CLDFLAGS)  $^ $(LIBS)
-%.o: %.c
-	@echo "[COMPILE] $(notdir $@)"
-	$(QUIET) $(CC) $(CFLAGS) $(CLDFLAGS) -c -o $@ $<
-clean:
-	$(QUIET) $(RM) $(APP)
-#remove all object files
-	$(QUIET) find $(SRC_DIR)/ -name \*.o -type f -delete
+ifdef DPDK_CAPTURE #use makefiles of dpd
+-include mk/compile-dpdk.mk
+else
+-include mk/compile-pcap.mk
 endif
 
+-include mk/serial-key.mk
+
+-include mk/install-package.mk

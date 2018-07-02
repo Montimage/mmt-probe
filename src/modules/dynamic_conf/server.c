@@ -53,7 +53,11 @@ static inline void _reply( int sock, uint16_t code, const char *format, ... ){
 	offset += vsnprintf( message + offset, BUFFER_SIZE - offset, format, args);
 	va_end( args );
 
-	write( sock, message, offset );
+	int i=0;
+
+	do{
+		i += write( sock, message + i, offset -i );
+	}while( i<offset );
 }
 
 size_t parse_command_parameters( const char *buffer, size_t buffer_size, command_param_t * lst, size_t size ){
@@ -288,6 +292,8 @@ static inline void _processing( int sock ) {
 			offset--;
 		buffer[offset] = '\0'; //well terminate the string
 	}
+
+	log_write( LOG_INFO, "received command [%s]", buffer );
 
 	//ls
 	if (IS_CMD(buffer, CMD_LS_STR) && offset == LENGTH( CMD_LS_STR )) {

@@ -53,6 +53,7 @@ static inline void log_close(){
 #define ABORT( format, ... )                                                \
 	do{                                                                     \
 		log_write( LOG_ERR, format,## __VA_ARGS__ );                        \
+		fprintf( stderr, format,## __VA_ARGS__ );                           \
 		abort();                                                            \
 	}while( 0 )
 
