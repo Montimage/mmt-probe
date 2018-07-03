@@ -13,7 +13,6 @@
 
 struct ftp_reconstruct_struct{
 	const reconstruct_data_conf_t *config;
-	mmt_handler_t *dpi_handler;
 };
 
 
@@ -71,19 +70,21 @@ ftp_reconstruct_context_t *ftp_reconstruct_init( const reconstruct_data_conf_t *
 
 	ftp_reconstruct_context_t *ret = mmt_alloc_and_init_zero( sizeof( ftp_reconstruct_context_t ));
 	ret->config = conf;
-	ret->dpi_handler = dpi_handler;
 
 	dpi_register_conditional_handler( dpi_handler, size, handlers, ret );
 	return ret;
 }
 
-
-void ftp_reconstruct_release( ftp_reconstruct_context_t *context ){
+void ftp_reconstruct_close( mmt_handler_t *dpi_handler, ftp_reconstruct_context_t *context){
 	if( context == NULL )
-		return;
+			return;
 
 	const conditional_handler_t *handlers = NULL;
 	size_t size = _get_handlers( &handlers );
-	dpi_unregister_conditional_handler( context->dpi_handler, size, handlers );
+	dpi_unregister_conditional_handler( dpi_handler, size, handlers );
+}
+void ftp_reconstruct_release( ftp_reconstruct_context_t *context ){
+	if( context == NULL )
+		return;
 	mmt_probe_free( context );
 }

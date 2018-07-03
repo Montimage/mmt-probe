@@ -230,6 +230,10 @@ void dpi_close( dpi_context_t *dpi_context ){
 		radius_report_unregister( dpi_context->radius_report );
 	)
 
+	IF_ENABLE_FTP_RECONSTRUCT(
+		ftp_reconstruct_close( dpi_context->dpi_handler, dpi_context->data_reconstruct.ftp );
+	)
+
 	IF_ENABLE_HTTP_RECONSTRUCT(
 		http_reconstruct_close( dpi_context->dpi_handler, dpi_context->data_reconstruct.http );
 	)
