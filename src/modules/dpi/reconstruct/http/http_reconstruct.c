@@ -70,7 +70,7 @@ static inline const char *_get_extension_from_content_type(const ipacket_t *ipac
 	if( ext != NULL )
 		return ext->file_extension;
 
-	DEBUG("Unknown type: %.*s", data->len, data->ptr );
+	log_write(LOG_INFO, "Unknown file type: %.*s", len, content_type );
 
 	return "unk";
 }
@@ -114,7 +114,6 @@ static inline uint32_t _get_content_length( const ipacket_t *ipacket ){
 static inline bool _append_data( http_session_t *session, const char *data, uint32_t data_len ){
 	if( unlikely( session->file == NULL ))
 		return false;
-
 	fwrite( data, sizeof( char ), data_len, session->file );
 	session->current_data_length += data_len;
 	return true;
@@ -163,9 +162,10 @@ static inline FILE *_create_file( http_session_t *session, const char *file_exte
 		case CONTENT_ENCODING_COMPRESS:
 		case CONTENT_ENCODING_GZIP:
 		case CONTENT_ENCODING_DEFLATE:
-			STRING_BUILDER( valid, file_name, sizeof( file_name) - valid,
+			STRING_BUILDER( valid, file_name, sizeof( file_name),
 					__CHAR('.'),
 					__ARR( session->content_encoding->ident_string ));
+
 			break;
 		default:
 			break;
@@ -214,7 +214,7 @@ static void _http_method_handle(const ipacket_t * ipacket, attribute_t * attribu
 	valid = append_number(file_name, sizeof( file_name), session_id);
 
 	//2. then append HOST eventually
-	if( uri && uri->len > 0 ){
+	if( host && host->len > 0 ){
 		file_name[valid++] = '-';
 		int data_len = MIN( host->len, 50 ); //use maximally 5 characters for HOST
 		memcpy(file_name + valid, host->ptr, data_len );
@@ -226,7 +226,8 @@ static void _http_method_handle(const ipacket_t * ipacket, attribute_t * attribu
 	if( uri && uri->len > 0 ){
 		file_name[valid++] = '-';
 		int data_len = MIN( uri->len, 100); //use maximally 100 characters for URI
-		memcpy(file_name + valid, uri->ptr, data_len );
+		//copy the last data_len bytes (at the end) of uri->ptr
+		memcpy(file_name + valid, &uri->ptr[ uri->len - data_len ], data_len );
 		valid += string_format_file_name( file_name + valid, data_len );
 	}
 
@@ -426,6 +427,7 @@ void http_reconstruct_flush_session_to_file_and_free( http_session_t *session ){
 		goto _free_data;
 
 	//flush data to file
+	fflush( session->file );
 	fclose( session->file );
 
 	//do not have any data
@@ -435,7 +437,7 @@ void http_reconstruct_flush_session_to_file_and_free( http_session_t *session ){
 	}
 
 	char src_file_name[ MAX_LENGTH_FULL_PATH_FILE_NAME ];
-	int valid = 0, ret = 0;
+	int valid, ret = 0;
 
 	bool is_having_full_data = (session->content_length == 0 //does not explicitly indicate Content-Length
 			|| (session->current_data_length == session->content_length ));
@@ -446,6 +448,7 @@ void http_reconstruct_flush_session_to_file_and_free( http_session_t *session ){
 	}
 
 	if( session->content_encoding ){
+		valid = 0;
 		//uncompress data if need
 		STRING_BUILDER( valid, src_file_name, sizeof( src_file_name),
 				__ARR( session->file_name ),

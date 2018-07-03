@@ -8,12 +8,12 @@ TOP_DIR := $(dir $(firstword $(MAKEFILE_LIST)))
 SRC_DIR := $(TOP_DIR)src
 
 #installation directory
-INSTALL_DIR = /opt/mmt/probe
+INSTALL_DIR ?= /opt/mmt/probe
 
-#install directory is given from cmd parameter
-ifdef PREFIX
-	INSTALL_DIR $= $(PREFIX)
-endif
+# Directory where MMT-Security was installed
+MMT_SECURITY_DIR ?= /opt/mmt/security
+# Directory where MMT-DPI was installed
+MMT_DPI_DIR      ?= /opt/mmt/dpi
 
 #Name of executable file to generate
 APP = probe
@@ -24,9 +24,10 @@ VERSION     := 1.2.2
 
 $(info MMT-Probe version $(VERSION) $(GIT_VERSION) ($(MAKECMDGOALS)))
 
+
 #set of library
-LIBS     := -L/opt/mmt/dpi/lib -lmmt_core -lmmt_tcpip -lconfuse -lpthread 
-CFLAGS   := -I /opt/mmt/dpi/include -Wall -Wno-unused-variable\
+LIBS     := -L $(MMT_DPI_DIR)/lib -lmmt_core -lmmt_tcpip -lconfuse -lpthread 
+CFLAGS   := -I $(MMT_DPI_DIR)/include -Wall -Wno-unused-variable\
 			   -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"
 
 #intermediate targets

@@ -177,14 +177,18 @@ static inline int string_format_file_name( char *file_name, size_t size ){
 		else{
 			switch( file_name[i] ){
 			case '/':
+			case '\\':
 				file_name[i] = '=';
 				continue;
 			case '=':
+			case ';':
 			case '?':
+			case '*':
 			case '&':
 			case ':':
 			case '|':
 			case '"':
+			case '%':
 			case '>':
 			case '<':
 			case ' ':

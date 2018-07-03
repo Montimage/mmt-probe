@@ -50,17 +50,16 @@ void worker_release( worker_context_t *worker_context ){
 	mmt_probe_free( worker_context );
 }
 
-#ifdef SECURITY_MODULE
-#define SEC_MSG_FORMAT ", generated %"PRIu64" alerts"
-#else
-#define SEC_MSG_FORMAT ""
-#endif
-
 /**
  * This function is called by the main thread before freeing a worker
  * @param context
  */
 void worker_print_common_statistics( const probe_context_t *context ){
+#ifdef SECURITY_MODULE
+#define SEC_MSG_FORMAT ", generated %"PRIu64" alerts"
+#else
+#define SEC_MSG_FORMAT ""
+#endif
 	int i;
 	uint64_t pkt_received = 0;
 
@@ -113,12 +112,10 @@ void worker_on_start( worker_context_t *worker_context ){
 			worker_context->dpi_handler, worker_context->output, worker_context->index );
 
 #ifdef SECURITY_MODULE
-	//TODO: detail core_id for security
-	uint32_t *cores_id = (uint32_t []){0,1};
-
 	worker_context->security = security_worker_alloc_init(
 		worker_context->probe_context->config->reports.security,
-		worker_context->dpi_handler, cores_id,
+		worker_context->dpi_handler,
+		NULL, //core_id is NULL to allow OS arbitrarily arranging security threads on logical cores
 		(worker_context->index == 0), //verbose for only the first worker
 		worker_context->output );
 #endif

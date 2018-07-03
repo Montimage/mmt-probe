@@ -10,7 +10,6 @@
 #     MODULE_LIBS   : libraries must be linked to in order to compiles the selected modules
 #     MODULE_CFLAGS : compile flags
 
-
 # dummy target to enable all modules
 ALL_MODULES: ;@:
 
@@ -122,8 +121,8 @@ endif
 
 $(eval $(call check_module,SECURITY_MODULE))
 ifdef SECURITY_MODULE
-  MODULE_LIBS  += -L/opt/mmt/security/lib -lmmt_security2 -lxml2
-  MODULE_FLAGS += -I /opt/mmt/security/include -DSECURITY_MODULE
+  MODULE_LIBS  += -L$(MMT_SECURITY_DIR)/lib -lmmt_security2 -lxml2
+  MODULE_FLAGS += -I $(MMT_SECURITY_DIR)/include -DSECURITY_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/security/*.c)
 endif
 

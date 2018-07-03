@@ -310,18 +310,18 @@ static ALWAYS_INLINE int append_timeval( char *dst, size_t dst_size, const struc
 /**
  * These helpers are used only inside STRING_BUILDER macro
  */
-#define __ARR(x)   append_string_without_quote ( ptr+i, n-i, x )
-#define __STR(x)   append_string(                ptr+i, n-i, x )
-#define __INT(x)   append_number(                ptr+i, n-i, x )
-#define __CHAR(x)  append_char  (                ptr+i, n-i, x )
-#define __TIME(x)  append_timeval(               ptr+i, n-i, x )
-#define __HEX(x)   append_hex(                   ptr+i, n-i, x )
-#define __MAC(x)   append_mac(                   ptr+i, n-i, x )
-#define __IPv4(x)  append_ipv4(                  ptr+i, n-i, x )
+#define __ARR(x)   append_string_without_quote ( __ptr+__i, __n-__i, x )
+#define __STR(x)   append_string(                __ptr+__i, __n-__i, x )
+#define __INT(x)   append_number(                __ptr+__i, __n-__i, x )
+#define __CHAR(x)  append_char  (                __ptr+__i, __n-__i, x )
+#define __TIME(x)  append_timeval(               __ptr+__i, __n-__i, x )
+#define __HEX(x)   append_hex(                   __ptr+__i, __n-__i, x )
+#define __MAC(x)   append_mac(                   __ptr+__i, __n-__i, x )
+#define __IPv4(x)  append_ipv4(                  __ptr+__i, __n-__i, x )
 
-#define __BUILDER( X ) if( n > i ) i += X;
+#define __BUILDER( X ) if( __n > __i ) __i += X;
 #define __EMPTY()
-#define __SEPARATOR()  i += append_string_without_quote( ptr+i, n-i, sepa );
+#define __SEPARATOR()  __i += append_string_without_quote( __ptr+__i, __n-__i, sepa );
 
 /**
  * Create a macro to build a string.
@@ -335,14 +335,18 @@ static ALWAYS_INLINE int append_timeval( char *dst, size_t dst_size, const struc
  * The code above can be replaced by using this macro:
  *  int valid = 0;
  *  STRING_BUILDER( valid, msg, sizeof(msg), __INT(1), __CHAR(','), __STR("GET"));
+ *
+ * @param valid: position in dst from which we want to append data
+ * @param dst  : data buffer to append data to
+ * @param dst_size: total size of dst
  */
 #define STRING_BUILDER( valid, dst, dst_size, ... )      \
 do{                                                      \
-	int i = valid, n=dst_size-1;                         \
-	char *ptr = dst;                                     \
+	int __i = valid, __n=dst_size-1;                     \
+	char *__ptr = dst;                                   \
 	APPLY( __EMPTY, __BUILDER, __VA_ARGS__ )             \
-	ptr[i] = '\0';                                       \
-	valid = i;                                           \
+	__ptr[__i] = '\0';                                   \
+	valid = __i;                                         \
 }while( 0 )
 
 
@@ -351,12 +355,12 @@ do{                                                      \
  */
 #define STRING_BUILDER_WITH_SEPARATOR( valid, dst, dst_size, separator,... ) \
 do{                                                                          \
-	int i = valid, n=dst_size-1;                                             \
-	char *ptr = dst;                                                         \
+	int __i = valid, __n=dst_size-1;                                         \
+	char *__ptr = dst;                                                       \
 	const char *sepa = separator;                                            \
 	APPLY( __SEPARATOR, __BUILDER, __VA_ARGS__  )                            \
-	ptr[i] = '\0';                                                           \
-	valid = i;                                                               \
+	__ptr[__i] = '\0';                                                       \
+	valid = __i;                                                             \
 }while( 0 )
 
 #endif /* SRC_LIB_STRING_BUILDER_H_ */
