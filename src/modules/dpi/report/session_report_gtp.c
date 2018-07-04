@@ -33,7 +33,7 @@ struct session_gtp_stat_struct{
 //session is based on IP after GTP, not on IP after ETHERNET
 //this ensures GTP is after IP session
 #define _is_session_based_on_ip_after_gtp( ipacket  )\
-	(get_protocol_index_by_id(ipacket, PROTO_GTP) + 1 ==  get_session_protocol_index( ipacket->session ))
+	(ipacket->session && get_protocol_index_by_id(ipacket, PROTO_GTP) + 1 ==  get_session_protocol_index( ipacket->session ))
 
 static inline session_gtp_stat_t *_get_gtp_session_data( const ipacket_t *ipacket, bool create_if_need ){
 	int i;

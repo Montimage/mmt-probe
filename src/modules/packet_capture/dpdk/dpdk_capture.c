@@ -117,12 +117,12 @@ static inline void _print_dpdk_stats( uint8_t port_number ){
 	int ret = rte_eth_stats_get( port_number, &stat );
 
 	if( ret ){
-		log_write( LOG_WARNING, "Cannot get statistics from DPDK for port %d", port_number );
+		log_write_dual( LOG_WARNING, "Cannot get statistics from DPDK for port %d", port_number );
 	}else{
 		//get total packets
 		uint64_t total_pkt = stat.ipackets + stat.imissed + stat.ierrors;
 
-		log_write( LOG_INFO, "DPDK received %"PRIu64" packets, dropped %"PRIu64" (%.2f%%), error %"PRIu64" (%.2f%%)",
+		log_write_dual( LOG_INFO, "DPDK received %"PRIu64" packets, dropped %"PRIu64" (%.2f%%), error %"PRIu64" (%.2f%%)",
 				total_pkt,
 				stat.imissed,
 				stat.imissed * 100.0 / total_pkt,

@@ -101,7 +101,7 @@ static void _print_security_verdict(
 
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 	int offset = 0;
-	STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
+	STRING_BUILDER_WITH_SEPARATOR( offset, message, sizeof( message ), ",",
 			__INT( rule->id ),
 			__STR( verdict_type_string[verdict] ),
 			__STR( rule->type_string ),

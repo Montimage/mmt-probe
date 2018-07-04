@@ -30,6 +30,16 @@ static inline void log_open(){
 #define log_write syslog
 
 /**
+ * Write log to both syslog and screen
+ */
+#define log_write_dual( type, format, ... )                                 \
+	do{                                                                     \
+		log_write( type, format,## __VA_ARGS__ );                           \
+		fprintf( stderr, format,## __VA_ARGS__ );                           \
+	}while( 0 )
+
+
+/**
  * A macro for outputting message only when debugging
  */
 #ifdef DEBUG_MODE

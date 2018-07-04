@@ -175,9 +175,14 @@ static inline int append_number( char *dst, size_t dst_size, uint64_t val ){
 		if(val>=10000000)
 		{
 			if( val >= 10000000000){
-				if( val >= 1000000000000)
+				if(    val >= 1000000000000){
+					//TODO: this limit a number to 13 digits
+					if( val > 9999999999999){
+						log_write( LOG_WARNING, "Do not support convert the big number more than 13 digits: %lu", val);
+						val = 9999999999999;
+					}
 					size = 13;
-				else if( val >= 100000000000)
+				}else if( val >= 100000000000)
 					size = 12;
 				else
 					size = 11;

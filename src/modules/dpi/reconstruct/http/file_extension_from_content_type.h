@@ -1,4 +1,4 @@
-/* Generated on Tue Jul  3 16:56:00 CEST 2018 */
+/* Generated on Wed Jul  4 16:37:20 CEST 2018 */
 /* ANSI-C code produced by gperf version 3.0.4 */
 /* Command-line: gperf src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf  */
 /* Computed positions: -k'7,$' */
@@ -102,7 +102,7 @@ get_content_type_hash (register const char *str, register unsigned int len)
       80, 80, 80, 80, 80, 80, 80, 80, 80, 80,
       80, 80, 80, 80, 80, 80, 80, 80, 80, 80,
       80, 80, 80, 80, 80,  5, 80, 20, 80, 80,
-      80,  0, 40, 80, 80, 80, 80, 80, 80, 80,
+       5,  0, 40, 80, 80, 80, 80, 80, 80, 80,
       80, 80, 80, 80, 80,  5, 80, 80, 15, 10,
        0, 25, 30, 80, 20, 80,  0, 30,  0,  0,
       15, 80, 80, 20, 10, 80, 20, 80,  0,  5,
@@ -151,7 +151,7 @@ get_file_extension_from_content_type (register const char *str, register unsigne
 {
   enum
     {
-      TOTAL_KEYWORDS = 40,
+      TOTAL_KEYWORDS = 41,
       MIN_WORD_LENGTH = 3,
       MAX_WORD_LENGTH = 33,
       MIN_HASH_VALUE = 3,
@@ -161,10 +161,10 @@ get_file_extension_from_content_type (register const char *str, register unsigne
   static const struct file_extension wordlist[] =
     {
       {""}, {""}, {""},
-#line 44 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
+#line 45 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"mp3",                           "mp3"},
       {""}, {""}, {""}, {""}, {""},
-#line 43 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
+#line 44 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"font/woff",                     "woff"},
 #line 21 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"text/plain",                    "txt"},
@@ -172,10 +172,10 @@ get_file_extension_from_content_type (register const char *str, register unsigne
 #line 38 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"image/x-icon",                  "icon"},
       {""},
-#line 50 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
+#line 51 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"video/x-ms-asf",                "asf"},
       {""}, {""}, {""},
-#line 51 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
+#line 52 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"zip",                           "zip"},
 #line 19 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"text/html",                     "html"},
@@ -183,7 +183,7 @@ get_file_extension_from_content_type (register const char *str, register unsigne
       {"application/xml",               "xml"},
 #line 29 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"application/json",              "json"},
-#line 54 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
+#line 55 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"application/x-amf",             "amf"},
 #line 42 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"application/x-woff",            "woff"},
@@ -201,14 +201,15 @@ get_file_extension_from_content_type (register const char *str, register unsigne
       {"text/json",                     "json"},
 #line 30 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"text/javascript",               "js"},
-#line 49 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
+#line 50 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"video/x-flv",                   "flv"},
-      {""},
+#line 43 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
+      {"application/font-woff2",        "woff"},
 #line 33 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"image/svg+xml",                 "svg"},
 #line 37 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"image/gif",                     "gif"},
-#line 52 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
+#line 53 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"application/zip",               "zip"},
 #line 22 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"text/x-cross-domain-policy",    "txt"},
@@ -218,12 +219,12 @@ get_file_extension_from_content_type (register const char *str, register unsigne
       {"text/xml",                      "xml"},
 #line 31 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"application/x-javascript",      "js"},
-#line 55 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
+#line 56 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"application/ocsp-response",     "ocsp"},
       {""},
-#line 53 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
+#line 54 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"application/x-fcs",             "fcs"},
-#line 46 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
+#line 47 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"mp4",                           "mp4"},
 #line 39 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"image/vnd.microsoft.icon",      "icon"},
@@ -232,26 +233,26 @@ get_file_extension_from_content_type (register const char *str, register unsigne
       {"text/css",                      "css"},
 #line 34 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"image/png",                     "png"},
-#line 48 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
+#line 49 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"video/MP2T",                    "mp4"},
       {""}, {""},
-#line 57 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
+#line 58 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"application/x-www-form-urlencoded", "dat"},
 #line 35 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"image/jpg",                     "jpg"},
 #line 36 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"image/jpeg",                    "jpg"},
       {""}, {""}, {""},
-#line 58 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
+#line 59 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"application/octet-stream",          "dat"},
       {""}, {""}, {""}, {""},
-#line 45 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
+#line 46 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"application/x-shockwave-flash", "swf"},
       {""}, {""}, {""}, {""},
-#line 56 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
+#line 57 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"binary/octet-stream",               "dat"},
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
-#line 47 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
+#line 48 "src/modules/dpi/reconstruct/http/file_extension_from_content_type.gperf"
       {"audio/mp4",                     "mp4"}
     };
 

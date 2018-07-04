@@ -9,6 +9,7 @@
 #include "session_report.h"
 
 #include "../../../lib/string_builder.h"
+#include "../../../lib/log.h"
 #include "../../../lib/inet.h"
 
 //functions implemented by session_report_xxx.c
@@ -39,25 +40,25 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	uint64_t dl_payload = get_session_dl_data_byte_count(dpi_session);
 	uint64_t total_payload = ul_payload + dl_payload;
 
-	uint64_t report_number;
-
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(dpi_session);
 	int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
 
 	uint64_t data_transfer_time = 0;
 #ifdef QOS_MODULE
 	// Data transfer time calculation
-	if (session_stat->dtt_seen ){
+	if (session_stat->dtt_start_time.tv_sec > 0 ){
 		struct timeval t1;
-		//The download direction is opposite to set_up_direction, the download direction is from server to client
+		//The download direction is opposite to set_up_direction,
+		//  the download direction is from server to client
 		if (get_session_setup_direction(dpi_session) == 1)
 			t1 = get_session_last_data_packet_time_by_direction(dpi_session, 0);
 		else
 			t1 = get_session_last_data_packet_time_by_direction(dpi_session, 1);
 
-
-		data_transfer_time =  u_second_diff(&t1, &session_stat->dtt_start_time);
-		session_stat->dtt_start_time = t1;
+		if( t1.tv_sec != 0 ){
+			data_transfer_time =  u_second_diff(&t1, &session_stat->dtt_start_time);
+			session_stat->dtt_start_time = t1;
+		}
 	}
 #endif
 
@@ -393,24 +394,26 @@ int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, sessi
 #ifndef SIMPLE_REPORT
 
 #ifdef QOS_MODULE
+	//dtt_start_time: store the timestamp of the first data packet (the one is just after 3-way handshake) in a TCP session
 	//only for packet based on TCP
-	if (session_stat != NULL && session_stat->dtt_seen == false ){
+	if (session_stat != NULL && session_stat->dtt_start_time.tv_sec == 0 ){
 		struct timeval ts = get_session_rtt(ipacket->session);
 		//this will exclude all the protocols except TCP
 		uint64_t usec = u_second( &ts );
+		//must have finished RTT
 		if( usec != 0){
 			uint8_t direction = get_session_last_packet_direction(ipacket->session);
-			//The download direction is opposite to set_up_direction, the download direction is from server to client
-			if( direction != get_session_setup_direction(ipacket->session)){
-				struct timeval t1;
-				t1 = get_session_last_data_packet_time_by_direction(ipacket->session, direction );
 
-				if (t1.tv_sec > 0
-						//&& u_second_diff(&ipacket->p_hdr->ts, & session->start_time) > usec
-						){
-					session_stat->dtt_seen = true;
+			//The download direction is opposite to setup_direction,
+			//  the download direction is from server to client
+			if( direction != get_session_setup_direction(ipacket->session)){
+
+				//moment the session was initialized
+				struct timeval init_time_of_session = get_session_init_time( ipacket->session);
+
+				//the packet is outside of handshake process
+				if ( u_second_diff(&ipacket->p_hdr->ts, &init_time_of_session ) > usec )
 					session_stat->dtt_start_time = ipacket->p_hdr->ts;
-				}
 			}
 		}
 	}

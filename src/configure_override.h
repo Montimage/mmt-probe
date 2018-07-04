@@ -152,9 +152,11 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__INPUT__MODE,        "input.mode",        &conf->input->input_mode,   UINT16_T),
 	(CONF_ATT__INPUT__SOURCE,      "input.source",      &conf->input->input_source, CHAR_STAR),
 	(CONF_ATT__INPUT__SNAP_LEN,    "input.snap-len",    &conf->input->snap_len,     UINT16_T),
+
 #ifdef DPDK_MODULE
 	(CONF_ATT__INPUT__DPDK_OPTION, "input.dpdk-option", &conf->input->dpdk_options, CHAR_STAR),
 #endif
+
 	//output
 	(CONF_ATT__OUTPUT__FORMAT,       "output.format",       &conf->outputs.format,       UINT16_T),
 	(CONF_ATT__OUTPUT__CACHE_MAX,    "output.cache-max",    &conf->outputs.cache_max,    UINT32_T),
@@ -230,13 +232,17 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__SECURITY__OUTPUT_CHANNEL, "security.output-channel", &conf->reports.security->output_channels, LIST),
 #endif
 
+#ifdef FTP_RECONSTRUCT_MODULE
 	//reconstruct FTP
 	(CONF_ATT__RECONSTRUCT_DATA__FTP__ENABLE,     "reconstruct-data.ftp.enable",     &conf->reconstructions.ftp->is_enable, BOOL),
 	(CONF_ATT__RECONSTRUCT_DATA__FTP__OUTPUT_DIR, "reconstruct-data.ftp.output-dir", &conf->reconstructions.ftp->directory, CHAR_STAR),
+#endif
 
+#ifdef HTTP_RECONSTRUCT_MODULE
 	//reconstruct HTTP
 	(CONF_ATT__RECONSTRUCT_DATA__HTTP__ENABLE,     "reconstruct-data.http.enable",     &conf->reconstructions.http->is_enable, BOOL),
 	(CONF_ATT__RECONSTRUCT_DATA__HTTP__OUTPUT_DIR, "reconstruct-data.http.output-dir", &conf->reconstructions.http->directory, CHAR_STAR ),
+#endif
 
 	//micro-flows
 	(CONF_ATT__MICRO_FLOWS__ENABLE,              "micro-flows.enable",              &conf->reports.microflow->is_enable,            BOOL ),
@@ -252,8 +258,10 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__SESSION_REPORT__FTP,    "session-report.ftp",    &conf->reports.session->is_ftp,    BOOL ),
 	(CONF_ATT__SESSION_REPORT__HTTP,   "session-report.http",   &conf->reports.session->is_http,   BOOL),
 	(CONF_ATT__SESSION_REPORT__RTP,    "session-report.rtp",    &conf->reports.session->is_rtp,    BOOL ),
+	(CONF_ATT__SESSION_REPORT__GTP,    "session-report.gtp",    &conf->reports.session->is_gtp,    BOOL ),
 	(CONF_ATT__SESSION_REPORT__SSL,    "session-report.ssl",    &conf->reports.session->is_ssl,    BOOL),
 	(CONF_ATT__SESSION_REPORT__OUTPUT_CHANNEL, "session-report.output-channel",    &conf->reports.session->output_channels, LIST),
+
 	//radius-report
 	(CONF_ATT__RADIUS_REPORT__ENABLE,         "radius-report.enable",         &conf->reports.radius->is_enable,       BOOL),
 	(CONF_ATT__RADIUS_REPORT__MESSAGE_ID,     "radius-report.message-id",     &conf->reports.radius->message_code,    UINT16_T ),

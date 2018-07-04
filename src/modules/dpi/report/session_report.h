@@ -98,8 +98,6 @@ typedef struct session_stat_struct {
 	struct timeval dtt_start_time;
 	uint64_t rtt_at_handshake;
 #endif
-
-	bool dtt_seen;
 	bool is_classified;
 	bool is_touched;
 

@@ -321,11 +321,11 @@ static inline void _print_pcap_stats( const probe_context_t *context ){
 	//get statistics from pcap
 	if( context->config->input->input_mode == ONLINE_ANALYSIS ){
 		if (pcap_stats(context->modules.pcap->handler, &pcs) < 0) {
-			log_write( LOG_WARNING, "Cannot get statistics from pcap: %s", pcap_geterr( context->modules.pcap->handler ));
+			log_write_dual( LOG_WARNING, "Cannot get statistics from pcap: %s", pcap_geterr( context->modules.pcap->handler ));
 		}else{
 			u_int pkt_received = pcs.ps_recv;
 			u_int pkt_dropped  = pcs.ps_ifdrop + pcs.ps_drop;
-			log_write( LOG_INFO, "System received %d packets, dropped %d (%.2f%% = %.2f%% by NIC + %.2f%% by kernel)",
+			log_write_dual( LOG_INFO, "System received %d packets, dropped %d (%.2f%% = %.2f%% by NIC + %.2f%% by kernel)",
 					pkt_received,
 					pkt_dropped,
 					pkt_dropped   * 100.0 / pkt_received,

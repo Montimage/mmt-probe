@@ -69,7 +69,7 @@ void worker_print_common_statistics( const probe_context_t *context ){
 
 	//single thread
 	if( !IS_SMP_MODE( context )){
-		log_write( LOG_INFO, "MMT processed %"PRIu64" packets, dropped %"PRIu64" packets (%.2f%%)"SEC_MSG_FORMAT" \n",
+		log_write_dual( LOG_INFO, "MMT processed %"PRIu64" packets, dropped %"PRIu64" packets (%.2f%%)"SEC_MSG_FORMAT" \n",
 				context->smp[0]->stat.pkt_processed,
 				context->smp[0]->stat.pkt_dropped,
 				context->smp[0]->stat.pkt_dropped * 100.0 / context->smp[0]->stat.pkt_processed
@@ -84,7 +84,7 @@ void worker_print_common_statistics( const probe_context_t *context ){
 
 		//for each thread
 		for( i = 0; i < context->config->thread->thread_count; i++ ){
-			log_write( LOG_INFO, "Worker %d processed %"PRIu64" packets (%.2f%%), dropped %"PRIu64" packets (%3.2f%%)"SEC_MSG_FORMAT" \n",
+			log_write_dual( LOG_INFO, "Worker %d processed %"PRIu64" packets (%.2f%%), dropped %"PRIu64" packets (%3.2f%%)"SEC_MSG_FORMAT" \n",
 					i,
 					context->smp[i]->stat.pkt_processed,
 					context->smp[i]->stat.pkt_processed * 100.0 /  pkt_received,
@@ -114,7 +114,8 @@ void worker_on_start( worker_context_t *worker_context ){
 			//- worker thread, or,
 			//- security threads
 #ifdef SECURITY_MODULE
-			worker_context->probe_context->config->reports.security->is_enable
+			(worker_context->probe_context->config->reports.security->is_enable
+			&& worker_context->probe_context->config->reports.security->threads_size != 0)
 #else
 			false
 #endif
