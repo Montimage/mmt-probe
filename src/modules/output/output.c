@@ -5,6 +5,7 @@
  *          by: Huu Nghia
  */
 #include <stdarg.h>
+#include <pthread.h>
 
 #include "../../configure.h"
 
@@ -20,10 +21,13 @@
 
 struct output_struct{
 	uint16_t index;
-	const char*input_src;
 	uint32_t probe_id;
+	const char*input_src;
 	struct timeval last_report_ts;
 	const struct output_conf_struct *config;
+
+	//mutex is used only in multi-threading output
+	pthread_mutex_t *mutex;
 
 	struct output_modules_struct{
 		file_output_t *file;
@@ -36,53 +40,69 @@ struct output_struct{
 
 
 //public API
-output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct *config, uint32_t probe_id, const char* input_src ){
+output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct *config, uint32_t probe_id, const char* input_src, bool is_multi_threads ){
 	int i;
 	if( ! config->is_enable )
 		return NULL;
 
-	output_t *ret = mmt_alloc_and_init_zero( sizeof( output_t ));
-	ret->config = config;
-	ret->index  = output_id;
+	output_t *ret  = mmt_alloc_and_init_zero( sizeof( output_t ));
+	ret->config    = config;
+	ret->index     = output_id;
 	ret->input_src = input_src;
 	ret->probe_id  = probe_id;
+
+	//When using output in multi-threads, we need to synchronize their function calls by mutex
+	if( is_multi_threads ){
+		ret->mutex = malloc( sizeof(pthread_mutex_t) );
+		pthread_mutex_init(ret->mutex, NULL);
+	}else
+		ret->mutex = NULL;
 
 	if( ! ret->config->is_enable )
 		return ret;
 
-	if( ret->config->file->is_enable ){
-		ret->modules.file = file_output_alloc_init( ret->config->file, output_id );
-	}
+
+	/*
+	 * Initialize the output channels
+	 * The result must be NULL if output is disable to its channel,
+	 * for example: ret->modules.file must be NULL if file-output.enable=false
+	 */
+
+	ret->modules.file = file_output_alloc_init( ret->config->file, output_id );
 
 #ifdef REDIS_MODULE
-	if( ret->config->redis->is_enable )
-		ret->modules.redis = redis_init( ret->config->redis );
+	ret->modules.redis = redis_init( ret->config->redis );
 #endif
 
 #ifdef KAFKA_MODULE
-	if( ret->config->kafka->is_enable )
-		ret->modules.kafka = kafka_output_init( ret->config->kafka );
+	ret->modules.kafka = kafka_output_init( ret->config->kafka );
 #endif
 
 #ifdef MONGODB_MODULE
-	if( ret->config->mongodb->is_enable )
-		ret->modules.mongodb = mongodb_output_alloc_init( ret->config->mongodb, ret->config->cache_max, output_id );
+	ret->modules.mongodb = mongodb_output_alloc_init( ret->config->mongodb, ret->config->cache_max, output_id );
 #endif
 
 #ifdef SOCKET_MODULE
-	if( ret->config->socket->is_enable )
-		ret->modules.socket = socket_output_init( ret->config->socket );
+	ret->modules.socket = socket_output_init( ret->config->socket );
 #endif
 	return ret;
 }
 
-
+/**
+ * Write an entire report to output channels
+ * @param output
+ * @param channels
+ * @param message
+ * @return
+ */
 static inline int _write( output_t *output, output_channel_conf_t channels, const char *message ){
 	int ret = 0;
 	char new_msg[ MAX_LENGTH_REPORT_MESSAGE ];
 
 	//we surround message inside [] to convert it to JSON
-	//this is done when output format is JSON or when we need to output to MongoDB
+	//this needs to be done when:
+	//- output format is JSON,
+	//- or when we need to output to MongoDB
 	if( output->config->format == OUTPUT_FORMAT_JSON
 #ifdef MONGODB_MODULE
 			|| (output->modules.mongodb && IS_ENABLE_OUTPUT_TO( MONGODB, channels ) )
@@ -137,16 +157,41 @@ static inline int _write( output_t *output, output_channel_conf_t channels, cons
 	return ret;
 }
 
+
+/*
+ * This macro is used to synchronize only when using in multi-threading,
+ * i.e., (output->mutex != NULL)
+ * The code after calling this macro is ensured thread-safe.
+ * __UNLOCK macro must be called before any return.
+ *
+ * Currently we need to lock only when security is enable.
+ */
+#define __LOCK_IF_NEED( output )                        \
+	while( output->mutex != NULL &&                     \
+		pthread_mutex_lock( output->mutex ) != 0 );     \
+/*
+ * This macro unlocks the mutex being locked by the macro above.
+ */
+#define __UNLOCK_IF_NEED( output )                      \
+	while( output->mutex != NULL &&                     \
+		pthread_mutex_unlock( output->mutex ) != 0 );   \
+
+
+//public API
 int output_write_report( output_t *output, output_channel_conf_t channels,
 		report_type_t report_type, const struct timeval *ts,
 		const char* message_body){
+
+	__LOCK_IF_NEED( output );
 
 	//global output is disable or no output on this channel
 	if( output == NULL
 			|| output->config == NULL
 			|| ! output->config->is_enable
-			|| IS_DISABLE_OUTPUT( channels ) )
+			|| IS_DISABLE_OUTPUT( channels ) ){
+		__UNLOCK_IF_NEED( output );
 		return 0;
+	}
 
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 	int offset = 0;
@@ -167,25 +212,33 @@ int output_write_report( output_t *output, output_channel_conf_t channels,
 	output->last_report_ts.tv_sec  = ts->tv_sec;
 	output->last_report_ts.tv_usec = ts->tv_usec;
 
+	__UNLOCK_IF_NEED( output );
 	return ret;
 }
 
+//public API
 int output_write_report_with_format( output_t *output, output_channel_conf_t channels,
 		report_type_t report_type, const struct timeval *ts,
 		const char* format, ...){
 
+	__LOCK_IF_NEED( output );
 	//global output is disable or no output on this channel
 	if( output == NULL
 			|| output->config == NULL
 			|| ! output->config->is_enable
-			|| IS_DISABLE_OUTPUT( channels ) )
+			|| IS_DISABLE_OUTPUT( channels ) ){
+		__UNLOCK_IF_NEED( output );
 		return 0;
+	}
+	//we need to unlock here as hereafter are thread-safe
+	//otherwise there will be a deadlock as there will be a lock in @output_write_report
+	__UNLOCK_IF_NEED( output );
 
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
-	int offset;
+	int offset, ret;
 
 	if( unlikely( format == NULL )){
-		return output_write_report( output, channels, report_type, ts, NULL);
+		ret = output_write_report( output, channels, report_type, ts, NULL);
 	} else {
 		va_list args;
 		offset = 0;
@@ -193,22 +246,33 @@ int output_write_report_with_format( output_t *output, output_channel_conf_t cha
 		offset += vsnprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, format, args);
 		va_end( args );
 
-		return output_write_report( output, channels, report_type, ts, message );
+		ret = output_write_report( output, channels, report_type, ts, message );
 	}
+
+	return ret;
 }
 
 //public API
 int output_write( output_t *output, output_channel_conf_t channels, const char *message ){
+	int ret;
+	__LOCK_IF_NEED( output );
+
 	//global output is disable or no output on this channel
 	if( ! output || ! output->config->is_enable || IS_DISABLE_OUTPUT(channels ))
-		return 0;
+		ret = 0;
+	else
+		ret = _write( output, channels, message );
 
-	return _write( output, channels, message );
+	__UNLOCK_IF_NEED( output );
+	return ret;
 }
 
+//public API
 void output_flush( output_t *output ){
 	if( !output )
 		return;
+
+	__LOCK_IF_NEED( output );
 
 	if( output->modules.file )
 		file_output_flush( output->modules.file );
@@ -218,8 +282,11 @@ void output_flush( output_t *output ){
 			&& output->config->mongodb->is_enable )
 		mongodb_output_flush_to_database( output->modules.mongodb );
 #endif
+
+	__UNLOCK_IF_NEED( output );
 }
 
+//public API
 void output_release( output_t * output){
 	if( !output ) return;
 
@@ -229,5 +296,8 @@ void output_release( output_t * output){
 	IF_ENABLE_KAFKA( kafka_output_release( output->modules.kafka ); )
 	IF_ENABLE_REDIS( redis_release( output->modules.redis ); )
 	IF_ENABLE_SOCKET( socket_output_release( output->modules.socket ); )
+
+	if( output->mutex )
+		pthread_mutex_destroy( output->mutex );
 	mmt_probe_free( output );
 }

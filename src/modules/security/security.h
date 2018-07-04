@@ -8,6 +8,7 @@
 #ifndef SRC_LIB_SECURITY_SECURITY_H_
 #define SRC_LIB_SECURITY_SECURITY_H_
 
+#include <pthread.h>
 #include <mmt_core.h>
 #include <mmt_security.h>
 #include "../../configure.h"
@@ -25,6 +26,8 @@ typedef struct security_context_struct{
 	const security_conf_t *config;
 
 	output_t *output;
+
+	pthread_mutex_t mutex;
 } security_context_t;
 
 /**

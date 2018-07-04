@@ -108,6 +108,7 @@ static void _print_security_verdict(
 			__STR( description ),
 			__ARR( exec_trace ) //string without quotes
 	);
+
 	output_write_report( security_context->output,
 				security_context->config->output_channels,
 				SECURITY_REPORT_TYPE,
@@ -145,6 +146,7 @@ security_context_t* security_worker_alloc_init( const security_conf_t *config,
 	ret->dpi_handler = dpi_handler;
 	ret->config      = config;
 	ret->output      = output;
+	pthread_mutex_init( &ret->mutex, NULL);
 	//init mmt-sec to verify the rules
 	ret->sec_handler = mmt_sec_register( threads_count, cores_id, config->rules_mask, false, _print_security_verdict, ret );
 

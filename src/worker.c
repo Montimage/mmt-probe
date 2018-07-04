@@ -55,11 +55,13 @@ void worker_release( worker_context_t *worker_context ){
  * @param context
  */
 void worker_print_common_statistics( const probe_context_t *context ){
+
 #ifdef SECURITY_MODULE
 #define SEC_MSG_FORMAT ", generated %"PRIu64" alerts"
 #else
 #define SEC_MSG_FORMAT ""
 #endif
+
 	int i;
 	uint64_t pkt_received = 0;
 
@@ -97,7 +99,7 @@ void worker_print_common_statistics( const probe_context_t *context ){
 }
 
 /**
- * This callback must be called by a worker thread after starting it
+ * This callback must be called by a worker thread after starting the thread
  * @param worker_context
  */
 void worker_on_start( worker_context_t *worker_context ){
@@ -106,7 +108,18 @@ void worker_on_start( worker_context_t *worker_context ){
 	worker_context->output = output_alloc_init( worker_context->index,
 			&(worker_context->probe_context->config->outputs),
 			worker_context->probe_context->config->probe_id,
-			worker_context->probe_context->config->input->input_source );
+			worker_context->probe_context->config->input->input_source,
+
+			//when enable security, we need to synchronize output as it can be called from
+			//- worker thread, or,
+			//- security threads
+#ifdef SECURITY_MODULE
+			worker_context->probe_context->config->reports.security->is_enable
+#else
+			false
+#endif
+
+	);
 
 	worker_context->dpi_context = dpi_alloc_init( worker_context->probe_context->config,
 			worker_context->dpi_handler, worker_context->output, worker_context->index );
