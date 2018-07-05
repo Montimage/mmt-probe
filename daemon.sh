@@ -1,5 +1,6 @@
 #!/bin/sh
 ### BEGIN INIT INFO
+# Provides: Montimage
 # Required-Start:    $remote_fs $syslog
 # Required-Stop:     $remote_fs $syslog
 # Default-Start:     2 3 4 5
@@ -8,7 +9,7 @@
 ### END INIT INFO
 
 # Author: Montimage <contact@montimage.com>
-# 09 August 2016
+# 09 August 2018
 
 # PATH should only include /usr/* if it runs after the mountnfs.sh script
 PATH=/sbin:/usr/sbin:/bin:/usr/bin

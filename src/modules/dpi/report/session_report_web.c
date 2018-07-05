@@ -3,6 +3,8 @@
  *
  *  Created on: Dec 28, 2017
  *          by: Huu Nghia
+ *
+ * This file does the parts of HTTP report in the session reports.
  */
 #include <limits.h>
 #include "session_report.h"
@@ -70,6 +72,7 @@ static inline session_stat_t* _get_packet_session(const ipacket_t * ipacket) {
 
 	session_stat_t *session = session_report_get_session_stat(ipacket);
 
+	//must be on top of a TCP session
 	if( session == NULL )
 		return NULL;
 
@@ -89,7 +92,7 @@ static inline session_stat_t* _get_packet_session(const ipacket_t * ipacket) {
 
 
 /**
- * This function is called by mmt-dpi for reporting http method
+ * This callback is called by DPI when it sees a HTTP method
  */
 static void _web_method_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	session_stat_t *session    = _get_packet_session(ipacket);
@@ -124,6 +127,9 @@ static void _web_method_handle(const ipacket_t * ipacket, attribute_t * attribut
 #endif
 }
 
+/**
+ * This callback will be called by DPI when seeing HTTP responses
+ */
 static void _web_response_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	session_stat_t *session = _get_packet_session(ipacket);
 
@@ -143,6 +149,9 @@ static void _web_response_handle(const ipacket_t * ipacket, attribute_t * attrib
 	dpi_copy_string_value(web->response, sizeof( web->response ), attribute->data );
 }
 
+/**
+ * This callback will be called by DPI when seeing HTTP referers
+ */
 static void _web_referer_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	session_stat_t *session = _get_packet_session(ipacket);
 	if( unlikely( session == NULL ))
@@ -151,6 +160,9 @@ static void _web_referer_handle(const ipacket_t * ipacket, attribute_t * attribu
 	dpi_copy_string_value(web->referer, sizeof( web->referer ), attribute->data );
 }
 
+/**
+ * This callback is called when DPI sees an HTTP URI
+ */
 static void _web_uri_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	session_stat_t *session = _get_packet_session(ipacket);
 	if( unlikely( session == NULL ))
@@ -159,6 +171,9 @@ static void _web_uri_handle(const ipacket_t * ipacket, attribute_t * attribute, 
 	dpi_copy_string_value(web->uri, sizeof( web->uri ), attribute->data );
 }
 
+/**
+ * This callback is called when DPI sees an HTTP Content-Length
+ */
 static void _web_content_len_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	session_stat_t *session = _get_packet_session(ipacket);
 	if( unlikely( session == NULL ))
@@ -167,6 +182,9 @@ static void _web_content_len_handle(const ipacket_t * ipacket, attribute_t * att
 	dpi_copy_string_value(web->content_len, sizeof( web->content_len ), attribute->data );
 }
 
+/**
+ * This callback is called when DPI sees an HTTP host
+ */
 static void _web_host_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	session_stat_t *session = _get_packet_session(ipacket);
 	if( unlikely( session == NULL ))
@@ -180,6 +198,9 @@ static void _web_host_handle(const ipacket_t * ipacket, attribute_t * attribute,
 	dpi_copy_string_value(web->hostname, sizeof( web->hostname ), attribute->data );
 }
 
+/**
+ * This callback is called when DPI sees an HTTP Content-Type
+ */
 static void _content_type_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	session_stat_t *session = _get_packet_session(ipacket);
 	if( unlikely( session == NULL ))
@@ -193,6 +214,9 @@ static void _content_type_handle(const ipacket_t * ipacket, attribute_t * attrib
 	//session->content_class = get_content_class_by_content_type( web->mime_type );
 }
 
+/**
+ * This callback is called when DPI sees an HTTP X-CDN
+ */
 static void _web_xcdn_seen_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	session_stat_t *session = _get_packet_session(ipacket);
 	session_web_stat_t *web = session->apps.web;

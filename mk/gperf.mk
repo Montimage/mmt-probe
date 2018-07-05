@@ -2,7 +2,10 @@
 # Generate C-code for perfect hash using gperf #
 ################################################
 
-# - Input variables: SRC_DIR
+# - Input variables: 
+#     SRC_DIR : directory of source code "src/"
+#     QUIET   : verbose or not
+#     RM      : command to remove files/directories
 
 
 # Must define SRC directory

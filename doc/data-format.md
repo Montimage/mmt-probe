@@ -7,7 +7,7 @@ MMT Probe generates data in a flexible format that fits different applications.
 
 The data format follows this generic structure:
 
-    Common report ⇒ Application report ⇒ Application Sub-Report
+    Common report ==> Application report ==> Application Sub-Report
 
 Common report is generic to all the report.
 

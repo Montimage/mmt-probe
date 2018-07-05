@@ -4,11 +4,18 @@
 
 # - Input variables: 
 #     SRC_DIR: path of /src
+#     MMT_SECURITY_DIR: directory where MMT-Security is installed
+#     MMT_DPI_DIR     : directory where MMT-DPI is installed
 #     
 # - Output variables:
 #     MODULE_SRCS   : all .c files of modules to be compiled
 #     MODULE_LIBS   : libraries must be linked to in order to compiles the selected modules
 #     MODULE_CFLAGS : compile flags
+#     and list of module names:
+#     TCP_REASSEMBLY_MODULE = 1 if TCP reassemply module is active when compiling
+#     ....
+#
+#     ALL_MODULES = 1 if user actives all modules when compiling
 
 # dummy target to enable all modules
 ALL_MODULES: ;@:
@@ -30,6 +37,7 @@ define check_module
 # dummy target
 $(1): ;@:
 
+MODULES_LIST += $(1)
 #enable this module if 
 # - ALL_MODULES is given on parameters of make command
 # - or its name is called on the parameters 
@@ -135,10 +143,10 @@ endif
 # check license
 $(eval $(call check_module,LICENSE_MODULE))
 ifdef LICENSE_MODULE
-	CFLAGS   += -DLICENSE_CHECK
+  CFLAGS   += -DLICENSE_CHECK
 else
 #exclude license.c
-	LIB_SRCS := $(filter-out src/lib/license.c, $(LIB_SRCS))
+  LIB_SRCS := $(filter-out src/lib/license.c, $(LIB_SRCS))
 endif
 
 
@@ -182,7 +190,8 @@ else
 endif
 
 # to use DPDK to capture packet
-$(eval $(call EXPORT_MODULE,DPDK_CAPTURE))
+$(eval $(call EXPORT_TARGET,DPDK_CAPTURE))
+
 ifdef DPDK_CAPTURE
 $(info - Use DPDK to capture packet)
   export DPDK=1
