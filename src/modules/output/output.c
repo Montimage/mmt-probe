@@ -297,7 +297,9 @@ void output_release( output_t * output){
 	IF_ENABLE_REDIS( redis_release( output->modules.redis ); )
 	IF_ENABLE_SOCKET( socket_output_release( output->modules.socket ); )
 
-	if( output->mutex )
+	if( output->mutex ){
 		pthread_mutex_destroy( output->mutex );
+		mmt_probe_free( output->mutex );
+	}
 	mmt_probe_free( output );
 }

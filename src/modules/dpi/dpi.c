@@ -183,7 +183,7 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 		ret->radius_report = radius_report_register(dpi_handler, config->reports.radius, output);
 	)
 	IF_ENABLE_STAT_REPORT(
-		session_report_register( dpi_handler, config->reports.session );
+		session_report_register( dpi_handler, config->reports.session, ret );
 	)
 
 	//This callback is fired before the packets have been reordered and reassembled by mmt_reassembly

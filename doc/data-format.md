@@ -153,42 +153,44 @@ Format id: 0 (default)
 
 Format id: 1 (HTTP)
 
-| # | Column Name | Column Description | 
-| - | ----------- | ------------------ | 
-| 40 | *Response time* | Response time of the last Request/Reply of the flow |
-| 41 | *Transactions Nb* | Number of HTTP requests/replies per one TCP session|
-| 42 | *Interaction time* | This is the time between the first request and the lest response. If this is zero then the flow has one request reply |
-| 43 | *Hostname* | Hostname as reported in the HTTP header |
-| 44 | *MIME type* | MIME type of the last reply |
-| 45 | *Referrer * | Referrer as reported in the HTTP header |
-| 46 | *CDN_Flag* | **0**: CDN not detected (This does not mean it is not used :)). **1**: 1 means CDN flags identified in the message. The referrer should identify the application. Will not be present in HTTPS flows. **2**: CDN delivery, the application name should identify the application. However, we might see Akamai as application. In this case, skip it. |
-| 47 | *URI * | URI as reported in the HTTP header |
-| 48 | *Method* | Method as reported in the HTTP header |
-| 49 | *Response * | Response as reported in the HTTP header |
-| 50 | Content length  | Content-length as reported in the HTTP header |
-| 51 | Request-Response indicator  | It indicates that a particular request is finished with a response (0: complete, otherwise: >= 1): 1=first block, 2=second block, ..., 0: the last block |
+This is reported for each HTTP transaction. If a TCP flow containing 3 HTTP transactions (e.g., `Connection: Keep-Alive`), there will be 3 reports.
+
+| #  | Column Name         | Column Description | 
+| -- | ------------------- | ------------------ | 
+| 40 | *Response time*     | Interval, in nanosecond, between the request and the response of an HTTP transaction |
+| 41 | *Transactions Nb*   | Number of HTTP requests/replies per one TCP session|
+| 42 | *Interaction time*  | Interval, in nanosecond, between the first request and the last response. If this is zero then the flow has one request reply |
+| 43 | *Hostname*          | Hostname as reported in the HTTP header |
+| 44 | *MIME type*         | MIME type of the HTTP reply |
+| 45 | *Referrer *         | Referrer as reported in the HTTP header |
+| 46 | *CDN_Flag*          | **0**: CDN not detected (This does not mean it is not used :)). **1**: 1 means CDN flags identified in the message. The referrer should identify the application. Will not be present in HTTPS flows. **2**: CDN delivery, the application name should identify the application. However, we might see Akamai as application. In this case, skip it. |
+| 47 | *URI *              | URI as reported in the HTTP header |
+| 48 | *Method*            | Method as reported in the HTTP header |
+| 49 | *Response *         | Response as reported in the HTTP header |
+| 50 | Content length      | Content-length as reported in the HTTP header |
+| 51 | Req-Res indicator   | It indicates that a particular transaction is finished (with a response) (0: complete, otherwise: >= 1): 1=first block, 2=second block, ..., 0: the last block. This is useful when a long HTTP transition passing through several report periodics. For example, in the first 5 seconds, we see only the request, next 5 seconds, we see nothing concerning this HTTP transaction, then we see its response |
 
 Format id: 2(SSL)
 
-| # | Column Name | Column Description | 
-| - | ----------- | ------------------ | 
+| #  | Column Name  | Column Description | 
+| -- | ------------ | ------------------ | 
 | 40 | *Servername* | Servername as reported in the SSL/TLS negotiation. It is not always possible to extract this field. will be empty in that case. |
-| 41 | *CDN_Flag* | **0**: CDN not detected (This does not mean it is not used :)). **1**: 1 means CDN flags identified in the message. The referrer should identify the application. Will not be present in HTTPS flows. **2**: CDN delivery, the application name should identify the application. However, we might see Akamai as 
+| 41 | *CDN_Flag*   | **0**: CDN not detected (This does not mean it is not used :)). **1**: 1 means CDN flags identified in the message. The referrer should identify the application. Will not be present in HTTPS flows. **2**: CDN delivery, the application name should identify the application. However, we might see Akamai as 
 
 Format id: 3 (RTP)
 
-| # | Column Name | Column Description | 
-| - | ----------- | ------------------ | 
-| 40 | *Packet loss rate* | Global packet loss rate of the flow | 
+| #  | Column Name              | Column Description | 
+| -- | ------------------------ | ------------------ | 
+| 40 | *Packet loss rate*       | Global packet loss rate of the flow | 
 | 41 | *Packet loss burstiness* | Average packet loss burstiness of the flow | 
-| 42 | *max jitter* | Maximum jitter value for the flow |
-| 43 | *order error* | Number of order error |
+| 42 | *max jitter*             | Maximum jitter value for the flow |
+| 43 | *order error*            | Number of order error |
 
 
 Format id: 4 (FTP)
 
-| # | Column Name  | Column Description | 
-| - | ------------ | ------------------ | 
+| #  | Column Name | Column Description | 
+| -- |------------ | ------------------ | 
 | 40 | *User name* | User name for the particular the ftp session | 
 | 41 | *Password*  | Password for the particular ftp session |
 | 42 | *File size* | Total size of the file to be downloaded |
@@ -199,31 +201,31 @@ Format id: 4 (FTP)
 
 Format id: 5 (GTP)
 
-| # | Column Name | Column Description | 
-| - | ----------- | ------------------ | 
-| 40 | *ip src*   | IP src after GTP | 
-| 41 | *ip dst*   | IP dst after GTP |
-| 42 | *teid 1*   | First TEID being found in the session | 
-| 43 | *teid 2*   | Second TEID being found in the session | 
+| #  | Column Name | Column Description | 
+| -- | ----------- | ------------------ | 
+| 40 | *ip src*    | IP src after GTP | 
+| 41 | *ip dst*    | IP dst after GTP |
+| 42 | *teid 1*    | First TEID being found in the session | 
+| 43 | *teid 2*    | Second TEID being found in the session | 
 
 Format id : 2000 (inside web report (format field), then it is MP2T ) 
 
-| # | Column Name | Column Description | 
-| - | ----------- | ------------------ | 
-| 52 | Average_network_bitrate | Average Network bitrates in bytes/sec of a video segment |
-| 53 | Average_video_bitrate  | Average Video bitrates in bytes/sec of a video segment |
-| 54 | Retransmission_count  | Retransmission count of a video segment |
-| 55 | Out_of_order_count  | out_of_order count of a video segment |
-| 56 | Stream_id  | stream id which the segment belongs  |
+| #  | Column Name             | Column Description | 
+| -- | ----------------------- | ------------------ | 
+| 52 | Average-network_bitrate | Average Network bitrates in bytes/sec of a video segment |
+| 53 | Average-video-bitrate   | Average Video bitrates in bytes/sec of a video segment |
+| 54 | Retransmission_count    | Retransmission count of a video segment |
+| 55 | Out-of-order-count      | out_of_order count of a video segment |
+| 56 | Stream-id               | stream id which the segment belongs  |
 
 Format : 2001 (inside web report (formatfield), then it is M3U8 ) 
 
-| # | Column Name | Column Description | 
-| - | ----------- | ------------------ | 
-| 52 | Version | Version of M3U8 |
-| 53 | Media sequence | Media Sequence|
+| #  | Column Name     | Column Description | 
+| -- | --------------- | ------------------ | 
+| 52 | Version         | Version of M3U8 |
+| 53 | Media sequence  | Media Sequence|
 | 54 | Target duration | Target duration for each segment |
-| 55 | Allow_cache  | Allow cache |
+| 55 | Allow_cache     | Allow cache |
 
 
 ## Security reports

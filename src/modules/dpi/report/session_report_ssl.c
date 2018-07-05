@@ -29,8 +29,6 @@ static void _ssl_server_name_handle(const ipacket_t * ipacket, attribute_t * att
 	if( session_stat->apps.ssl == NULL ){
 		session_stat->apps.ssl = mmt_alloc(sizeof (session_ssl_stat_t));
 		reset_string( session_stat->apps.ssl->hostname );
-		session_stat->is_touched = false;
-
 		session_stat->app_type = SESSION_STAT_TYPE_APP_SSL;
 	}
 

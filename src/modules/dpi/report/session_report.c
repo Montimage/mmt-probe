@@ -55,9 +55,21 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 		else
 			t1 = get_session_last_data_packet_time_by_direction(dpi_session, 1);
 
-		if( t1.tv_sec != 0 ){
-			data_transfer_time =  u_second_diff(&t1, &session_stat->dtt_start_time);
-			session_stat->dtt_start_time = t1;
+		if( t1.tv_sec > 0 ){
+			long v = u_second_diff( &t1, &session_stat->dtt_start_time );
+
+			//v<0 if t1 is before session_stat->dtt_start_time
+			//how come???
+
+//			DEBUG("DTT: %lu", v);
+
+			if( v >= 0 ){
+				data_transfer_time =  v;
+				session_stat->dtt_start_time = t1;
+			}
+//			else{
+//				DEBUG( "DTT is too big" );
+//			}
 		}
 	}
 #endif
@@ -77,6 +89,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	struct timeval rtt_time = get_session_rtt(dpi_session);
 	uint64_t rtt_at_handshake = u_second( &rtt_time );
 
+	//DEBUG("handshake: %lu", rtt_at_handshake );
 	uint64_t total_retrans = get_session_retransmission_count( dpi_session );
 
 	struct timeval start_time = get_session_init_time(dpi_session);
@@ -118,7 +131,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	#else
 		__ARR( "0,0,0,0,0,0,0" ), //string without closing by quotes
 	#endif
-		__INT(    data_transfer_time),
+		__INT(    data_transfer_time ),
 		__INT(    (total_retrans - session_stat->retransmission_count)),
 		__INT(    session_stat->app_type),
 		__INT(    get_application_class_by_protocol_id( proto_id )),
@@ -465,7 +478,7 @@ size_t get_session_ssl_handlers_to_register( const conditional_handler_t ** );
 size_t get_session_rtp_handlers_to_register( const conditional_handler_t ** );
 size_t get_session_gtp_handlers_to_register( const conditional_handler_t ** );
 
-bool session_report_register( mmt_handler_t *dpi_handler, session_report_conf_t *config ){
+bool session_report_register( mmt_handler_t *dpi_handler, session_report_conf_t *config, dpi_context_t *dpi_context ){
 	if( ! config->is_enable )
 		return false;
 
@@ -481,21 +494,21 @@ bool session_report_register( mmt_handler_t *dpi_handler, session_report_conf_t 
 	//register protocols and attributes for application statistic: WEB, FTP, RTP, SSL
 	if( config->is_http ){
 		size = get_session_web_handlers_to_register( &handlers );
-		dpi_register_conditional_handler( dpi_handler, size, handlers, NULL );
+		dpi_register_conditional_handler( dpi_handler, size, handlers, dpi_context );
 	}
 
 	if( config->is_ssl ){
 		size = get_session_ssl_handlers_to_register( &handlers );
-		dpi_register_conditional_handler( dpi_handler, size, handlers, NULL );
+		dpi_register_conditional_handler( dpi_handler, size, handlers, dpi_context );
 	}
 
 	if( config->is_rtp ){
 		size = get_session_rtp_handlers_to_register( &handlers );
-		dpi_register_conditional_handler( dpi_handler, size, handlers, NULL );
+		dpi_register_conditional_handler( dpi_handler, size, handlers, dpi_context );
 	}
 	if( config->is_gtp ){
 		size = get_session_gtp_handlers_to_register( &handlers );
-		dpi_register_conditional_handler( dpi_handler, size, handlers, NULL );
+		dpi_register_conditional_handler( dpi_handler, size, handlers, dpi_context );
 	}
 #endif
 

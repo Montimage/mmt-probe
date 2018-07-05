@@ -27,8 +27,8 @@
 #define IPv6 6
 
 #define has_string( x )   ( x[0] != '\0' )
-#define reset_string( x ) ( x[0]  = '\0' )
-
+#define reset_string( x )   x[0]  = '\0'
+#define reset_timeval(x)    x.tv_sec = x.tv_usec = 0
 typedef enum{
 	SESSION_STAT_TYPE_APP_IP  = 0,
 	SESSION_STAT_TYPE_APP_WEB = 1,
@@ -99,8 +99,6 @@ typedef struct session_stat_struct {
 	uint64_t rtt_at_handshake;
 #endif
 	bool is_classified;
-	bool is_touched;
-
 #endif
 
 } session_stat_t;
@@ -124,8 +122,20 @@ session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * 
  */
 int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, session_stat_t * session_stat);
 
+/**
+ * This function must be called when finishing a tcp session
+ * @param dpi_session
+ * @param session_stat
+ * @param context
+ */
 void session_report_callback_on_ending_session(const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context);
 
+/**
+ * This function must be called periodically to generate statistic reports of one TCP session
+ * @param dpi_session
+ * @param session_stat
+ * @param context
+ */
 void session_report_do_report(const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context);
 
 /*This function takes IPv6 address and finds whether this address belongs to a local network.
@@ -170,6 +180,6 @@ static inline const char* get_string_value( const char *value ){
 }
 
 //header
-bool session_report_register( mmt_handler_t *dpi_handler, session_report_conf_t *config );
+bool session_report_register( mmt_handler_t *dpi_handler, session_report_conf_t *config, dpi_context_t *dpi_context );
 bool session_report_unregister( mmt_handler_t *dpi_handler, session_report_conf_t *config );
 #endif /* SRC_MODULES_DPI_HEADER_H_ */
