@@ -30,3 +30,5 @@ POSTBUILD += --private-copy-probe
 	$(QUIET) $(CP) $(TOP_DIR)/build/$(APP) $(TOP_DIR)
 
 include $(RTE_SDK)/mk/rte.extapp.mk
+
+build: --check-security-folder --check-dpi-folder all

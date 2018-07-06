@@ -38,7 +38,7 @@ ifdef SECURITY_MODULE
 endif
 
 #temp folder to contain installed files
-TEMP_DIR := /tmp/$(shell bash -c 'echo $$RANDOM')
+TEMP_DIR := /tmp/__mmt_probe_$(shell bash -c 'echo $$RANDOM')
 
 #internal target to be used by others
 # copy all necessary files to TEMP_DIR

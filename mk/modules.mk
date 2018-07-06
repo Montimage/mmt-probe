@@ -203,3 +203,25 @@ $(info - Use PCAP to capture packet)
    MODULE_LIBS  += -lpcap -ldl
    MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/pcap/*.c)
 endif
+
+
+
+# check if there exists the folder of MMT-Security
+--check-security-folder:
+ifdef SECURITY_MODULE
+	@test -d $(MMT_SECURITY_DIR)                                                        \
+		||( echo "ERROR: Not found MMT-Security at folder $(MMT_SECURITY_DIR)."          \
+		&& echo "       Please give MMT-Security folder via MMT_SECURITY_DIR parameter"  \
+		&& echo "       (for example: make MMT_SECURITY_DIR=/home/tata/mmt/security)"    \
+		&& exit 1                                                                        \
+		)
+endif
+
+# check if there exists the folder of MMT-DPI 
+--check-dpi-folder:
+	@test -d $(MMT_DPI_DIR)                                                             \
+		||( echo "ERROR: Not found MMT-DPI at folder $(MMT_DPI_DIR)."                    \
+		&& echo "       Please give MMT-DPI folder via MMT_DPI_DIR parameter"            \
+		&& echo "       (for example: make MMT_DPI_DIR=/home/tata/mmt/dpi)"              \
+		&& exit 1                                                                        \
+		)

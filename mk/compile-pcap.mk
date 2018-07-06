@@ -9,7 +9,7 @@ build: $(ALL_OBJS)
 	$(QUIET) $(CC) -o $(APP) $(CLDFLAGS)  $^ $(LIBS)
 
 
-%.o: %.c
+%.o: %.c --check-security-folder --check-dpi-folder
 	@echo "[COMPILE] $(notdir $@)"
 	$(QUIET) $(CC) $(CFLAGS) $(CLDFLAGS) -c -o $@ $<
 
