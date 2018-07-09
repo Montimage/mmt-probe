@@ -1,8 +1,14 @@
 /*
- * flow_stat.h
+ * dpi.h
  *
  *  Created on: Dec 20, 2017
  *          by: Huu Nghia
+ *
+ * This file coordinates the different usages of DPI, such as,
+ * - to create statistic reports
+ * - to reassembly TCP streams
+ * - to reconstruct FTP or HTTP data
+ * - to dump traffic to pcap files
  */
 
 #ifndef SRC_MODULES_DPI_STAT_H_
@@ -74,7 +80,11 @@ typedef struct packet_session_struct {
 
 	//reference to others
 	dpi_context_t *context;
+
+	//statistic reports for TCP sessions
 	IF_ENABLE_STAT_REPORT( session_stat_t *session_stat ; )
+
+	//http transitions for reconstruction
 	IF_ENABLE_HTTP_RECONSTRUCT( http_session_t *http_session; )
 } packet_session_t;
 

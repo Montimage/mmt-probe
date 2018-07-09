@@ -149,6 +149,11 @@ static ALWAYS_INLINE int append_mac( char *dst, size_t dst_size, const uint8_t *
  * @note //TODO currently being limited by 13 digits
  */
 static inline int append_number( char *dst, size_t dst_size, uint64_t val ){
+	if( val < 10 && dst_size > 0 ) {
+		dst[0] = '0' + val;
+		return 1;
+	}
+
 	const char digit_pairs[201] = {
 			"00010203040506070809"
 			"10111213141516171819"
@@ -162,12 +167,7 @@ static inline int append_number( char *dst, size_t dst_size, uint64_t val ){
 			"90919293949596979899"
 	};
 
-	int size = 1; //by default, there exists at least one digit
-
-	if( val < 10 && dst_size > 0 ) {
-		dst[0] = '0' + val;
-		return 1;
-	}
+	int size;
 
 	//get number of digits
 	if(val>=10000)

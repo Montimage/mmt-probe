@@ -50,7 +50,7 @@ static inline session_gtp_stat_t *_get_gtp_session_data( const ipacket_t *ipacke
 	session_gtp_stat_t *gtp_data = NULL;
 	//if GTP data is not initialized
 	if( temp_session->apps.gtp == NULL && create_if_need ){
-		gtp_data = (session_gtp_stat_t *) malloc( sizeof( session_gtp_stat_t ));
+		gtp_data = (session_gtp_stat_t *) mmt_alloc( sizeof( session_gtp_stat_t ));
 		memset(gtp_data, '\0', sizeof (session_gtp_stat_t));
 
 		temp_session->app_type = SESSION_STAT_TYPE_APP_GTP;

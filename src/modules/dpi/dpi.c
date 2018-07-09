@@ -1,5 +1,5 @@
 /*
- * flow_stat.c
+ * dpi.c
  *
  *  Created on: Dec 20, 2017
  *          by: Huu Nghia
@@ -57,7 +57,7 @@ static void _starting_session_handler(const ipacket_t * ipacket, attribute_t * a
 	packet_session_t *session = dpi_get_packet_session(ipacket);
 
 	if( session == NULL )
-		session = _create_session (ipacket, context);
+		_create_session (ipacket, context);
 }
 
 /**
@@ -225,9 +225,9 @@ void dpi_close( dpi_context_t *dpi_context ){
 	unregister_packet_handler(dpi_context->dpi_handler, DPI_PACKET_HANDLER_ID );
 
 	IF_ENABLE_STAT_REPORT_FULL(
-		session_report_unregister( dpi_context->dpi_handler, dpi_context->probe_config->reports.session );
-		event_based_report_unregister( dpi_context->event_reports );
-		radius_report_unregister( dpi_context->radius_report );
+		session_report_unregister(     dpi_context->dpi_handler, dpi_context->probe_config->reports.session );
+		event_based_report_unregister( dpi_context->dpi_handler, dpi_context->event_reports );
+		radius_report_unregister(      dpi_context->dpi_handler, dpi_context->radius_report );
 	)
 
 	IF_ENABLE_FTP_RECONSTRUCT(

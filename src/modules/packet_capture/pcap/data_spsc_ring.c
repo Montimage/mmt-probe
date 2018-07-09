@@ -9,18 +9,20 @@
 #include "data_spsc_ring.h"
 #include "lock_free_spsc_ring.h"
 
-void __free_data_spsc_ring( data_spsc_ring_t *q){
+static inline void __free_data_spsc_ring( data_spsc_ring_t *q){
 	uint32_t i;
 
 	if( q == NULL ) return;
-	for( i=0; i<q->_size; i++){
+	if( q->_data != NULL ){
+		for( i=0; i<q->_size; i++){
 
-		if( q->_data[i] != NULL){
+			if( q->_data[i] != NULL){
 
-			free( q->_data[ i ] );
+				free( q->_data[ i ] );
+			}
 		}
+		free( q->_data );
 	}
-	free( q->_data );
 	queue_free( q->_fifo_index );
 }
 
@@ -40,19 +42,30 @@ void data_spsc_ring_free( data_spsc_ring_t *q ){
  *          2 if there is not enough memory
  */
 int data_spsc_ring_init( data_spsc_ring_t *q, uint32_t size, uint32_t element_size ){
-	uint32_t i;
+	int i,j;
 	if( q == NULL || size < 1 || element_size == 0 )
 		return 1;
 	q->_size = size + 2;
 	q->_fifo_index = malloc( sizeof( lock_free_spsc_ring_t ));
-
+	if( q->_fifo_index == NULL )
+		return 2;
 	queue_init( q->_fifo_index, q->_size );
+
 	q->_data = malloc( sizeof( void *) * q->_size );
+	if( q->_data == NULL ){
+		queue_free( q->_fifo_index );
+		return 2;
+	}
+
 	for( i=0; i<q->_size; i++){
 		q->_data[ i ] = malloc( element_size );
 		//not enough memory
 		if( q->_data[i] == NULL ){
-			__free_data_spsc_ring( q );
+			//release memory being allocated
+			queue_free( q->_fifo_index );
+			for( j=0; j<i; j++ )
+				free( q->_data[j] );
+			free( q->_data );
 			return 2;
 		}
 	}

@@ -219,6 +219,8 @@ static void _content_type_handle(const ipacket_t * ipacket, attribute_t * attrib
  */
 static void _web_xcdn_seen_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	session_stat_t *session = _get_packet_session(ipacket);
+	if( unlikely( session == NULL ))
+		return;
 	session_web_stat_t *web = session->apps.web;
 
 	uint8_t *xcdn_seen = (uint8_t *) attribute->data;

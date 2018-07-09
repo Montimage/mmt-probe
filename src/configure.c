@@ -566,21 +566,28 @@ static inline void _parse_dpi_protocol_attribute( dpi_protocol_attribute_t * out
 	int index = 0;
 	while( str[index] != '.' )
 		index ++;
+	//not found '.' even goto the end of string
+	if( str[index] == '\0' )
+		ABORT("Attribute [%s] is not well-formatted (must be in form proto.att, e.g., HTTP.METHOD)", str );
+
 	out->proto_name     = mmt_strndup( str, index );
 	out->attribute_name = mmt_strdup( str+index+1 ); //+1 to jump over .
 
 }
 
 static inline uint16_t _parse_attributes_helper( cfg_t *cfg, const char* name, dpi_protocol_attribute_t**atts ){
-	int i;
+	int i, j;
 	uint16_t size =  cfg_size( cfg, name );
+	char *string;
 	*atts = NULL;
 	if( size == 0 )
 		return size;
 
-	dpi_protocol_attribute_t *ret = mmt_alloc( sizeof( dpi_protocol_attribute_t ) * size );
-	for( i=0; i<size; i++ )
-		_parse_dpi_protocol_attribute( &ret[i], cfg_getnstr( cfg, name, i ) );
+	dpi_protocol_attribute_t *ret = mmt_alloc_and_init_zero( sizeof( dpi_protocol_attribute_t ) * size );
+	for( i=0; i<size; i++ ){
+		string = cfg_getnstr( cfg, name, i );
+		_parse_dpi_protocol_attribute( &ret[i], string );
+	}
 
 	*atts = ret;
 	return size;

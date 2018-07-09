@@ -20,11 +20,15 @@ typedef struct event_based_report_context_struct {
 
 struct list_event_based_report_context_struct{
 	size_t event_reports_size;
-	mmt_handler_t *dpi_handler;
 	event_based_report_context_t* event_reports;
 };
 
-
+/**
+ * Surround the quotes for the string data
+ * @param msg
+ * @param offset
+ * @param att
+ */
 static inline void _add_quote_if_need( char *msg, int *offset, const attribute_t *att ){
 	switch( att->data_type ){
 	case MMT_BINARY_VAR_DATA:
@@ -45,6 +49,12 @@ static inline void _add_quote_if_need( char *msg, int *offset, const attribute_t
 	}
 }
 
+/**
+ * This callback is called by DPI when it sees one of the attributes in a event report.
+ * @param packet
+ * @param attribute
+ * @param arg
+ */
 static void _event_report_handle( const ipacket_t *packet, attribute_t *attribute, void *arg ){
 	event_based_report_context_t *context = (event_based_report_context_t *)arg;
 
@@ -84,7 +94,7 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 			&packet->p_hdr->ts, message );
 }
 
-
+//Public API
 list_event_based_report_context_t* event_based_report_register( mmt_handler_t *dpi_handler, const event_report_conf_t *config, size_t events_size, output_t *output ){
 	int i, j;
 
@@ -92,7 +102,6 @@ list_event_based_report_context_t* event_based_report_register( mmt_handler_t *d
 	list_event_based_report_context_t *ret = mmt_alloc_and_init_zero( sizeof( list_event_based_report_context_t  ) );
 	ret->event_reports_size = events_size;
 	ret->event_reports = mmt_alloc_and_init_zero(  events_size * sizeof( event_based_report_context_t  ) );
-	ret->dpi_handler = dpi_handler;
 
 	for( i=0; i<events_size; i++ ){
 		ret->event_reports[i].output = output;
@@ -121,7 +130,8 @@ list_event_based_report_context_t* event_based_report_register( mmt_handler_t *d
 	return ret;
 }
 
-void event_based_report_unregister( list_event_based_report_context_t *context  ){
+//Public API
+void event_based_report_unregister( mmt_handler_t *dpi_handler, list_event_based_report_context_t *context  ){
 	int i;
 	const event_report_conf_t *config;
 	if( context == NULL )
@@ -133,14 +143,17 @@ void event_based_report_unregister( list_event_based_report_context_t *context  
 
 		config = context->event_reports[i].config;
 		//jump over the disable ones
+		//This can create a leak when this event report is disable in runtime
+		//(this is, it was enable at starting time but it has been disable after some time of running)
+		//So, when it has been disable, one must unregister the attributes using by this event report
 		if(! config->is_enable )
 			continue;
 
 		//unregister event
-		dpi_unregister_attribute( config->event, 1, context->dpi_handler, _event_report_handle );
+		dpi_unregister_attribute( config->event, 1, dpi_handler, _event_report_handle );
 
 		//unregister attributes
-		dpi_unregister_attribute( config->attributes, config->attributes_size, context->dpi_handler, NULL );
+		dpi_unregister_attribute( config->attributes, config->attributes_size, dpi_handler, NULL );
 	}
 
 	mmt_probe_free( context->event_reports );

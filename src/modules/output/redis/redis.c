@@ -67,7 +67,6 @@ bool redis_send( redis_output_t *redis_context, const char *msg ){
 	if (redis == NULL)
 		return false;
 
-	bool ret = true;
 	// Publish an event
 	redisReply *reply =  thredis_command( thredis, "PUBLISH %s %s", redis_context->config->channel_name, msg );
 

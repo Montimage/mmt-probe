@@ -170,7 +170,7 @@ void mmt_bus_subcriber_check(){
 	size_t msg_size = 0;
 	pid_t pid = gettid();
 	struct subscriber *sub;
-	bool is_consumed = true;
+	bool is_consumed;
 
 	if( bus == NULL )
 		return;

@@ -86,8 +86,10 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 
 	uint64_t total_active_sessions = get_active_session_count( context->dpi_handler );
 
+#ifdef QOS_MODULE
 	struct timeval rtt_time = get_session_rtt(dpi_session);
 	uint64_t rtt_at_handshake = u_second( &rtt_time );
+#endif
 
 	//DEBUG("handshake: %lu", rtt_at_handshake );
 	uint64_t total_retrans = get_session_retransmission_count( dpi_session );
@@ -169,6 +171,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 		default:
 			DEBUG("Does not support stat_type = %d", session_stat->app_type );
 		}
+		message[ valid ] = '\0';
 	}
 
 	struct timeval timestamp = get_session_last_activity_time( dpi_session );

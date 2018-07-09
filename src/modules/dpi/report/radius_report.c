@@ -15,7 +15,6 @@
 struct radius_report_context_struct{
 	output_t *output;
 	const radius_report_conf_t *config;
-	mmt_handler_t *dpi_handler;
 };
 
 struct mmt_location_info_struct {
@@ -123,18 +122,17 @@ radius_report_context_t*radius_report_register( mmt_handler_t *dpi_handler, cons
 	radius_report_context_t *ret = mmt_alloc_and_init_zero( sizeof( radius_report_context_t ));
 	ret->output = output;
 	ret->config = config;
-	ret->dpi_handler = dpi_handler;
 	dpi_register_conditional_handler(dpi_handler, sizeof( handlers ) / sizeof( handlers[0]), handlers, ret);
 
 	return ret;
 }
 
-void radius_report_unregister(radius_report_context_t *context ){
+void radius_report_unregister(mmt_handler_t *dpi_handler, radius_report_context_t *context ){
 	if( context == NULL )
 		return;
 
 	//unregister
-	dpi_unregister_conditional_handler( context->dpi_handler, sizeof( handlers ) / sizeof( handlers[0]), handlers);
+	dpi_unregister_conditional_handler( dpi_handler, sizeof( handlers ) / sizeof( handlers[0]), handlers);
 
 	mmt_probe_free( context );
 }

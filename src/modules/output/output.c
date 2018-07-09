@@ -246,6 +246,7 @@ int output_write_report_with_format( output_t *output, output_channel_conf_t cha
 		offset += vsnprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, format, args);
 		va_end( args );
 
+		message[ offset ] = '\0'; //well null-terminated
 		ret = output_write_report( output, channels, report_type, ts, message );
 	}
 

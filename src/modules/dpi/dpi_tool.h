@@ -13,6 +13,7 @@
 #include <tcpip/mmt_tcpip.h>
 #include "../../configure.h"
 #include "../../lib/memory.h"
+#include "../../lib/memory.h"
 #include "../../lib/string_builder.h"
 
 /**

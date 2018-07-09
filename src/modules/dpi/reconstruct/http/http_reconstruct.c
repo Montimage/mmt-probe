@@ -356,7 +356,7 @@ static void _http_data_handle(const ipacket_t * ipacket, attribute_t * attribute
  * Attribute handle that will be called every time an HTTP message end is detected
  */
 static void _http_end_message_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-	http_reconstruct_t *context = (http_reconstruct_t *)user_args;
+	//http_reconstruct_t *context = (http_reconstruct_t *)user_args;
 	packet_session_t *packet_session = dpi_get_packet_session( ipacket );
 		//we check evenly
 	if( unlikely( packet_session == NULL ))

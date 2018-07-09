@@ -123,7 +123,6 @@ static inline uint32_t _get_packet_hash_number( const uint8_t *packet, size_t pk
 //worker thread
 static void *_worker_thread( void *arg){
 	worker_context_t *worker_context = (worker_context_t*) arg;
-	probe_context_t *probe_context = worker_context->probe_context;
 	data_spsc_ring_t *fifo = &worker_context->pcap->fifo;
 	const probe_conf_t *config = worker_context->probe_context->config;
 	uint32_t fifo_tail_index;
@@ -373,7 +372,7 @@ void pcap_capture_start( probe_context_t *context ){
 	char errbuf[PCAP_ERRBUF_SIZE]; /* error buffer */
 	pcap_t *pcap;
 
-	int workers_count = 1;
+	int workers_count;
 	if( IS_SMP_MODE( context )){
 		log_write( LOG_INFO, "Starting PCAP mode to analyze '%s' using %d thread(s)",
 			context->config->input->input_source,
@@ -433,38 +432,43 @@ void pcap_capture_start( probe_context_t *context ){
 
 	if( context->config->input->input_mode == OFFLINE_ANALYSIS ){
 		pcap = pcap_open_offline( context->config->input->input_source, errbuf );
-		if( pcap == NULL ){
-			ABORT( "Couldn't open file %s\n", errbuf);
-		}
+		ASSERT( pcap != NULL,
+				"Couldn't open file %s\n", errbuf);
 	}else{
 		/* open capture device */
 		pcap = pcap_create(context->config->input->input_source, errbuf);
-		if ( pcap == NULL ) {
-			ABORT( "Couldn't open device \'%s\': %s\n",
+		ASSERT( pcap != NULL ,
+				"Couldn't open device \'%s\': %s\n",
 					context->config->input->input_source,
 					errbuf);
-		}
 
 		//set IP packet size
 		ret = pcap_set_snaplen( pcap, context->config->input->snap_len );
+		ASSERT( ret == 0,
+				"Cannot set snaplen for pcap capture: %d", context->config->input->snap_len );
 		//put NIC to promiscuous mode to capture any packets
 		ret = pcap_set_promisc( pcap, 1);
-		if( ret != 0 ){
-			ABORT( "Cannot put '%s' NIC to promiscuous mode",
-					context->config->input->input_source);
-		}
+		ASSERT( ret == 0 ,
+				"Cannot put '%s' NIC to promiscuous mode",
+					context->config->input->input_source );
 		ret = pcap_set_timeout( pcap, 0 );
+		ASSERT( ret == 0, "Cannot set zero timeout for pcap capture");
+
 		//buffer size
-		pcap_set_buffer_size(pcap, 500*1000*1000);
-		pcap_activate(pcap);
+		ret = pcap_set_buffer_size(pcap, 500*1000*1000);
+		ASSERT( ret == 0, "Cannot set buffer for pcap capture");
+
+		ret = pcap_activate(pcap);
+		ASSERT( ret == 0,
+				"Cannot activate pcap capture: %s", pcap_geterr( pcap ) );
 
 		/* make sure we're capturing on an Ethernet device */
 		//pcap_datalink() must not be called on a pcap  descriptor  created  by  pcap_create()
 		//  that has not yet been activated by pcap_activate().
-		if (pcap_datalink( pcap ) != DLT_EN10MB) {
-			ABORT( "'%s' is not an Ethernet. (be sure that you are running probe with root permission)\n",
-					context->config->input->input_source);
-		}
+		ret = pcap_datalink( pcap );
+		ASSERT( ret == DLT_EN10MB,
+			"'%s' is not an Ethernet. (be sure that you are running probe with root permission)",
+			context->config->input->input_source);
 	}
 
 	context->modules.pcap->handler = pcap;
