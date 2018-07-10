@@ -6,7 +6,6 @@
  */
 
 
-#include <mmt_core.h>
 #include <locale.h>
 #include "worker.h"
 
@@ -103,8 +102,15 @@ void worker_print_common_statistics( const probe_context_t *context ){
  * @param worker_context
  */
 void worker_on_start( worker_context_t *worker_context ){
-
 	DEBUG("Starting worker %d", worker_context->index );
+
+#ifdef TCP_REASSEMBLY_MODULE
+	if( worker_context->probe_context->config->is_enable_tcp_reassembly )
+		enable_mmt_reassembly( worker_context->dpi_handler );
+	else
+		disable_mmt_reassembly( worker_context->dpi_handler );
+#endif
+
 	worker_context->output = output_alloc_init( worker_context->index,
 			&(worker_context->probe_context->config->outputs),
 			worker_context->probe_context->config->probe_id,
