@@ -87,12 +87,14 @@ static void _print_security_verdict(
 		enum verdict_type verdict,		//DETECTED, NOT_RESPECTED
 		uint64_t timestamp,  			//moment (by time) the rule is validated
 		uint64_t counter,			    //moment (by order of packet) the rule is validated
-		const mmt_array_t * const trace,//historic of messages that validates the rule
+		const mmt_array_t * trace,//historic messages that validates the rule
 		void *user_data					//#user-data being given in register_security
 ){
 	security_context_t *security_context = (security_context_t *) user_data;
 
-	const char *description = rule->description;
+	//depending on the configuration of security.report-rule-description,
+	// we include the description of the rule or not
+	const char *description = security_context->config->is_report_rule_description? rule->description : "";
 	const char *exec_trace  = mmt_convert_execution_trace_to_json_string( trace, rule );
 
 

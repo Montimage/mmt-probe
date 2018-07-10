@@ -126,6 +126,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 
 	cfg_opt_t security2_opts[] = {
 			CFG_BOOL("enable", false, CFGF_NONE),
+			CFG_BOOL("report-rule-description", true, CFGF_NONE),
 			CFG_INT("thread-nb",    0, CFGF_NONE),
 			CFG_STR("rules-mask",   0, CFGF_NONE),
 			CFG_STR("exclude-rules",   0, CFGF_NONE),
@@ -631,6 +632,7 @@ static inline security_conf_t *_parse_security_block( cfg_t *cfg ){
 
 	security_conf_t *ret = mmt_alloc( sizeof( security_conf_t ));
 	ret->is_enable = cfg_getbool( cfg, "enable" );
+	ret->is_report_rule_description = cfg_getbool( cfg, "report-rule-description" );
 	ret->threads_size = cfg_getint( cfg, "thread-nb" );
 	ret->excluded_rules = _cfg_get_str(cfg, "exclude-rules" );
 	ret->rules_mask = _cfg_get_str(cfg, "rules-mask" );

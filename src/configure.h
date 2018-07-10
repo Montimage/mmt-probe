@@ -98,6 +98,7 @@ typedef struct dynamic_config_conf_struct{
 
 typedef struct security_conf_struct{
 	bool is_enable;
+	bool is_report_rule_description;
 	uint16_t threads_size;
 	char *excluded_rules;
 	char *rules_mask;

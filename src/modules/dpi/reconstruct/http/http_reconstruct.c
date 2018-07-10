@@ -127,7 +127,7 @@ static inline FILE *_create_file( http_session_t *session, const char *file_exte
 	int valid = 0;
 	STRING_BUILDER( valid, file_name, sizeof( file_name),
 			__ARR( session->context->config->directory ),
-			__ARR("mmt-"), //add a prefix
+			__ARR("mmt-"),
 			__ARR( session->file_name)
 	);
 
@@ -427,7 +427,6 @@ void http_reconstruct_flush_session_to_file_and_free( http_session_t *session ){
 		goto _free_data;
 
 	//flush data to file
-	fflush( session->file );
 	fclose( session->file );
 
 	//do not have any data

@@ -205,7 +205,10 @@ int output_write_report( output_t *output, output_channel_conf_t channels,
 	if( message_body != NULL ){
 		message[ offset ++ ] = ',';
 		size_t len = strlen( message_body );
-		memcpy( message+offset, message_body, len+1 ); //copy also '\0' at the end of message_body
+		if( len > MAX_LENGTH_REPORT_MESSAGE - offset )
+			len = MAX_LENGTH_REPORT_MESSAGE - offset;
+		memcpy( message+offset, message_body, len );
+		message[ offset + len ] = '\0';
 	}
 
 	int ret = _write( output, channels, message );
