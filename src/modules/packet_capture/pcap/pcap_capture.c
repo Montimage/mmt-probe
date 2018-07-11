@@ -209,7 +209,6 @@ static void *_worker_thread( void *arg){
 
 	worker_on_stop( worker_context );
 	//exit thread
-	pthread_exit( NULL );
 	return NULL;
 }
 
@@ -555,7 +554,11 @@ void pcap_capture_start( probe_context_t *context ){
 
 		//waiting for all workers finish their jobs
 		for( i=0; i<context->config->thread->thread_count; i++ ){
-			pthread_join( context->smp[i]->pcap->thread_handler, NULL );
+			ret = pthread_join( context->smp[i]->pcap->thread_handler, NULL );
+			if( ret != 0 ){
+				log_write( LOG_ERR, "Cannot stop worker %d: %s", i, strerror( errno ) );
+				continue;
+			}
 		}
 	}
 	else{

@@ -139,7 +139,6 @@ security_context_t* security_worker_alloc_init( const security_conf_t *config,
 	int att_registed_offset = 0;
 	const int att_registed_length = 10000;
 	char att_registed[10000];
-
 	if( ! config->is_enable )
 		return NULL;
 
@@ -150,7 +149,7 @@ security_context_t* security_worker_alloc_init( const security_conf_t *config,
 	ret->output      = output;
 	pthread_mutex_init( &ret->mutex, NULL);
 	//init mmt-sec to verify the rules
-	ret->sec_handler = mmt_sec_register( threads_count, cores_id, config->rules_mask, false, _print_security_verdict, ret );
+	ret->sec_handler = mmt_sec_register( threads_count, cores_id, config->rules_mask, verbose, _print_security_verdict, ret );
 
 	//register protocols and their attributes using by mmt-sec
 	ret->proto_atts_count =  mmt_sec_get_unique_protocol_attributes((void*) &ret->proto_atts );

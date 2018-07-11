@@ -267,15 +267,25 @@ int print_web_report(char *message, size_t message_size, const mmt_session_t * d
 	else if (get_session_content_flags( dpi_session ) & MMT_CONTENT_CDN)
 		cdn_flag = 2;
 
+#ifdef QOS_MODULE
+		long interaction_time = (_has_response(web) && _has_request(web) ) ? u_second_diff( &web->response_time, &web->first_request_time) : 0;
+		//received response before request (see HTTP session starting from packet 11760 of smallFlows.pcap)
+		if( interaction_time < 0 )
+			interaction_time = 0;
+		long response_time = (_has_response(web) && _has_request(web) ) ? u_second_diff( &web->response_time, &web->request_time ) : 0;
+		if( response_time < 0 )
+			response_time = 0;
+#endif
+
 	int valid = 0;
 	STRING_BUILDER_WITH_SEPARATOR( valid, message, message_size, ",",
 #ifdef QOS_MODULE
 			//response time: time from method request --> response
-			__INT( (_has_response(web) && _has_request(web) ) ? u_second_diff( &web->response_time, &web->request_time ) : 0 ),
+			__INT( response_time ),
 			//nb of transaction
 			__INT( web->request_nb ),
 			//interaction time:
-			__INT( (_has_response(web) && _has_request(web) ) ? u_second_diff( &web->response_time, &web->first_request_time) : 0 ),
+			__INT( interaction_time ),
 #else
 			__ARR( "0,0,0" ), //string without closing by quotes
 #endif

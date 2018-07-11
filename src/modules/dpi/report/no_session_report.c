@@ -55,9 +55,13 @@ void no_session_report_release( no_session_report_context_t *context ){
 
 /* This function is for reporting the protocol statistics that do not have session */
 static void _protocols_stats_iterator(uint32_t proto_id, void * args) {
-
-	if (proto_id == PROTO_ETHERNET || proto_id == PROTO_META )
+	//do statistic only for no-ip protocol
+	switch( proto_id ){
+	case PROTO_ARP:
+		break;
+	default:
 		return;
+	}
 
 	no_session_report_context_t *context = (no_session_report_context_t*) args;
 
@@ -69,65 +73,75 @@ static void _protocols_stats_iterator(uint32_t proto_id, void * args) {
 	int i, offset;
 	proto_hierarchy_t proto_hierarchy;
 	while (proto_stats != NULL) {
+		//the statistics have been updated since the last reset
+		if( ! proto_stats->touched )
+			goto next_iteration_label;
+
+		get_protocol_stats_path( context->dpi_handler, proto_stats, &proto_hierarchy );
+		dpi_proto_hierarchy_ids_to_str(&proto_hierarchy, proto_path_str, sizeof( proto_path_str ) );
+
+		//report the stats instance
+		offset = 0;
+		STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
+				__INT( proto_id ),
+				__STR( proto_path_str ),
+				__INT( 0 ), //Nb active flows
+				__INT( proto_stats->data_volume ),
+				__INT( proto_stats->payload_volume ),
+				__INT( proto_stats->packets_count ),
+				__ARR( "0,0,0,0,0,0" ),
+				//session initial time
+				__TIME( &proto_stats->first_packet_time )
+		);
+		output_write_report(context->output, CONF_OUTPUT_CHANNEL_ALL,
+				NON_SESSION_REPORT_TYPE, &proto_stats->last_packet_time, message);
+
+		next_iteration_label:
+		reset_statistics( proto_stats );
+		proto_stats = proto_stats->next;
+	}
+}
+
+
+//For fragmented and defragmented packets
+static inline void _report_ip_frag_stat( no_session_report_context_t *context ){
+
+	proto_statistics_t * proto_stats = get_protocol_stats( context->dpi_handler, PROTO_IP );
+
+	char proto_path_str[128];
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	int i, offset;
+	proto_hierarchy_t proto_hierarchy;
+	while( proto_stats != NULL ){
+		if( ! proto_stats->touched )
+			goto _next_frag_iteration_label;
 
 		get_protocol_stats_path( context->dpi_handler, proto_stats, &proto_hierarchy );
 
 		dpi_proto_hierarchy_ids_to_str(&proto_hierarchy, proto_path_str, sizeof( proto_path_str ) );
 
-		//DEBUG("%s", proto_path_str );
-		//if (proto_struct->has_session == 0){
-
-		//Count for fragmented and defragmented packets
-		if( context->is_enable_ip_fragementation_stat ){
-			if (proto_id == PROTO_IP && (proto_stats->ip_frag_packets_count + proto_stats->ip_df_packets_count > 0)){
-				offset = 0;
-				STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
-						__STR( proto_path_str ),
-						__INT( proto_stats->ip_frag_data_volume ),
-						__INT( proto_stats->ip_frag_packets_count ),
-						__INT( proto_stats->ip_df_data_volume ),
-						__INT( proto_stats->ip_df_packets_count ),
-						__INT( (proto_stats->ip_frag_data_volume + proto_stats->ip_df_data_volume) ),
-						__INT( (proto_stats->ip_frag_packets_count + proto_stats->ip_df_packets_count) )
-				);
-				output_write_report(context->output, CONF_OUTPUT_CHANNEL_ALL,
-										IP_FRAG_REPORT_TYPE, &proto_stats->last_packet_time, message );
-			}
+		if ( proto_stats->ip_frag_packets_count + proto_stats->ip_df_packets_count > 0){
+			offset = 0;
+			STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
+					__STR( proto_path_str ),
+					__INT( proto_stats->ip_frag_data_volume ),
+					__INT( proto_stats->ip_frag_packets_count ),
+					__INT( proto_stats->ip_df_data_volume ),
+					__INT( proto_stats->ip_df_packets_count ),
+					__INT( (proto_stats->ip_frag_data_volume + proto_stats->ip_df_data_volume) ),
+					__INT( (proto_stats->ip_frag_packets_count + proto_stats->ip_df_packets_count) )
+			);
+			output_write_report(context->output, CONF_OUTPUT_CHANNEL_ALL,
+					IP_FRAG_REPORT_TYPE, &proto_stats->last_packet_time, message );
 		}
 
+		//reset ip_frag_data
+		proto_stats->ip_df_data_volume     = 0;
+		proto_stats->ip_df_packets_count   = 0;
+		proto_stats->ip_frag_data_volume   = 0;
+		proto_stats->ip_frag_packets_count = 0;
 
-		if( context->is_enable_proto_no_session_stat ){
-			//ignore session protocol: IPv4 and IPv6, VLAN
-			if( proto_id == PROTO_IP || proto_id == PROTO_IPV6 || proto_id == PROTO_8021Q)
-				goto next_iteration_label;
-			//ignore session protocol on top of IPv4 and IPv6
-			for (i = 1; i < proto_hierarchy.len; i++){
-				if (proto_hierarchy.proto_path[i] == PROTO_IP
-						|| proto_hierarchy.proto_path[i] == PROTO_IPV6 )
-					goto next_iteration_label;
-			}
-
-			//report the stats instance if there is anything to report
-			if(proto_stats->touched) {
-				offset = 0;
-				STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
-						__INT( proto_id ),
-						__STR( proto_path_str ),
-						__INT( 0 ),
-						__INT( proto_stats->data_volume ),
-						__INT( proto_stats->payload_volume ),
-						__INT( proto_stats->packets_count ),
-						__ARR( "0,0,0,0,0,0" ),
-						//session initial time
-						__TIME( &proto_stats->first_packet_time )
-				);
-				output_write_report(context->output, CONF_OUTPUT_CHANNEL_ALL,
-										IP_FRAG_REPORT_TYPE, &proto_stats->last_packet_time, message);
-			}
-		}
-
-		next_iteration_label:
-		reset_statistics(proto_stats);
+		_next_frag_iteration_label:
 		proto_stats = proto_stats->next;
 	}
 }
@@ -138,9 +152,12 @@ static void _protocols_stats_iterator(uint32_t proto_id, void * args) {
  * @return
  */
 void no_session_report( no_session_report_context_t *context ){
-	if( context == NULL || !( context->is_enable_proto_no_session_stat
-			|| context->is_enable_ip_fragementation_stat ))
+	if( context == NULL )
 		return;
 
-	iterate_through_protocols( _protocols_stats_iterator, context );
+	if( context->is_enable_ip_fragementation_stat ){
+		_report_ip_frag_stat();
+	}
+	if( context->is_enable_proto_no_session_stat )
+		iterate_through_protocols( _protocols_stats_iterator, context );
 }
