@@ -32,7 +32,7 @@ gperf: --private-inform-gperf $(GPERF_H)
 #generate .h files from .gperf files
 %.h: %.gperf
 ifndef EXIST_GPERF
-    $(error "Please install gperf: https://www.gnu.org/software/gperf/")
+	$(error "Please install gperf: https://www.gnu.org/software/gperf/")
 endif
 	@echo "[GENERATE] $@"
 	@echo "/* Generated on $(shell date) */" > $@
