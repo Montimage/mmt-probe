@@ -156,7 +156,7 @@ void no_session_report( no_session_report_context_t *context ){
 		return;
 
 	if( context->is_enable_ip_fragementation_stat ){
-		_report_ip_frag_stat();
+		_report_ip_frag_stat( context );
 	}
 	if( context->is_enable_proto_no_session_stat )
 		iterate_through_protocols( _protocols_stats_iterator, context );
