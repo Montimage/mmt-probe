@@ -3,7 +3,10 @@
 ###################################################
 
 #DPDK variables
-RTE_SDK    ?= /home/mmt/huunghia/dpdk-stable-17.11.3
+ifndef RTE_SDK
+  $(error Need RTE_SDK variable)
+endif
+#RTE_SDK    ?= /home/mmt/huunghia/dpdk-stable-17.11.3
 RTE_TARGET ?= build
 
 #avoid being overried by DPDK

@@ -167,22 +167,22 @@
 #define MODULES_LIST                                   \
 	"DPI"                                              \
 	IF_ENABLE_DEBUG( ", DEBUG" )                       \
-	IF_ENABLE_LICENSE_CHECK( ", LICENSE" )             \
-	IF_ENABLE_STAT_REPORT(", REPORT" )                 \
-	IF_ENABLE_REDIS( ", REDIS" )                       \
-	IF_ENABLE_KAFKA( ", KAFKA" )                       \
-	IF_ENABLE_MONGODB( ", MONGODB" )                   \
-	IF_ENABLE_SOCKET( ", SOCKET" )                     \
-	IF_ENABLE_PCAP_DUMP( ", PCAP_DUMP" )               \
-	IF_ENABLE_PCAP( ", PCAP" )                         \
 	IF_ENABLE_DPDK( ", DPDK" )                         \
-	IF_ENABLE_SIMPLE_REPORT( ", SIMPLE_REPORT" )       \
 	IF_ENABLE_DYNAMIC_CONFIG( ", DYNAMIC_CONF" )       \
-	IF_ENABLE_TCP_REASSEMBLY(", TCP_REASSEMBLY" )      \
 	IF_ENABLE_FTP_RECONSTRUCT( ", FTP_RECONSTRUCT" )   \
 	IF_ENABLE_HTTP_RECONSTRUCT( ", HTTP_RECONSTRUCT" ) \
+	IF_ENABLE_KAFKA( ", KAFKA" )                       \
+	IF_ENABLE_LICENSE_CHECK( ", LICENSE" )             \
+	IF_ENABLE_MONGODB( ", MONGODB" )                   \
+	IF_ENABLE_PCAP( ", PCAP" )                         \
+	IF_ENABLE_PCAP_DUMP( ", PCAP_DUMP" )               \
 	IF_ENABLE_QOS( ", QOS" )                           \
-	IF_ENABLE_SECURITY(", SECURITY ")
+	IF_ENABLE_STAT_REPORT(", REPORT" )                 \
+	IF_ENABLE_REDIS( ", REDIS" )                       \
+	IF_ENABLE_SIMPLE_REPORT( ", SIMPLE_REPORT" )       \
+	IF_ENABLE_SOCKET( ", SOCKET" )                     \
+	IF_ENABLE_SECURITY(", SECURITY")                   \
+	IF_ENABLE_TCP_REASSEMBLY(", TCP_REASSEMBLY" )      \
 
 
 #define _EXIT _exit
