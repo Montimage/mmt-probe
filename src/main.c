@@ -318,10 +318,15 @@ static int _main_processing( int argc, char** argv ){
 
 #ifdef DPDK_MODULE
 	char *dpdk_argv[ 100 ];
-	int dpdk_argc = string_split( context->config->input->dpdk_options, " ", dpdk_argv, 10 );
+	int dpdk_argc = string_split( context->config->input->dpdk_options, " ", &dpdk_argv[1], 100-1 );
+
+	//the first parameter is normally program name
+	dpdk_argv[0] = LOG_IDENT;
+	dpdk_argc   += 1;
+
 	ret = rte_eal_init( dpdk_argc, dpdk_argv );
 	if (ret < 0)
-		rte_exit_failure("Error with EAL initialization\n");
+		rte_exit_failure( "Error while EAL initialization" );
 #endif
 
 	IF_ENABLE_SECURITY(

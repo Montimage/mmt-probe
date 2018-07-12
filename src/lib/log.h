@@ -14,6 +14,8 @@
 #include <string.h>
 #include <signal.h>
 
+#define LOG_IDENT "mmt-probe"
+
 /**
  * Signal to restart the current (child) process
  */
@@ -24,7 +26,7 @@
  * Open system log file. This function must be called before any calls of log_write
  */
 static inline void log_open(){
-	openlog( "mmt-probe", LOG_NDELAY | LOG_CONS | LOG_PERROR, LOG_USER);
+	openlog( LOG_IDENT , LOG_NDELAY | LOG_CONS | LOG_PERROR, LOG_USER);
 }
 
 #define log_write syslog

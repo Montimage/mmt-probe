@@ -364,7 +364,7 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 	// Configure the Ethernet device: no tx
 	int ret = rte_eth_dev_configure(input_port, nb_rx_queues, 0 , &port_default_conf);
 	if( ret != 0 )
-		rte_exit_failure( "Cannot configure port %d (%s)\n", input_port, rte_strerror(ret) );
+		rte_exit_failure( "Cannot configure port %d (%s)", input_port, rte_strerror(ret) );
 
 	uint16_t nb_rxd = RX_DESCRIPTORS, nb_txd = 0;
 
@@ -379,12 +379,12 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 			MBUF_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE, socket_id);
 
 	if (mbuf_pool == NULL)
-		rte_exit_failure( "Cannot create mbuf_pool for port %d\n", input_port );
+		rte_exit_failure( "Cannot create mbuf_pool for port %d", input_port );
 
 	//update nb of descriptors
 	ret = rte_eth_dev_adjust_nb_rx_tx_desc( input_port, &nb_rxd, &nb_txd);
 	if (ret < 0)
-		rte_exit_failure( "Cannot adjust number of descriptors for port=%d: %s\n",
+		rte_exit_failure( "Cannot adjust number of descriptors for port=%d: %s",
 				input_port, rte_strerror( ret ));
 	else
 		log_write( LOG_INFO, "Adjust number of rx descriptors of port %d to %d",
@@ -402,7 +402,7 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 				mbuf_pool);
 
 		if (ret < 0)
-			rte_exit_failure( "Cannot init queue of port %d (%s)\n",
+			rte_exit_failure( "Cannot init queue of port %d (%s)",
 					input_port, rte_strerror(ret) );
 	}
 
@@ -416,7 +416,7 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 
 	if ( param->rx_ring == NULL )
 		rte_exit_failure( "Cannot init ring of port %d (%s). ",
-				//"Either increase the hugepage size or decrease ring size.\n"
+				//"Either increase the hugepage size or decrease ring size."
 				input_port, rte_strerror(ret) );
 
 	//init distributor
@@ -427,14 +427,14 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 				);
 
 	if( param->distributor == NULL)
-		rte_exit_failure( "Cannot create distributor for port %d (%s)\n",
+		rte_exit_failure( "Cannot create distributor for port %d (%s)",
 				input_port, rte_strerror(ret) );
 
 	// Start the Ethernet port.
 	ret = rte_eth_dev_start( input_port );
 
 	if (ret < 0)
-		rte_exit_failure("Cannot start port %d (%s)\n", input_port, rte_strerror( ret ) );
+		rte_exit_failure("Cannot start port %d (%s)", input_port, rte_strerror( ret ) );
 
 	// Enable RX in promiscuous mode for the Ethernet device.
 	rte_eth_promiscuous_enable( input_port );
@@ -463,8 +463,8 @@ static void _print_stats(int type) {
 	}
 
 //	if( stat.imissed > total_drop )
-//			printf("\ndropped : %"PRIu64"\n", stat.imissed - total_drop );
-	printf(" %u: %'12ld bps, %'10ld pps, drop %'7ld pps (%5.2f%%), mpool %'10lu/ %'10lu\n",
+//			printf("\ndropped : %"PRIu64"", stat.imissed - total_drop );
+	printf(" %u: %'12ld bps, %'10ld pps, drop %'7ld pps (%5.2f%%), mpool %'10lu/ %'10lu",
 			index++,
 			(stat.ibytes - total_data)*8, (stat.ipackets - total_pkt),
 			(stat.imissed - total_drop), (stat.imissed - total_drop) * 100.0 / (stat.ipackets+stat.imissed - total_drop - total_pkt),
@@ -472,7 +472,7 @@ static void _print_stats(int type) {
 			pool_total);
 //	int i;
 //	for( i=0; i<context->thread_nb; i++ )
-//		printf("   %2d : %'8ld pps, drop: %'8ld pps\n", i, stat.q_ipackets[i], stat.q_errors[i] );
+//		printf("   %2d : %'8ld pps, drop: %'8ld pps", i, stat.q_ipackets[i], stat.q_errors[i] );
 	total_pkt = stat.ipackets;
 	total_data = stat.ibytes;
 	total_drop = stat.imissed;
@@ -498,7 +498,7 @@ void dpdk_capture_start ( probe_context_t *context){
 	// - n cores for workers
 	if ( total_of_cores < 3 + context->config->thread->thread_count )
 		rte_exit_failure( "This application does not have "
-				"enough cores to run this application. It needs at least %d lcores\n",
+				"enough cores to run this application. It needs at least %d lcores",
 				3 + context->config->thread->thread_count);
 
 	// Initialize input port

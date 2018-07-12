@@ -27,8 +27,10 @@
  * When having error during initialize DPDK, we need to exit normally the main processing process.
  * Thus the parent process will not recreate this child process to give control to user to be able to change some setting.
  */
-#define rte_exit_failure( ... )           \
-	rte_exit( EXIT_SUCCESS, __VA_ARGS__ )
+#define rte_exit_failure( fm, ... ) do{                        \
+	  log_write( LOG_ERR, fm,##__VA_ARGS__ );                  \
+	  rte_exit( EXIT_SUCCESS, fm "\n",## __VA_ARGS__ );        \
+   }while( 0 )
 
 
 void dpdk_capture_start( probe_context_t *context );
