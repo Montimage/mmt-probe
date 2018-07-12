@@ -9,10 +9,12 @@
 #include <netpacket/packet.h>
 #include <mmt_core.h>
 
+#include "../../lib/limit.h"
+#include "../../lib/version.h"
+#include "../../lib/log.h"
+
+
 #include "license.h"
-#include "limit.h"
-#include "version.h"
-#include "log.h"
 
 typedef struct license_content_struct{
 	int year; //time to expire

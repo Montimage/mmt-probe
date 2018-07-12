@@ -185,11 +185,7 @@
 	IF_ENABLE_SECURITY(", SECURITY ")
 
 
-#ifdef DPDK
-#define _EXIT rte_exit
-#else
 #define _EXIT _exit
-#endif
 
 //depending on exit value of a child process, the main process can restart or not the child process
 /**

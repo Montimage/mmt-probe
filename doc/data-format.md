@@ -324,24 +324,19 @@ Format id: 30
 
 This reports the statistics of the license owned by the devices
 
-| # | Column Name | Column Description | 
-| - | ----------- | ------------------ | 
-| 1 | *format* | Identifier of the format of the encapsulated application report | 
-| 2 | *probe* | Identifier of the probe generating the report | 
-| 3 | *source* | Identifier of the data source whether it is a trace file name or a network interface | 
-| 4 | *timestamp* | Timestamp (seconds.micros) when the probe was started | 
-| 5 | *license_info_id* | Identifier for the the license report |
-|   |                   |  1 = BUY_MMT_LICENSE_FOR_THIS_DEVICE
-|   |                   |  2 = MMT_LICENSE_EXPIRED
-|   |                   |  3 = MMT_LICENSE_WILL_EXPIRE_SOON
-|   |                   |  4 = MMT_LICENSE_MODIFIED
-|   |                   |  5 = MMT_LICENSE_KEY_DOES_NOT_EXIST
-|   |                   |  6 = MMT_LICENSE_INFO |
-| 6 | *Number_of_MAC* | Number of MACs which has license |
-| 7 | *MAC_address* |Corresponding MAC addresses |
-| 8 | *expiry_date* | Timestamp (seconds.micros) when the probe will expire  |
-| 9 | *version_probe* | probe_version_gitcommit  |
-| 10 | *version_sdk* | sdk_version_gitcommit  |
+| # | Column Name | Column Description | | - | ----------- | ------------------
+| | 1 | *format* | Identifier of the format of the encapsulated application
+report | | 2 | *probe* | Identifier of the probe generating the report | | 3 | *source*
+| Identifier of the data source whether it is a trace file name or a network
+interface | | 4 | *timestamp* | Timestamp (seconds.micros) when the probe was
+started | | 5 | *license_info_id* | Identifier for the the license report | | | |
+1 = BUY_MMT_LICENSE_FOR_THIS_DEVICE | | | 2 = MMT_LICENSE_EXPIRED | | | 3 =
+MMT_LICENSE_WILL_EXPIRE_SOON | | | 4 = MMT_LICENSE_MODIFIED | | | 5 =
+MMT_LICENSE_KEY_DOES_NOT_EXIST | | | 6 = MMT_LICENSE_INFO | | 6 | *Number_of_MAC*
+| Number of MACs which has license | | 7 | *MAC_address* |Corresponding MAC
+addresses | | 8 | *expiry_date* | Timestamp (seconds.micros) when the probe will
+expire | | 9 | *version_probe* | probe_version_gitcommit | | 10 | *version_sdk* |
+sdk_version_gitcommit |
 
 ##### Example:
 

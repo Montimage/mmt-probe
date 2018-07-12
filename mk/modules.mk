@@ -91,8 +91,7 @@ endif
 
 $(eval $(call check_module,TCP_REASSEMBLY_MODULE))
 ifdef TCP_REASSEMBLY_MODULE
-  MODULE_LIBS  += -L/opt/mmt/reassembly/lib -lmmt_reassembly -lntoh
-  MODULE_FLAGS += -DTCP_REASSEMBLY_MODULE -I/opt/mmt/reassembly/include
+  MODULE_FLAGS += -DTCP_REASSEMBLY_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/dpi/reassembly/*.c)
 endif
 
@@ -143,10 +142,8 @@ endif
 # check license
 $(eval $(call check_module,LICENSE_MODULE))
 ifdef LICENSE_MODULE
-  CFLAGS   += -DLICENSE_CHECK
-else
-#exclude license.c
-  LIB_SRCS := $(filter-out src/lib/license.c, $(LIB_SRCS))
+  MODULE_FLAGS += -DLICENSE_CHECK
+  MODULE_SRCS  +=  $(wildcard $(SRC_DIR)/modules/license/*.c)
 endif
 
 
@@ -194,34 +191,16 @@ $(eval $(call EXPORT_TARGET,DPDK_CAPTURE))
 
 ifdef DPDK_CAPTURE
 $(info - Use DPDK to capture packet)
-  export DPDK=1
   MODULE_FLAGS += -DDPDK_MODULE
-  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/dpdk/*.c) 
+  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/dpdk/*.c)
+  
+  #we need to export these variables as we need them in the second call of compile-dpdk.mk by the makefile of DPDK
+  export MODULE_FLAGS
+  export MODULE_SRCS
+  export MODULE_LIBS
 else
 $(info - Use PCAP to capture packet)
    MODULE_FLAGS += -DPCAP_MODULE
    MODULE_LIBS  += -lpcap -ldl
    MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/pcap/*.c)
 endif
-
-
-
-# check if there exists the folder of MMT-Security
---check-security-folder:
-ifdef SECURITY_MODULE
-	@test -d $(MMT_SECURITY_DIR)                                                        \
-		||( echo "ERROR: Not found MMT-Security at folder $(MMT_SECURITY_DIR)."          \
-		&& echo "       Please give MMT-Security folder via MMT_SECURITY_DIR parameter"  \
-		&& echo "       (for example: make MMT_SECURITY_DIR=/home/tata/mmt/security)"    \
-		&& exit 1                                                                        \
-		)
-endif
-
-# check if there exists the folder of MMT-DPI 
---check-dpi-folder:
-	@test -d $(MMT_DPI_DIR)                                                             \
-		||( echo "ERROR: Not found MMT-DPI at folder $(MMT_DPI_DIR)."                    \
-		&& echo "       Please give MMT-DPI folder via MMT_DPI_DIR parameter"            \
-		&& echo "       (for example: make MMT_DPI_DIR=/home/tata/mmt/dpi)"              \
-		&& exit 1                                                                        \
-		)

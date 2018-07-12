@@ -9,9 +9,9 @@
 #include <locale.h>
 #include "worker.h"
 
-#include "modules/output/output.h"
-#include "lib/license.h"
 #include "lib/string_builder.h"
+#include "modules/output/output.h"
+#include "modules/license/license.h"
 #include "modules/dynamic_conf/dynamic_conf.h"
 
 #ifdef SECURITY_MODULE
@@ -104,13 +104,6 @@ void worker_print_common_statistics( const probe_context_t *context ){
 void worker_on_start( worker_context_t *worker_context ){
 	DEBUG("Starting worker %d", worker_context->index );
 
-#ifdef TCP_REASSEMBLY_MODULE
-	if( worker_context->probe_context->config->is_enable_tcp_reassembly )
-		enable_mmt_reassembly( worker_context->dpi_handler );
-	else
-		disable_mmt_reassembly( worker_context->dpi_handler );
-#endif
-
 	worker_context->output = output_alloc_init( worker_context->index,
 			&(worker_context->probe_context->config->outputs),
 			worker_context->probe_context->config->probe_id,
@@ -159,6 +152,8 @@ void worker_on_start( worker_context_t *worker_context ){
  * @param worker_context
  */
 void worker_on_stop( worker_context_t *worker_context ){
+	DEBUG("Exited worker %d", worker_context->index );
+
 	IF_ENABLE_SECURITY(
 		worker_context->stat.alert_generated = security_worker_release( worker_context->security );
 	)

@@ -8,7 +8,7 @@
 #ifndef SRC_LIB_LICENSE_H_
 #define SRC_LIB_LICENSE_H_
 
-#include "../modules/output/output.h"
+#include "../output/output.h"
 
 /**
  *  This function checks MAC address, license expiry dates to validate the MMT license.

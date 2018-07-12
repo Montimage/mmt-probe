@@ -4,7 +4,7 @@
 
 ALL_OBJS    := $(patsubst %.c,%.o, $(ALL_SRCS))
 
-build: $(ALL_OBJS)
+compile: $(ALL_OBJS)
 	@echo "[COMPILE] probe"
 	$(QUIET) $(CC) -o $(APP) $(CLDFLAGS)  $^ $(LIBS)
 

@@ -573,7 +573,7 @@ void dpdk_capture_start ( probe_context_t *context){
 	//statistic of DPDK
 	_print_dpdk_stats( input_port );
 
-	distributor_release( param->distributor );
+	distributor_release( param.distributor );
 	_dpdk_capture_release( context );
 	fflush( stdout );
 }

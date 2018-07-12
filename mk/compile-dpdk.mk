@@ -3,32 +3,37 @@
 ###################################################
 
 #DPDK variables
-RTE_SDK    ?= /home/mmt/dpdk-stable-17.11.1
+RTE_SDK    ?= /home/mmt/huunghia/dpdk-stable-17.11.3
 RTE_TARGET ?= build
 
 #avoid being overried by DPDK
 _OLD_CFLAGS := $(CFLAGS)
 
-include $(RTE_SDK)/mk/rte.vars.mk
-
 #build is not a file target, 
-.PHONY : build
+.PHONY: compile
 
 #default target
-.DEFAULT_GOAL := build
+.DEFAULT_GOAL := compile
+
+include $(RTE_SDK)/mk/rte.vars.mk
 
 #DPDK variables
 CFLAGS += $(_OLD_CFLAGS)
 LDLIBS += $(LIBS)
 SRCS-y := $(ALL_SRCS)
-V       = $(VERBOSE)
 
-#copy probe from the build folder to the current folder
+ifdef VERBOSE
+  V = @
+  Q = @
+endif
+
+#This variable will tell DPDK the targets to be executed after building
 POSTBUILD += --private-copy-probe
 
+#copy probe from the build folder to the current folder
 --private-copy-probe:
-	$(QUIET) $(CP) $(TOP_DIR)/build/$(APP) $(TOP_DIR)
+	$(QUIET)$(CP) $(TOP_DIR)/build/$(APP) $(TOP_DIR)
+
+compile: --check-security-folder --check-dpi-folder all
 
 include $(RTE_SDK)/mk/rte.extapp.mk
-
-build: --check-security-folder --check-dpi-folder all

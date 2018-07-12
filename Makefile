@@ -3,9 +3,13 @@ CC     = gcc
 CP     = cp
 RM     = rm -rf
 
-#current directory
-TOP_DIR := $(dir $(firstword $(MAKEFILE_LIST)))
-SRC_DIR := $(TOP_DIR)src
+ifndef TOP_DIR
+  #current directory
+  TOP_DIR := $(shell pwd)
+  #we need to export this variable for the second call by DPDK, eventually
+  export TOP_DIR
+endif
+SRC_DIR := $(TOP_DIR)/src
 
 #installation directory
 INSTALL_DIR ?= /opt/mmt/probe
@@ -26,8 +30,8 @@ $(info MMT-Probe version $(VERSION) $(GIT_VERSION) ($(MAKECMDGOALS)))
 
 
 #set of library
-LIBS     := -L $(MMT_DPI_DIR)/lib -lmmt_core -lmmt_tcpip -lconfuse -lpthread 
-CFLAGS   := -I $(MMT_DPI_DIR)/include -Wall -Wno-unused-variable\
+LIBS     := -L$(MMT_DPI_DIR)/lib -lmmt_core -lconfuse -lpthread 
+CFLAGS   := -I$(MMT_DPI_DIR)/include -Wall -Wno-unused-variable\
 			   -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"
 
 #intermediate targets
@@ -77,6 +81,28 @@ endif
 
 -include mk/modules.mk
 
+
+# Check if there exists the folder of MMT-Security.
+#   We check only if SECURITY_MODULE is active
+--check-security-folder:
+ifdef SECURITY_MODULE
+	@test -d $(MMT_SECURITY_DIR)                                                        \
+		||( echo "ERROR: Not found MMT-Security at folder $(MMT_SECURITY_DIR)."          \
+		&& echo "       Please give MMT-Security folder via MMT_SECURITY_DIR parameter"  \
+		&& echo "       (for example: make MMT_SECURITY_DIR=/home/tata/mmt/security)"    \
+		&& exit 1                                                                        \
+		)
+endif
+
+# check if there exists the folder of MMT-DPI 
+--check-dpi-folder:
+	@test -d $(MMT_DPI_DIR)                                                             \
+		||( echo "ERROR: Not found MMT-DPI at folder $(MMT_DPI_DIR)."                    \
+		&& echo "       Please give MMT-DPI folder via MMT_DPI_DIR parameter"            \
+		&& echo "       (for example: make MMT_DPI_DIR=/home/tata/mmt/dpi)"              \
+		&& exit 1                                                                        \
+		)
+
 CFLAGS += $(MODULE_FLAGS)
 LIBS   += $(MODULE_LIBS)
 
@@ -90,12 +116,15 @@ LIB_SRCS = $(wildcard $(SRC_DIR)/lib/*.c) \
 #all source code
 ALL_SRCS  := $(LIB_SRCS) $(MODULE_SRCS) $(MAIN_SRCS)
 
-ifdef DPDK_CAPTURE #use makefiles of dpd
--include mk/compile-dpdk.mk
+
+ifdef DPDK_CAPTURE #use makefiles of dpdk
+#we need explicitly TOP_DIR as this line will be called second times from ./build folder by dpdk
+-include $(TOP_DIR)/mk/compile-dpdk.mk
 else
 -include mk/compile-pcap.mk
 endif
 
--include mk/serial-key.mk
 
+#other makefiles
+-include mk/serial-key.mk
 -include mk/install-package.mk

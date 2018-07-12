@@ -125,9 +125,8 @@ static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 
 #ifdef TCP_REASSEMBLY_MODULE
 //callback when a tcp segment is re-constructed
-static int _tcp_reassembly_handler(const ipacket_t * ipacket, void * user_args) {
+static void _tcp_reassembly_handler(const void *data, uint32_t payload_len, void * user_args) {
 	//DEBUG("got tcp segment %"PRIu64, ipacket->packet_id );
-	return 0;
 }
 #endif
 /// <=== end of packet handler=============================
@@ -191,7 +190,7 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 		ABORT( "Cannot register handler for processing packet" );
 
 	IF_ENABLE_TCP_REASSEMBLY(
-		ret->tcp_reassembly = tcp_reassembly_alloc_init(config->is_enable_tcp_reassembly, dpi_handler, _tcp_reassembly_handler);
+		ret->tcp_reassembly = tcp_reassembly_alloc_init(config->is_enable_tcp_reassembly, dpi_handler, _tcp_reassembly_handler, ret);
 	)
 
 	//callback when starting a new IP session
