@@ -299,6 +299,11 @@ static void _clean_resource(){
 	log_close();
 }
 
+#ifdef STATIC_LINK
+//this function is implemented inside libmmt_tcpip.a
+void init_tcpip_plugin();
+#endif
+
 /**
  * This is the main processing process of MMT-Probe.
  * Every packets processing are done here.
@@ -345,6 +350,10 @@ static int _main_processing( int argc, char** argv ){
 		return EXIT_FAILURE;
 	}else
 		log_write( LOG_INFO, "MMT-DPI %s", mmt_version() );
+
+#ifdef STATIC_LINK
+	init_tcpip_plugin();
+#endif
 
 	//other stubs, such as, system usage report
 	routine_t *routine = routine_create_and_start( context );

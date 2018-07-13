@@ -207,32 +207,12 @@ make ALL_MODULE compile
 
 ### Other options
 
-#### `INSTALL_DIR=xxxx`
+#### `MMT_BASE=xxxx`
 
-This option will install MMT-Probe on the give directory instead of the default one (at `/opt/mmt/probe`)
+This option specify a based-folder on which the MMT toolchains have been installed:
 
-```bash
-sudo make install INSTALL_DIR=/tmp/probe
-```
-
-#### `MMT_DPI_DIR=xxx`
-
-When MMT-DPI has not been installed in the default folder, at, `/opt/mmt/dpi`, then we need to give to Makefile the folder where MMT-DPI is installed via `MMT_DPI_DIR` parameter. For example:
-
-```bash
-make ALL_MODULE compile MMT_DPI_DIR=/home/tata/mmt/dpi
-```
-
-#### `MMT_SECURITY_DIR=xxx`
-
-When MMT-Security has not been installed in the default folder, at, `/opt/mmt/security`, then we need to give to Makefile the folder where MMT-Security is installed via `MMT_SECURITY_DIR` parameter. For example:
-
-```bash
-make ALL_MODULE compile MMT_SECURITY_DIR=/home/tata/mmt/security
-```
-
-This parameter is needed only when security module is active at compiling, i.e., `make ALL_MODULE` or `make SECURITY_MODULE`
-
+- when using with `make install MMT_BASE=/tmp/mmt`, then MMT-Probe will be installed on `/tmp/mmt/probe` instead of its default folder `/opt/mmt/probe`
+- This option also needs when MMT-DPI and MMT-Security are not installed in the default folders. So makefile will try to find DPI and Security in `/tmp/mmt` instead of `/opt/mmt`
 
 ### Step 3 — Execution
 

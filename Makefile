@@ -1,5 +1,6 @@
 MKDIR  = mkdir -p
 CC     = gcc
+CXX    = g++ -std=c++11
 CP     = cp
 RM     = rm -rf
 
@@ -12,25 +13,32 @@ endif
 SRC_DIR := $(TOP_DIR)/src
 
 #installation directory
-INSTALL_DIR ?= /opt/mmt/probe
+ifndef MMT_BASE
+  MMT_BASE             := /opt/mmt
+  NEED_ROOT_PERMISSION := 1
+else
+  $(info INFO: Set default folder of MMT to $(MMT_BASE))
+endif
 
+INSTALL_DIR       := $(MMT_BASE)/probe
 # Directory where MMT-Security was installed
-MMT_SECURITY_DIR ?= /opt/mmt/security
+MMT_SECURITY_DIR  := $(MMT_BASE)/security
 # Directory where MMT-DPI was installed
-MMT_DPI_DIR      ?= /opt/mmt/dpi
+MMT_DPI_DIR       := $(MMT_BASE)/dpi
+
 	
 #Name of executable file to generate
 APP = probe
 
 #get git version abbrev
 GIT_VERSION := $(shell git log --format="%h" -n 1)
-VERSION     := 1.2.2
+VERSION     := 1.4.0
 
-$(info MMT-Probe version $(VERSION) $(GIT_VERSION) ($(MAKECMDGOALS)))
+$(info INFO: MMT-Probe version $(VERSION) $(GIT_VERSION) ($(MAKECMDGOALS)))
 
 
 #set of library
-LIBS     := -L$(MMT_DPI_DIR)/lib -lmmt_core -lconfuse -lpthread 
+LIBS     := -L$(MMT_DPI_DIR)/lib     -lconfuse -lpthread 
 CFLAGS   := -I$(MMT_DPI_DIR)/include -Wall -Wno-unused-variable\
 			   -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"
 
@@ -50,9 +58,19 @@ endif
 
 endef
 
+
+# embedded MMT libraries into probe
+$(eval $(call EXPORT_TARGET,STATIC_LINK))
+ifdef STATIC_LINK
+  CFLAGS += -DSTATIC_LINK
+  LIBS   += -l:libmmt_tcpip.a -l:libmmt_core.a
+else
+  LIBS   += -l:libmmt_core.so
+endif
+
+
 # to print more details of compiling process
 $(eval $(call EXPORT_TARGET,VERBOSE))
-
 ifndef VERBOSE
   QUIET := @
 endif
@@ -88,8 +106,6 @@ endif
 ifdef SECURITY_MODULE
 	@test -d $(MMT_SECURITY_DIR)                                                        \
 		||( echo "ERROR: Not found MMT-Security at folder $(MMT_SECURITY_DIR)."          \
-		&& echo "       Please give MMT-Security folder via MMT_SECURITY_DIR parameter"  \
-		&& echo "       (for example: make MMT_SECURITY_DIR=/home/tata/mmt/security)"    \
 		&& exit 1                                                                        \
 		)
 endif
@@ -98,8 +114,6 @@ endif
 --check-dpi-folder:
 	@test -d $(MMT_DPI_DIR)                                                             \
 		||( echo "ERROR: Not found MMT-DPI at folder $(MMT_DPI_DIR)."                    \
-		&& echo "       Please give MMT-DPI folder via MMT_DPI_DIR parameter"            \
-		&& echo "       (for example: make MMT_DPI_DIR=/home/tata/mmt/dpi)"              \
 		&& exit 1                                                                        \
 		)
 

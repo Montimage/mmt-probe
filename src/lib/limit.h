@@ -51,13 +51,6 @@
 
 //end of block to be removed
 
-
-#ifdef DEBUG_MODE
-	#define IF_ENABLE_DEBUG( x ) x
-#else
-	#define IF_ENABLE_DEBUG( x )
-#endif
-
 #ifdef PCAP_MODULE
 	#define IF_ENABLE_PCAP( x ) x
 #else
@@ -163,10 +156,22 @@
 #else
 	#define IF_ENABLE_QOS( x )
 #endif
+
+
+#ifdef DEBUG_MODE
+	#define IF_ENABLE_DEBUG( x ) x
+#else
+	#define IF_ENABLE_DEBUG( x )
+#endif
+
+#ifdef STATIC_LINK
+	#define IF_ENABLE_STATIC_LINK( x ) x
+#else
+	#define IF_ENABLE_STATIC_LINK( x )
+#endif
 //a string contains list of compiled modules
 #define MODULES_LIST                                   \
 	"DPI"                                              \
-	IF_ENABLE_DEBUG( ", DEBUG" )                       \
 	IF_ENABLE_DPDK( ", DPDK" )                         \
 	IF_ENABLE_DYNAMIC_CONFIG( ", DYNAMIC_CONF" )       \
 	IF_ENABLE_FTP_RECONSTRUCT( ", FTP_RECONSTRUCT" )   \
@@ -183,6 +188,8 @@
 	IF_ENABLE_SOCKET( ", SOCKET" )                     \
 	IF_ENABLE_SECURITY(", SECURITY")                   \
 	IF_ENABLE_TCP_REASSEMBLY(", TCP_REASSEMBLY" )      \
+	IF_ENABLE_DEBUG( ", debug" )                       \
+	IF_ENABLE_STATIC_LINK( ", static-link" )           \
 
 
 #define _EXIT _exit
