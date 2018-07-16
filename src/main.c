@@ -27,6 +27,7 @@
 #include <string.h>
 #include <limits.h>
 #include <mmt_core.h>
+#include <tcpip/mmt_tcpip.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -301,7 +302,24 @@ static void _clean_resource(){
 
 #ifdef STATIC_LINK
 //this function is implemented inside libmmt_tcpip.a
-void init_tcpip_plugin();
+extern void init_tcpip_plugin();
+
+static inline void _load_tcp_plugin(){
+	//check if ip proto has been loaded?
+	//This can happen when MMT-Probe is compiled using STATIC_LINK param
+	//  but we still have libmmt_tcpip.so in ./plugins/ or /opt/mmt/plugins folders.
+	//In such a case,  the libmmt_tcpi.so will be loaded by init_extraction function.
+	//So we do not need to load the internal library that has been embedded inside probe by static link.
+	//In other words, we do not need to call init_tcpip_plugin function as it will
+	//   cause errors when the library is loaded doubly.
+	const char *name = get_protocol_name_by_id( PROTO_IP );
+	if( name == NULL ){
+		init_tcpip_plugin();
+		log_write( LOG_INFO, "Use internal mmt_tcpip that has been embedded inside MMT-Probe");
+	}else{
+		log_write( LOG_INFO, "Use external mmt_tcpip that has been packaged inside libmmt_tcpip.so");
+	}
+}
 #endif
 
 /**
@@ -352,7 +370,7 @@ static int _main_processing( int argc, char** argv ){
 		log_write( LOG_INFO, "MMT-DPI %s", mmt_version() );
 
 #ifdef STATIC_LINK
-	init_tcpip_plugin();
+	_load_tcp_plugin();
 #endif
 
 	//other stubs, such as, system usage report

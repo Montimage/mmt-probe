@@ -132,7 +132,7 @@ static void *_worker_thread( void *arg){
 
 
 	//move this thread to a specific processor
-	long avail_processors = get_number_of_online_processors();
+	long avail_processors = mmt_probe_get_number_of_online_processors();
 	if( avail_processors > 1 ){
 		avail_processors -= 1;//avoid zero that is using by Reader
 		(void) move_the_current_thread_to_a_core( worker_context->index % avail_processors + 1, -10 );

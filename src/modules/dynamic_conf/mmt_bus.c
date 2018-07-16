@@ -168,7 +168,7 @@ void mmt_bus_subcriber_check(){
 	int i;
 	char msg[ MMT_BUS_MAX_MESSAGE_SIZE ];
 	size_t msg_size = 0;
-	pid_t pid = gettid();
+	pid_t pid = mmt_probe_get_tid();
 	struct subscriber *sub;
 	bool is_consumed;
 
@@ -240,7 +240,7 @@ bool mmt_bus_subscribe( bus_subscriber_callback_t cb, void *user_data ){
     //process, the thread ID is equal to the process ID (PID, as returned
     //by getpid(2)).  In a multithreaded process, all threads have the same
     //PID, but each one has a unique TID.
-	pid = gettid();
+	pid = mmt_probe_get_tid();
 
 	for( i=0; i<MMT_BUS_MAX_SUBSCRIBERS; i++ ){
 		//already exist
@@ -277,7 +277,7 @@ bool mmt_bus_subscribe( bus_subscriber_callback_t cb, void *user_data ){
 
 bool mmt_bus_unsubscribe(){
 	int i;
-	pid_t pid = gettid();
+	pid_t pid = mmt_probe_get_tid();
 
 	if( bus == NULL )
 		return false;

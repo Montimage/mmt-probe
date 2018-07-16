@@ -37,10 +37,11 @@ VERSION     := 1.4.0
 $(info INFO: MMT-Probe version $(VERSION) $(GIT_VERSION) ($(MAKECMDGOALS)))
 
 
-#set of library
+#set of libraries
 LIBS     := -L$(MMT_DPI_DIR)/lib     -lconfuse -lpthread 
 CFLAGS   := -I$(MMT_DPI_DIR)/include -Wall -Wno-unused-variable\
 			   -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"
+CLDFLAGS += -rdynamic
 
 #intermediate targets
 #This function will create a dummy target naming by its first parameter, e.g., VERBOSE
@@ -60,6 +61,7 @@ endef
 
 
 # embedded MMT libraries into probe
+# we need to explicitly indicate either static or dynamic library
 $(eval $(call EXPORT_TARGET,STATIC_LINK))
 ifdef STATIC_LINK
   CFLAGS += -DSTATIC_LINK

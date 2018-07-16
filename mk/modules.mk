@@ -128,7 +128,14 @@ endif
 
 $(eval $(call check_module,SECURITY_MODULE))
 ifdef SECURITY_MODULE
-  MODULE_LIBS  += -L$(MMT_SECURITY_DIR)/lib -lmmt_security2 -lxml2
+#depending on link type, we use either static or dynamic library
+  ifdef STATIC_LINK
+    LIB_SECURITY := -l:libmmt_security2.a
+  else
+    LIB_SECURITY := -l:libmmt_security2.so
+  endif
+
+  MODULE_LIBS  += -L$(MMT_SECURITY_DIR)/lib $(LIB_SECURITY) -lxml2
   MODULE_FLAGS += -I $(MMT_SECURITY_DIR)/include -DSECURITY_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/security/*.c)
 endif

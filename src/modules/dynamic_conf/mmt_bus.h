@@ -4,7 +4,7 @@
  *  Created on: May 11, 2018
  *          by: Huu Nghia Nguyen
  * A communication bus among processes and thread.
- * Each subscriber is identified by its thread ID given by function gettid().
+ * Each subscriber is identified by its thread ID given by function mmt_probe_get_tid().
  */
 
 #ifndef SRC_LIB_MMT_BUS_H_
@@ -75,7 +75,7 @@ typedef int (*bus_subscriber_callback_t)( const char *message, size_t message_si
  * @param user_data
  * @return true if successfully, otherwise false
  *
- * @note: each subscriber is unique by its thread ID (given by gettid())
+ * @note: each subscriber is unique by its thread ID (given by mmt_probe_get_tid())
  */
 bool mmt_bus_subscribe( bus_subscriber_callback_t cb, void *user_data );
 

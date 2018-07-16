@@ -49,7 +49,7 @@ sec_wrapper_t * init_security2(void * arg, sec_wrapper_t * security2, long avail
 	if (probe_context->thread_nb == 1 )th->security2_lcore_id = (probe_context->thread_nb) + th->thread_index * probe_context->security2_threads_count;
 	else  th->security2_lcore_id = (probe_context->thread_nb + 1) + th->thread_index * probe_context->security2_threads_count;
 
-	if ((th->security2_lcore_id + probe_context->security2_threads_count) > get_number_of_online_processors()){
+	if ((th->security2_lcore_id + probe_context->security2_threads_count) > mmt_probe_get_number_of_online_processors()){
 
 		th->security2_lcore_id = th->thread_index % avail_processors + 1;
 	}
@@ -59,9 +59,9 @@ sec_wrapper_t * init_security2(void * arg, sec_wrapper_t * security2, long avail
 
 	int k = 1;
 	for( i=0; i < probe_context->security2_threads_count; i++ ){
-		if (th->security2_lcore_id + i >= get_number_of_online_processors()){
+		if (th->security2_lcore_id + i >= mmt_probe_get_number_of_online_processors()){
 			th->security2_lcore_id = k++;
-			if (k == get_number_of_online_processors()) k = 1;
+			if (k == mmt_probe_get_number_of_online_processors()) k = 1;
 			sec_cores_mask[ i ] = th->security2_lcore_id;
 		}else {
 			sec_cores_mask[ i ] = th->security2_lcore_id + i;
@@ -196,7 +196,7 @@ void * smp_thread_routine(void *arg) {
 	mmt_log(probe_context, MMT_L_INFO, MMT_T_INIT, lg_msg);
 
 	//move this thread to a specific processor
-	avail_processors = get_number_of_online_processors();
+	avail_processors = mmt_probe_get_number_of_online_processors();
 	if( avail_processors > 1 ){
 		avail_processors -= 1;//avoid zero that is using by Reader
 		(void) move_the_current_thread_to_a_core( th->thread_index % avail_processors + 1, -10 );
@@ -372,7 +372,7 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 	static void *pdata;
 	long avail_processors;
 
-	avail_processors = get_number_of_online_processors();
+	avail_processors = mmt_probe_get_number_of_online_processors();
 	(void) move_the_current_thread_to_a_core( 0, -10 );
 
 	//Initialise MMT_Security
@@ -392,7 +392,7 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 		if( mmt_probe->mmt_conf->security2_enable ){
 			mmt_probe->smp_threads->security2_lcore_id = (mmt_probe->mmt_conf->thread_nb) + mmt_probe->smp_threads->thread_index * mmt_probe->mmt_conf->security2_threads_count;
 
-			if ((mmt_probe->smp_threads->security2_lcore_id + mmt_probe->mmt_conf->security2_threads_count) > get_number_of_online_processors()){
+			if ((mmt_probe->smp_threads->security2_lcore_id + mmt_probe->mmt_conf->security2_threads_count) > mmt_probe_get_number_of_online_processors()){
 				mmt_probe->smp_threads->security2_lcore_id = mmt_probe->smp_threads->thread_index % avail_processors + 1;
 			}
 
@@ -400,9 +400,9 @@ void process_trace_file(char * filename, mmt_probe_struct_t * mmt_probe) {
 			uint32_t *sec_cores_mask = malloc( sizeof( uint32_t ) * mmt_probe->mmt_conf->security2_threads_count );
 			int k = 1;
 			for( i=0; i < mmt_probe->mmt_conf->security2_threads_count; i++ ){
-				if (mmt_probe->smp_threads->security2_lcore_id + i >= get_number_of_online_processors()){
+				if (mmt_probe->smp_threads->security2_lcore_id + i >= mmt_probe_get_number_of_online_processors()){
 					mmt_probe->smp_threads->security2_lcore_id = k++;
-					if (k == get_number_of_online_processors()) k = 1;
+					if (k == mmt_probe_get_number_of_online_processors()) k = 1;
 					sec_cores_mask[ i ] = mmt_probe->smp_threads->security2_lcore_id;
 				}else {
 					sec_cores_mask[ i ] = mmt_probe->smp_threads->security2_lcore_id + i;
@@ -610,7 +610,7 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 
 	 //long avail_processors;
 
-	 mmt_probe->mmt_conf->avail_processors = get_number_of_online_processors();
+	 mmt_probe->mmt_conf->avail_processors = mmt_probe_get_number_of_online_processors();
 
 	 (void) move_the_current_thread_to_a_core(0, -15);
 
@@ -670,7 +670,7 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 	 if( mmt_probe->mmt_conf->security2_enable && mmt_probe->mmt_conf->thread_nb == 1 ){
 		 mmt_probe->smp_threads->security2_lcore_id = (mmt_probe->mmt_conf->thread_nb) + mmt_probe->smp_threads->thread_index * mmt_probe->mmt_conf->security2_threads_count;
 
-		 if ((mmt_probe->smp_threads->security2_lcore_id + mmt_probe->mmt_conf->security2_threads_count) > get_number_of_online_processors()){
+		 if ((mmt_probe->smp_threads->security2_lcore_id + mmt_probe->mmt_conf->security2_threads_count) > mmt_probe_get_number_of_online_processors()){
 			 mmt_probe->smp_threads->security2_lcore_id = mmt_probe->smp_threads->thread_index % mmt_probe->mmt_conf->avail_processors + 1;
 		 }
 
@@ -678,9 +678,9 @@ void got_packet_single_thread(u_char *args, const struct pcap_pkthdr *pkthdr, co
 		 uint32_t *sec_cores_mask = malloc( sizeof( uint32_t ) * mmt_probe->mmt_conf->security2_threads_count );
 		 int k = 1;
 		 for( i=0; i < mmt_probe->mmt_conf->security2_threads_count; i++ ){
-			 if (mmt_probe->smp_threads->security2_lcore_id + i >= get_number_of_online_processors()){
+			 if (mmt_probe->smp_threads->security2_lcore_id + i >= mmt_probe_get_number_of_online_processors()){
 				 mmt_probe->smp_threads->security2_lcore_id = k++;
-				 if (k == get_number_of_online_processors()) k = 1;
+				 if (k == mmt_probe_get_number_of_online_processors()) k = 1;
 				 sec_cores_mask[ i ] = mmt_probe->smp_threads->security2_lcore_id;
 			 }else {
 				 sec_cores_mask[ i ] = mmt_probe->smp_threads->security2_lcore_id + i;
