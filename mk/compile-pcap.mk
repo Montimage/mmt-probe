@@ -2,14 +2,11 @@
 # COMPILE MMT-Probe USING PCAP TO CAPTURE PACKETS #
 ###################################################
 
-#
-# When compiling using static variables, we need to use g++ as DPI uses stdc++
-#
-
 ALL_OBJS    := $(patsubst %.c,%.o, $(ALL_SRCS))
 
 compile: $(ALL_OBJS)
 	@echo "[COMPILE] probe"
+# When compiling using static link, we need to use g++ as DPI uses stdc++
 ifdef STATIC_LINK
 	$(QUIET) $(CXX) -o $(APP) $(CLDFLAGS)  $^ $(LIBS)
 else

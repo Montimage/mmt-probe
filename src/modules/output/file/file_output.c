@@ -53,7 +53,7 @@ static inline int _remove_old_sampled_files(const char *folder, size_t retains){
 
 	n = scandir( folder, &entries, _load_filter, alphasort );
 	if( n < 0 ) {
-		log_write( LOG_ERR, "Cannot scan output_dir: %s", strerror( errno ) );
+		log_write( LOG_ERR, "Cannot scan output_dir (%s): %s", folder, strerror( errno ) );
 		return 0;
 	}
 
