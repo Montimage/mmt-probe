@@ -10,11 +10,12 @@
 
 #include <stdbool.h>
 #include <mmt_core.h>
-#include <mmt_reassembly.h>
 
 typedef struct tcp_reassembly_struct tcp_reassembly_t;
 
-tcp_reassembly_t* tcp_reassembly_alloc_init( bool is_enable, mmt_handler_t *dpi_handler, int (*cb)(const ipacket_t *ipacket, void *user_args) );
+typedef void (*tcp_session_payload_callback_t)(const void *payload, uint32_t payload_len, void *user_args );
+
+tcp_reassembly_t* tcp_reassembly_alloc_init( bool is_enable, mmt_handler_t *dpi_handler, tcp_session_payload_callback_t callback, void *user_args );
 
 void tcp_reassembly_close(tcp_reassembly_t*);
 

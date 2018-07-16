@@ -48,7 +48,7 @@ void security_close();
 security_context_t* security_worker_alloc_init( const security_conf_t *config,
 		mmt_handler_t *dpi_handler, const uint32_t *core_mask,
 		bool verbose,
-		output_t *output );
+		output_t *output, bool is_enable_tcp_reassembly );
 
 /**
  * Stop and free security
@@ -59,6 +59,6 @@ security_context_t* security_worker_alloc_init( const security_conf_t *config,
 size_t security_worker_release( security_context_t* );
 
 static inline const char *security_get_version(){
-	return mmt_sec_get_version_number();
+	return mmt_sec_get_version_info();
 }
 #endif /* SRC_LIB_SECURITY_H_ */

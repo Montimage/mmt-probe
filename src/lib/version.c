@@ -13,5 +13,5 @@ const char* get_version(){
 #ifndef GIT_VERSION
 	#define GIT_VERSION "unknown"
 #endif
-	return VERSION " (" GIT_VERSION " - built on " __DATE__ " " __TIME__ ")";
+	return VERSION " (" GIT_VERSION " - " __DATE__ " " __TIME__ ")";
 }

@@ -102,34 +102,37 @@ void worker_print_common_statistics( const probe_context_t *context ){
  */
 void worker_on_start( worker_context_t *worker_context ){
 	DEBUG("Starting worker %d", worker_context->index );
+	probe_conf_t *config = worker_context->probe_context->config;
 
 	worker_context->output = output_alloc_init( worker_context->index,
-			&(worker_context->probe_context->config->outputs),
-			worker_context->probe_context->config->probe_id,
-			worker_context->probe_context->config->input->input_source,
+			&(config->outputs),
+			config->probe_id,
+			config->input->input_source,
 
 			//when enable security, we need to synchronize output as it can be called from
 			//- worker thread, or,
 			//- security threads
 #ifdef SECURITY_MODULE
-			(worker_context->probe_context->config->reports.security->is_enable
-			&& worker_context->probe_context->config->reports.security->threads_size != 0)
+			(config->reports.security->is_enable
+			&& config->reports.security->threads_size != 0)
 #else
 			false
 #endif
 
 	);
 
-	worker_context->dpi_context = dpi_alloc_init( worker_context->probe_context->config,
+	worker_context->dpi_context = dpi_alloc_init( config,
 			worker_context->dpi_handler, worker_context->output, worker_context->index );
 
 #ifdef SECURITY_MODULE
 	worker_context->security = security_worker_alloc_init(
-		worker_context->probe_context->config->reports.security,
+		config->reports.security,
 		worker_context->dpi_handler,
 		NULL, //core_id is NULL to allow OS arbitrarily arranging security threads on logical cores
 		(worker_context->index == 0), //verbose for only the first worker
-		worker_context->output );
+		worker_context->output,
+		config->is_enable_tcp_reassembly
+		);
 #endif
 
 #ifdef LICENSE_CHECK
@@ -140,7 +143,7 @@ void worker_on_start( worker_context_t *worker_context ){
 
 //#ifdef DYNAMIC_CONFIG_MODULE
 //	if( IS_SMP_MODE( worker_context->probe_context ))
-//		if( worker_context->probe_context->config->dynamic_conf->is_enable ){
+//		if( ->dynamic_conf->is_enable ){
 //			dynamic_conf_agency_start();
 //		}
 //#endif
@@ -166,7 +169,7 @@ void worker_on_stop( worker_context_t *worker_context ){
 
 //#ifdef DYNAMIC_CONFIG_MODULE
 //static inline void CALL_DYNAMIC_CONF_CHECK_IF_NEED( worker_context_t *worker_context ){
-//	if( worker_context->probe_context->config->dynamic_conf->is_enable ){
+//	if( ->dynamic_conf->is_enable ){
 //		dynamic_conf_check();
 //	}
 //}
