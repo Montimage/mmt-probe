@@ -103,6 +103,11 @@ typedef struct security_conf_struct{
 	char *excluded_rules;
 	char *rules_mask;
 	output_channel_conf_t output_channels;
+	struct{
+		uint32_t input_max_message_size;
+		uint32_t security_max_instances;
+		uint32_t security_smp_ring_size;
+	}lib;
 }security_conf_t;
 
 

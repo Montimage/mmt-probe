@@ -131,6 +131,11 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_STR("rules-mask",   0, CFGF_NONE),
 			CFG_STR("exclude-rules",   0, CFGF_NONE),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
+
+			CFG_INT("input.max_message_size",    0, CFGF_NONE),
+			CFG_INT("security.max_instances",    0, CFGF_NONE),
+			CFG_INT("security.smp.ring_size",    0, CFGF_NONE),
+
 			CFG_END()
 	};
 
@@ -637,6 +642,11 @@ static inline security_conf_t *_parse_security_block( cfg_t *cfg ){
 	ret->excluded_rules = _cfg_get_str(cfg, "exclude-rules" );
 	ret->rules_mask = _cfg_get_str(cfg, "rules-mask" );
 	ret->output_channels = _parse_output_channel( cfg );
+
+	ret->lib.security_max_instances = cfg_getint( cfg, "security.max_instances" );
+	ret->lib.security_smp_ring_size = cfg_getint( cfg, "security.smp.ring_size" );
+	ret->lib.input_max_message_size = cfg_getint( cfg, "input.max_message_size" );
+
 	return ret;
 }
 

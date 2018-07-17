@@ -366,12 +366,15 @@ static int _main_processing( int argc, char** argv ){
 	if( !init_extraction() ) { // general ixE initialization
 		log_write( LOG_ERR, "MMT Extraction engine initialization error! Exiting!");
 		return EXIT_FAILURE;
-	}else
-		log_write( LOG_INFO, "MMT-DPI %s", mmt_version() );
-
+	}
+	//when libmmt_tcpip is statically linked into mmt-probe,
+	// we need to fire its bootstrap function to initialize its protocol list
+	//(the function is fired automatically when the lib is dynamically loaded)
 #ifdef STATIC_LINK
 	_load_tcp_plugin();
 #endif
+
+	log_write( LOG_INFO, "MMT-DPI %s", mmt_version() );
 
 	//other stubs, such as, system usage report
 	routine_t *routine = routine_create_and_start( context );

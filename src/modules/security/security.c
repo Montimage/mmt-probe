@@ -17,6 +17,15 @@
 
 #define SECURITY_DPI_PACKET_HANDLER_ID 10
 
+/*
+ * return available room inside a message
+ */
+static inline uint32_t _get_msg_room( const message_t * msg ){
+	uint32_t used_room = msg->elements_count * SIZE_OF_MMT_MEMORY_T +  msg->_data_index + SIZE_OF_MMT_MEMORY_T;
+
+	return ( msg->_data_length <= used_room )? 0 : (msg->_data_length - used_room);
+}
+
 static inline bool _extract_data_for_specific_attribute( const ipacket_t *pkt, int dpi_data_type, message_t *msg, uint32_t proto_id, uint32_t att_id ){
 	uint32_t *data_len = NULL;
 	switch( proto_id ){
@@ -41,11 +50,23 @@ static inline bool _extract_data_for_specific_attribute( const ipacket_t *pkt, i
 	if( data_len == NULL )
 		return true;
 
+	uint32_t room_size = _get_msg_room( msg );
+	if(  *data_len  > room_size ){
+		log_write( LOG_INFO, "Not enough room to contain %d bytes of %d.%d (avail. %d). Need to increase \"input.max_message_size\"",
+				*data_len, proto_id, att_id, room_size );
+		return true;
+	}
+
+	//get the whole data of a tcp flow
+	// this may lead a problem of memory as a TCP flow may tranfer a huge data amount
 	void *data = get_attribute_extracted_data( pkt, proto_id, att_id );
 	if( data == NULL )
 		return true;
 
+
+	//append data to a security message that will be sent to MMT-Security
 	set_element_data_message_t( msg, proto_id, att_id, data, MMT_SEC_MSG_DATA_TYPE_BINARY, *data_len );
+
 	return true;
 }
 
@@ -68,9 +89,10 @@ static inline message_t* _get_packet_info( const ipacket_t *pkt, const proto_att
 	for( i=0; i<proto_atts_count; i++ ){
 		ret = _extract_data_for_specific_attribute( pkt, proto_atts[i]->dpi_type, msg, proto_atts[i]->proto_id, proto_atts[i]->att_id );
 
-		//if this proto/att has been processed, we donot need to call dpi_message_set_data
+		//if this proto/att has been processed, we do not need to call dpi_message_set_data
 		if( ret )
 			continue;
+
 		dpi_message_set_data( pkt, proto_atts[i]->dpi_type, msg, proto_atts[i]->proto_id, proto_atts[i]->att_id );
 	}
 
@@ -168,7 +190,7 @@ static inline bool _register_additional_attributes_if_need( mmt_handler_t *dpi_h
 	}
 
 	if( proto_id == PROTO_TCP && att_id == TCP_SESSION_PAYLOAD_UP ){
-		if (!register_extraction_attribute( dpi_handler, PROTO_IP, TCP_SESSION_PAYLOAD_UP_LEN)){
+		if (!register_extraction_attribute( dpi_handler, PROTO_TCP, TCP_SESSION_PAYLOAD_UP_LEN)){
 			log_write( LOG_WARNING, "Cannot register protocol/attribute tcp.tcp_session_payload_up_len");
 			return false;
 		}
@@ -176,7 +198,7 @@ static inline bool _register_additional_attributes_if_need( mmt_handler_t *dpi_h
 		return true;
 	}
 	if( proto_id == PROTO_TCP && att_id == TCP_SESSION_PAYLOAD_DOWN ){
-		if (!register_extraction_attribute( dpi_handler, PROTO_IP, TCP_SESSION_PAYLOAD_DOWN_LEN)){
+		if (!register_extraction_attribute( dpi_handler, PROTO_TCP, TCP_SESSION_PAYLOAD_DOWN_LEN)){
 			log_write( LOG_WARNING, "Cannot register protocol/attribute tcp.tcp_session_payload_down_len");
 			return false;
 		}
@@ -210,6 +232,14 @@ security_context_t* security_worker_alloc_init( const security_conf_t *config,
 	uint32_t add_att_id;
 	if( ! config->is_enable )
 		return NULL;
+
+	//set default parameters for libmmt_security
+	if( config->lib.input_max_message_size != 0 )
+		mmt_sec_set_config( MMT_SEC__CONFIG__INPUT__MAX_MESSAGE_SIZE, config->lib.input_max_message_size );
+	if( config->lib.security_max_instances != 0 )
+		mmt_sec_set_config( MMT_SEC__CONFIG__SECURITY__MAX_INSTANCES, config->lib.security_max_instances );
+	if( config->lib.security_smp_ring_size != 0 )
+		mmt_sec_set_config( MMT_SEC__CONFIG__SECURITY__SMP__RING_SIZE, config->lib.security_smp_ring_size );
 
 	//init
 	security_context_t *ret = mmt_alloc_and_init_zero(sizeof( security_context_t ));
