@@ -27,7 +27,7 @@
 
 // Test for GCC < 4.9.0
 #if GCC_VERSION < 40900
-	#error Need gcc >= 4.9
+	#warning Need gcc >= 4.9
 #endif
 
 typedef struct lock_free_spsc_ring_struct

@@ -134,9 +134,9 @@ ifdef SECURITY_MODULE
   else
     LIB_SECURITY := -l:libmmt_security2.so
   endif
-
+  
   MODULE_LIBS  += -L$(MMT_SECURITY_DIR)/lib $(LIB_SECURITY) -lxml2
-  MODULE_FLAGS += -I $(MMT_SECURITY_DIR)/include -DSECURITY_MODULE
+  MODULE_FLAGS += -I$(MMT_SECURITY_DIR)/include -DSECURITY_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/security/*.c)
 endif
 

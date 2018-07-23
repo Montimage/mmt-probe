@@ -38,7 +38,7 @@ $(info INFO: MMT-Probe version $(VERSION) $(GIT_VERSION) ($(MAKECMDGOALS)))
 
 
 #set of libraries
-LIBS     := -L$(MMT_DPI_DIR)/lib     -lconfuse -lpthread 
+LIBS     := -L$(MMT_DPI_DIR)/lib     -lpthread 
 CFLAGS   := -I$(MMT_DPI_DIR)/include -Wall -Wno-unused-variable\
 			   -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"
 CLDFLAGS += -rdynamic
@@ -65,9 +65,9 @@ endef
 $(eval $(call EXPORT_TARGET,STATIC_LINK))
 ifdef STATIC_LINK
   CFLAGS += -DSTATIC_LINK
-  LIBS   += -l:libmmt_tcpip.a -l:libmmt_core.a
+  LIBS   += -l:libconfuse.a -l:libmmt_tcpip.a -l:libmmt_core.a
 else
-  LIBS   += -l:libmmt_core.so
+  LIBS   += -l:libconfuse.so  -l:libmmt_core.so
 endif
 
 

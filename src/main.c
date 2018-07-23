@@ -221,6 +221,10 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 		}
 	}
 
+	if( conf_validate(conf) ){
+		abort();
+	}
+
 	return conf;
 }
 

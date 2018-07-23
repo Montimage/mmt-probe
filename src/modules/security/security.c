@@ -189,6 +189,7 @@ static inline bool _register_additional_attributes_if_need( mmt_handler_t *dpi_h
 		return true;
 	}
 
+	//we need the length of tcp session payload
 	if( proto_id == PROTO_TCP && att_id == TCP_SESSION_PAYLOAD_UP ){
 		if (!register_extraction_attribute( dpi_handler, PROTO_TCP, TCP_SESSION_PAYLOAD_UP_LEN)){
 			log_write( LOG_WARNING, "Cannot register protocol/attribute tcp.tcp_session_payload_up_len");
@@ -207,6 +208,26 @@ static inline bool _register_additional_attributes_if_need( mmt_handler_t *dpi_h
 	}
 
 	return false;
+}
+
+/**
+ * Update security parameters
+ * @param param_id
+ * @param val
+ */
+static inline void _update_lib_security_param( int param_id, uint32_t val ){
+	//if user want to use default value => do nothing
+	if( val == 0 )
+		return;
+
+	uint32_t old_val = mmt_sec_get_config( param_id );
+	//value does not change?
+	if( val == old_val )
+		return;
+
+	//update the new value
+	mmt_sec_set_config( param_id, val );
+	log_write( LOG_INFO, "Overridden the security parameter '%s' by %d", mmt_sec_get_config_name( param_id ), val );
 }
 
 /**
@@ -234,12 +255,9 @@ security_context_t* security_worker_alloc_init( const security_conf_t *config,
 		return NULL;
 
 	//set default parameters for libmmt_security
-	if( config->lib.input_max_message_size != 0 )
-		mmt_sec_set_config( MMT_SEC__CONFIG__INPUT__MAX_MESSAGE_SIZE, config->lib.input_max_message_size );
-	if( config->lib.security_max_instances != 0 )
-		mmt_sec_set_config( MMT_SEC__CONFIG__SECURITY__MAX_INSTANCES, config->lib.security_max_instances );
-	if( config->lib.security_smp_ring_size != 0 )
-		mmt_sec_set_config( MMT_SEC__CONFIG__SECURITY__SMP__RING_SIZE, config->lib.security_smp_ring_size );
+	_update_lib_security_param( MMT_SEC__CONFIG__INPUT__MAX_MESSAGE_SIZE, config->lib.input_max_message_size );
+	_update_lib_security_param( MMT_SEC__CONFIG__SECURITY__MAX_INSTANCES, config->lib.security_max_instances );
+	_update_lib_security_param( MMT_SEC__CONFIG__SECURITY__SMP__RING_SIZE, config->lib.security_smp_ring_size );
 
 	//init
 	security_context_t *ret = mmt_alloc_and_init_zero(sizeof( security_context_t ));

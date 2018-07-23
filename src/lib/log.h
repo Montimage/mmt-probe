@@ -65,17 +65,17 @@ static inline void log_close(){
 #define ABORT( format, ... )                                                \
 	do{                                                                     \
 		log_write( LOG_ERR, format,## __VA_ARGS__ );                        \
-		fprintf( stderr, format,## __VA_ARGS__ );                           \
+		fprintf( stderr, format"\n",## __VA_ARGS__ );                       \
 		abort();                                                            \
 	}while( 0 )
 
 /**
  * Ensure that exp is true, otherwise, we will abort the current execution
  */
-#define ASSERT( exp, format, ... )                                          \
-	while( !(exp) ){                                                        \
+#define ASSERT( exp, format, ... )                                                   \
+	while( !(exp) ){                                                                 \
 		log_write( LOG_ERR, "[%s:%d] "format,__FUNCTION__, __LINE__,## __VA_ARGS__ );\
-		abort();                                                            \
+		abort();                                                                     \
 	}
 
 
