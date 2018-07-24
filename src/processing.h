@@ -745,7 +745,7 @@ void event_reports_init(void * args);
 void conditional_reports_init(void * handler);
 void security_event( int prop_id, char *verdict, char *type, char *cause, char *history , struct timeval packet_timestamp, void * user_args);
 void protocols_stats_iterator(uint32_t proto_id, void * args);
-void send_message_to_file (char * message);
+void probe_send_message_to_file (char * message);
 void send_message_to_file_thread (char * message, void *args);
 __IF_REDIS(
 void send_message_to_redis (char *channel, char * message);

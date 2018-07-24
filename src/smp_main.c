@@ -646,6 +646,28 @@ void *cpu_ram_usage_routine(void * args){
 	printf("\n"); \
 	mmt_log(mmt_conf, MMT_L_INFO, MMT_P_INIT, __VA_ARGS__ );
 
+#ifdef STATIC_LINK
+//this function is implemented inside libmmt_tcpip.a
+extern void init_tcpip_plugin();
+
+static inline void _load_tcp_plugin(){
+	//check if ip proto has been loaded?
+	//This can happen when MMT-Probe is compiled using STATIC_LINK param
+	//  but we still have libmmt_tcpip.so in ./plugins/ or /opt/mmt/plugins folders.
+	//In such a case,  the libmmt_tcpi.so will be loaded by init_extraction function.
+	//So we do not need to load the internal library that has been embedded inside probe by static link.
+	//In other words, we do not need to call init_tcpip_plugin function as it will
+	//   cause errors when the library is loaded doubly.
+	const char *name = get_protocol_name_by_id( PROTO_IP );
+	if( name == NULL ){
+		init_tcpip_plugin();
+		printf( "Use internal mmt_tcpip that has been embedded inside MMT-Probe");
+	}else{
+		printf( "Use external mmt_tcpip that has been packaged inside libmmt_tcpip.so");
+	}
+}
+#endif
+
 int main(int argc, char **argv) {
 	int i, j, l = 0;
 	char lg_msg[1024];
@@ -667,6 +689,12 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
+	//when libmmt_tcpip is statically linked into mmt-probe,
+	// we need to fire its bootstrap function to initialize its protocol list
+	//(the function is fired automatically when the lib is dynamically loaded)
+#ifdef STATIC_LINK
+	_load_tcp_plugin();
+#endif
 
 #ifdef DPDK
 	/* Initialize the Environment Abstraction Layer (EAL). */

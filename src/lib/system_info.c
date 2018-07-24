@@ -31,7 +31,7 @@
 
 int move_the_current_thread_to_a_core( uint16_t core_index, int niceval ){
 	int ret;
-	int rtid = gettid(); /* reader thread id */
+	int rtid = mmt_probe_get_tid(); /* reader thread id */
 	cpu_set_t csmask;
 
 	// initialize to empty set
@@ -48,14 +48,14 @@ int move_the_current_thread_to_a_core( uint16_t core_index, int niceval ){
 	return ret;
 }
 
-long get_number_of_processors(){
+long mmt_probe_get_number_of_processors(){
 	return sysconf(_SC_NPROCESSORS_CONF);
 }
 
 /**
  * Get total number of logical processors that can work
  */
-long get_number_of_online_processors(){
+long mmt_probe_get_number_of_online_processors(){
 	//cached value
 	/*
 	static long ret = -1;
@@ -68,6 +68,6 @@ long get_number_of_online_processors(){
 }
 
 
-pid_t gettid() {
+pid_t mmt_probe_get_tid() {
 	return syscall( __NR_gettid );
 }

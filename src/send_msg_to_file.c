@@ -470,7 +470,7 @@ void send_message_to_file_thread (char * message, void *args) {
 
 }
 /* This function writes license information to a file */
-void send_message_to_file (char * message) {
+void probe_send_message_to_file (char * message) {
 	FILE * file;
 	char file_name_str [MAX_FILE_NAME+1] = {0};
 	char sem_file_name_str [MAX_FILE_NAME+5] = {0};	//file_name + ".sem"

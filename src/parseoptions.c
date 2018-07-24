@@ -14,6 +14,9 @@
 #include "lib/security.h"
 #include "tcpip/mmt_tcpip.h"
 
+#ifndef MMT_BASE
+#define MMT_BASE "/opt/mmt"
+#endif
 
 //normally GIT_VERSION must be given by Makefile
 #ifndef GIT_VERSION
@@ -24,7 +27,7 @@ void usage(const char * prg_name) {
 	fprintf(stderr, "%s [<option>]\n", prg_name);
 	fprintf(stderr, "Option:\n");
 	fprintf(stderr, "\t-v               : Lists versions.\n");
-	fprintf(stderr, "\t-c <config file> : Gives the path to the config file (default: /opt/mmt/probe/mmt-probe.conf).\n");
+	fprintf(stderr, "\t-c <config file> : Gives the path to the config file (default: " MMT_BASE "/probe/mmt-probe.conf).\n");
 	fprintf(stderr, "\t-t <trace file>  : Gives the trace file to analyse.\n");
 	fprintf(stderr, "\t-i <interface>   : Gives the interface name for live traffic analysis.\n");
 	fprintf(stderr, "\t-o <output file> : Gives the output file name. \n");
@@ -276,7 +279,7 @@ cfg_t * parse_conf(const char *filename) {
 
 	switch (cfg_parse(cfg, filename)) {
 	case CFG_FILE_ERROR:
-		fprintf(stderr, "Configuration file not found. Use -c <config file> or create default file at /opt/mmt/probe/mmt-probe.conf\n");
+		fprintf(stderr, "Configuration file not found. Use -c <config file> or create default file at " MMT_BASE "/probe/mmt-probe.conf\n");
 		exit( 1 );
 		return 0;
 	case CFG_SUCCESS:
@@ -1269,7 +1272,7 @@ int process_conf_result(cfg_t *cfg, mmt_probe_context_t * mmt_conf) {
 
 void parseOptions(int argc, char ** argv, mmt_probe_context_t * mmt_conf) {
 	int opt, optcount = 0;
-	char * config_file = "/opt/mmt/probe/mmt-probe.conf";
+	char * config_file = MMT_BASE "/probe/mmt-probe.conf";
 	char * input = NULL;
 	char * output = NULL;
 	char * output_dir = NULL;

@@ -106,7 +106,7 @@ int license_expiry_check(int status){
 	if(license_key == NULL) {
 		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d", MMT_LICENSE_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, MMT_LICENSE_KEY_DOES_NOT_EXIST);
 		license_message[ MAX_MESS ] = '\0';
-		if (probe_context->output_to_file_enable == 1 && status == 0) send_message_to_file (license_message);
+		if (probe_context->output_to_file_enable == 1 && status == 0) probe_send_message_to_file (license_message);
 		__IF_REDIS(
 		if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
 		)
@@ -150,7 +150,7 @@ int license_expiry_check(int status){
 		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d", MMT_LICENSE_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec,MMT_LICENSE_MODIFIED);
 
 		license_message[ MAX_MESS ] = '\0';
-		if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
+		if (probe_context->output_to_file_enable == 1 && status == 0)probe_send_message_to_file (license_message);
 		__IF_REDIS(
 		if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
 		)
@@ -185,7 +185,7 @@ int license_expiry_check(int status){
 		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d", MMT_LICENSE_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, MMT_LICENSE_MODIFIED);
 
 		license_message[ MAX_MESS ] = '\0';
-		if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
+		if (probe_context->output_to_file_enable == 1 && status == 0)probe_send_message_to_file (license_message);
 		__IF_REDIS(
 		if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
 		)
@@ -218,7 +218,7 @@ int license_expiry_check(int status){
 		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d", MMT_LICENSE_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, MMT_LICENSE_MODIFIED);
 
 		license_message[ MAX_MESS ] = '\0';
-		if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
+		if (probe_context->output_to_file_enable == 1 && status == 0)probe_send_message_to_file (license_message);
 		__IF_REDIS(
 		if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
 		)
@@ -306,7 +306,7 @@ int license_expiry_check(int status){
 			snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d,%d,\"%s\",%lu.%06lu,\"%s\",\"%s\"", MMT_LICENSE_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, BUY_MMT_LICENSE_FOR_THIS_DEVICE, no_of_mac, mac_address, expired_date.tv_sec, expired_date.tv_usec, version_probe, version_sdk);
 
 			license_message[ MAX_MESS ] = '\0';
-			if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
+			if (probe_context->output_to_file_enable == 1 && status == 0)probe_send_message_to_file (license_message);
 			__IF_REDIS(
 			if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
 			)
@@ -327,7 +327,7 @@ int license_expiry_check(int status){
 			snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d,%d,\"%s\",%lu.%06lu,\"%s\",\"%s\"", MMT_LICENSE_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec,MMT_LICENSE_EXPIRED, no_of_mac,mac_address, expired_date.tv_sec, expired_date.tv_usec, version_probe, version_sdk);
 
 			license_message[ MAX_MESS ] = '\0';
-			if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
+			if (probe_context->output_to_file_enable == 1 && status == 0)probe_send_message_to_file (license_message);
 			__IF_REDIS(
 			if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
 			)
@@ -350,7 +350,7 @@ int license_expiry_check(int status){
 		if ( seconds <= 604800 && seconds > 0){
 			snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d,%d,\"%s\",%lu.%06lu,\"%s\",\"%s\"", MMT_LICENSE_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, MMT_LICENSE_WILL_EXPIRE_SOON, no_of_mac,mac_address, expired_date.tv_sec, expired_date.tv_usec, version_probe, version_sdk);
 			license_message[ MAX_MESS ] = '\0';
-			if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
+			if (probe_context->output_to_file_enable == 1 && status == 0)probe_send_message_to_file (license_message);
 			__IF_REDIS(
 			if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
 			)
@@ -369,7 +369,7 @@ int license_expiry_check(int status){
 		}else if (seconds > 604800 && valid_mac == 1){
 			snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d,%d,\"%s\",%lu.%06lu,\"%s\",\"%s\"", MMT_LICENSE_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, MMT_LICENSE_INFO, no_of_mac, mac_address, expired_date.tv_sec, expired_date.tv_usec, version_probe, version_sdk);
 			license_message[ MAX_MESS ] = '\0';
-			if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
+			if (probe_context->output_to_file_enable == 1 && status == 0)probe_send_message_to_file (license_message);
 			__IF_REDIS(
 			if (probe_context->redis_enable== 1 && status == 0)send_message_to_redis ("license.stat", license_message);
 			)
@@ -382,7 +382,7 @@ int license_expiry_check(int status){
 		snprintf(license_message, MAX_MESS,"%u,%u,\"%s\",%lu.%06lu,%d,%d,\"%s\",%lu.%06lu,\"%s\",\"%s\"", MMT_LICENSE_REPORT_FORMAT, probe_context->probe_id_number, probe_context->input_source, current_time.tv_sec, current_time.tv_usec, MMT_LICENSE_MODIFIED, no_of_mac, mac_address, expired_date.tv_sec, expired_date.tv_usec, version_probe, version_sdk);
 
 		license_message[ MAX_MESS ] = '\0';
-		if (probe_context->output_to_file_enable == 1 && status == 0)send_message_to_file (license_message);
+		if (probe_context->output_to_file_enable == 1 && status == 0)probe_send_message_to_file (license_message);
 		__IF_REDIS(
 		if (probe_context->redis_enable == 1 && status == 0)send_message_to_redis ("license.stat", license_message);
 		)
