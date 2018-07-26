@@ -42,20 +42,47 @@ GIT_VERSION := $(shell git log --format="%h" -n 1)
 VERSION     := 1.3.3
 
 
-$(info Building MMT-Probe version $(VERSION) $(GIT_VERSION))
+$(info MMT-Probe version $(VERSION) $(GIT_VERSION))
+#$(info $(MAKECMDGOALS))
+
+#decide when we need to print out the message when a module is disable
+#ex: no need when we do: make clean
+PRINT_MODULE_MST := 1
+ifneq (,$(findstring clean,$(MAKECMDGOALS)))
+  PRINT_MODULE_MST :=
+endif
+ifneq (,$(findstring dist-clean,$(MAKECMDGOALS)))
+  PRINT_MODULE_MST :=
+endif
+ifneq (,$(findstring install,$(MAKECMDGOALS)))
+  PRINT_MODULE_MST :=
+endif
+ifneq (,$(findstring keygen,$(MAKECMDGOALS)))
+  PRINT_MODULE_MST :=
+endif
+ifneq (,$(findstring rpm,$(MAKECMDGOALS)))
+  PRINT_MODULE_MST :=
+endif
+ifneq (,$(findstring deb,$(MAKECMDGOALS)))
+  PRINT_MODULE_MST :=
+endif
 
 #set of library
-LIBS    := -L$(MMT_DPI_DIR)/lib -L/usr/local/lib  -lpthread -lrt
-CFLAGS += -I /opt/mmt/dpi/include -Wall -Wno-unused-variable           \
+LIBS    := -L$(MMT_DPI_DIR)/lib -L/usr/local/lib  -lpthread -lrt  -rdynamic
+CFLAGS += -I$(MMT_BASE)/dpi/include -Wall -Wno-unused-variable         \
             -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"  \
             -DMMT_BASE=\"$(MMT_BASE)\"
 
 ifdef STATIC_LINK
-  $(info - Use STATIC_LINK)
+  ifdef PRINT_MODULE_MST
+    $(info - Use STATIC_LINK)
+  endif
   CFLAGS += -DSTATIC_LINK
   LIBS   += -l:libconfuse.a -l:libmmt_tcpip.a -l:libmmt_core.a
 else
-  $(info - Use dynamic link)
+  ifdef PRINT_MODULE_MST
+    $(info - Use dynamic link)
+  endif
   LIBS   += -l:libconfuse.so  -l:libmmt_core.so
 endif
 
@@ -72,6 +99,7 @@ else
   CFLAGS += -O3
 endif
 
+
 #################################################
 ########### MODULES #############################
 #################################################
@@ -80,8 +108,10 @@ ifdef KAFKA
   LIBS    += -lrdkafka
   CFLAGS  += -I /usr/local/include/librdkafka -DKAFKA
   MODULES_LIST +=  KAFKA
-else
-  $(info -> Disable KAFKA module)
+else 
+  ifdef PRINT_MODULE_MST
+    $(info -> Disable KAFKA module)
+  endif
 endif
 
 ifdef REDIS
@@ -90,7 +120,9 @@ ifdef REDIS
   CFLAGS  +=  -DREDIS
   MODULES_LIST +=  REDIS
 else
-  $(info -> Disable REDIS module)
+  ifdef PRINT_MODULE_MST
+    $(info -> Disable REDIS module)
+  endif
 endif
 
 ifdef HTTP_RECONSTRUCT
@@ -99,17 +131,21 @@ $(info - Enable HTTP_RECONSTRUCT module)
   CFLAGS += -DHTTP_RECONSTRUCT
   MODULES_LIST +=  HTTP_RECONSTRUCT
 else
-$(info -> Disable HTTP_RECONSTRUCT module)
+  ifdef PRINT_MODULE_MST
+   $(info -> Disable HTTP_RECONSTRUCT module)
+  endif
 endif
 
 ifdef TCP_PAYLOAD_DUMP
 $(info - Enable TCP_PAYLOAD_DUMP module)
-  LIBS   += -L /opt/mmt/reassembly/lib -lmmt_reassembly -lntoh
-  CFLAGS += -I /opt/mmt/reassembly/include -DTCP_PAYLOAD_DUMP
+  LIBS   += -L$(MMT_BASE)/reassembly/lib -lmmt_reassembly -lntoh
+  CFLAGS += -I$(MMT_BASE)/reassembly/include -DTCP_PAYLOAD_DUMP
   MODULES_LIST +=  TCP_PAYLOAD_DUMP
 
 else
-  $(info -> Disable TCP_PAYLOAD_DUMP module)
+  ifdef PRINT_MODULE_MST
+    $(info -> Disable TCP_PAYLOAD_DUMP module)
+  endif
 endif
 
 #old security that is inside mmt-dpi
@@ -119,7 +155,9 @@ ifdef SECURITY_V1
   CFLAGS += -DSECURITY_V1
   MODULES_LIST += SECURITY_V1
 else
-  $(info -> Disable SECURITY_V1 module)
+  ifdef PRINT_MODULE_MST
+    $(info -> Disable SECURITY_V1 module)
+  endif
 endif
 
 #new security that is mmt-security
@@ -137,7 +175,9 @@ ifdef SECURITY
   MODULES_LIST +=  SECURITY
   
 else
-  $(info -> Disable SECURITY module)
+  ifdef PRINT_MODULE_MST
+    $(info -> Disable SECURITY module)
+  endif
 endif
 
 ifndef NDEBUG
@@ -177,8 +217,9 @@ ifdef DPDK
   include $(RTE_SDK)/mk/rte.extapp.mk
 
 else #for PCAP
-$(info - Use PCAP to capture packet)
-
+  ifdef PRINT_MODULE_MST
+    $(info - Use PCAP to capture packet)
+  endif
   #set of library
   LIBS     += -lpcap -ldl
   CFLAGS   += -DPCAP
@@ -210,8 +251,10 @@ endif
 %.o: %.c
 	@echo "[COMPILE] $(notdir $@)"
 	$(QUIET) $(CC) $(CFLAGS) $(CLDFLAGS) -c -o $@ $<
+	
 clean:
-	$(QUIET) $(RM) $(MAIN_OBJS) $(LIB_OBJS) $(OUTPUT)
+	$(QUIET) $(RM) $(MAIN_OBJS) $(LIB_OBJS) $(OUTPUT) \
+						$(FACE_ROOT_DIR)* $(APP)
 endif
 
 #################################################
@@ -219,7 +262,7 @@ endif
 #################################################
 
 #temp folder to contain installed files
-FACE_ROOT_DIR := build_mmt_probe_$(shell bash -c 'echo $$RANDOM')
+FACE_ROOT_DIR    := build_mmt_probe
 
 #internal target to be used by others
 --private-copy-files: all
@@ -253,16 +296,12 @@ ifdef NEED_ROOT_PERMISSION
 	$(QUIET) [ "$$(id -u)" != "0" ] && echo "ERROR: Need root privilege" && exit 1 || true
 endif
 
-#remove these files to trigger a recompile of these files to take into account the last value of MMT_BASE
---refresh-mmt-base:
-	$(QUIET) $(RM) $(APP) $(SRCDIR)/parseoptions.o
-
 #copy binary file to $PATH
 USR_BIN_FILE_PATH     = /usr/bin/mmt-probe
 #copy binary file to service list
 ETC_SERVICE_FILE_PATH = /etc/init.d/mmt-probe
 
-install: --private-check-root --refresh-mmt-base --private-copy-files
+install: --private-check-root --private-copy-files
 #check if old version of MMT-Probe is existing
 	$(QUIET) test -d $(INSTALL_DIR)                           \
 		&& echo "ERROR: Old version of MMT-Probe is existing." \

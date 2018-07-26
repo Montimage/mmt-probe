@@ -661,9 +661,9 @@ static inline void _load_tcp_plugin(){
 	const char *name = get_protocol_name_by_id( PROTO_IP );
 	if( name == NULL ){
 		init_tcpip_plugin();
-		printf( "Use internal mmt_tcpip that has been embedded inside MMT-Probe");
+		printf( "Use internal mmt_tcpip that has been embedded inside MMT-Probe\n");
 	}else{
-		printf( "Use external mmt_tcpip that has been packaged inside libmmt_tcpip.so");
+		printf( "Use external mmt_tcpip that has been packaged inside libmmt_tcpip.so\n");
 	}
 }
 #endif
