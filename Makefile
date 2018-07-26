@@ -138,7 +138,12 @@ endif
 
 ifdef TCP_PAYLOAD_DUMP
 $(info - Enable TCP_PAYLOAD_DUMP module)
-  LIBS   += -L$(MMT_BASE)/reassembly/lib -lmmt_reassembly -lntoh
+  ifdef STATIC_LINK
+    LIB_REASSEMBLY := -l:libmmt_reassembly.a
+  else
+    LIB_REASSEMBLY := -l:libmmt_reassembly.so
+  endif
+  LIBS   += -L$(MMT_BASE)/reassembly/lib $(LIB_REASSEMBLY) -lntoh
   CFLAGS += -I$(MMT_BASE)/reassembly/include -DTCP_PAYLOAD_DUMP
   MODULES_LIST +=  TCP_PAYLOAD_DUMP
 
