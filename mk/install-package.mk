@@ -34,12 +34,13 @@ endif
 RPM_DEPENDING_PACKAGES := mmt-dpi >= 1.6.13  #for .rpm file
 DEB_DEPENDING_PACKAGES := mmt-dpi (>= 1.6.13)#for .def file
 ifdef SECURITY_MODULE
-	RPM_DEPENDING_PACKAGES += mmt-security >= 1.2.0
-	DEB_DEPENDING_PACKAGES += mmt-security (>= 1.2.0)
+	RPM_DEPENDING_PACKAGES += , mmt-security >= 1.2.0
+	DEB_DEPENDING_PACKAGES += , mmt-security (>= 1.2.0)
 endif
 
 #temp folder to contain installed files
-TEMP_DIR := build_mmt_probe_$(shell bash -c 'echo $$RANDOM')
+TEMP_DIR := build_mmt_probe
+#_$(shell bash -c 'echo $$RANDOM')
 
 #internal target to be used by others
 # copy all necessary files to TEMP_DIR
@@ -123,8 +124,8 @@ endif
 	@echo "$(INSTALL_DIR)/lib" >> $(PACKAGE_FILE_NAME)/etc/ld.so.conf.d/mmt-probe.conf
 
 	$(QUIET) $(MKDIR) $(PACKAGE_FILE_NAME)/etc/init.d/
-	$(QUIET) $(CP) daemon-service.sh  $(PACKAGE_FILE_NAME)$(ETC_SERVICE_FILE_PATH)
-	$(QUIET) chmod 0755               $(PACKAGE_FILE_NAME)$(ETC_SERVICE_FILE_PATH)
+	$(QUIET) $(CP) daemon.sh  $(PACKAGE_FILE_NAME)$(ETC_SERVICE_FILE_PATH)
+	$(QUIET) chmod 0755       $(PACKAGE_FILE_NAME)$(ETC_SERVICE_FILE_PATH)
 
 	$(QUIET) $(MKDIR)  $(PACKAGE_FILE_NAME)$(INSTALL_DIR)
 	$(QUIET) $(CP) -r  $(TEMP_DIR)/* $(PACKAGE_FILE_NAME)$(INSTALL_DIR)
