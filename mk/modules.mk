@@ -167,7 +167,14 @@ endif
 
 $(eval $(call check_module,SECURITY_MODULE))
 ifdef SECURITY_MODULE
-#depending on link type, we use either static or dynamic library
+  #folder where MMT-Security is installed
+  MMT_SECURITY_DIR := $(realpath $(MMT_BASE)/security)
+  #check if MMT_SECURITY_DIR exists
+  ifndef MMT_SECURITY_DIR
+    $(error Not found MMT-Security at $(MMT_BASE)/security)
+  endif
+
+  #depending on link type, we use either static or dynamic library
   ifdef STATIC_LINK
     LIB_SECURITY := -l:libmmt_security2.a
   else
@@ -244,6 +251,10 @@ ifdef DPDK_CAPTURE
   export MODULE_FLAGS
   export MODULE_SRCS
   export MODULE_LIBS
+  
+  ifdef STATIC_LINK
+    $(error DPDK_CAPTURE and STATIC_LINK cannot be together)
+  endif
 else
   $(eval $(call _info,- Use PCAP to capture packet))
   ifdef STATIC_LINK

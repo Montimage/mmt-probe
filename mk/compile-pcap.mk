@@ -13,10 +13,11 @@ else
 	$(QUIET) $(CC) -o $(APP) $(CLDFLAGS)  $^ $(LIBS)
 endif
 
-%.o: %.c --check-security-folder --check-dpi-folder
+%.o: %.c --check-dpi-folder
 	@echo "[COMPILE] $(notdir $@)"
 	$(QUIET) $(CC) $(CFLAGS) $(CLDFLAGS) -c -o $@ $<
 
+.PHONY: clean
 clean:
 	$(QUIET) $(RM) $(APP)
 #remove all .o files

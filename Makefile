@@ -108,16 +108,7 @@ endif
 -include mk/modules.mk
 
 
-# Check if there exists the folder of MMT-Security.
-#   We check only if SECURITY_MODULE is active
---check-security-folder:
-ifdef SECURITY_MODULE
-	@test -d $(MMT_SECURITY_DIR)                                                        \
-		||( echo "ERROR: Not found MMT-Security at folder $(MMT_SECURITY_DIR)."          \
-		&& exit 1                                                                        \
-		)
-endif
-
+.PHONY: --check-dpi-folder 
 # check if there exists the folder of MMT-DPI 
 --check-dpi-folder:
 	@test -d $(MMT_DPI_DIR)                                                             \
@@ -139,11 +130,12 @@ LIB_SRCS = $(wildcard $(SRC_DIR)/lib/*.c) \
 ALL_SRCS  := $(LIB_SRCS) $(MODULE_SRCS) $(MAIN_SRCS)
 
 
-ifdef DPDK_CAPTURE #use makefiles of dpdk
+ifdef DPDK_CAPTURE 
+#use makefiles of dpdk
 #we need explicitly TOP_DIR as this line will be called second times from ./build folder by dpdk
--include $(TOP_DIR)/mk/compile-dpdk.mk
+  -include $(TOP_DIR)/mk/compile-dpdk.mk
 else
--include mk/compile-pcap.mk
+  -include mk/compile-pcap.mk
 endif
 
 

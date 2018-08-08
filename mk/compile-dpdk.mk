@@ -24,13 +24,8 @@ ifdef VERBOSE
   Q = @
 endif
 
-#This variable will tell DPDK the targets to be executed after building
-POSTBUILD += --private-copy-probe
-
-#copy probe from the build folder to the current folder
---private-copy-probe:
+compile: --check-dpi-folder all
+	@#copy probe from the build folder to the current folder
 	$(QUIET)$(CP) $(TOP_DIR)/build/$(APP) $(TOP_DIR)
-
-compile: --check-security-folder --check-dpi-folder all
 
 include $(RTE_SDK)/mk/rte.extapp.mk
