@@ -221,6 +221,14 @@ This is, the executable binary file of MMT-Probe contains these libraries.
 Consequently we do not need to install these libraries into a new machine when installing MMT-Probe, 
 only one executable file is enough. 
 
+Currently, the following libraries will be statically linked (embedded) into probe:
+
+- libmmt-dpi
+- libmmt-security2
+- libpcap
+- libconfuse
+- libhiredis
+
 ### Step 3 — Execution
 
 When running `./probe -h`, we obtain:

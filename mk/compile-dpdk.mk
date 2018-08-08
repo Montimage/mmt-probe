@@ -12,12 +12,6 @@ RTE_TARGET ?= build
 #avoid being overried by DPDK
 _OLD_CFLAGS := $(CFLAGS)
 
-#build is not a file target, 
-.PHONY: compile
-
-#default target
-.DEFAULT_GOAL := compile
-
 include $(RTE_SDK)/mk/rte.vars.mk
 
 #DPDK variables

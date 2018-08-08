@@ -25,6 +25,34 @@ ifneq (,$(findstring ALL_MODULES,$(MAKECMDGOALS)))
   ALL_MODULES := 1
 endif
 
+
+#decide when we need to print out the message if a module is disable
+#ex: no need when we do: make clean
+#by default, we do not print out the message
+undefine PRINT_MODULE_MSG
+#by default, when no target is given to `make` commandline => do `make compile`
+ifndef MAKECMDGOALS
+  PRINT_MODULE_MSG := 1
+endif
+#when do `make compile` or `make deb` or `make rpm`, we need to print out the modules
+ifneq (,$(findstring compile,$(MAKECMDGOALS)))
+  PRINT_MODULE_MSG := 1
+endif
+ifneq (,$(findstring rpm,$(MAKECMDGOALS)))
+  PRINT_MODULE_MSG := 1
+endif
+ifneq (,$(findstring deb,$(MAKECMDGOALS)))
+  PRINT_MODULE_MSG := 1
+endif
+
+#a function to print out a message if need
+#usage: $(eval $(call _info, message xyz))
+define _info
+  ifdef PRINT_MODULE_MSG
+    $$(info $(1))
+  endif
+endef
+
 #intermediate targets
 #This function will create a dummy target naming by its first parameter, e.g., MONGODB_MODULE
 # when user call the target, it will set an environment variable having the same name
@@ -52,7 +80,9 @@ endif
 ifdef $(1)
   $$(info - Enable $(1))
 else
-  $$(info -> Disable $(1))
+  ifdef PRINT_MODULE_MSG
+    $$(info -> Disable $(1))
+  endif
 endif
 
 endef
@@ -63,7 +93,7 @@ MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/output/file/*.c)
 MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/dpi/*.c)
 MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/routine/*.c)
 #list of modules' libraries
-MODULE_LIBS  :=
+MODULE_LIBS  += -L/usr/local/lib/ -ldl
 #list of modules' compiling flags
 MODULE_FLAGS :=
 
@@ -98,24 +128,33 @@ endif
 # OUTPUTS >>>>>>>>>>>>
 $(eval $(call check_module,KAFKA_MODULE))
 ifdef KAFKA_MODULE
-  export KAFKA=1
-  MODULE_LIBS  += -L/usr/local/lib/ -lrdkafka
+  ifdef STATIC_LINK
+    MODULE_LIBS  += -lrdkafka
+  else
+    MODULE_LIBS  += -lrdkafka
+  endif
   MODULE_FLAGS += -I /usr/local/include/librdkafka -DKAFKA_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/output/kafka/*.c)
 endif
 
 $(eval $(call check_module,MONGODB_MODULE))
 ifdef MONGODB_MODULE
-  export MONGODB=1
-  MODULE_LIBS  += -L/usr/lib/x86_64-linux-gnu/ -lmongoc-1.0 -lbson-1.0
+  ifdef STATIC_LINK
+    MODULE_LIBS  += -lmongoc-1.0 -lbson-1.0
+  else
+    MODULE_LIBS  += -lmongoc-1.0 -lbson-1.0
+  endif
   MODULE_FLAGS += -DMONGODB_MODULE -I/usr/local/include/libmongoc-1.0 -I/usr/local/include/libbson-1.0
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/output/mongodb/*.c)
 endif
 
 $(eval $(call check_module,REDIS_MODULE))
 ifdef REDIS_MODULE
-  export REDIS=1
-  MODULE_LIBS  += -lhiredis
+  ifdef STATIC_LINK
+    MODULE_LIBS  += -l:libhiredis.a
+  else
+    MODULE_LIBS  += -lhiredis
+  endif
   MODULE_FLAGS += -DREDIS_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/output/redis/*.c)
 endif
@@ -177,7 +216,7 @@ ifdef SIMPLE_REPORT
     $(error Either SIMPLE_REPORT or DISABLE_REPORT can be used, but not both of them)
   endif
 
-  $(info Use simple reports for MMT-Box)
+  $(info - Use simple reports for MMT-Box)
   MODULE_FLAGS += -DSIMPLE_REPORT
 endif
 
@@ -197,7 +236,7 @@ endif
 $(eval $(call EXPORT_TARGET,DPDK_CAPTURE))
 
 ifdef DPDK_CAPTURE
-$(info - Use DPDK to capture packet)
+  $(info - Use DPDK to capture packet)
   MODULE_FLAGS += -DDPDK_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/dpdk/*.c)
   
@@ -206,8 +245,12 @@ $(info - Use DPDK to capture packet)
   export MODULE_SRCS
   export MODULE_LIBS
 else
-$(info - Use PCAP to capture packet)
-   MODULE_FLAGS += -DPCAP_MODULE
-   MODULE_LIBS  += -lpcap -ldl
-   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/pcap/*.c)
+  $(eval $(call _info,- Use PCAP to capture packet))
+  ifdef STATIC_LINK
+    MODULE_LIBS  += -l:libpcap.a
+  else
+    MODULE_LIBS  += -lpcap
+  endif
+  MODULE_FLAGS += -DPCAP_MODULE
+  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/pcap/*.c)
 endif

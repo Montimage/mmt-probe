@@ -4,6 +4,13 @@ CXX    = g++ -std=c++11
 CP     = cp
 RM     = rm -rf
 
+#Name of executable file to generate
+APP = probe
+
+#get git version abbrev
+GIT_VERSION := $(shell git log --format="%h" -n 1)
+VERSION     := 1.4.0
+
 ifndef TOP_DIR
   #current directory
   TOP_DIR := $(shell pwd)
@@ -17,7 +24,7 @@ ifndef MMT_BASE
   MMT_BASE             := /opt/mmt
   NEED_ROOT_PERMISSION := 1
 else
-  $(info INFO: Set default folder of MMT to $(MMT_BASE))
+  $(info Set default folder of MMT to $(MMT_BASE))
 endif
 
 INSTALL_DIR       := $(MMT_BASE)/probe
@@ -27,15 +34,14 @@ MMT_SECURITY_DIR  := $(MMT_BASE)/security
 MMT_DPI_DIR       := $(MMT_BASE)/dpi
 
 	
-#Name of executable file to generate
-APP = probe
+$(info MMT-Probe version $(VERSION) $(GIT_VERSION) ($(MAKECMDGOALS)))
 
-#get git version abbrev
-GIT_VERSION := $(shell git log --format="%h" -n 1)
-VERSION     := 1.4.0
 
-$(info INFO: MMT-Probe version $(VERSION) $(GIT_VERSION) ($(MAKECMDGOALS)))
+#build is not a file target, 
+.PHONY: compile
 
+#default target
+.DEFAULT_GOAL := compile
 
 #set of libraries
 LIBS     := -L$(MMT_DPI_DIR)/lib     -lpthread 

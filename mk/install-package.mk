@@ -132,9 +132,13 @@ endif
 	$(QUIET) $(RM) -rf $(TEMP_DIR) #remove temp_file
 	
 	$(QUIET) $(MKDIR) $(PACKAGE_FILE_NAME)$(INSTALL_DIR)/lib
+	
 ifdef REDIS_MODULE
+ifndef STATIC_LINK
 	$(QUIET) $(CP) /usr/local/lib/libhiredis.so.*  $(PACKAGE_FILE_NAME)$(INSTALL_DIR)/lib
 endif
+endif
+
 ifdef KAFKA_MODULE
 	$(QUIET) $(CP) /usr/local/lib/librdkafka.so.*  $(PACKAGE_FILE_NAME)$(INSTALL_DIR)/lib
 endif
@@ -157,6 +161,12 @@ deb: --private-prepare-build
         \nHomepage: http://www.montimage.com"\
 		> $(PACKAGE_FILE_NAME)/DEBIAN/control
 
+	@#the script will be executed after installing the deb file
+	$(QUIET) echo "ldconfig" \
+	   > $(PACKAGE_FILE_NAME)/DEBIAN/postinst 
+	
+	$(QUIET) chmod 755 $(PACKAGE_FILE_NAME)/DEBIAN/postinst
+	
 	$(QUIET) dpkg-deb -b $(PACKAGE_FILE_NAME)
 	$(QUIET) $(RM) $(PACKAGE_FILE_NAME)
 	$(QUIET) $(RM) $(TEMP_DIR)
