@@ -16,11 +16,18 @@
 #include <mmt_core.h>
 
 #include "configure.h"
-#include "lib/memory.h"
-#include "lib/tools.h"
+#include "lib/string_builder.h"
+
+#include "modules/output/output.h"
 
 //for each thread
 typedef struct worker_context_struct worker_context_t;
+
+typedef struct{
+	uint64_t receive;
+	uint64_t drop;
+}stat_num_t;
+
 
 //the overall program
 typedef struct probe_context_struct{
@@ -30,7 +37,24 @@ typedef struct probe_context_struct{
 	//array of thread workers
 	worker_context_t **smp;
 
+	//when mmt-probe is exiting
 	volatile sig_atomic_t is_exiting;
+
+	//global statistic of network traffic
+	struct{
+		//number of packets received and dropped by NIC
+		stat_num_t nic;
+
+		//data received and dropped by MMT
+		struct{
+			stat_num_t packets;
+			stat_num_t bytes;
+		}mmt;
+	}traffic_stat;
+
+	//an output for statistics (network traffic, system info) of mmt-probe
+	//this output supports multi-threading
+	output_t *output;
 
 	struct{
 #ifdef PCAP_MODULE
@@ -39,6 +63,33 @@ typedef struct probe_context_struct{
 	}modules;
 }probe_context_t;
 
+
+/**
+ * Write global statistic of network traffic
+ * @param context
+ */
+static inline void context_print_traffic_stat( const probe_context_t *context, const struct timeval *now ){
+	//print a dummy message to inform that MMT-Probe is still alive
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	int valid = 0;
+
+	//build message
+	STRING_BUILDER_WITH_SEPARATOR(valid, message, sizeof( message ), ",",
+			__INT( context->traffic_stat.nic.receive ),
+			__INT( context->traffic_stat.nic.drop ),
+			__INT( context->traffic_stat.mmt.packets.receive ),
+			__INT( context->traffic_stat.mmt.packets.drop ),
+			__INT( context->traffic_stat.mmt.bytes.receive ),
+			__INT( context->traffic_stat.mmt.bytes.drop )
+			);
+
+	//output to all channels
+	output_write_report(context->output, CONF_OUTPUT_CHANNEL_ALL, DUMMY_REPORT_TYPE,
+			now, message );
+	//DEBUG("stat: %s", message );
+	//flush immediately ???
+	output_flush( context->output );
+}
 
 /**
  * Get the global context of MMT-Probe.

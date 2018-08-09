@@ -15,6 +15,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/time.h>
 
 #include "../../../worker.h"
 #include "data_spsc_ring.h"
@@ -212,7 +213,7 @@ static void *_worker_thread( void *arg){
 	return NULL;
 }
 
-static void _got_a_packet_smp(u_char* user, const struct pcap_pkthdr *pcap_header, const u_char *pcap_data){
+static inline void _got_a_packet_smp( u_char* user, const struct pcap_pkthdr *pcap_header, const u_char *pcap_data){
 	probe_context_t *context =( probe_context_t *)user;
 
 	//multithreading
@@ -252,10 +253,29 @@ static void _got_a_packet_smp(u_char* user, const struct pcap_pkthdr *pcap_heade
 	}
 }
 
+static inline void _print_traffic_statistics( probe_context_t *context ){
+	struct pcap_stat pcs; //packet capture stats
+
+	struct timeval tv;
+
+	if( context->config->input->input_mode != ONLINE_ANALYSIS )
+		return;
+
+	//get statistics from libpcap
+	if (pcap_stats(context->modules.pcap->handler, &pcs) < 0) {
+		log_write_dual( LOG_WARNING, "Cannot get statistics from pcap: %s", pcap_geterr( context->modules.pcap->handler ));
+	}else{
+		context->traffic_stat.nic.receive = pcs.ps_recv;
+		context->traffic_stat.nic.drop    = pcs.ps_ifdrop + pcs.ps_drop;
+	}
+
+	gettimeofday( &tv, NULL );
+	context_print_traffic_stat( context, &tv );
+}
+
 //this function is called only in single-thread mode to process packets
 static void _got_a_packet(u_char* user, const struct pcap_pkthdr *pcap_header, const u_char *pcap_data){
-	probe_context_t *context =( probe_context_t *)user;
-	worker_context_t *worker_context = context->smp[0];
+	probe_context_t *context   = ( probe_context_t *)user;
 	const probe_conf_t *config = context->config;
 
 	static time_t next_stat_ts = 0; //moment we need to do statistic
@@ -266,16 +286,23 @@ static void _got_a_packet(u_char* user, const struct pcap_pkthdr *pcap_header, c
 
 	//when having packet data to process
 	if( pcap_data != NULL ){
-		pkthdr_t pkt_header;
+		if( IS_SMP_MODE( context )){
+			_got_a_packet_smp(user, pcap_header, pcap_data);
+		}else{
+			pkthdr_t pkt_header;
+			//convert from pcap's header to mmt packet's header
+			pkt_header.ts        = pcap_header->ts;
+			pkt_header.caplen    = pcap_header->caplen;
+			pkt_header.len       = pcap_header->len;
+			pkt_header.user_args = NULL;
 
-		//convert from pcap's header to mmt packet's header
-		pkt_header.ts        = pcap_header->ts;
-		pkt_header.caplen    = pcap_header->caplen;
-		pkt_header.len       = pcap_header->len;
-		pkt_header.user_args = NULL;
+			worker_process_a_packet( context->smp[0], &pkt_header, pcap_data );
+		}
 
-		worker_process_a_packet( context->smp[0], &pkt_header, pcap_data );
 		now = pcap_header->ts.tv_sec;
+
+		context->traffic_stat.mmt.bytes.receive += pcap_header->len;
+		context->traffic_stat.mmt.packets.receive ++;
 	}
 
 	//we do not use packet timestamp for online analysis as
@@ -288,15 +315,23 @@ static void _got_a_packet(u_char* user, const struct pcap_pkthdr *pcap_header, c
 	if( next_output_ts == 0 && now != 0 ){
 		next_stat_ts = now + config->stat_period;
 		next_output_ts = now + config->outputs.cache_period;
-	}else{
-		//statistic periodically
-		if( now > next_stat_ts  ){
-			next_stat_ts += config->stat_period;
-			//call worker
-			worker_on_timer_stat_period( worker_context );
-		}
+	}
 
-		//if we need to sample output file
+	worker_context_t *worker_context = context->smp[0];
+	//statistic periodically
+	if( now > next_stat_ts  ){
+		next_stat_ts += config->stat_period;
+		//global statistic
+		_print_traffic_statistics( context );
+
+		//call worker timer only in non-smp mode
+		if( ! IS_SMP_MODE( context ))
+			worker_on_timer_stat_period( worker_context );
+
+	}
+
+	//if we need to sample output file
+	if( ! IS_SMP_MODE( context )){
 		if( config->outputs.file->is_sampled && now >  next_output_ts ){
 			next_output_ts += config->outputs.cache_period;
 			//call worker
@@ -473,53 +508,43 @@ void pcap_capture_start( probe_context_t *context ){
 	context->modules.pcap->handler = pcap;
 
 	ret = 0;
-	//working in a single thread
-	if( !IS_SMP_MODE( context )){
-		//set in non-blocking mode in case of no threading
-		// we need non-blocking mode in order to not be blocked when there are no packets.
-		// This allows us to periodically output reports to files/mongodb/...
-		if( context->config->input->input_mode != OFFLINE_ANALYSIS ){
-			ret = pcap_setnonblock(pcap, true, errbuf );
-			if( ret == -1 )
-				ABORT("Cannot put pcap in non-blocking mode: %s", errbuf );
-		}
+	//set in non-blocking mode in case of no threading
+	// we need non-blocking mode in order to not be blocked when there are no packets.
+	// This allows us to periodically output reports to files/mongodb/...
+	if( context->config->input->input_mode != OFFLINE_ANALYSIS ){
+		ret = pcap_setnonblock(pcap, true, errbuf );
+		if( ret == -1 )
+			ABORT("Cannot put pcap in non-blocking mode: %s", errbuf );
+	}
 
-		while( ! context->is_exiting ){
-			ret = pcap_dispatch( pcap, -1, _got_a_packet, (u_char*) context );
-//			0 if no packets were read from  a  live  capture  (if,  for
-//			       example,  they  were discarded because they didn't pass the packet filter
-//			       or if, on platforms that support a read timeout that starts before
-//			       any  packets  arrive, the timeout expires before any packets arrive, or
-//			       if the file descriptor for the capture device is in  non-blocking  mode
-//			       and  no  packets  were  available to be read)
-//          			or if no more packets are available in a ``savefile.''
-//			-1 if an error occurs
-//			-2 if  the  loop terminated due to a call to pcap_breakloop()
-//				 before any packets were processed.
-			if( ret == 0 ){
-				//if no more packets are available in a ``savefile.''
-				if( context->config->input->input_mode == OFFLINE_ANALYSIS )
-					break;
-				else{
-					//we still call this function, even there is no packet, to processing timeout functions,
-					// such as, worker_on_timer_stat_period, worker_on_timer_sample_file_period
-					_got_a_packet( (u_char*) context, NULL, NULL );
-					//we need to small sleep here to wait for a new packet
-					nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
-				}
-			}else if( ret > 0 )
-				continue;
-			else
-				break;
-		}
-	}else{
-		//start processing
-		//this loop is ended when:
-		//- then end of pcap file, or,
-		//- pcap_breakloop() is called, or,
-		//- an error
+	while( ! context->is_exiting ){
 		//-1: unlimited number of packets to capture.
-		ret = pcap_loop( pcap, -1, _got_a_packet_smp, (u_char*) context );
+		ret = pcap_dispatch( pcap, -1, _got_a_packet, (u_char*) context );
+		//			0 if no packets were read from  a  live  capture  (if,  for
+		//			       example,  they  were discarded because they didn't pass the packet filter
+		//			       or if, on platforms that support a read timeout that starts before
+		//			       any  packets  arrive, the timeout expires before any packets arrive, or
+		//			       if the file descriptor for the capture device is in  non-blocking  mode
+		//			       and  no  packets  were  available to be read)
+		//          			or if no more packets are available in a ``savefile.''
+		//			-1 if an error occurs
+		//			-2 if  the  loop terminated due to a call to pcap_breakloop()
+		//				 before any packets were processed.
+		if( ret == 0 ){
+			//if no more packets are available in a ``savefile.''
+			if( context->config->input->input_mode == OFFLINE_ANALYSIS )
+				break;
+			else{
+				//we still call this function, even there is no packet, to processing timeout functions,
+				// such as, worker_on_timer_stat_period, worker_on_timer_sample_file_period
+				_got_a_packet( (u_char*) context, NULL, NULL );
+				//we need to small sleep here to wait for a new packet
+				nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
+			}
+		}else if( ret > 0 )
+			continue;
+		else
+			break;
 	}
 
 	switch( ret ){
@@ -565,7 +590,6 @@ void pcap_capture_start( probe_context_t *context ){
 		//when there is only one worker running on the main thread
 		worker_on_stop( context->smp[0] );
 	}
-
 
 	worker_print_common_statistics( context );
 

@@ -133,10 +133,9 @@ static inline void _print_dpdk_stats( uint8_t port_number ){
 }
 
 static int _worker_thread( void *arg ){
-	worker_context_t *worker_context    = (worker_context_t *)arg;
-	const probe_conf_t *config          = worker_context->probe_context->config;
-	//struct rte_distributor *distributor = worker_context->dpdk->distributor;
-	struct distributor *distributor = worker_context->dpdk->distributor;
+	worker_context_t *worker_context = (worker_context_t *)arg;
+	const probe_conf_t *config       = worker_context->probe_context->config;
+	struct distributor *distributor  = worker_context->dpdk->distributor;
 	int i;
 	struct pkthdr pkt_header __rte_cache_aligned;
 	const u_char* pkt_data;
@@ -262,6 +261,18 @@ static int _distributor_thread( void *arg ){
 	return 0;
 }
 
+
+static inline void _print_traffic_statistics( probe_context_t *context, const struct timeval *now ){
+	int port = atoi( context->config->input->input_source );
+	struct rte_eth_stats stat;
+	rte_eth_stats_get( port, &stat );
+
+	context->traffic_stat.nic.receive = stat.ipackets;
+	context->traffic_stat.nic.drop    = stat.imissed + stat.ierrors;
+
+	context_print_traffic_stat(context, now);
+}
+
 /**
  * This is Reader thread.
  * It receives packets from NIC then forward them to Distributer
@@ -288,31 +299,35 @@ static int _reader_thread( void *arg ){
 						"RX thread. Performance will not be optimal.",
 						input_port );
 
-	//statistic variables
-	uint64_t total_pkts = 0, total_bytes = 0, drop_pkts = 0;
-
-	struct ipv4_hdr *ipv4_hdr;
-
 	const uint64_t nb_cycles_per_second = rte_get_timer_hz();
+	struct timeval now;
+	uint32_t next_stat_moment = rte_rdtsc() / nb_cycles_per_second; //current timestamp in seconds
+	next_stat_moment += probe_context->config->stat_period;
 
-	int q=0;
+	const int queue_id = 0;
 	/* Run until the application is quit or killed. */
 	while ( likely( !probe_context->is_exiting )) {
 			// Get burst of RX packets, from first port
-			nb_rx = rte_eth_rx_burst( input_port, q, bufs, READER_BURST_SIZE );
+			nb_rx = rte_eth_rx_burst( input_port, queue_id , bufs, READER_BURST_SIZE );
+
+			//timestamp of a packet is the moment we retrieve it from buffer of DPDK
+			//gettimeofday(&time_now, NULL) -> too heavy;
+			uint64_t t = rte_rdtsc();
+
+			now.tv_sec  = t / nb_cycles_per_second;
+			now.tv_usec = (t - now.tv_sec * nb_cycles_per_second * US_PER_S * 1.0 ) / nb_cycles_per_second;
+
+			if( unlikely( now.tv_sec >= next_stat_moment )){
+				_print_traffic_statistics( probe_context, &now );
+				next_stat_moment += probe_context->config->stat_period;
+			}
 
 			if( unlikely( nb_rx == 0 )){
-				//			nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
+				//nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
+				dpdk_pause( 2000 );
 			} else {
 				//total received packets
-				total_pkts += nb_rx;
-
-				//timestamp of a packet is the moment we retrieve it from buffer of DPDK
-				//gettimeofday(&time_now, NULL) -> too heavy;
-				uint64_t t = rte_rdtsc();
-				struct timeval64 now;
-				now.tv_sec  = t / nb_cycles_per_second;
-				now.tv_usec = (t - now.tv_sec * nb_cycles_per_second * US_PER_S * 1.0 ) / nb_cycles_per_second;
+				probe_context->traffic_stat.mmt.packets.receive += nb_rx;
 
 				//for each received packet,
 				// we remember the moment the packet is received
@@ -323,22 +338,29 @@ static int _reader_thread( void *arg ){
 					t->tv_usec = now.tv_usec + i;
 
 					//cumulate total data this reader received
-					total_bytes += bufs[i]->data_len;
+					probe_context->traffic_stat.mmt.bytes.receive += bufs[i]->data_len;
 				}
 
 				uint32_t sent = rte_ring_sp_enqueue_burst(ring, (void*)bufs, nb_rx, NULL);
 
 				//ring is full
 				if( unlikely( sent < nb_rx )){
-					drop_pkts += nb_rx - sent;
-					while( sent < nb_rx )
+					probe_context->traffic_stat.mmt.packets.drop += nb_rx - nb_rx;
+					while( sent < nb_rx ){
+						//store number of bytes being dropped
+						probe_context->traffic_stat.mmt.bytes.drop += bufs[sent ++]->data_len;
 						rte_pktmbuf_free( bufs[sent ++] );
+					}
 				}
 			}
 	}
 
 	log_write(LOG_INFO, "Reader received %"PRIu64" pkt (%"PRIu64" B), dropped %"PRIu64" pkt (%6.3f %%)",
-			total_pkts, total_bytes, drop_pkts, (drop_pkts == 0? 0: drop_pkts*100.0 / total_pkts) );
+			probe_context->traffic_stat.mmt.packets.receive,
+			probe_context->traffic_stat.mmt.bytes.receive,
+			probe_context->traffic_stat.mmt.packets.drop,
+			(probe_context->traffic_stat.mmt.packets.receive == 0 ?
+					0 : probe_context->traffic_stat.mmt.packets.drop *100.0 / probe_context->traffic_stat.mmt.packets.receive) );
 
 	//enqueue a null message to ring to tell the distributor to exit
 	//while loop ensures that the NULL obj is enqueued
@@ -447,40 +469,6 @@ static inline void _dpdk_capture_release( probe_context_t *context ){
 	mmt_probe_free( context->smp );
 }
 
-static void _print_stats(int type) {
-	int port = 0;
-	struct rte_eth_stats stat;
-	rte_eth_stats_get( port, &stat );
-
-	static uint64_t total_pkt = 0, total_drop = 0, total_data = 0;
-	static uint32_t index = 0;
-
-	uint64_t pool_used = 0, pool_total = 0;
-	struct rte_mempool *pool = rte_mempool_lookup( "pool_0" );
-	if( pool ){
-		pool_used  = rte_mempool_in_use_count( pool );
-		pool_total = pool->size;
-	}
-
-//	if( stat.imissed > total_drop )
-//			printf("\ndropped : %"PRIu64"", stat.imissed - total_drop );
-	printf(" %u: %'12ld bps, %'10ld pps, drop %'7ld pps (%5.2f%%), mpool %'10lu/ %'10lu",
-			index++,
-			(stat.ibytes - total_data)*8, (stat.ipackets - total_pkt),
-			(stat.imissed - total_drop), (stat.imissed - total_drop) * 100.0 / (stat.ipackets+stat.imissed - total_drop - total_pkt),
-			pool_used,
-			pool_total);
-//	int i;
-//	for( i=0; i<context->thread_nb; i++ )
-//		printf("   %2d : %'8ld pps, drop: %'8ld pps", i, stat.q_ipackets[i], stat.q_errors[i] );
-	total_pkt = stat.ipackets;
-	total_data = stat.ibytes;
-	total_drop = stat.imissed;
-
-	//rte_eth_stats_reset( port );
-	alarm( 1 );
-}
-
 void dpdk_capture_start ( probe_context_t *context){
 
 	uint8_t input_port;
@@ -555,8 +543,8 @@ void dpdk_capture_start ( probe_context_t *context){
 
 	//TODO: remove this block
 	//print stat each second
-	signal( SIGALRM, _print_stats );
-	alarm( 1 );
+	//signal( SIGALRM, _print_stats );
+	//alarm( 1 );
 
 	// Waiting for all workers finish their jobs
 

@@ -174,14 +174,16 @@ static inline void _create_semaphore_file( const file_output_t *output ){
 
 void file_output_flush( file_output_t * output){
 	EXPECT( output != NULL && output->file != NULL,  );
+
 //	DEBUG("flush file %d\n", output->id );
 	fflush( output->file );
 
 	if( output->config->is_sampled ){
 		//close csv file
 		fclose( output->file );
-		_create_semaphore_file( output );
+		output->file = NULL;
 
+		_create_semaphore_file( output );
 		_create_new_file(output);
 	}
 }
@@ -191,9 +193,10 @@ void file_output_release( file_output_t *output ){
 
 	if( output->file ){
 		fclose( output->file );
+		output->file = NULL;
+
 		if( output->config->is_sampled )
 			_create_semaphore_file( output );
-		output->file = NULL;
 	}
 
 	//use the first one to limit number of output files

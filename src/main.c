@@ -380,6 +380,11 @@ static int _main_processing( int argc, char** argv ){
 
 	log_write( LOG_INFO, "MMT-DPI %s", mmt_version() );
 
+	//a statistic output
+	const uint16_t output_id = 0;
+	context->output = output_alloc_init( output_id, &context->config->outputs, context->config->probe_id, context->config->input->input_source, true );
+
+
 	//other stubs, such as, system usage report
 	routine_t *routine = routine_create_and_start( context );
 
@@ -398,13 +403,16 @@ static int _main_processing( int argc, char** argv ){
 	)
 
 	routine_stop_and_release( routine );
+	output_release( context->output );
 
 	//depending on signal received, exit using different value to notify the monitor process
 	switch( main_processing_signal ){
 	case SIGINT:
 		EXIT_NORMALLY();
+		break;
 	case SIGRES:
 		EXIT_TOBE_RESTARTED();
+		break;
 	}
 
 	return EXIT_SUCCESS;
@@ -548,6 +556,9 @@ int main( int argc, char** argv ){
 
 	//read configuration from file and execution parameters
 	probe_context_t *context = get_context();
+	//initialize: fill zero
+	memset( context, 0, sizeof( probe_context_t) );
+
 	//MMT-Probe is running.
 	//This variable is false only when user want to stop MMT-Probe by sending SIGINT signal, e.g., pressing Ctrl+C
 	context->is_exiting = false;
