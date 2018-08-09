@@ -29,9 +29,9 @@ endif
 
 INSTALL_DIR       := $(MMT_BASE)/probe
 # Directory where MMT-Security was installed
-MMT_SECURITY_DIR  := $(MMT_BASE)/security
+MMT_SECURITY_DIR  ?= $(MMT_BASE)/security
 # Directory where MMT-DPI was installed
-MMT_DPI_DIR       := $(MMT_BASE)/dpi
+MMT_DPI_DIR       ?= $(MMT_BASE)/dpi
 
 	
 $(info MMT-Probe version $(VERSION) $(GIT_VERSION) ($(MAKECMDGOALS)))

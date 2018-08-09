@@ -36,8 +36,8 @@ This report is created periodically. The period depends on the parameters `stats
 | 6 | *nic-lost*  | Number of packets being dropped by NIC  |
 | 7 | *mmt-pkt*   | Number of packets being received by MMT |
 | 8 | *mmt-lost*  | Number of packets being dropped by MMT  |
-| 9 | *mmt-bytes* | Number of bytes being received by MMT |
-| 10| *mmt-b-lost*| Number of bytes being dropped by MMT  |
+| 9 | *mmt-bytes* | Number of bytes being received by MMT   |
+| 10| *mmt-b-lost*| Number of bytes being dropped by MMT    |
 
 ## System Info Report id = 201
 
