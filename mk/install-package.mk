@@ -92,11 +92,11 @@ install: --private-info --private-check-old-version --private-check-root --priva
 	$(QUIET) $(RM) -rf $(TEMP_DIR) #remove temp_file
 	
 ifdef NEED_ROOT_PERMISSION
-#create an alias
+	@#create an alias
 	$(QUIET) ln -s $(INSTALL_DIR)/bin/probe $(USR_BIN_FILE_PATH)
-#create service
-	$(QUIET) $(CP) daemon-service.sh  $(ETC_SERVICE_FILE_PATH)
-	$(QUIET) chmod 0755               $(ETC_SERVICE_FILE_PATH)
+	@#create service
+	$(QUIET) $(CP) daemon.sh  $(ETC_SERVICE_FILE_PATH)
+	$(QUIET) chmod 0755       $(ETC_SERVICE_FILE_PATH)
 	$(QUIET) systemctl daemon-reload
 endif
 
@@ -104,12 +104,14 @@ endif
 	@echo "Successfully installed MMT-Probe on $(INSTALL_DIR)"
 	
 	@echo "You can start MMT-Probe by:"
+	
 ifdef NEED_ROOT_PERMISSION
 	@echo " - either: sudo mmt-probe"
 	@echo " - or    : sudo service mmt-probe start"
 else
 	@echo "$(INSTALL_DIR)/bin/probe"
 endif
+
 	@echo
 	@echo "The default configuration file of MMT-Probe is located at $(INSTALL_DIR)/mmt-probe.conf"
 
@@ -134,6 +136,8 @@ endif
 	$(QUIET) $(MKDIR) $(PACKAGE_FILE_NAME)$(INSTALL_DIR)/lib
 	
 ifdef REDIS_MODULE
+	@#when using STATIC_LINK, libhiredis is embedded into probe, 
+	@#thus we do not need to copy it together with package (.deb, or .rpm) file
 ifndef STATIC_LINK
 	$(QUIET) $(CP) /usr/local/lib/libhiredis.so.*  $(PACKAGE_FILE_NAME)$(INSTALL_DIR)/lib
 endif
