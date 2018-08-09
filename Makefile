@@ -46,7 +46,7 @@ $(info MMT-Probe version $(VERSION) $(GIT_VERSION) ($(MAKECMDGOALS)))
 #set of libraries
 LIBS     := -L$(MMT_DPI_DIR)/lib     -lpthread 
 CFLAGS   := -I$(MMT_DPI_DIR)/include -Wall -Wno-unused-variable\
-			   -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\"
+			   -DVERSION=\"$(VERSION)\" -DGIT_VERSION=\"$(GIT_VERSION)\" -DMMT_BASE=\"$(MMT_BASE)\"
 CLDFLAGS += -rdynamic
 
 #intermediate targets

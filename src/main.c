@@ -65,13 +65,16 @@
 	#warning "The debug compile option is reserved only for debugging"
 #endif
 
+#ifndef MMT_BASE
+	#define MMT_BASE "/opt/mmt"
+#endif
 
 /*
  * Default configuration file: either in the current folder or in /opt/mmt/probe
  * The former has a higher priority
  */
 #define DEFAULT_CONFIG_FILE     "./mmt-probe.conf"
-#define DEFAULT_CONFIG_FILE_OPT "/opt/mmt/probe/mmt-probe.conf"
+#define DEFAULT_CONFIG_FILE_OPT MMT_BASE "/probe/mmt-probe.conf"
 
 static void _print_usage(const char * prg_name) {
 	printf("%s [<Option>]\n", prg_name);
@@ -140,6 +143,7 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 					printf( "- MMT-Security %s\n", security_get_version() );
 			)
 			printf("- Modules: %s\n", MODULES_LIST );
+			printf("- MMT_BASE: %s\n", MMT_BASE );
 			exit( EXIT_SUCCESS );
 		case 'h':
 			_print_usage(argv[0]);
