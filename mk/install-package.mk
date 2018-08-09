@@ -42,9 +42,12 @@ endif
 TEMP_DIR := build_mmt_probe
 #_$(shell bash -c 'echo $$RANDOM')
 
+$(APP):
+	$(error ERROR: Not found probe. Please compile first!)
+
 #internal target to be used by others
 # copy all necessary files to TEMP_DIR
---private-copy-files:
+--private-copy-files: $(APP)
 #create dir
 	$(QUIET) $(RM) $(TEMP_DIR)
 	$(QUIET) $(MKDIR) $(TEMP_DIR)/bin       \
@@ -82,9 +85,9 @@ USR_BIN_FILE_PATH     = /usr/bin/mmt-probe
 ETC_SERVICE_FILE_PATH = /etc/init.d/mmt-probe
 
 --private-info:
-	@echo "MMT-Probe will be installed on folder: $(INSTALL_DIR)"
+	$(info MMT-Probe will be installed on folder: $(INSTALL_DIR))
 
-install: --private-info --private-check-old-version --private-check-root --private-copy-files
+install: $(APP) --private-info --private-check-old-version --private-check-root --private-copy-files
 	$(QUIET) echo "INFO: Install MMT-Probe on $(INSTALL_DIR)"
 
 	$(QUIET) $(MKDIR)  $(INSTALL_DIR)

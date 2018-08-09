@@ -108,13 +108,13 @@ endif
 -include mk/modules.mk
 
 
+$(MMT_DPI_DIR):
+	$(error ERROR: Not found MMT-DPI at folder $(MMT_DPI_DIR))
+	
 .PHONY: --check-dpi-folder 
 # check if there exists the folder of MMT-DPI 
---check-dpi-folder:
-	@test -d $(MMT_DPI_DIR)                                                             \
-		||( echo "ERROR: Not found MMT-DPI at folder $(MMT_DPI_DIR)."                    \
-		&& exit 1                                                                        \
-		)
+--check-dpi-folder: $(MMT_DPI_DIR)
+
 
 CFLAGS += $(MODULE_FLAGS)
 LIBS   += $(MODULE_LIBS)
