@@ -299,10 +299,10 @@ static int _reader_thread( void *arg ){
 						"RX thread. Performance will not be optimal.",
 						input_port );
 
-	const uint64_t nb_cycles_per_second = rte_get_timer_hz();
-	struct timeval now;
-	uint32_t next_stat_moment = rte_rdtsc() / nb_cycles_per_second; //current timestamp in seconds
-	next_stat_moment += probe_context->config->stat_period;
+
+	//next statistic moment in number of cycles
+	gettimeofday(&time_now, NULL);
+	uint32_t next_stat_moment = time_now.tv_sec + probe_context->config->stat_period;
 
 	const int queue_id = 0;
 	/* Run until the application is quit or killed. */
@@ -311,14 +311,10 @@ static int _reader_thread( void *arg ){
 			nb_rx = rte_eth_rx_burst( input_port, queue_id , bufs, READER_BURST_SIZE );
 
 			//timestamp of a packet is the moment we retrieve it from buffer of DPDK
-			//gettimeofday(&time_now, NULL) -> too heavy;
-			uint64_t t = rte_rdtsc();
+			gettimeofday(&time_now, NULL);
 
-			now.tv_sec  = t / nb_cycles_per_second;
-			now.tv_usec = (t - now.tv_sec * nb_cycles_per_second * US_PER_S * 1.0 ) / nb_cycles_per_second;
-
-			if( unlikely( now.tv_sec >= next_stat_moment )){
-				_print_traffic_statistics( probe_context, &now );
+			if( unlikely( time_now.tv_sec >= next_stat_moment )){
+				_print_traffic_statistics( probe_context, &time_now );
 				next_stat_moment += probe_context->config->stat_period;
 			}
 
@@ -333,15 +329,15 @@ static int _reader_thread( void *arg ){
 				// we remember the moment the packet is received
 				for (i = 0; i < nb_rx; i++){
 					struct timeval64 *t = ( struct timeval64 * )& bufs[i]->udata64;
-					t->tv_sec = now.tv_sec;
+					t->tv_sec = time_now.tv_sec;
 					//suppose that each packet arrives after one microsecond
-					t->tv_usec = now.tv_usec + i;
+					t->tv_usec = time_now.tv_usec + i;
 
 					//cumulate total data this reader received
 					probe_context->traffic_stat.mmt.bytes.receive += bufs[i]->data_len;
 				}
 
-				unsigned sent = rte_ring_sp_enqueue_burst(ring, bufs, nb_rx, NULL);
+				unsigned sent = rte_ring_sp_enqueue_burst(ring, (void *)bufs, nb_rx, NULL);
 
 				//ring is full
 				if( unlikely( sent < nb_rx )){
@@ -542,13 +538,7 @@ void dpdk_capture_start ( probe_context_t *context){
 	if( ret != 0 )
 		rte_exit_failure("Cannot start reader. The remote lcore is not in a WAIT state");
 
-	//TODO: remove this block
-	//print stat each second
-	//signal( SIGALRM, _print_stats );
-	//alarm( 1 );
-
 	// Waiting for all workers finish their jobs
-
 
 	//rte_eal_mp_wait_lcore();
 	for( i=0; i< context->config->thread->thread_count; i++ )
