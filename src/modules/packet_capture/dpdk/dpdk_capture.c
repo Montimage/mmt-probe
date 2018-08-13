@@ -341,15 +341,16 @@ static int _reader_thread( void *arg ){
 					probe_context->traffic_stat.mmt.bytes.receive += bufs[i]->data_len;
 				}
 
-				uint32_t sent = rte_ring_sp_enqueue_burst(ring, (void*)bufs, nb_rx, NULL);
+				unsigned sent = rte_ring_sp_enqueue_burst(ring, bufs, nb_rx, NULL);
 
 				//ring is full
 				if( unlikely( sent < nb_rx )){
-					probe_context->traffic_stat.mmt.packets.drop += nb_rx - nb_rx;
+					probe_context->traffic_stat.mmt.packets.drop += nb_rx - sent;
 					while( sent < nb_rx ){
 						//store number of bytes being dropped
-						probe_context->traffic_stat.mmt.bytes.drop += bufs[sent ++]->data_len;
-						rte_pktmbuf_free( bufs[sent ++] );
+						probe_context->traffic_stat.mmt.bytes.drop += bufs[ sent ]->data_len;
+						rte_pktmbuf_free( bufs[sent ] );
+						sent ++;
 					}
 				}
 			}
