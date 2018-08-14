@@ -37,7 +37,7 @@ static inline void log_open(){
 #define log_write_dual( type, format, ... )                                 \
 	do{                                                                     \
 		log_write( type, format,## __VA_ARGS__ );                           \
-		fprintf( stderr, format,## __VA_ARGS__ );                           \
+		fprintf( stderr, format"\n",## __VA_ARGS__ );                       \
 	}while( 0 )
 
 
@@ -103,7 +103,7 @@ static inline void log_execution_trace () {
 #define MY_MISTAKE( format, ... )                                           \
 	do{                                                                     \
 		log_write( LOG_ERR, format,## __VA_ARGS__ );                        \
-		fprintf( stderr, format,## __VA_ARGS__ );                           \
+		fprintf( stderr, format"\n",## __VA_ARGS__ );                       \
 		log_execution_trace();                                              \
 		exit( 0 );                                                          \
 	}while( 0 )

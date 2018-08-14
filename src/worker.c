@@ -67,7 +67,7 @@ void worker_print_common_statistics( const probe_context_t *context ){
 
 	//single thread
 	if( !IS_SMP_MODE( context )){
-		log_write_dual( LOG_INFO, "MMT processed %"PRIu64" packets, dropped %"PRIu64" packets (%.2f%%)"SEC_MSG_FORMAT" \n",
+		log_write_dual( LOG_INFO, "MMT processed %"PRIu64" packets, dropped %"PRIu64" packets (%.2f%%)"SEC_MSG_FORMAT,
 				context->smp[0]->stat.pkt_processed,
 				context->smp[0]->stat.pkt_dropped,
 				context->smp[0]->stat.pkt_dropped * 100.0 / context->smp[0]->stat.pkt_processed
@@ -82,7 +82,7 @@ void worker_print_common_statistics( const probe_context_t *context ){
 
 		//for each thread
 		for( i = 0; i < context->config->thread->thread_count; i++ ){
-			log_write_dual( LOG_INFO, "Worker %d processed %"PRIu64" packets (%.2f%%), dropped %"PRIu64" packets (%3.2f%%)"SEC_MSG_FORMAT" \n",
+			log_write_dual( LOG_INFO, "Worker %d processed %"PRIu64" packets (%.2f%%), dropped %"PRIu64" packets (%3.2f%%)"SEC_MSG_FORMAT,
 					i,
 					context->smp[i]->stat.pkt_processed,
 					context->smp[i]->stat.pkt_processed * 100.0 /  pkt_received,

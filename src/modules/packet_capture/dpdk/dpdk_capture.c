@@ -42,6 +42,8 @@
 #define DISTRIBUTOR_BURST_SIZE  256
 #define MBUF_CACHE_SIZE         512
 
+#define READER_QUEUE_SIZE       pow( 2, 20 )
+#define WORKER_QUEUE_SIZE       512
 /* Symmetric RSS hash key */
 static uint8_t hash_key[52] = {
 		0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
@@ -308,7 +310,7 @@ static int _reader_thread( void *arg ){
 	/* Run until the application is quit or killed. */
 	while ( likely( !probe_context->is_exiting )) {
 			// Get burst of RX packets, from first port
-			nb_rx = rte_eth_rx_burst( input_port, queue_id , bufs, READER_BURST_SIZE );
+			nb_rx = rte_eth_rx_burst( input_port, queue_id, bufs, READER_BURST_SIZE );
 
 			//timestamp of a packet is the moment we retrieve it from buffer of DPDK
 			gettimeofday(&time_now, NULL);
@@ -320,7 +322,7 @@ static int _reader_thread( void *arg ){
 
 			if( unlikely( nb_rx == 0 )){
 				//nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
-				dpdk_pause( 2000 );
+				dpdk_pause( 200 );
 			} else {
 				//total received packets
 				probe_context->traffic_stat.mmt.packets.receive += nb_rx;
@@ -341,18 +343,23 @@ static int _reader_thread( void *arg ){
 
 				//ring is full
 				if( unlikely( sent < nb_rx )){
+					//cumulate total number of packets being dropped
 					probe_context->traffic_stat.mmt.packets.drop += nb_rx - sent;
+
 					while( sent < nb_rx ){
 						//store number of bytes being dropped
 						probe_context->traffic_stat.mmt.bytes.drop += bufs[ sent ]->data_len;
+
+						//when a mbuf has not been sent, we need to free it
 						rte_pktmbuf_free( bufs[sent ] );
+
 						sent ++;
 					}
 				}
 			}
 	}
 
-	log_write(LOG_INFO, "Reader received %"PRIu64" pkt (%"PRIu64" B), dropped %"PRIu64" pkt (%6.3f %%)",
+	log_write_dual(LOG_INFO, "Reader received %"PRIu64" pkt (%"PRIu64" B), dropped %"PRIu64" pkt (%6.3f %%)",
 			probe_context->traffic_stat.mmt.packets.receive,
 			probe_context->traffic_stat.mmt.bytes.receive,
 			probe_context->traffic_stat.mmt.packets.drop,
@@ -377,8 +384,6 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 	unsigned socket_id = rte_eth_dev_socket_id( input_port );
 	uint16_t nb_rx_queues = 1; //context->config->thread->thread_count
 	uint16_t nb_workers = context->config->thread->thread_count;
-	uint32_t reader_queue_size = pow( 2, 20 );
-	uint32_t worker_queue_size = MBUF_CACHE_SIZE;
 
 	// Configure the Ethernet device: no tx
 	int ret = rte_eth_dev_configure(input_port, nb_rx_queues, 0 , &port_default_conf);
@@ -392,8 +397,8 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 	mbuf_pool = rte_pktmbuf_pool_create( name,
 
 			+ nb_rx_queues*(nb_rxd*2)  //nic queue
-			+ reader_queue_size * 2   //reader
-			+ worker_queue_size * nb_workers    //distributor
+			+ READER_QUEUE_SIZE * 2   //reader
+			+ WORKER_QUEUE_SIZE * nb_workers    //distributor
 			- 1,
 			MBUF_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE, socket_id);
 
@@ -430,7 +435,7 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 	snprintf( name, sizeof( name), "ring_%d", input_port );
 	//TODO: check context->config->thread->thread_queue_packet_threshold is power of 2
 	param->rx_ring = rte_ring_create( name,
-			reader_queue_size,
+			READER_QUEUE_SIZE,
 			socket_id, RING_F_SC_DEQ | RING_F_SP_ENQ);
 
 	if ( param->rx_ring == NULL )
@@ -442,7 +447,7 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 	param->distributor = distributor_create( socket_id,
 				//The maximum number of workers that will request packets from this distributor
 				nb_workers,
-				worker_queue_size
+				WORKER_QUEUE_SIZE
 				);
 
 	if( param->distributor == NULL)
@@ -556,3 +561,12 @@ void dpdk_capture_start ( probe_context_t *context){
 	_dpdk_capture_release( context );
 	fflush( stdout );
 }
+
+//
+//void *i_malloc( size_t size ){
+//	return rte_malloc( NULL, size, 0 );
+//}
+//
+//void i_free( void *p ){
+//	rte_free( p );
+//}
