@@ -130,7 +130,7 @@ static inline void _create_new_file( file_output_t *output ){
 		log_write( LOG_ERR, "Cannot create data file %s: %s", filename, strerror( errno ) );
 
 	//use the first one to limit number of output files
-	if( output->id == 0 && output->config->retained_files_count > 0 )
+	if( output->id == 1 && output->config->retained_files_count > 0 )
 		_remove_old_sampled_files( output->config->directory, output->config->retained_files_count  );
 }
 

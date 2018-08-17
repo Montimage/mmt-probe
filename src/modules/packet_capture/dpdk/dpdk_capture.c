@@ -38,11 +38,11 @@
 #include "../../../lib/memory.h"
 
 #define RX_DESCRIPTORS         4096 	/* Size for RX ring*/
-#define READER_BURST_SIZE       256  	/* Burst size to receive packets from RX ring */
+#define READER_BURST_SIZE       512  	/* Burst size to receive packets from RX ring */
 #define DISTRIBUTOR_BURST_SIZE  256
 #define MBUF_CACHE_SIZE         512
 
-#define READER_QUEUE_SIZE       pow( 2, 20 )
+#define READER_QUEUE_SIZE       pow( 2, 21 )
 #define WORKER_QUEUE_SIZE       512
 /* Symmetric RSS hash key */
 static uint8_t hash_key[52] = {
@@ -195,8 +195,9 @@ static int _worker_thread( void *arg ){
 				//process packet
 				worker_process_a_packet( worker_context, &pkt_header, pkt_data );
 
+				//TODO: this is to test only
 				//do a small processing
-//				dpdk_pause( 10000 );
+//				dpdk_pause( 1000 );
 
 				//after processing packet, we need to free its memory in mempool
 				// to have place for others coming
@@ -243,7 +244,10 @@ static int _distributor_thread( void *arg ){
 	while ( likely( is_continuous )) {
 		uint32_t nb_rx = rte_ring_sc_dequeue_burst( ring, (void *)bufs, DISTRIBUTOR_BURST_SIZE, NULL );
 		if( unlikely( nb_rx == 0 )){
-			dpdk_pause( 200 );
+			//we need a small pause here -> reader_thread can easily to insert packet to queue
+			//at 14Mpps -> 1 packet consumes 300 cycles
+			//=> sleep 20 packets
+			dpdk_pause( 5000 );
 		} else {
 
 			//received a null message => exit
@@ -281,18 +285,16 @@ static inline void _print_traffic_statistics( probe_context_t *context, const st
  */
 static int _reader_thread( void *arg ){
 	int i;
-	uint16_t nb_rx;
-	struct timeval time_now;
-	struct rte_mbuf *bufs[READER_BURST_SIZE];
+	uint16_t nb_rx __rte_cache_aligned;
+	struct timeval time_now __rte_cache_aligned;
+	struct rte_mbuf *bufs[READER_BURST_SIZE] __rte_cache_aligned;
 
 	struct param *param = (struct param *) arg;
 
-	probe_context_t *probe_context = param->probe_context;
-
-
-	const uint8_t input_port = atoi( probe_context->config->input->input_source );
-	struct rte_ring *ring    = param->rx_ring;
-
+	probe_context_t *probe_context __rte_cache_aligned = param->probe_context;
+	struct rte_ring *ring __rte_cache_aligned = param->rx_ring;
+	uint32_t next_stat_moment __rte_cache_aligned;
+	const uint8_t input_port __rte_cache_aligned = atoi( probe_context->config->input->input_source );
 
 	//redear should be run on lcore having the same socket with the on of its NIC
 	if (rte_eth_dev_socket_id( input_port) > 0 &&
@@ -304,15 +306,18 @@ static int _reader_thread( void *arg ){
 
 	//next statistic moment in number of cycles
 	gettimeofday(&time_now, NULL);
-	uint32_t next_stat_moment = time_now.tv_sec + probe_context->config->stat_period;
+	next_stat_moment = time_now.tv_sec + probe_context->config->stat_period;
 
 	const int queue_id = 0;
+
+	uint64_t start_cycles = rte_get_tsc_cycles();
 	/* Run until the application is quit or killed. */
 	while ( likely( !probe_context->is_exiting )) {
 			// Get burst of RX packets, from first port
 			nb_rx = rte_eth_rx_burst( input_port, queue_id, bufs, READER_BURST_SIZE );
 
 			//timestamp of a packet is the moment we retrieve it from buffer of DPDK
+			//17 ns
 			gettimeofday(&time_now, NULL);
 
 			if( unlikely( time_now.tv_sec >= next_stat_moment )){
@@ -321,8 +326,7 @@ static int _reader_thread( void *arg ){
 			}
 
 			if( unlikely( nb_rx == 0 )){
-				//nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
-				dpdk_pause( 200 );
+//				dpdk_pause( 200 );
 			} else {
 				//total received packets
 				probe_context->traffic_stat.mmt.packets.receive += nb_rx;
@@ -359,12 +363,14 @@ static int _reader_thread( void *arg ){
 			}
 	}
 
-	log_write_dual(LOG_INFO, "Reader received %"PRIu64" pkt (%"PRIu64" B), dropped %"PRIu64" pkt (%6.3f %%)",
+	log_write_dual(LOG_INFO, "Reader received %"PRIu64" pkt (%"PRIu64" B), dropped %"PRIu64" pkt (%6.3f %%), %"PRIu64" cpp",
 			probe_context->traffic_stat.mmt.packets.receive,
 			probe_context->traffic_stat.mmt.bytes.receive,
 			probe_context->traffic_stat.mmt.packets.drop,
 			(probe_context->traffic_stat.mmt.packets.receive == 0 ?
-					0 : probe_context->traffic_stat.mmt.packets.drop *100.0 / probe_context->traffic_stat.mmt.packets.receive) );
+					0 : probe_context->traffic_stat.mmt.packets.drop *100.0 / probe_context->traffic_stat.mmt.packets.receive),
+			(rte_get_tsc_cycles() - start_cycles )/probe_context->traffic_stat.mmt.packets.receive
+	);
 
 	//enqueue a null message to ring to tell the distributor to exit
 	//while loop ensures that the NULL obj is enqueued
@@ -562,11 +568,36 @@ void dpdk_capture_start ( probe_context_t *context){
 	fflush( stdout );
 }
 
-//
-//void *i_malloc( size_t size ){
-//	return rte_malloc( NULL, size, 0 );
-//}
-//
-//void i_free( void *p ){
-//	rte_free( p );
-//}
+
+//#define _DPDK
+void *_malloc( size_t size){
+#ifdef _DPDK
+	void *x = rte_malloc( NULL, size, 0 );
+	if( x == NULL ){
+		fprintf(stderr, "!!!ERROR: Not enough memory to allocate %zu bytes\n", size );
+	}
+	return x;
+#else
+	return malloc( size );
+#endif
+}
+
+void _free( void *x ){
+#ifdef _DPDK
+	rte_free( x );
+#else
+	free( x );
+#endif
+}
+
+void* _realloc( void *x, size_t size ){
+#ifdef _DPDK
+	x = rte_realloc(x, size, 0);
+	if( x == NULL ){
+		fprintf(stderr, "!!!ERROR: Not enough memory to reallocate %zu bytes\n", size );
+	}
+	return x;
+#else
+	return realloc( x, size );
+#endif
+}
