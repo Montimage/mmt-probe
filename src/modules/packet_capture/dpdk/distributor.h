@@ -20,7 +20,7 @@
 #include <rte_efd.h>
 #include <rte_ring.h>
 
-#define DIST_BURST_SIZE  64
+#define DIST_BURST_SIZE 256
 #define DIST_MAX_WORKERS 64
 
 struct worker_buffer{

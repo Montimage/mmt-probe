@@ -37,8 +37,8 @@
 #include "../../../worker.h"
 #include "../../../lib/memory.h"
 
-#define RX_DESCRIPTORS         4096 	/* Size for RX ring*/
-#define READER_BURST_SIZE       512  	/* Burst size to receive packets from RX ring */
+#define RX_DESCRIPTORS         4096  /* Size for RX ring*/
+#define READER_BURST_SIZE       512  /* Burst size to receive packets from RX ring */
 #define DISTRIBUTOR_BURST_SIZE  256
 #define MBUF_CACHE_SIZE         512
 
@@ -53,7 +53,6 @@ static uint8_t hash_key[52] = {
 		0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
 		0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
 		0x6D, 0x5A, 0x6D, 0x5A
-
 };
 
 //input parameter of each worker thread
@@ -81,10 +80,10 @@ static const struct rte_eth_rxconf rx_default_conf = {
 		.rx_thresh = {
 				.pthresh = 8,   /* Ring prefetch threshold */
 				.hthresh = 8,   /* Ring host threshold */
-				.wthresh = 0    /* Ring writeback threshold */
+				.wthresh = 4    /* Ring writeback threshold */
 		},
-		// .rx_free_thresh = 32,    /* Immediately free RX descriptors */
-		.rx_drop_en     = 0
+		.rx_free_thresh = 0,    /* Immediately free RX descriptors */
+		.rx_drop_en     = 1      /*Drop packets if no descriptors are available.*/
 };
 
 /* eth port configuration struct */
@@ -124,12 +123,13 @@ static inline void _print_dpdk_stats( uint8_t port_number ){
 		//get total packets
 		uint64_t total_pkt = stat.ipackets + stat.imissed + stat.ierrors;
 
-		log_write_dual( LOG_INFO, "DPDK received %"PRIu64" packets, dropped %"PRIu64" (%.2f%%), error %"PRIu64" (%.2f%%)",
+		log_write_dual( LOG_INFO, "DPDK received %"PRIu64" packets, dropped %"PRIu64" (%.2f%%), error %"PRIu64" (%.2f%%), alloc failures %"PRIu64,
 				total_pkt,
 				stat.imissed,
-				stat.imissed * 100.0 / total_pkt,
+				total_pkt == 0 ? 0 : (stat.imissed * 100.0 / total_pkt),
 				stat.ierrors,
-				stat.ierrors * 100.0 / total_pkt
+				total_pkt == 0 ? 0 : (stat.ierrors * 100.0 / total_pkt ),
+				stat.rx_nombuf
 		);
 	}
 }
@@ -287,7 +287,7 @@ static int _reader_thread( void *arg ){
 	int i;
 	uint16_t nb_rx __rte_cache_aligned;
 	struct timeval time_now __rte_cache_aligned;
-	struct rte_mbuf *bufs[READER_BURST_SIZE] __rte_cache_aligned;
+	struct rte_mbuf *bufs[READER_BURST_SIZE * 2] __rte_cache_aligned;
 
 	struct param *param = (struct param *) arg;
 
@@ -309,12 +309,20 @@ static int _reader_thread( void *arg ){
 	next_stat_moment = time_now.tv_sec + probe_context->config->stat_period;
 
 	const int queue_id = 0;
+	size_t nb_queue_full = 0;
 
 	uint64_t start_cycles = rte_get_tsc_cycles();
 	/* Run until the application is quit or killed. */
 	while ( likely( !probe_context->is_exiting )) {
 			// Get burst of RX packets, from first port
 			nb_rx = rte_eth_rx_burst( input_port, queue_id, bufs, READER_BURST_SIZE );
+
+			//still have packets in input queue,
+			// let take another burst
+			if( nb_rx == READER_BURST_SIZE ){
+				nb_rx += rte_eth_rx_burst( input_port, queue_id, bufs + nb_rx, READER_BURST_SIZE );
+				nb_queue_full ++;
+			}
 
 			//timestamp of a packet is the moment we retrieve it from buffer of DPDK
 			//17 ns
@@ -369,8 +377,11 @@ static int _reader_thread( void *arg ){
 			probe_context->traffic_stat.mmt.packets.drop,
 			(probe_context->traffic_stat.mmt.packets.receive == 0 ?
 					0 : probe_context->traffic_stat.mmt.packets.drop *100.0 / probe_context->traffic_stat.mmt.packets.receive),
-			(rte_get_tsc_cycles() - start_cycles )/probe_context->traffic_stat.mmt.packets.receive
+			(probe_context->traffic_stat.mmt.packets.receive == 0 ?
+					0 : (rte_get_tsc_cycles() - start_cycles )/probe_context->traffic_stat.mmt.packets.receive)
 	);
+
+	printf("Number of RX queue full: %zu\n", nb_queue_full );
 
 	//enqueue a null message to ring to tell the distributor to exit
 	//while loop ensures that the NULL obj is enqueued
@@ -398,6 +409,15 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 
 	uint16_t nb_rxd = RX_DESCRIPTORS, nb_txd = 0;
 
+	//update nb of descriptors
+	ret = rte_eth_dev_adjust_nb_rx_tx_desc( input_port, &nb_rxd, &nb_txd);
+	if (ret < 0)
+		rte_exit_failure( "Cannot adjust number of descriptors for port=%d: %s",
+				input_port, rte_strerror( ret ));
+	else
+		log_write( LOG_INFO, "Adjust number of rx descriptors of port %d to %d",
+				input_port, nb_rxd );
+
 	// Creates a new mempool in memory to hold the mbufs.
 	snprintf( name, sizeof( name), "pool_%d", input_port );
 	mbuf_pool = rte_pktmbuf_pool_create( name,
@@ -411,22 +431,13 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 	if (mbuf_pool == NULL)
 		rte_exit_failure( "Cannot create mbuf_pool for port %d", input_port );
 
-	//update nb of descriptors
-	ret = rte_eth_dev_adjust_nb_rx_tx_desc( input_port, &nb_rxd, &nb_txd);
-	if (ret < 0)
-		rte_exit_failure( "Cannot adjust number of descriptors for port=%d: %s",
-				input_port, rte_strerror( ret ));
-	else
-		log_write( LOG_INFO, "Adjust number of rx descriptors of port %d to %d",
-				input_port, nb_rxd );
-
 	//init rx queue(s) of NIC
 	int q;
 	for( q=0; q<nb_rx_queues; q++ ){
 		// Allocate and set up the first RX queue
 		ret = rte_eth_rx_queue_setup( input_port,
 				q,
-				RX_DESCRIPTORS,
+				nb_rxd,
 				socket_id,
 				&rx_default_conf,
 				mbuf_pool);

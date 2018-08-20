@@ -28,6 +28,13 @@
 
 #define DPI_PACKET_HANDLER_ID 6
 
+//#ifdef DPDK_MODULE
+//#include <rte_malloc.h>
+//#define mmt_malloc(x)    rte_malloc( NULL, x, 64)
+//#define mmt_free(x)      rte_free( x )
+//#define mmt_calloc(x, y) rte_calloc( NULL, x, y, 64 )
+//#endif
+
 static inline packet_session_t * _create_session (const ipacket_t * ipacket, dpi_context_t *context){
 	mmt_session_t * dpi_session = ipacket->session;
 
