@@ -86,9 +86,12 @@ static inline void context_print_traffic_stat( const probe_context_t *context, c
 	//output to all channels
 	output_write_report(context->output, CONF_OUTPUT_CHANNEL_ALL, DUMMY_REPORT_TYPE,
 			now, message );
-	//DEBUG("stat: %s", message );
+
 	//flush immediately ???
 	output_flush( context->output );
+
+
+	log_write_dual( LOG_INFO, "%s", message );
 }
 
 /**

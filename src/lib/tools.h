@@ -200,4 +200,12 @@ static inline int string_format_file_name( char *file_name, size_t size ){
 		}
 	return i;
 }
+
+
+/* Function to check if x is power of 2*/
+static inline bool is_power_of_two (size_t x){
+  /* First x in the below expression is for the case when x is 0 */
+  return x && (!(x&(x-1)));
+}
+
 #endif /* SRC_LIB_TOOLS_H_ */
