@@ -146,7 +146,6 @@ static ALWAYS_INLINE int append_mac( char *dst, size_t dst_size, const uint8_t *
  * @param string
  * @param val
  * @return
- * @note //TODO currently being limited by 13 digits
  */
 static inline int append_number( char *dst, size_t dst_size, uint64_t val ){
 	if( val < 10 && dst_size > 0 ) {
@@ -167,64 +166,95 @@ static inline int append_number( char *dst, size_t dst_size, uint64_t val ){
 			"90919293949596979899"
 	};
 
-	int size;
+#define M2  10
+#define M3  100
+#define M4  1000
+#define M5  10000
+#define M6  100000
+#define M7  1000000
+#define M8  10000000
+#define M9  100000000
+#define M10 1000000000
+#define M11 10000000000
+#define M12 100000000000
+#define M13 1000000000000
+#define M14 10000000000000
+#define M15 100000000000000
+#define M16 1000000000000000
+#define M17 10000000000000000
+#define M18 100000000000000000
+#define M19 1000000000000000000
+#define M20 10000000000000000000U
+//   2^64 = 18446744073709551616
 
+	int size = 0;
 	//get number of digits
-	if(val>=10000)
-	{
-		if(val>=10000000)
-		{
-			if( val >= 10000000000){
-				if(    val >= 1000000000000){
-					//TODO: this limit a number to 13 digits
-					if( val > 9999999999999){
-						log_write( LOG_WARNING, "Do not support convert the big number more than 13 digits: %lu", val);
-						val = 9999999999999;
+	if( val >= M4 ){
+		if( val >= M6 ){
+			if( val >= M8 ){
+				if( val >= M10 ){
+					if( val >= M12 ){
+						if( val >= M14 ){
+							if( val >= M16 ){
+								if( val >= M18 ){
+									if( val >= M20 )
+										size = 20;
+									else if( val >= M19 )
+										size = 19;
+									else
+										size = 18;
+								}else{ //val < M18
+									if( val >= M17 )
+										size = 17;
+									else
+										size = 16;
+								}
+							}else{ //val < M16
+								if( val >= M15 )
+									size = 15;
+								else
+									size = 14;
+							}
+						}else{ //val < M14
+							if( val >= M13 )
+								size = 13;
+							else
+								size = 12;
+						}
+
+					}else{ //val < M12
+						if( val >= M11 )
+							size = 11;
+						else
+							size = 10;
 					}
-					size = 13;
-				}else if( val >= 100000000000)
-					size = 12;
+				}else{ //val < M10
+					if( val >= M9 )
+						size = 9;
+					else
+						size = 8;
+				}
+			}else{ //val < M8
+				if( val >= M7 )
+					size = 7;
 				else
-					size = 11;
+					size = 6;
 			}
-			else{
-				if(val>=1000000000)
-					size=10;
-				else if(val>=100000000)
-					size=9;
-				else
-					size=8;
-			}
-		}
-		else
-		{
-			if(val>=1000000)
-				size=7;
-			else if(val>=100000)
-				size=6;
+		}else{ //val < M6
+			if( val >= M5 )
+				size = 5;
 			else
-				size=5;
+				size = 4;
 		}
-	}
-	else
-	{
-		if(val>=100)
-		{
-			if(val>=1000)
-				size=4;
-			else
-				size=3;
-		}
-		else
-		{
-			if(val>=10)
-				size=2;
-			else
-				size=1;
+	}else{ //val < M4
+		if( val >= M3 ){
+			size = 3;
+		}else{ //val < M3
+			size = 2;
 		}
 	}
 
-	if( size > dst_size )
+	if( unlikely( size > dst_size ))
 		return 0;
 
 	char *c = &dst[ size-1 ];
