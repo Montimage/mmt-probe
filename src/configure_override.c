@@ -6,6 +6,7 @@
  */
 
 #include "lib/log.h"
+#include "lib/malloc.h"
 #include "lib/memory.h"
 
 #include "configure_override.h"

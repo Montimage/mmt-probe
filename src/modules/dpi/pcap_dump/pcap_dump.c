@@ -9,6 +9,8 @@
 #include <stdio.h>
 
 #include "../dpi_tool.h"
+#include "../../../lib/malloc_ext.h"
+#include "../../../lib/memory.h"
 
 typedef struct pcap_dump_context_struct{
 	FILE *file;

@@ -8,7 +8,7 @@
 
 #include "kafka_output.h"
 #include "../../../lib/log.h"
-#include "../../../lib/memory.h"
+#include "../../../lib/malloc.h"
 
 struct kafka_output_struct{
 	rd_kafka_topic_t *rd_topic;

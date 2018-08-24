@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
+#include "../../../lib/malloc_ext.h"
 #include "session_report.h"
 //we take the second IP in a protocol hierarchy
 #define IP_ENCAP_INDEX_AFTER_GTP 1

@@ -10,6 +10,7 @@
 #include <tcpip/mmt_tcpip.h>
 #include "radius_report.h"
 #include "../../../lib/limit.h"
+#include "../../../lib/malloc_ext.h"
 
 #define MMT_RADIUS_REPORT_ALL 0
 struct radius_report_context_struct{

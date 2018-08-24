@@ -14,7 +14,7 @@
 
 #include "no_session_report.h"
 #include "../dpi_tool.h"
-#include "../../../lib/memory.h"
+#include "../../../lib/malloc_ext.h"
 
 struct no_session_report_context_struct{
 	mmt_handler_t *dpi_handler;

@@ -7,7 +7,8 @@
 
 
 #include "micro_flow_report.h"
-#include "../../../lib/memory.h"
+
+#include "../../../lib/malloc_ext.h"
 #include "../dpi_tool.h"
 #include "../../../lib/string_builder.h"
 

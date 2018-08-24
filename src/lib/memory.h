@@ -19,55 +19,6 @@
 #include "unit.h"
 #include "tools.h"
 
-/**
- * Allocate a memory segment.
- * Abort when not enough memory to allocate
- * @param size
- */
-static ALWAYS_INLINE void* mmt_alloc( size_t size ){
-	void *ret = malloc( size );
-	if( unlikely( ret == NULL )){
-		log_write( LOG_EMERG, "Not enough memory to allocate %zu bytes", size );
-		abort();
-	}
-	return ret;
-}
-
-/**
- * Allocate memory and initialize to zero
- * @param size
- */
-static ALWAYS_INLINE void *mmt_alloc_and_init_zero( size_t size ){
-	void *ret = calloc( 1, size );
-	if( unlikely( ret == NULL )){
-		log_write( LOG_EMERG, "Not enough memory to allocate %zu bytes", size );
-		abort();
-	}
-	return ret;
-}
-
-static ALWAYS_INLINE void mmt_probe_free( void *x ) {
-	free( x );
-}
-
-static ALWAYS_INLINE char * mmt_strdup( const char *str ) {
-	return strdup( str );
-}
-
-static ALWAYS_INLINE void * mmt_memdup( const void *src, size_t size ) {
-	if( size == 0 )
-		return NULL;
-	void *tmp = mmt_alloc( size );
-	memcpy( tmp, src, size );
-	return tmp;
-}
-
-static ALWAYS_INLINE char * mmt_strndup( const char *str, size_t size ) {
-	char *s = mmt_memdup( str, size +1 );
-	s[ size ] = '\0'; //well NULL-terminated
-	return s;
-}
-
 static ALWAYS_INLINE void assign_8bytes( void *dest, const void *source){
 	const uint64_t *s = (uint64_t *)source;
 	uint64_t *d = (uint64_t *)dest;
@@ -100,8 +51,4 @@ static ALWAYS_INLINE void assign_2bytes( void *dest, const void *source){
 	d[0] = s[0];
 }
 
-
-#define EXPECT( expected, ret )\
-	while( unlikely( ! (expected) ) )\
-		return ret
 #endif /* SRC_LIB_MEMORY_H_ */

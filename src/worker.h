@@ -22,9 +22,9 @@
 #include "configure.h"
 
 #include "lib/limit.h"
+#include "lib/malloc.h"
 #include "lib/memory.h"
 #include "lib/system_info.h"
-#include "lib/memory.h"
 
 
 #include "modules/output/output.h"

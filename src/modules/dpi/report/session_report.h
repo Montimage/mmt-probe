@@ -15,7 +15,6 @@
 
 #include "../dpi.h"
 #include "../dpi_tool.h"
-#include "../../../lib/memory.h"
 
 #include <mmt_core.h>
 #include <tcpip/mmt_tcpip.h>

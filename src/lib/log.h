@@ -108,4 +108,9 @@ static inline void log_execution_trace () {
 		exit( 0 );                                                          \
 	}while( 0 )
 
+
+#define EXPECT( expected, ret )\
+	while( unlikely( ! (expected) ) )\
+		return ret
+
 #endif /* SRC_LIB_LOG_H_ */

@@ -12,7 +12,7 @@
 
 #include "system_stats.h"
 #include "pthread.h"
-#include "../../lib/memory.h"
+#include "../../lib/malloc.h"
 #include "../../lib/string_builder.h"
 
 

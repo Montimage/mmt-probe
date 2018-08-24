@@ -20,7 +20,7 @@
 #include "file_output.h"
 
 #include "../../../lib/limit.h"
-#include "../../../lib/memory.h"
+#include "../../../lib/malloc.h"
 #include "../../../lib/string_builder.h"
 
 struct file_output_struct{

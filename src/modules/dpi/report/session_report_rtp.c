@@ -6,6 +6,7 @@
  */
 
 #include "session_report.h"
+#include "../../../lib/malloc_ext.h"
 
 struct session_rtp_stat_struct {
 	/* The reason we need this is that RTP flows may contain STUN messages. We follow here RTP packets only */

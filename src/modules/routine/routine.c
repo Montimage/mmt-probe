@@ -7,7 +7,7 @@
 
 #include "routine.h"
 #include "system_stats.h"
-#include "../../lib/memory.h"
+#include "../../lib/malloc.h"
 #include "../output/output.h"
 struct routine_struct{
 	system_stats_context_t *system_stats;

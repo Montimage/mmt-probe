@@ -8,9 +8,12 @@
 #include <arpa/inet.h>
 #include "session_report.h"
 
+
 #include "../../../lib/string_builder.h"
 #include "../../../lib/log.h"
 #include "../../../lib/inet.h"
+#include "../../../lib/malloc_ext.h"
+#include "../../../lib/memory.h"
 
 //functions implemented by session_report_xxx.c
 int print_web_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);

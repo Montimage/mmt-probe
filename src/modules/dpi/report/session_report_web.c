@@ -9,6 +9,7 @@
 #include <limits.h>
 #include "session_report.h"
 #include "../../../lib/string_builder.h"
+#include "../../../lib/malloc_ext.h"
 
 #ifndef SIMPLE_REPORT
 struct session_web_stat_struct {

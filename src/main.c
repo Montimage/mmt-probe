@@ -34,6 +34,7 @@
 #include "lib/log.h"
 #include "lib/version.h"
 #include "lib/tools.h"
+#include "lib/malloc.h"
 #include "lib/memory.h"
 #include "lib/version.h"
 #include "lib/limit.h"
@@ -570,6 +571,9 @@ int main( int argc, char** argv ){
 	if( conf_validate( context->config ) > 0 )
 		return EXIT_FAILURE;
 
+#ifdef DEBUG_MODE
+	_main_processing( argc, argv );
+#else
 	//if MMT-Probe is used to check pcap offline
 	// => no need to created sub processes
 	if( context->config->input->input_mode == OFFLINE_ANALYSIS ){
@@ -577,6 +581,7 @@ int main( int argc, char** argv ){
 	}else{
 		_create_sub_processes( argc, argv );
 	}
+#endif
 
 	log_write(LOG_INFO, "Exit normally MMT-Probe");
 	_clean_resource();

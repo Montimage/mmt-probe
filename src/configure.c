@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <errno.h>
 #include "lib/log.h"
+#include "lib/malloc.h"
 #include "lib/memory.h"
 
 #include "configure.h"

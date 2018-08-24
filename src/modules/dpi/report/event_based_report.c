@@ -7,6 +7,7 @@
 #include <mmt_core.h>
 #include "../dpi_tool.h"
 #include "../../output/output.h"
+#include "../../../lib/malloc_ext.h"
 #include "event_based_report.h"
 
 typedef struct event_based_report_context_struct {

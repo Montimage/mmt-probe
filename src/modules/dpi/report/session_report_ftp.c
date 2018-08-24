@@ -6,6 +6,8 @@
  */
 #include "session_report.h"
 #include "../../../lib/tools.h"
+#include "../../../lib/malloc_ext.h"
+#include "../../../lib/memory.h"
 
 struct session_ftp_stat_struct {
 	struct timeval first_response_seen_time;

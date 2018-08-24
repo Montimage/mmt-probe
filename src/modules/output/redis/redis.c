@@ -8,7 +8,7 @@
 #include "redis.h"
 #include "thredis.h"
 #include "../../../lib/log.h"
-#include "../../../lib/memory.h"
+#include "../../../lib/malloc.h"
 
 static redisContext *redis = NULL;
 static thredis_t* thredis = NULL;

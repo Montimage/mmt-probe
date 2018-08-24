@@ -10,7 +10,7 @@
 #include <pthread.h>
 
 #include "mongodb.h"
-#include "../../../lib/memory.h"
+#include "../../../lib/malloc.h"
 
 struct mongodb_output_struct{
 	uint32_t messages_max_limit;

@@ -11,8 +11,9 @@
 
 #include "output.h"
 
-#include "../../lib/memory.h"
 #include "../../lib/string_builder.h"
+#include "../../lib/malloc.h"
+#include "../../lib/memory.h"
 #include "file/file_output.h"
 #include "kafka/kafka_output.h"
 #include "socket/socket_output.h"

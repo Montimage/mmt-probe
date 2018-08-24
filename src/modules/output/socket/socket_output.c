@@ -16,7 +16,7 @@
 
 #include "socket_output.h"
 #include "../../../lib/log.h"
-#include "../../../lib/memory.h"
+#include "../../../lib/malloc.h"
 
 struct socket_output_struct{
 	int unix_socket_fd;
