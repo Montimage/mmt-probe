@@ -43,7 +43,7 @@
 #define MBUF_CACHE_SIZE          64  //
 
 //threshold to push pkt to distributor's ring
-#define READER_DRAIN_PKT_THRESH   READER_BURST_SIZE
+#define READER_DRAIN_PKT_THRESH   	 256
 #define READER_DRAIN_CYCLE_THRESH 500000
 
 #define DISTRIBUTOR_RING_SIZE  (RX_DESCRIPTORS * 16)
@@ -70,6 +70,8 @@ struct param{
 	struct rte_ring   *distributor_ring; //a ring between Reader --------> Distributor
 	struct rte_ring  **worker_rings;     // rings between Distributor ===> Workers
 	probe_context_t   *probe_context;
+	uint8_t input_ports[ RTE_MAX_ETHPORTS ];
+	uint8_t nb_ports;
 }__rte_cache_aligned;
 
 
@@ -250,14 +252,17 @@ static int _worker_thread( void *arg ){
 }
 
 
-static inline void _print_traffic_statistics( probe_context_t *context, const struct timeval *now ){
-	int port = atoi( context->config->input->input_source );
+static inline void _print_traffic_statistics( probe_context_t *context, const struct timeval *now, uint8_t *input_ports, uint8_t nb_ports ){
 	struct rte_eth_stats stat;
-	rte_eth_stats_get( port, &stat );
+	int i;
+	uint8_t input_port;
+	for( i=0; i<nb_ports; i++ ){
+		input_port = input_ports[ i ];
+		rte_eth_stats_get( input_port, &stat );
 
-	context->traffic_stat.nic.drop    = stat.imissed + stat.ierrors;
-	context->traffic_stat.nic.receive = stat.ipackets + stat.imissed + stat.ierrors;
-
+		context->traffic_stat.nic.drop    = stat.imissed + stat.ierrors;
+		context->traffic_stat.nic.receive = stat.ipackets + stat.imissed + stat.ierrors;
+	}
 	context_print_traffic_stat( context, now );
 
 //	char *name = "pool_0";
@@ -317,7 +322,7 @@ static int _distributor_thread( void *arg ){
 		//periodically do a statistic of received/dropped packets
 		if( unlikely( time_now.tv_sec >= next_stat_moment )){
 
-			_print_traffic_statistics( probe_context, &time_now );
+			_print_traffic_statistics( probe_context, &time_now, param->input_ports, param->nb_ports );
 
 			next_stat_moment += probe_context->config->stat_period;
 		}
@@ -442,16 +447,18 @@ static int _reader_thread( void *arg ){
 	struct param *param = (struct param *) arg;
 	probe_context_t *probe_context = param->probe_context;
 	struct rte_ring *ring = param->distributor_ring;
+	uint8_t input_port;
+	int i;
+	for( i=0; i<param->nb_ports; i++ ){
+		input_port = param->input_ports[i];
 
-	const uint8_t input_port __rte_cache_aligned = atoi( probe_context->config->input->input_source );
-
-	//reader needs to run on lcore having the same socket with the one of its NIC
-	if (rte_eth_dev_socket_id( input_port) > 0 &&
-			rte_eth_dev_socket_id( input_port ) != rte_socket_id())
-		log_write(LOG_WARNING, "Reader of port %u is on remote NUMA node to "
-						"RX thread. Performance will not be optimal.",
-						input_port );
-
+		//reader needs to run on lcore having the same socket with the one of its NIC
+		if (rte_eth_dev_socket_id( input_port) > 0 &&
+				rte_eth_dev_socket_id( input_port ) != rte_socket_id())
+			log_write(LOG_WARNING, "Reader of port %u is on remote NUMA node to "
+					"RX thread. Performance will not be optimal.",
+					input_port );
+	}
 	const int queue_id = 0;
 	size_t nb_enqueue_failures = 0;
 	size_t total_bytes_dropped = 0, total_pkt_dropped = 0;
@@ -464,48 +471,55 @@ static int _reader_thread( void *arg ){
 
 	/* Run until the application is quit or killed. */
 	while ( likely( !probe_context->is_exiting )) {
+		//round-robin through each input port
+		for( i=0; i<param->nb_ports; i++ ){
+			input_port = param->input_ports[i];
 
-		// Get burst of RX packets, from first port
-		nb_rx += rte_eth_rx_burst( input_port, queue_id, packets + nb_rx, READER_BURST_SIZE );
+			// Get burst of RX packets from port
+			nb_rx += rte_eth_rx_burst( input_port, queue_id, packets + nb_rx, READER_BURST_SIZE );
 
-		if( unlikely( nb_rx == 0 )){
-			//_pause( 2000 );
-		} else {
+			if( unlikely( nb_rx == 0 )){
+				continue;
+			} else {
 
-			if( nb_rx >= READER_DRAIN_PKT_THRESH || rte_rdtsc() >= next_drain_moment ){
+				if( nb_rx >= READER_DRAIN_PKT_THRESH || rte_rdtsc() >= next_drain_moment ){
 
-				unsigned sent = rte_ring_sp_enqueue_bulk(ring, (void *)packets, nb_rx, NULL);
+					unsigned sent = rte_ring_sp_enqueue_bulk(ring, (void *)packets, nb_rx, NULL);
 
-				//ring is full
-				if( unlikely( sent < nb_rx )){
-					nb_enqueue_failures ++;
-					//cumulate total number of packets being dropped
-					total_pkt_dropped += nb_rx - sent;
+					//ring is full
+					if( unlikely( sent < nb_rx )){
+						nb_enqueue_failures ++;
+						//cumulate total number of packets being dropped
+						total_pkt_dropped += nb_rx - sent;
 
-					while( sent < nb_rx ){
-						//store number of bytes being dropped
-						total_bytes_dropped += packets[ sent ]->data_len;
+						while( sent < nb_rx ){
+							//store number of bytes being dropped
+							total_bytes_dropped += packets[ sent ]->data_len;
 
-						//when a mbuf has not been sent, we need to free it
-						rte_pktmbuf_free( packets[sent ] );
+							//when a mbuf has not been sent, we need to free it
+							rte_pktmbuf_free( packets[sent ] );
 
-						sent ++;
+							sent ++;
+						}
 					}
+
+
+					total_pkt_received    += nb_rx;
+
+					//reset param
+					nb_rx = 0;
+					next_drain_moment += READER_DRAIN_CYCLE_THRESH;
 				}
-
-
-				total_pkt_received    += nb_rx;
-
-				//reset param
-				nb_rx = 0;
-				next_drain_moment += READER_DRAIN_CYCLE_THRESH;
 			}
 		}
 	}
 
 
 	//statistic of DPDK
-	_print_dpdk_stats( input_port );
+	for( i=0; i<param->nb_ports; i++ ){
+		input_port = param->input_ports[i];
+		_print_dpdk_stats( input_port );
+	}
 
 	log_write_dual( LOG_INFO, "MMT reader process received %zu pkts, dropped %zu pkts (%.2f%% = %zu bytes), %zu full-dis-ring",
 			total_pkt_received,
@@ -527,7 +541,7 @@ static int _reader_thread( void *arg ){
  * Initializes a given port using global settings and with the RX buffers
  * coming from the mbuf_pool passed as a parameter.
  */
-static inline void _port_init( int input_port, probe_context_t *context, struct param *param ){
+static inline void _port_init( int input_port, probe_context_t *context, struct param *param, bool is_init_worker_rings ){
 	int i;
 	struct rte_mempool *mbuf_pool;
 	char name[100];
@@ -600,35 +614,33 @@ static inline void _port_init( int input_port, probe_context_t *context, struct 
 					queue_id, input_port, rte_strerror(ret) );
 	}
 
-	//create a ring that is a buffer between reader and distributor:
-	// reader ==> (ring) ===> distributor
-	snprintf( name, sizeof( name), "distributor_ring_%d", input_port );
-	param->distributor_ring = rte_ring_create( name,
-			DISTRIBUTOR_RING_SIZE,
-			socket_id, RING_F_SC_DEQ | RING_F_SP_ENQ);
-
-	if ( param->distributor_ring == NULL )
-		rte_exit_failure( "Cannot init ring of port %d (%s). ",
-				//"Either increase the hugepage size or decrease ring size."
-				input_port, rte_strerror(ret) );
-
-	//init worker rings: distributor ===> (rings) ===> workers
-	param->worker_rings = rte_malloc( "worker_rings", sizeof( struct rte_ring *) * nb_workers, RTE_CACHE_LINE_SIZE );
-	if( param->worker_rings == NULL )
-		rte_exit_failure("Cannot allocate memory for worker rings");
-
-	//
-	for( i=0; i<nb_workers; i++ ){
-		snprintf( name, sizeof( name), "worker_ring_%d", i );
-
-		param->worker_rings[i] = rte_ring_create( name,
-				worker_ring_size,
+	if( is_init_worker_rings ){
+		//create a ring that is a buffer between reader and distributor:
+		// reader ==> (ring) ===> distributor
+		param->distributor_ring = rte_ring_create( "distributor",
+				DISTRIBUTOR_RING_SIZE,
 				socket_id, RING_F_SC_DEQ | RING_F_SP_ENQ);
 
-		if( param->worker_rings[i] == NULL )
-			rte_exit_failure("Cannot allocate memory for worker ring %d", i);
-	}
+		if ( param->distributor_ring == NULL )
+			rte_exit_failure( "Cannot initialize distributor");
 
+		//init worker rings: distributor ===> (rings) ===> workers
+		param->worker_rings = rte_malloc( "worker_rings", sizeof( struct rte_ring *) * nb_workers, RTE_CACHE_LINE_SIZE );
+		if( param->worker_rings == NULL )
+			rte_exit_failure("Cannot allocate memory for worker rings");
+
+		//
+		for( i=0; i<nb_workers; i++ ){
+			snprintf( name, sizeof( name), "worker_ring_%d", i );
+
+			param->worker_rings[i] = rte_ring_create( name,
+					worker_ring_size,
+					socket_id, RING_F_SC_DEQ | RING_F_SP_ENQ);
+
+			if( param->worker_rings[i] == NULL )
+				rte_exit_failure("Cannot allocate memory for worker ring %d", i);
+		}
+	}
 
 	// Start the Ethernet port.
 	ret = rte_eth_dev_start( input_port );
@@ -670,13 +682,18 @@ void dpdk_capture_start ( probe_context_t *context){
 				"enough cores to run this application. It needs at least %d lcores",
 				3 + context->config->thread->thread_count);
 
-	// Initialize input port
-	input_port = atoi( context->config->input->input_source );
-
 	struct param param;
 	//initialize param that is shared among Reader -and- Distributor
 	param.probe_context = context;
-	_port_init(input_port, context, &param );
+
+	char *arr[ RTE_MAX_ETHPORTS ];
+	param.nb_ports = string_split( context->config->input->input_source, ",", arr, RTE_MAX_ETHPORTS );
+	for( i=0; i<param.nb_ports; i++ ){
+		// Initialize input port
+		param.input_ports[i] = atoi( arr[i] );
+
+		_port_init(param.input_ports[i], context, &param, i == 0 );
+	}
 
 	context->smp = mmt_alloc( sizeof( worker_context_t ) * context->config->thread->thread_count );
 
@@ -736,7 +753,11 @@ void dpdk_capture_start ( probe_context_t *context){
 	_dpdk_capture_release( context );
 	fflush( stdout );
 
-	//close port
-	rte_eth_dev_stop( input_port );
-	rte_eth_dev_close( input_port );
+	//close ports
+	for( i=0; i<param.nb_ports; i++ ){
+		input_port = param.input_ports[i];
+
+		rte_eth_dev_stop( input_port );
+		rte_eth_dev_close( input_port );
+	}
 }
