@@ -14,10 +14,11 @@
 #include <rte_malloc.h>
 #include <rte_memcpy.h>
 #include "../../../lib/log.h"
+#include "../../../lib/optimization.h"
 
 static inline void *dpdk_malloc( size_t size){
-	void *x = rte_malloc( NULL, size, RTE_CACHE_LINE_SIZE );
-	if( x == NULL ){
+	void *x = rte_malloc( NULL, size, 0 );
+	if( unlikely( x == NULL )){
 		log_write( LOG_EMERG, "Not enough memory to allocate %zu bytes", size );
 		abort();
 	}

@@ -263,6 +263,13 @@ static inline void _print_traffic_statistics( probe_context_t *context, const st
 //	char *name = "pool_0";
 //	struct rte_mempool *mempool = rte_mempool_lookup(name);
 //	printf("-pool free: %d / %d\n", rte_mempool_avail_count( mempool ), mempool->size );
+
+//	struct rte_malloc_socket_stats mem_stats;
+//	rte_malloc_get_socket_stats( port, &mem_stats);
+//	printf("memory:\n\t- heap %zu\n\t- allocated %zu bytes (%zu)\n\t- free %zu bytes (%zu)\n",
+//			mem_stats.heap_totalsz_bytes,
+//			mem_stats.heap_allocsz_bytes, mem_stats.alloc_count,
+//			mem_stats.heap_freesz_bytes,  mem_stats.free_count);
 }
 
 static int _distributor_thread( void *arg ){

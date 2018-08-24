@@ -12,7 +12,15 @@
 #ifndef SRC_LIB_MEMORY_EXT_H_
 #define SRC_LIB_MEMORY_EXT_H_
 
-#ifdef DPDK_MODULE
+/*
+ * Do not use dpdk_malloc and dpdk_free as they are very slow.
+ * Below is number of cycles (tested on server10ga)
+ * to allocate and free a memory segment having a random size:
+ *
+ * dpdk: 3436500.22, glib: 3936.20
+ */
+
+#ifdef DO_NOT_USE___DPDK_MODULE
 	#include "../modules/packet_capture/dpdk/dpdk_malloc.h"
 
 	#define mmt_alloc(x)               dpdk_malloc( x )
