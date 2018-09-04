@@ -365,7 +365,7 @@ static int _distributor_thread( void *arg ){
 				//distribute packet to a worker
 				target_worker_id = packets[i]->hash.usr % nb_workers;
 //				By selecting nb_workers to be a power of two, the modulo operator can be replaced by a bitwise AND logical operation:
-//				target_worker_id = packets[i]->hash.usr % (nb_workers - 1);
+//				target_worker_id = packets[i]->hash.usr & (nb_workers - 1);
 
 				//put the packet into the worker's buffer that will be then enqueued by burst to the worker's ring
 				buffers[ target_worker_id ].packets[  buffers[ target_worker_id ].size ++  ] = packets[i];

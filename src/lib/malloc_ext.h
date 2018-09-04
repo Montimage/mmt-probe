@@ -16,6 +16,7 @@
  * Do not use dpdk_malloc and dpdk_free as they are very slow.
  * Below is number of cycles (tested on server10ga)
  * to allocate and free a memory segment having a random size:
+ * (see test/dpdk_alloc_perf.c)
  *
  * dpdk: 3436500.22, glib: 3936.20
  */
