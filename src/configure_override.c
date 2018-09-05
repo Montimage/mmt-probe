@@ -33,20 +33,29 @@ const identity_t* conf_get_identity_from_string( const char * ident_str ){
 const char* conf_validate_data_value( const identity_t *ident, const char *data_value ){
 	static char error_reason[1000];
 	int i;
+	int enum_val = 0;
 
 	//special data type
 	switch( ident->val ){
 	//input
 	case CONF_ATT__INPUT__MODE:
-		if( IS_EQUAL_STRINGS( data_value, "online") )
-			return NULL;
-		else if ( IS_EQUAL_STRINGS( data_value, "offline") )
+		if( conf_parse_input_mode( &enum_val, data_value ) )
 			return NULL;
 		else{
 			snprintf( error_reason, sizeof( error_reason), "Unexpected value [%s] for [%s]", data_value, ident->ident );
 			return error_reason;
 		}
 		break;
+#ifdef SECURITY_MODULE
+	case CONF_ATT__SECURITY__INGORE_REMAIN_FLOW:
+		if( conf_parse_security_ignore_mode( &enum_val, data_value ) )
+			return NULL;
+		else{
+			snprintf( error_reason, sizeof( error_reason), "Unexpected value [%s] for [%s]", data_value, ident->ident );
+			return error_reason;
+		}
+		break;
+#endif
 	default:
 		break;
 	}
@@ -87,6 +96,7 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 	int i;
 	DEBUG("Update %s to %s", ident->ident, value_str );
 	void *field_ptr = conf_get_ident_attribute_field(conf, ident->val );
+	int enum_val = 0;
 
 	if( field_ptr == NULL ){
 		log_write( LOG_WARNING, "Have not supported yet for [%s]", ident->ident );
@@ -98,15 +108,25 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 	switch( ident->val ){
 		//input
 	case CONF_ATT__INPUT__MODE:
-		if( IS_EQUAL_STRINGS( value_str, "online") )
-			*((uint16_t *)field_ptr) = ONLINE_ANALYSIS;
-		else if ( IS_EQUAL_STRINGS( value_str, "offline") )
-			*((uint16_t *)field_ptr) = OFFLINE_ANALYSIS;
+		if( conf_parse_input_mode( &enum_val, value_str ) )
+			*((int *)field_ptr) = enum_val;
 		else{
 			log_write( LOG_WARNING, "Unexpected value [%s] for [%s]", value_str, ident->ident );
 			return false;
 		}
 		return true;
+
+#ifdef SECURITY_MODULE
+	case CONF_ATT__SECURITY__INGORE_REMAIN_FLOW:
+		if( conf_parse_security_ignore_mode( &enum_val, value_str ) )
+			*((int *)field_ptr) = enum_val;
+		else{
+			log_write( LOG_WARNING, "Unexpected value [%s] for [%s]", value_str, ident->ident );
+			return false;
+		}
+		return true;
+#endif
+
 	default:
 		break;
 	}
@@ -138,6 +158,7 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 				return false;
 			(*(output_channel_conf_t *) field_ptr) = int_val;
 			return true;
+
 #ifdef PCAP_DUMP_MODULE
 		case CONF_ATT__DUMP_PCAP__ENABLE:
 			//free old memory
