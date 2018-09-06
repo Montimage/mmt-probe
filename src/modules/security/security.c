@@ -40,15 +40,10 @@
 #include "../../lib/log.h"
 #include "../../lib/string_builder.h"
 #include "../../lib/malloc_ext.h"
-#include "../../lib/bit.h"
-
-#define RING_ELEM_TYPE uint32_t
-#include "../../lib/ring.h"
 
 #define SECURITY_DPI_PACKET_HANDLER_ID 10
-#define MAX_NB_SESSION 200 //2M active sessions
 
-#define IS_CFG_INOGRE( x ) (x->config->ignore_remain_flow == SEC_IGNORE_FLOW_ALL_RULE)
+#define IS_CFG_INOGRE( x ) (x->config->ignore_remain_flow )
 
 
 /*
@@ -124,16 +119,11 @@ static int _security_packet_handler( const ipacket_t *ipacket, void *args ) {
 		session_id = get_session_id_from_packet( ipacket );
 		//check if we can ignore this packet
 
-		bool has_got_alert = false;
-		if( likely( pthread_mutex_lock( & context->mutex ) == 0 )){
-			has_got_alert = hash64_is_exist( context->hash_table, session_id );
-			pthread_mutex_unlock( & context->mutex );
-		}else
-			log_write(LOG_ERR, "Cannot lock for security: %s", strerror( errno) );
+		bool can_ignore = mmt_sec_is_ignore_remain_flow( context->sec_handler, session_id );
 
 		//the first part of the flow has been examined and we got at least one alert from that part
 		// => we do not need to continue to examine the rest of the flow
-		if( has_got_alert )
+		if( can_ignore )
 			return 0;
 	}
 
@@ -172,7 +162,7 @@ static int _security_packet_handler( const ipacket_t *ipacket, void *args ) {
 	//when parameter ignore_remain_flow is active,
 	// we need to remember the session_id of the packet
 	if( IS_CFG_INOGRE( context ))
-		msg->user_data = (void *)(uintptr_t) session_id;
+		msg->flow_id = session_id;
 
 
 	//give the message to MMT-Security
@@ -236,61 +226,6 @@ static void _print_security_verdict(
 				SECURITY_REPORT_TYPE,
 				&ts,
 				message);
-
-	//when parameter ignore_remain_flow is active,
-	// we need to remember the session_id of the packets arising the alert
-	if( IS_CFG_INOGRE( context )){
-
-		//this must not happen
-		MUST_NOT_OCCUR( context->hash_table == NULL, "hash_table must not be NULL");
-
-		//for each message_t in the trace
-		for( i=0; i<trace->elements_count; i++ ){
-			message_t *msg = trace->data[i];
-			if( msg == NULL )
-				continue;
-
-			uint64_t session_id = (uintptr_t) msg->user_data;
-			//mark the session_id has an alert of rule->id
-			//we need to synchronize this block
-
-			if( likely( pthread_mutex_lock( & context->mutex ) == 0 )){
-				bit_t *b = hash64_search( context->hash_table, session_id );
-
-				//The message contains data of the session that had not alerts
-				if( b == NULL ){
-					b = bit_create( context->rules_count );
-
-					//hash_table is full (thus ring is full also)
-					//need to remove the oldest session
-					if( hash64_is_full( context->hash_table ) ){
-
-						uint32_t oldest_index = 0;
-						if( likely( ring_dequeue(context->session_ids_ring, &oldest_index) )){
-							bit_t *old_b = hash64_remove_at_index( context->hash_table, oldest_index );
-
-							bit_free( old_b );
-							//DEBUG("Ring full, remove oldest session id: %d", oldest_index );
-						}
-					}
-
-					uint32_t elem_index = hash64_add( context->hash_table, session_id, b );
-
-					MUST_NOT_OCCUR( elem_index ==  context->hash_table->size,
-							"hash_table is full: %d", elem_index );
-
-					//add to queue
-					ring_enqueue( context->session_ids_ring, elem_index );
-
-				}
-				//bit_set( b, rule->id ); //TODO: how to ensure rule->id < context->rules_count
-
-
-				pthread_mutex_unlock( & context->mutex );
-			}else
-				log_write( LOG_ERR, "Cannot lock for security: %s", strerror( errno) );
-		}
-	}
 }
 
 static inline bool _register_additional_attributes_if_need( mmt_handler_t *dpi_handler, uint32_t proto_id, uint32_t att_id, uint32_t *add_att_id ){
@@ -384,6 +319,9 @@ security_context_t* security_worker_alloc_init( const security_conf_t *config,
 	//init mmt-sec to verify the rules
 	ret->sec_handler = mmt_sec_register( threads_count, cores_id, config->rules_mask, verbose, _print_security_verdict, ret );
 
+	if( config->ignore_remain_flow )
+		mmt_sec_set_ignore_remain_flow( ret->sec_handler, true );
+
 	rule_info_t const*const*rules_array;
 	ret->rules_count = mmt_sec_get_rules_info( &rules_array );
 
@@ -438,18 +376,6 @@ security_context_t* security_worker_alloc_init( const security_conf_t *config,
 	//Register a packet handler, it will be called for every processed packet
 	register_packet_handler( dpi_handler, SECURITY_DPI_PACKET_HANDLER_ID, _security_packet_handler, ret );
 
-	//when the parameter ignore_remain_flow is active,
-	// we need to create a table to contain the IDs of flows that have alerts
-	// thus when a packet comes, we can check in this table to see if its flow has an alert or not in order to ignore the packet
-	if( IS_CFG_INOGRE( ret ) ){
-		ret->hash_table = hash64_create( MAX_NB_SESSION );
-		ret->session_ids_ring = ring_create( MAX_NB_SESSION );
-	}
-	else{
-		ret->hash_table = NULL;
-		ret->session_ids_ring = NULL;
-	}
-
 	return ret;
 }
 
@@ -468,18 +394,6 @@ size_t security_worker_release( security_context_t* ret ){
 	ret->sec_handler = NULL;
 
 	unregister_packet_handler (ret->dpi_handler, SECURITY_DPI_PACKET_HANDLER_ID );
-
-	//free hash_table and its elements
-	if( ret->hash_table ){
-		uint32_t index = 0;
-		while( ring_dequeue( ret->session_ids_ring,  &index ) )
-			bit_free( hash64_remove_at_index(ret->hash_table, index));
-
-		hash64_free( ret->hash_table );
-		ring_free(   ret->session_ids_ring );
-	}
-
-
 
 	pthread_mutex_destroy( &ret->mutex );
 

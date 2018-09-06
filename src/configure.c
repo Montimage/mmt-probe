@@ -17,25 +17,25 @@
 #include "configure.h"
 
 
-bool conf_parse_security_ignore_mode( int *result, const char *string ){
-	if (IS_EQUAL_STRINGS(string, "NONE") )
-		*result = SEC_IGNORE_FLOW_NONE;
-	else if (IS_EQUAL_STRINGS(string, "SAME-RULE") )
-		*result = SEC_IGNORE_FLOW_SAME_RULE;
-	else if (IS_EQUAL_STRINGS(string, "ALL-RULE") )
-			*result = SEC_IGNORE_FLOW_ALL_RULE;
-	else {
-		return false;
-	}
-	return true;
-}
-
-static int _conf_parse_security_ignore_mode(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
-	if( conf_parse_security_ignore_mode(result, value) )
-		return 0;
-	cfg_error(cfg, "invalid value for option '%s': %s", cfg_opt_name(opt), value);
-	return -1;
-}
+//bool conf_parse_security_ignore_mode( int *result, const char *string ){
+//	if (IS_EQUAL_STRINGS(string, "NONE") )
+//		*result = SEC_IGNORE_FLOW_NONE;
+//	else if (IS_EQUAL_STRINGS(string, "SAME-RULE") )
+//		*result = SEC_IGNORE_FLOW_SAME_RULE;
+//	else if (IS_EQUAL_STRINGS(string, "ALL-RULE") )
+//			*result = SEC_IGNORE_FLOW_ALL_RULE;
+//	else {
+//		return false;
+//	}
+//	return true;
+//}
+//
+//static int _conf_parse_security_ignore_mode(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
+//	if( conf_parse_security_ignore_mode(result, value) )
+//		return 0;
+//	cfg_error(cfg, "invalid value for option '%s': %s", cfg_opt_name(opt), value);
+//	return -1;
+//}
 
 
 /* parse values for the input-mode option */
@@ -164,7 +164,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_INT("input.max-message-size",    0, CFGF_NONE),
 			CFG_INT("security.max-instances",    0, CFGF_NONE),
 			CFG_INT("security.smp.ring-size",    0, CFGF_NONE),
-			CFG_INT_CB("ignore-remain-flow",     0, CFGF_NONE, _conf_parse_security_ignore_mode ),
+			CFG_BOOL("ignore-remain-flow",     0, CFGF_NONE ),
 			CFG_END()
 	};
 
@@ -675,7 +675,7 @@ static inline security_conf_t *_parse_security_block( cfg_t *cfg ){
 	ret->lib.security_max_instances = cfg_getint( cfg, "security.max-instances" );
 	ret->lib.security_smp_ring_size = cfg_getint( cfg, "security.smp.ring-size" );
 	ret->lib.input_max_message_size = cfg_getint( cfg, "input.max-message-size" );
-	ret->ignore_remain_flow         = cfg_getint( cfg, "ignore-remain-flow");
+	ret->ignore_remain_flow         = cfg_getbool( cfg, "ignore-remain-flow");
 	return ret;
 }
 

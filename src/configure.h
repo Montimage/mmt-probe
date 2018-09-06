@@ -98,11 +98,12 @@ typedef struct dynamic_config_conf_struct{
 typedef struct security_conf_struct{
 	bool is_enable;
 	bool is_report_rule_description;
-	enum{
-		SEC_IGNORE_FLOW_NONE,     //do not ignore any packets
-		SEC_IGNORE_FLOW_SAME_RULE,//ignore the verification of a rule on the rest of a flow if the rule has been satisfied by the flow
-		SEC_IGNORE_FLOW_ALL_RULE  //ignore the verification of all rules on the rest of a flow if a rule has been satisfied by the flow
-	} ignore_remain_flow;
+//	enum{
+//		SEC_IGNORE_FLOW_NONE,     //do not ignore any packets
+//		SEC_IGNORE_FLOW_SAME_RULE,//ignore the verification of a rule on the rest of a flow if the rule has been satisfied by the flow
+//		SEC_IGNORE_FLOW_ALL_RULE  //ignore the verification of all rules on the rest of a flow if a rule has been satisfied by the flow
+//	}
+	bool ignore_remain_flow;
 	uint16_t threads_size;
 	char *excluded_rules;
 	char *rules_mask;
@@ -305,5 +306,5 @@ size_t conf_parse_list( const char *string, char ***proto_lst );
 int conf_validate( probe_conf_t *conf );
 
 bool conf_parse_input_mode( int *result, const char *string );
-bool conf_parse_security_ignore_mode( int *result, const char *string );
+//bool conf_parse_security_ignore_mode( int *result, const char *string );
 #endif /* SRC_LIB_CONFIGURE_H_ */

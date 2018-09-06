@@ -13,7 +13,6 @@
 #include <mmt_security.h>
 #include "../../configure.h"
 #include "../output/output.h"
-#include "../../lib/hash64.h"
 
 typedef struct security_context_struct{
 	mmt_handler_t *dpi_handler;
@@ -31,8 +30,6 @@ typedef struct security_context_struct{
 
 
 	pthread_mutex_t mutex;
-	hash64_t *hash_table;   //a hash table to contain list of session_id that has alerts.
-
 	//a ring contain the list of session_id as in the hash_table above
 	// however we need a ring to be able to remove the oldest session_id from the hash_table
 	// (the hash_table is used to quickly search a session_id,
