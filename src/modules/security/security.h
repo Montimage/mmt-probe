@@ -27,14 +27,6 @@ typedef struct security_context_struct{
 	const security_conf_t *config;
 
 	output_t *output;
-
-
-	pthread_mutex_t mutex;
-	//a ring contain the list of session_id as in the hash_table above
-	// however we need a ring to be able to remove the oldest session_id from the hash_table
-	// (the hash_table is used to quickly search a session_id,
-	//  meanwhile the ring is used to maintain the hash_table size)
-	void *session_ids_ring;
 } security_context_t;
 
 /**

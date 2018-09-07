@@ -710,10 +710,10 @@ static inline session_timeout_conf_t *_parse_session_timeout_block( cfg_t *cfg )
 		return NULL;
 
 	session_timeout_conf_t *ret = mmt_alloc( sizeof( session_timeout_conf_t ));
-	ret->default_session_timeout = _cfg_getint( cfg, "default-session-timeout", 0, 6000, 0,   60 );
-	ret->live_session_timeout    = _cfg_getint( cfg, "live-session-timeout",    0, 6000, 0, 1500 );
-	ret->long_session_timeout    = _cfg_getint( cfg, "long-session-timeout",    0, 6000, 0,  600 );
-	ret->short_session_timeout   = _cfg_getint( cfg, "short-session-timeout",   0, 6000, 0,   15 );
+	ret->default_session_timeout = _cfg_getint( cfg, "default-session-timeout", 0, 60000, 0,   60 );
+	ret->live_session_timeout    = _cfg_getint( cfg, "live-session-timeout",    0, 60000, 0, 1500 );
+	ret->long_session_timeout    = _cfg_getint( cfg, "long-session-timeout",    0, 60000, 0,  600 );
+	ret->short_session_timeout   = _cfg_getint( cfg, "short-session-timeout",   0, 60000, 0,   15 );
 	return ret;
 }
 

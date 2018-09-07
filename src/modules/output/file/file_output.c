@@ -25,7 +25,8 @@
 
 struct file_output_struct{
 	uint16_t id;
-	struct timeval created_time_of_file;
+	uint32_t nb_messages;
+	char *file_name;
 
 	FILE *file;
 	const file_output_conf_t *config;
@@ -110,24 +111,26 @@ static inline int _remove_old_sampled_files(const char *folder, size_t retains){
 }
 
 static inline void _create_new_file( file_output_t *output ){
-	char filename[ MAX_LENGTH_FULL_PATH_FILE_NAME ];
 	int valid = 0;
-	//create output file
-	gettimeofday( &output->created_time_of_file, NULL );
 
-	STRING_BUILDER( valid, filename, MAX_LENGTH_FULL_PATH_FILE_NAME,
+	output->nb_messages = 0;
+	//create output file
+	struct timeval created_time_of_file;
+	gettimeofday( &created_time_of_file, NULL );
+
+	STRING_BUILDER( valid, output->file_name, MAX_LENGTH_FULL_PATH_FILE_NAME,
 			//"%s/%lu-%06zu_%02d_%s",
 			__ARR( output->config->directory ),
-			__TIME( &output->created_time_of_file ),
+			__TIME( &created_time_of_file ),
 			__CHAR( '_' ),
 			__INT( output->id ),
 			__CHAR( '_' ),
 			__ARR( output->config->filename )
 	);
-	output->file = fopen( filename,"w");
+	output->file = fopen( output->file_name,"w");
 
 	if( output->file == NULL )
-		log_write( LOG_ERR, "Cannot create data file %s: %s", filename, strerror( errno ) );
+		log_write( LOG_ERR, "Cannot create data file %s: %s", output->file_name, strerror( errno ) );
 
 	//use the first one to limit number of output files
 	if( output->id == 1 && output->config->retained_files_count > 0 )
@@ -142,6 +145,8 @@ file_output_t* file_output_alloc_init( const file_output_conf_t *config, uint16_
 	ret->file          = NULL;
 	ret->config        = config;
 	ret->id            = id;
+	ret->nb_messages   = 0;
+	ret->file_name     = mmt_alloc( MAX_LENGTH_FULL_PATH_FILE_NAME );
 	//init file, created_time_of_file
 	_create_new_file( ret );
 	return ret;
@@ -152,17 +157,19 @@ static inline void _create_semaphore_file( const file_output_t *output ){
 	char filename[ MAX_LENGTH_FULL_PATH_FILE_NAME ];
 	int valid = 0;
 
+	bool has_data = (output->nb_messages > 0);
+
+	//when the .csv file does not contain anything => delete it and no need to create its .sem file
+	if( unlikely( ! has_data )){
+		unlink( output->file_name );
+		return;
+	}
+
 	//create semaphore
 	STRING_BUILDER( valid, filename, MAX_LENGTH_FULL_PATH_FILE_NAME,
-				//"%s/%lu-%06zu_%02d_%s",
-				__ARR( output->config->directory ),
-				__TIME( &output->created_time_of_file ),
-				__CHAR( '_' ),
-				__INT( output->id ),
-				__CHAR( '_' ),
-				__ARR( output->config->filename ),
+				__ARR( output->file_name ),
 				__ARR( SEMAPHORE_EXT )
-		);
+	);
 
 	FILE *file = fopen( filename,"w");
 	if( file == NULL )
@@ -199,6 +206,8 @@ void file_output_release( file_output_t *output ){
 			_create_semaphore_file( output );
 	}
 
+	mmt_probe_free( output->file_name );
+
 	//use the first one to limit number of output files
 	if( output->id == 0 && output->config->retained_files_count > 0 )
 		_remove_old_sampled_files( output->config->directory, output->config->retained_files_count  );
@@ -209,6 +218,7 @@ void file_output_release( file_output_t *output ){
 int file_output_write( file_output_t *output, const char *message ){
 	EXPECT( output != NULL && output->file != NULL && message != NULL, 0 );
 
+	output->nb_messages ++;
 	int ret = fprintf( output->file, "%s\n", message );
 	return ret;
 }

@@ -119,12 +119,13 @@ static int _security_packet_handler( const ipacket_t *ipacket, void *args ) {
 		session_id = get_session_id_from_packet( ipacket );
 		//check if we can ignore this packet
 
-		bool can_ignore = mmt_sec_is_ignore_remain_flow( context->sec_handler, session_id );
+		bool can_ignore =  mmt_sec_is_ignore_remain_flow( context->sec_handler, session_id );
 
 		//the first part of the flow has been examined and we got at least one alert from that part
 		// => we do not need to continue to examine the rest of the flow
-		if( can_ignore )
+		if( can_ignore ){
 			return 0;
+		}
 	}
 
 	/* We need to process this packet*/
@@ -315,12 +316,11 @@ security_context_t* security_worker_alloc_init( const security_conf_t *config,
 	ret->dpi_handler = dpi_handler;
 	ret->config      = config;
 	ret->output      = output;
-	pthread_mutex_init( &ret->mutex, NULL);
 	//init mmt-sec to verify the rules
 	ret->sec_handler = mmt_sec_register( threads_count, cores_id, config->rules_mask, verbose, _print_security_verdict, ret );
 
 	if( config->ignore_remain_flow )
-		mmt_sec_set_ignore_remain_flow( ret->sec_handler, true );
+		mmt_sec_set_ignore_remain_flow( ret->sec_handler, true, 5000000 );
 
 	rule_info_t const*const*rules_array;
 	ret->rules_count = mmt_sec_get_rules_info( &rules_array );
@@ -394,8 +394,6 @@ size_t security_worker_release( security_context_t* ret ){
 	ret->sec_handler = NULL;
 
 	unregister_packet_handler (ret->dpi_handler, SECURITY_DPI_PACKET_HANDLER_ID );
-
-	pthread_mutex_destroy( &ret->mutex );
 
 	mmt_probe_free( ret );
 

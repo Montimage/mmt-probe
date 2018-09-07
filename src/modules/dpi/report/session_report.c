@@ -239,36 +239,34 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 			proto_hierarchy,
 			app_path, sizeof( app_path) );
 
-	output_write_report_with_format(
-			context->output,
-			context->probe_config->reports.session->output_channels,
-			SESSION_REPORT_TYPE,
-			&last_activity_time,
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	int valid = 0;
+	STRING_BUILDER_WITH_SEPARATOR( valid, message, MAX_LENGTH_REPORT_MESSAGE, ",",
+			__INT( context->stat_periods_index ),
+			__INT( proto_id ),
+			__STR( app_path ),
 
-			"%zu," //index of a stat period
-			"%d,"
-			"\"%s\"," //proto path
-			"%"PRIu64",%"PRIu64"," //upload, download volume
-			"\"%s\",\"%s\"," //ip src - dst
-			"\""PRETTY_MAC_FORMAT"\",\""PRETTY_MAC_FORMAT"\"," //mac src - dst
-			"%hu,%hu"   //port src dst
-			,
-			context->stat_periods_index,
-			proto_id,
-			app_path,
+			__INT( ul_volumes - session->volumes.upload ),
+			__INT( dl_volumes - session->volumes.download ),
 
-			ul_volumes - session->volumes.upload,
-			dl_volumes - session->volumes.download,
+			__STR( session->ip_src.ip_string ),
+			__STR( session->ip_dst.ip_string ),
 
-			session->ip_src.ip_string, session->ip_dst.ip_string,
+			__MAC( session->mac_src ),
+			__MAC( session->mac_dst ),
 
-			MAC_ELEMENT( session->mac_src ),//src_mac_pretty,
-			MAC_ELEMENT( session->mac_dst ),//dst_mac_pretty,
-
-			session->port_dst, session->port_src
+			__INT( session->port_dst ),
+			__INT( session->port_src )
 	);
 
-	session->volumes.upload = ul_volumes;
+	output_write_report( context->output,
+				context->probe_config->reports.session->output_channels,
+				SESSION_REPORT_TYPE,
+				//timestamp is the one of the last packet in the session
+				& last_activity_time,
+				message );
+
+	session->volumes.upload   = ul_volumes;
 	session->volumes.download = dl_volumes;
 }
 #endif
