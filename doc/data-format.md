@@ -138,6 +138,29 @@ This report is a session based reporting (When session report is enable). Sessio
 ```
 Extension of report 100: The extension provides application specific attributes (HTTP, SSL, FTP, RTP, etc).
 
+**Note** If `SIMPLE_REPORT` is activated when compiling MMT-Probe, the session reports will be compact.
+It contains less information than default:
+
+| #  | Column Name      | Column Description | 
+| -  | ---------------- | ------------------ | 
+| 5  | *report_number*  | Number of reporting events |
+| 6  | *Protocol_Path*  | Full protocol path |
+| 7  | *Packet count*   | Global packet count |
+| 8  | *UL Data Volume* | Uplink data volume in Bytes |
+|  9 | *DL Data Volume* | Downlink data volume in Bytes |
+| 10 | *Client_Address* | Client IP address (source IP address of the first packet of the flow) |
+| 11 | *Server_Address* | Server IP address (destination IP address of the first packet of the flow) |
+| 12 | *MAC source*     | MAC address of the source end |
+| 13 | *MAC dest*       | MAC address of the destination one |
+| 14 | *Server_Port*    | Server port number |
+| 15 | *Client_Port*    | Client port number |
+
+For example:
+
+```JSON
+100,3,"../share_box/pcap/bigFlows.pcap",1361916155.971019,1,0,"99.178.354.0",60,0,"172.16.133.82","96.43.146.50","00:21:70:63:3B:AD","00:90:7F:3E:02:D0",443,61237
+```
+
 **Format id: 0 (default)**
 
 | # | Column Name | Column Description | 
