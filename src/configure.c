@@ -175,12 +175,6 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_END()
 	};
 
-	cfg_opt_t behaviour_opts[] = {
-			CFG_BOOL("enable", false, CFGF_NONE),
-			CFG_STR("output-dir", 0, CFGF_NONE),
-			CFG_END()
-	};
-
 	cfg_opt_t reconstruct_data_opts[] = {
 			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_STR("output-dir", 0, CFGF_NONE),
@@ -257,7 +251,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_SEC("security", security2_opts, CFGF_NONE),
 			CFG_SEC("system-report", cpu_mem_report_opts, CFGF_NONE),
 
-			CFG_SEC("behaviour", behaviour_opts, CFGF_NONE),
+			CFG_SEC("behaviour", file_output_opts, CFGF_NONE),
 			CFG_SEC("reconstruct-data", reconstruct_data_opts, CFGF_TITLE | CFGF_MULTI ),
 			CFG_SEC("mongodb-output", mongodb_output_opts, CFGF_NONE),
 			CFG_SEC("radius-report", radius_output_opts, CFGF_NONE),
@@ -490,13 +484,19 @@ static inline multi_thread_conf_t * _parse_thread( cfg_t *cfg ){
 	return ret;
 }
 
-static inline behaviour_conf_t *_parse_behaviour_block( cfg_t *cfg ){
-	if( (cfg = _get_first_cfg_block( cfg, "behaviour")) == NULL )
+static inline file_output_conf_t *_parse_behaviour_block( cfg_t *cfg ){
+	cfg_t * c = _get_first_cfg_block( cfg, "behaviour" );
+	if( c == NULL )
 		return NULL;
 
-	behaviour_conf_t *ret = mmt_alloc( sizeof( behaviour_conf_t ));
-	ret->is_enable = cfg_getbool( cfg, "enable" );
-	ret->directory = _cfg_get_dir(cfg, "output-dir");
+	file_output_conf_t *ret = mmt_alloc( sizeof( file_output_conf_t ));
+
+	ret->is_enable  = cfg_getbool( c, "enable" );
+	ret->directory  = _cfg_get_dir(c, "output-dir");
+	ret->filename   = _cfg_get_str(c, "output-file");
+	ret->is_sampled    = true;
+	ret->retained_files_count = cfg_getint( c, "retain-files" );
+
 	return ret;
 }
 
@@ -988,6 +988,13 @@ int conf_validate( probe_conf_t *conf ){
 			 || conf->reports.session->is_ftp
 			 || conf->reports.session->is_rtp )){
 			log_write( LOG_ERR, "session-report.is_gtp=true needs to disable other options: is_http, is_ftp, is_rtp, is_ssl are false");
+			ret ++;
+		}
+	}
+
+	if( conf->reports.behaviour->is_enable ){
+		if( conf->reports.session->is_enable == false ){
+			log_write( LOG_ERR, "behaviour.enable=true requires system-report.enable=true");
 			ret ++;
 		}
 	}

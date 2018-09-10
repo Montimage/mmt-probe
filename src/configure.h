@@ -80,7 +80,7 @@ typedef enum {
 	CONF_OUTPUT_CHANNEL_KAFKA   = 4,
 	CONF_OUTPUT_CHANNEL_MONGODB = 8,
 	CONF_OUTPUT_CHANNEL_SOCKET  = 16,
-	CONF_OUTPUT_CHANNEL_ALL     = CONF_OUTPUT_CHANNEL_FILE | CONF_OUTPUT_CHANNEL_REDIS
+	CONF_OUTPUT_CHANNEL_ALL     = CONF_OUTPUT_CHANNEL_FILE  | CONF_OUTPUT_CHANNEL_REDIS
 								| CONF_OUTPUT_CHANNEL_KAFKA | CONF_OUTPUT_CHANNEL_MONGODB
 								| CONF_OUTPUT_CHANNEL_SOCKET
 }output_channel_conf_t;
@@ -122,11 +122,6 @@ typedef struct system_stats_conf_struct{
 	output_channel_conf_t output_channels;
 }system_stats_conf_t;
 
-
-typedef struct behaviour_conf_struct{
-	bool is_enable;
-	char *directory;
-}behaviour_conf_t;
 
 typedef struct pcap_dump_conf_struct{
 	bool is_enable;
@@ -243,7 +238,7 @@ typedef struct probe_conf_struct{
 	struct report_conf_struct{
 		security_conf_t *security;
 		system_stats_conf_t *cpu_mem;
-		behaviour_conf_t   *behaviour;
+		file_output_conf_t  *behaviour;
 		micro_flow_conf_t *microflow;
 		session_report_conf_t *session;
 

@@ -220,8 +220,10 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__SYSTEM_REPORT__OUTPUT_CHANNEL, "system-report.output-channel", &conf->reports.cpu_mem->output_channels, CHAR_STAR),
 
 	//behaviour
-	(CONF_ATT__BEHAVIOUR__ENABLE,     "behaviour.enable",     &conf->reports.behaviour->is_enable, BOOL),
-	(CONF_ATT__BEHAVIOUR__OUTPUT_DIR, "behaviour.output-dir", &conf->reports.behaviour->directory, CHAR_STAR),
+	(CONF_ATT__BEHAVIOUR__ENABLE,       "behaviour.enable",       &conf->reports.behaviour->is_enable, BOOL),
+	(CONF_ATT__BEHAVIOUR__OUTPUT_DIR,   "behaviour.output-dir",   &conf->reports.behaviour->directory, CHAR_STAR),
+	(CONF_ATT__BEHAVIOUR__OUTPUT_FILE,  "behaviour.output-file",  &conf->reports.behaviour->filename, CHAR_STAR),
+	(CONF_ATT__BEHAVIOUR__RETAIN_FILES, "behaviour.retain-files", &conf->reports.behaviour->retained_files_count, UINT16_T),
 
 #ifdef SECURITY_MODULE
 	//security

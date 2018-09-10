@@ -5,6 +5,8 @@
  *          by: Huu Nghia
  */
 
+#define BEHAVIOUR_REPORT_ID 101
+
 #include <arpa/inet.h>
 #include "session_report.h"
 
@@ -21,6 +23,36 @@ int print_ssl_report(char *message, size_t message_size, const mmt_session_t * d
 int print_ftp_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);
 int print_rtp_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);
 int print_gtp_report(char *message, size_t message_size, const mmt_session_t * dpi_session, session_stat_t *session_stat, const dpi_context_t *context);
+
+
+static inline void _write_behaviour_report( file_output_t *output,
+		int probe_id,
+		const char *input_src,
+		const struct timeval *timestamp,
+		int proto_id,
+		const char *ip_src,
+		const char *ip_dst,
+		uint64_t ul_volume,
+		uint64_t dl_volume
+		){
+
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	int valid = 0;
+	STRING_BUILDER_WITH_SEPARATOR( valid, message, MAX_LENGTH_REPORT_MESSAGE, ",",
+			__INT( BEHAVIOUR_REPORT_ID ),
+			__INT( probe_id ),
+			__STR( input_src ),
+			__TIME( timestamp ),
+			__INT( proto_id ),
+			__INT( ul_volume ),
+			__INT( dl_volume ),
+			__STR( ip_src ),
+			__STR( ip_dst )
+	);
+
+	file_output_write( output, message );
+}
+
 
 
 #ifndef SIMPLE_REPORT
@@ -186,6 +218,20 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 			& timestamp,
 			message );
 
+	//if output for behaviour analysis is enabled
+	if( context->behaviour_output != NULL )
+		_write_behaviour_report(context->behaviour_output,
+				context->probe_config->probe_id,
+				context->probe_config->input->input_source,
+				&timestamp,
+				proto_id,
+				session_stat->ip_src.ip_string,
+				session_stat->ip_dst.ip_string,
+				ul_volumes - session_stat->volumes.upload,
+				dl_volumes - session_stat->volumes.download
+		);
+
+
 	//remember the current statistics
 	session_stat->retransmission_count = total_retrans;
 
@@ -230,7 +276,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(dpi_session);
 	int proto_id = 0;
-	if( proto_hierarchy->len > 0 )
+	if( likely( proto_hierarchy->len > 0 ))
 		proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
 
 	char app_path[128];
@@ -266,6 +312,22 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 				& last_activity_time,
 				message );
 
+
+
+	//if output for behaviour analysis is enabled
+	if( context->behaviour_output != NULL )
+		_write_behaviour_report(context->behaviour_output,
+				context->probe_config->probe_id,
+				context->probe_config->input->input_source,
+				&last_activity_time,
+				proto_id,
+				session->ip_src.ip_string,
+				session->ip_dst.ip_string,
+				ul_volumes - session->volumes.upload,
+				dl_volumes - session->volumes.download
+		);
+
+	//remember the current ul and dl data volumes
 	session->volumes.upload   = ul_volumes;
 	session->volumes.download = dl_volumes;
 }

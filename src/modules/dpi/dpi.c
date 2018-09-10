@@ -183,6 +183,13 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 	)
 	IF_ENABLE_STAT_REPORT(
 		session_report_register( dpi_handler, config->reports.session, ret );
+
+
+		if( config->reports.behaviour->is_enable ){
+			//create another output (to file) for behaviour analysis
+			//this output must use the same id as "normal" output
+			ret->behaviour_output = file_output_alloc_init( config->reports.behaviour, worker_index );
+		}
 	)
 
 	//This callback is fired before the packets have been reordered and reassembled by mmt_reassembly
@@ -246,6 +253,11 @@ void dpi_release( dpi_context_t *dpi_context ){
 	IF_ENABLE_STAT_REPORT_FULL(
 		no_session_report_release(dpi_context->no_session_report );
 		micro_flow_report_release( dpi_context->micro_reports );
+
+		//if behaviour analysis output is enable
+		if( dpi_context->behaviour_output != NULL ){
+			file_output_release( dpi_context->behaviour_output );
+		}
 	)
 
 	IF_ENABLE_PCAP_DUMP(

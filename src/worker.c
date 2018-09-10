@@ -11,6 +11,7 @@
 
 #include "lib/string_builder.h"
 #include "modules/output/output.h"
+#include "modules/output/file/file_output.h"
 #include "modules/license/license.h"
 #include "modules/dynamic_conf/dynamic_conf.h"
 
@@ -201,4 +202,10 @@ void worker_on_timer_sample_file_period( worker_context_t *worker_context ){
 
 	//the first worker
 	output_flush( worker_context->output );
+
+	//when user enables output for behaviour analysis:
+	IF_ENABLE_STAT_REPORT(
+		if( worker_context->dpi_context->behaviour_output != NULL )
+			file_output_flush( worker_context->dpi_context->behaviour_output );
+	);
 }

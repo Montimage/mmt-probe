@@ -18,6 +18,7 @@
 #include "../../lib/limit.h"
 #include "../../configure.h"
 #include "../output/output.h"
+#include "../output/file/file_output.h"
 
 #include "reconstruct/ftp/ftp_reconstruct.h"
 #include "reconstruct/http/http_reconstruct.h"
@@ -42,6 +43,8 @@ typedef struct session_stat_struct session_stat_t;
 #include "reassembly/tcp_reassembly.h"
 #endif
 
+
+
 //the instances of this structure are used on global scope: during running time of MMT-Probe
 typedef struct dpi_context_struct{
 	uint16_t worker_index;
@@ -60,6 +63,8 @@ typedef struct dpi_context_struct{
 		list_event_based_report_context_t *event_reports;
 		micro_flow_report_context_t *micro_reports;
 		radius_report_context_t *radius_report;
+
+		file_output_t *behaviour_output;
 	)
 
 	struct{
@@ -72,6 +77,7 @@ typedef struct dpi_context_struct{
 	//number of stat_period, e.g., 5s,
 	// => this number will increase 1 for each 5 seconds
 	size_t stat_periods_index;
+
 }dpi_context_t;
 
 //the instances of this structure are used on session scope: during session period

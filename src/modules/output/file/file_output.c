@@ -146,6 +146,7 @@ file_output_t* file_output_alloc_init( const file_output_conf_t *config, uint16_
 	ret->config        = config;
 	ret->id            = id;
 	ret->nb_messages   = 0;
+	//this is full filename path of .csv file
 	ret->file_name     = mmt_alloc( MAX_LENGTH_FULL_PATH_FILE_NAME );
 	//init file, created_time_of_file
 	_create_new_file( ret );
