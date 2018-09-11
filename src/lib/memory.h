@@ -19,6 +19,13 @@
 #include "unit.h"
 #include "tools.h"
 
+static ALWAYS_INLINE void assign_16bytes( void *dest, const void *source){
+	const uint64_t *s = (uint64_t *)source;
+	uint64_t *d = (uint64_t *)dest;
+	d[0] = s[0];
+	d[1] = s[1];
+}
+
 static ALWAYS_INLINE void assign_8bytes( void *dest, const void *source){
 	const uint64_t *s = (uint64_t *)source;
 	uint64_t *d = (uint64_t *)dest;

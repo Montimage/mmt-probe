@@ -422,12 +422,10 @@ session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * 
 	} else {
 		void * ipv6_src = (void *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SRC);
 		void * ipv6_dst = (void *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_DST);
-		if (ipv6_src) {
-			memcpy(&session_stat->ip_src.ipv6, ipv6_src, 16);
-		}
-		if (ipv6_dst) {
-			memcpy(&session_stat->ip_dst.ipv6, ipv6_dst, 16);
-		}
+		if (ipv6_src)
+			assign_16bytes( &session_stat->ip_src.ipv6, ipv6_src);
+		if (ipv6_dst)
+			assign_16bytes(&session_stat->ip_dst.ipv6, ipv6_dst);
 
 		inet_ntop(AF_INET6, (void *) &session_stat->ip_src.ipv6, session_stat->ip_src.ip_string, INET6_ADDRSTRLEN);
 		inet_ntop(AF_INET6, (void *) &session_stat->ip_dst.ipv6, session_stat->ip_dst.ip_string, INET6_ADDRSTRLEN);
