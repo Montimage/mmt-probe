@@ -46,6 +46,7 @@
 #define IS_CFG_INOGRE( x ) (x->config->ignore_remain_flow )
 
 
+#ifdef TCP_REASSEMBLY_MODULE
 /*
  * return available room inside a message
  */
@@ -54,6 +55,7 @@ static inline uint32_t _get_msg_room( const message_t * msg ){
 
 	return ( msg->_data_length <= used_room )? 0 : (msg->_data_length - used_room);
 }
+
 
 static inline bool _extract_data_for_specific_attribute( const ipacket_t *pkt, int dpi_data_type, message_t *msg, uint32_t proto_id, uint32_t att_id ){
 	uint32_t *data_len = NULL;
@@ -98,6 +100,7 @@ static inline bool _extract_data_for_specific_attribute( const ipacket_t *pkt, i
 
 	return true;
 }
+#endif
 
 /**
  * This function is called by mmt-dpi for each incoming packet containing registered proto/att.
@@ -139,12 +142,15 @@ static int _security_packet_handler( const ipacket_t *ipacket, void *args ) {
 
 	//get a list of proto/attributes being used by mmt-security
 	for( i=0; i<context->proto_atts_count; i++ ){
+
+#ifdef TCP_REASSEMBLY_MODULE
 		ret = _extract_data_for_specific_attribute( ipacket, context->proto_atts[i]->dpi_type, msg,
 				context->proto_atts[i]->proto_id, context->proto_atts[i]->att_id );
 
 		//if this proto/att has been processed, we do not need to call dpi_message_set_data
 		if( ret )
 			continue;
+#endif
 
 		dpi_message_set_data( ipacket, context->proto_atts[i]->dpi_type, msg,
 				context->proto_atts[i]->proto_id, context->proto_atts[i]->att_id );
@@ -240,6 +246,7 @@ static inline bool _register_additional_attributes_if_need( mmt_handler_t *dpi_h
 		return true;
 	}
 
+#ifdef TCP_REASSEMBLY_MODULE
 	//we need the length of tcp session payload
 	if( proto_id == PROTO_TCP && att_id == TCP_SESSION_PAYLOAD_UP ){
 		if (!register_extraction_attribute( dpi_handler, PROTO_TCP, TCP_SESSION_PAYLOAD_UP_LEN)){
@@ -257,6 +264,7 @@ static inline bool _register_additional_attributes_if_need( mmt_handler_t *dpi_h
 		*add_att_id =  TCP_SESSION_PAYLOAD_DOWN_LEN;
 		return true;
 	}
+#endif
 
 	return false;
 }
@@ -348,10 +356,12 @@ security_context_t* security_worker_alloc_init( const security_conf_t *config,
 								get_attribute_name_by_protocol_and_attribute_ids(ret->proto_atts[i]->proto_id, add_att_id ));
 		 }
 
+#ifdef TCP_REASSEMBLY_MODULE
 		 if( !is_need_tcp_reassembly
 				 && ret->proto_atts[i]->proto_id == PROTO_TCP
 				 && (ret->proto_atts[i]->att_id == TCP_SESSION_PAYLOAD_UP || ret->proto_atts[i]->att_id == TCP_SESSION_PAYLOAD_DOWN ))
 			 	 is_need_tcp_reassembly = true;
+#endif
 	}
 
 	if( is_need_tcp_reassembly ){
