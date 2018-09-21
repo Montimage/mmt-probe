@@ -25,13 +25,19 @@ shift
 PROGRAM=$@
 
 
-#intercept Ctrl+C
-trap ctrl_c INT
-function ctrl_c() {
+#invalidate the Ctrl+C/TERM signals
+trap 'echo "Ignore this signal"' SIGINT SIGTERM
+
+#stop when receiving USR2 signal
+trap __stop SIGUSR2
+function __stop() {
    echo "<- Stop $PROGRAM"
-   kill -SIGINT $PID 2> /dev/null
    
-   wait $PID
+   #send sigint to the program
+   kill -SIGINT $_PID
+   #wait for the program exits
+   wait $_PID
+   
    echo "<-- Stoped $PROGRAM"
    exit 0
 }
@@ -50,10 +56,10 @@ do
    
    
    #monitor CPU and memory usage of the app
-   PID=$!
-   $DIR/mon.sh $PID > ${LOG_FILE}.$INDEX.mon
+   _PID=$!
+   $DIR/mon.sh $_PID > ${LOG_FILE}.$INDEX.mon
    
    #avoid runing burst
-   sleep 1
+   sleep 5
 done
 

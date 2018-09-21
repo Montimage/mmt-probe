@@ -1,3 +1,3 @@
 #!/bin/bash
 
-ps af | grep 'forever.sh\|\./probe\|\./ba\|node'
+ps af | grep '\.sh\|\./probe\|\./ba\|node'

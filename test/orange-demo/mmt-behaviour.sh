@@ -1,10 +1,35 @@
-#!/bin/bash
+#!/bin/bash -x
 
 if [ "$(id -u)" != "0" ]; then
    echo "This script must be run as root" 1>&2
    exit 1
 fi
 
+
+#get the directory containing this script
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+FOREVER=$DIR/utils/forever.sh
+MMT_DIR=/home/mmt/mmt
+
+#file containing pid of this script process
+PID_FILE=$DIR/mmt.pid
+
+#current time
+NOW=`date '+%Y-%m-%d_%H-%M-%S'`
+#folder we put execution logs of the processes (ba, bw, probe, operator, mongodb)
+LOG_IDENT="$DIR/log-behaviour/$NOW/"
+
+#create a folder containing log files if need
+if [ ! -d "$LOG_IDENT" ]; then
+  mkdir -p $LOG_IDENT
+fi
+
+
+function _wait(){ 
+   while [ -e /proc/$1 ]; do sleep 1; done
+}
+
+function mmtBehaviour(){
 #This script will start mmt-behaviour analisys.
 #Basically, it will run:
 #0. MongoDB
@@ -13,11 +38,6 @@ fi
 #3. MMT-Operator
 #4. MMT-Probe
 
-
-#get the directory containing this script
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
-FOREVER=$DIR/utils/forever.sh
-MMT_DIR=/home/mmt/mmt
 
 #Mount reports folder to RAM to incrase performance
 # $DIR/mount-folder-to-ram.sh
@@ -35,27 +55,29 @@ PID_PROBE=0
 function stop(){ 
    PID=$1
    #echo "Stop "`ps --no-headers -o 'cmd' -p $PID`
-   kill -SIGINT $PID 2> /dev/null
+   kill -SIGUSR2 $PID #2> /dev/null
    
    #loop when the process is existing
    wait $PID
 }
 
-#capture Ctrl+C
-trap ctrl_c INT TERM
-function ctrl_c() {
+#invalidate the Ctrl+C/TERM signals
+trap 'echo "Ignore this signal"' SIGINT SIGTERM
+
+#stop when receiving USR1 signal
+trap _stop SIGUSR1
+function _stop() {
    echo ""
+   
    stop $PID_PROBE
    stop $PID_BW
    stop $PID_BA
    stop $PID_OPERATOR
    stop $PID_MONGODB
+   
+   rm $PID_FILE
 }
 
-#current time
-NOW=`date '+%Y-%m-%d_%H-%M-%S'`
-#folder we put execution logs of the processes (ba, bw, probe, operator, mongodb)
-LOG_IDENT="$DIR/log-behaviour/$NOW/"
 
 #0. MongoDB
 DB_PATH=/data/database/mmt-behaviour
@@ -91,6 +113,13 @@ cd $MMT_DIR/mmt-probe
 ( $FOREVER ${LOG_IDENT}probe ./probe -c $DIR/conf/probe.conf -Xbehaviour.enable=true )&
 PID_PROBE=$!
 
+#wait all sub-processes finish
+wait
+}
 
-#wait until probe finishes
-wait $PID_PROBE
+
+echo "Start MMT-Behaviour ..."
+mmtBehaviour > ${LOG_IDENT}script.log 2>&1 &
+
+#store pid of the current process to a file so we can stop the process by using ./stop-mmt.sh
+echo $! > $PID_FILE

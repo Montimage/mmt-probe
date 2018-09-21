@@ -22,5 +22,5 @@ while [ -n "$(ps -p $PID -o pid=)" ]
 do
    echo -n `date '+%H:%M:%S'` " "
    ps --no-headers -o '%cpu,vsz,rss' -p $PID
-   sleep 1
+   sleep 5
 done

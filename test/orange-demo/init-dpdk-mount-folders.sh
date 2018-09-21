@@ -1,12 +1,34 @@
 #!/bin/bash
 
-[[ -z "$RTE_SDK" ]] && echo "RTE_SDK is not defined." && exit
+if [[ -z "$RTE_SDK" ]]; then
+   echo "RTE_SDK is not defined."
+   
+   #if this script was run under root
+   if [ "$(id -u)" == "0" ]; then
+      echo "You may want to use 'sudo -E'"
+   fi
+   exit
+fi
+
+#who is using this?
+sudo service php7.0-fpm stop
+#sudo service postgresql stop
+sudo service redis-server stop
+sudo service snapd stop
+
+
+#get the directory containing this script
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+
+
 
 echo "--> Load DPDK driver"
 cd $RTE_SDK/$RTE_TARGET/kmod/
 
 sudo modprobe uio
 sudo insmod ./igb_uio.ko
+
+
 
 echo "--> Bind DPDK driver"
 cd $RTE_SDK/usertools
@@ -22,10 +44,24 @@ sudo ./dpdk-devbind.py --bind=igb_uio 01:00.1
 sudo ./dpdk-devbind.py --bind=igb_uio 01:00.2
 sudo ./dpdk-devbind.py --bind=igb_uio 01:00.3
 
-sudo ./dpdk-devbind.py --status
+#sudo ./dpdk-devbind.py --status
 
 #echo "--> Setup 40GB hugepage"
 #echo 20000 | sudo tee /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
 #it is not possible to reserve the hugepages 1G after the system has booted
 #echo 3     | sudo tee /sys/devices/system/node/node0/hugepages/hugepages-1048576kB/nr_hugepages
-echo "--> Done"
+
+
+
+echo "--> Mount mmt folders to RAM"
+
+
+mountRAM=$DIR/utils/mount-folder-to-ram.sh
+
+#mount data folder to ramdisk to increase read/write performance
+#report folder
+$mountRAM "/opt/mmt/probe/result/report/online" 5G 
+#reports for behaviour
+$mountRAM "/opt/mmt/probe/result/behaviour/online" 5G 
+#pcap files
+$mountRAM "/opt/mmt/probe/pcap" 50G 
