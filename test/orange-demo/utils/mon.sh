@@ -18,7 +18,7 @@ echo "# "`ps --no-headers -o 'cmd' -p $PID`
 echo "# timestamp CPU Virt-Memory(KB) Resident-Memory(KB)"
 
 #loop when the process is existing
-while [ -n "$(ps -p $PID -o pid=)" ]
+while [ -n "$(ps -p $PID -o pid=)" ];
 do
    echo -n `date '+%H:%M:%S'` " "
    ps --no-headers -o '%cpu,vsz,rss' -p $PID

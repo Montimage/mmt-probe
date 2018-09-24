@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #this script keeps alive an app
-#Stop when pressing Ctrl+C
+#Stop when removing its pid file
 
 if [ "$#" -lt "2" ]; then
   echo "Run an app forever"
@@ -12,54 +12,79 @@ fi
 #get the directory containing this script
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
-LOG_FILE=$1
-LOG_DIR=$(dirname "${LOG_FILE}")
+IDENT_FILE=$1
+IDENT_DIR=$(dirname "${IDENT_FILE}")
 #create a folder containing log files if need
-if [ ! -d "$LOG_DIR" ]; then
-  mkdir -p $LOG_DIR
+if [ ! -d "$IDENT_DIR" ]; then
+  mkdir -p $IDENT_DIR
 fi
 
 
-#remove the first parameter that is $LOG_FILE
+#remove the first parameter that is $IDENT_FILE
 shift
 PROGRAM=$@
 
+LOG_FILE=${IDENT_FILE}.log
+PID_FILE=${IDENT_FILE}.pid
 
 #invalidate the Ctrl+C/TERM signals
 trap 'echo "Ignore this signal"' SIGINT SIGTERM
 
-#stop when receiving USR2 signal
-trap __stop SIGUSR2
-function __stop() {
-   echo "<- Stop $PROGRAM"
-   
+function stop() {
    #send sigint to the program
-   kill -SIGINT $_PID
-   #wait for the program exits
-   wait $_PID
+   #kill -TERM $PID
+   kill -INT $PID
    
-   echo "<-- Stoped $PROGRAM"
-   exit 0
+   #wait for the program exits
+   $DIR/wait.sh $PID
+   
+   echo "Stoped $PROGRAM" | tee -a $LOG_FILE
 }
+
+echo $$ > $PID_FILE
+PID=$$
+
 
 INDEX=0
 
-LOG_FILE=${LOG_FILE}_`date '+%Y-%m-%d_%H-%M-%S'`
 
+#run the program in background
+(
 while true
 do
    INDEX=$((INDEX+1))
-   echo "-> $INDEX Start '$PROGRAM'" | tee -a ${LOG_FILE}.log
+   echo "$INDEX Start '$PROGRAM'" | tee -a $LOG_FILE
    
    #run the app
-   ( $PROGRAM >> ${LOG_FILE}.log 2>&1 ) &
+   $PROGRAM >> $LOG_FILE 2>&1 &
    
+   _PID=$!
+   echo $_PID > $PID_FILE
    
    #monitor CPU and memory usage of the app
-   _PID=$!
-   $DIR/mon.sh $_PID > ${LOG_FILE}.$INDEX.mon
+   # the monitor scripts will exit when $_PID process exits
+   $DIR/mon.sh $_PID > ${IDENT_FILE}.$INDEX.mon
+   
+   #exit this loop if the PID_FILE does not exist
+   if [ ! -f $PID_FILE ]; 
+   then
+      exit 0
+   fi
    
    #avoid runing burst
    sleep 5
 done
+) &
 
+#loop until the PID_FILE is removed
+while [ -f $PID_FILE ];
+do 
+   PID=`cat $PID_FILE`
+   sleep 5
+done
+
+#when we touch here, the PID_FILE has been removed
+stop
+
+#wait for the children
+wait
