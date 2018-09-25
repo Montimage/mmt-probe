@@ -6,6 +6,6 @@ COMMAND=$COMMAND'; echo -n "-> pcaps on ram: $(ls /opt/mmt/probe/pcap | grep pca
 
 COMMAND=$COMMAND'; echo "-> mmt-data database"; mongo mmt-data --eval "db.stats(1000*1000)" | head -11 | tail -4'
 COMMAND=$COMMAND'; echo "-> mmt-bandwidth database"; mongo mmt-bandwidth --eval "db.stats(1000*1000)" | head -11 | tail -4'
-COMMAND=$COMMAND'; echo "-> `df -h`"'
+COMMAND=$COMMAND'; echo "-> `df -h`" | grep "mmt\|data"'
 
-watch -n 1 "$COMMAND"
+watch -n 2 "( echo; date; $COMMAND ) | tee -a watch.log"

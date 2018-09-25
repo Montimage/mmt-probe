@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 if [ "$#" -lt "1" ]; then
   echo "Stop an app being run by forever.sh"

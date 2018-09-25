@@ -32,8 +32,10 @@ trap 'echo "Ignore this signal"' SIGINT SIGTERM
 
 function stop() {
    #send sigint to the program
-   #kill -TERM $PID
    kill -INT $PID
+   #stop mmt-probe by kill its children 
+   #send INT signal to all children of $PID
+   pkill -INT -P $PID
    
    #wait for the program exits
    $DIR/wait.sh $PID
