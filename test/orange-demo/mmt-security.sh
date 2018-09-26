@@ -56,7 +56,7 @@ mkdir -p $DB_PATH
 sudo service mongod stop
 sudo kill -SIGINT mongod 2> /dev/null
 
-(  $FOREVER ${LOG_IDENT}mongodb mongod --dbpath $DB_PATH --syslog --wiredTigerCacheSizeGB 20 )&
+(  $FOREVER ${LOG_IDENT}mongodb mongod --dbpath $DB_PATH --quiet --wiredTigerCacheSizeGB 20 )&
 
 sleep 10
 

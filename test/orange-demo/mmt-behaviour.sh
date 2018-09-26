@@ -53,15 +53,17 @@ trap 'echo "Ignore this signal"' SIGINT SIGTERM
 
 #0. MongoDB
 DB_PATH=/data/database/mmt-behaviour
-mkdir -p $DB_PATH
+mkdir -p ${DB_PATH}-operator
+mkdir -p ${DB_PATH}-bandwidth
+
 #stop the current mongodb
 sudo service mongod stop
 sudo kill -SIGINT mongod 2> /dev/null
 
 #MongoDB for Operator
-(  $FOREVER ${LOG_IDENT}mongodb mongod --dbpath ${DB_PATH}-operator --quiet --syslog --wiredTigerCacheSizeGB 20 )&
+(  $FOREVER ${LOG_IDENT}mongodb mongod --dbpath ${DB_PATH}-operator --quiet --wiredTigerCacheSizeGB 20 )&
 
-(  $FOREVER ${LOG_IDENT}mongodb-bw mongod --dbpath ${DB_PATH}-bandwidth --port 27018 --quiet --syslog --wiredTigerCacheSizeGB 20 )&
+(  $FOREVER ${LOG_IDENT}mongodb-bw mongod --dbpath ${DB_PATH}-bandwidth --port 27018 --quiet --wiredTigerCacheSizeGB 20 )&
 
 sleep 10
 
