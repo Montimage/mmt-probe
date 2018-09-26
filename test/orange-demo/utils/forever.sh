@@ -54,6 +54,12 @@ INDEX=0
 (
 while true
 do
+   #exit this loop if the PID_FILE does not exist
+   if [ ! -f $PID_FILE ]; 
+   then
+      exit 0
+   fi
+   
    INDEX=$((INDEX+1))
    echo "$INDEX Start '$PROGRAM'" | tee -a $LOG_FILE
    
@@ -66,12 +72,6 @@ do
    #monitor CPU and memory usage of the app
    # the monitor scripts will exit when $_PID process exits
    $DIR/mon.sh $_PID > ${IDENT_FILE}.$INDEX.mon
-   
-   #exit this loop if the PID_FILE does not exist
-   if [ ! -f $PID_FILE ]; 
-   then
-      exit 0
-   fi
    
    #avoid runing burst
    sleep 5

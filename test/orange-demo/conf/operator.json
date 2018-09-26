@@ -16,7 +16,6 @@
 		"ssl.ca.location": "data/kafka-ca.cert"
 	},
 	"file_input": {
-		"_data_folder": "/tmp/",
 		"data_folder": "/opt/mmt/probe/result/report/online/",
 		"delete_data": true,
 		"nb_readers": 8
