@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# This script starts MMT toolchain for behaviour analysing.
+
 if [ "$(id -u)" != "0" ]; then
    echo "This script must be run as root" 1>&2
    exit 1
@@ -41,7 +43,6 @@ function mmtBehaviour(){
 #4. MMT-Probe
 
 
-#Stop a process and wait for until finish
 #Stop a process and wait for until finish
 function stop(){ 
    $DIR/utils/stop.sh $1

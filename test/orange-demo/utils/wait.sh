@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# This script waits for a running process stops.
+# "wait $PID" works only when $PID is a child of its caller.
+# This script works in such a case.
+
 if [ "$#" -lt "1" ]; then
   echo "Wait for a process"
   echo "Usage: $0 pid"

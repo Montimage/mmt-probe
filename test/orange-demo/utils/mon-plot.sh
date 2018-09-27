@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# This script uses gnuplot to plot a chart representing CPU/Memory monitoring result of a process
+
 if [ "$#" -ne "1" ]; then
   echo "Convert result in file *.mon to a graph"
   echo "Usage: $0 file_name"

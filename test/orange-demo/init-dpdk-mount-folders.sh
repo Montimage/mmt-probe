@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# This script must be run only once before starting MMT
+#
+# It peforms 3 taks:
+#1. Stop unnecessary system services
+#2. Bind NIC cards to DPDK
+#3. Mount output folders of MMT to RAM to increase writing/reading performance
+
 if [[ -z "$RTE_SDK" ]]; then
    echo "RTE_SDK is not defined."
    

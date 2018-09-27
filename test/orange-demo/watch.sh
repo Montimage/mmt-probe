@@ -1,4 +1,7 @@
 #!/bin/bash
+
+# This script periodically shows resources used by MMT and lists its output
+
 COMMAND=' echo "-> /opt/mmt/probe/result/report/online    $(ls /opt/mmt/probe/result/report/online | grep csv$ |wc -l) files"'
 COMMAND=$COMMAND'; echo "-> /opt/mmt/probe/result/behaviour/online $(ls /opt/mmt/probe/result/behaviour/online | grep csv$ |wc -l) files"'
 

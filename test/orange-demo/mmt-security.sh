@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# This script starts MMT-Probe for security analysis
+#   and MMT-Operator to view the results
+
 if [ "$(id -u)" != "0" ]; then
    echo "This script must be run as root" 1>&2
    exit 1

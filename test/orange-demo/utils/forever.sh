@@ -1,7 +1,13 @@
 #!/bin/bash
 
-#this script keeps alive an app
-#Stop when removing its pid file
+#this script keeps alive forever an app
+#Stop by removing its pid file
+
+#It takes at least 2 parameters:
+#1. id of the app to run. This is the path of a directory 
+#   that will contain pid and execution log of the running app
+#2. path to app to run
+#3+ parameters giving to the app
 
 if [ "$#" -lt "2" ]; then
   echo "Run an app forever"
@@ -14,7 +20,8 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
 IDENT_FILE=$1
 IDENT_DIR=$(dirname "${IDENT_FILE}")
-#create a folder containing log files if need
+
+#create a folder containing log files if it does not exist
 if [ ! -d "$IDENT_DIR" ]; then
   mkdir -p $IDENT_DIR
 fi
@@ -43,6 +50,8 @@ function stop() {
    echo "Stoped $PROGRAM" | tee -a $LOG_FILE
 }
 
+#At begining, the PID_FILE contains pid of this script
+# the content of PID_FILE will be overriden by pid of the app when it started
 echo $$ > $PID_FILE
 PID=$$
 
@@ -73,7 +82,8 @@ do
    # the monitor scripts will exit when $_PID process exits
    $DIR/mon.sh $_PID > ${IDENT_FILE}.$INDEX.mon
    
-   #avoid runing burst
+   #When the app has been stopped, it will be restarted after 5 seconds to
+   # avoid runing burst, e.g., when the app crashes consecutively
    sleep 5
 done
 ) &
@@ -81,6 +91,9 @@ done
 #loop until the PID_FILE is removed
 while [ -f $PID_FILE ];
 do 
+   #always update $PID by content of PID_FILE 
+   # as we need the pid inside the PID_FILE
+   #  even the file has been deleted
    PID=`cat $PID_FILE`
    sleep 5
 done
