@@ -46,6 +46,8 @@ cd $RTE_SDK/usertools
 #0000:03:00.0 'Ethernet Controller 10-Gigabit X540-AT2' if=enp3s0 drv=ixgbe unused= *Active*
 
 
+sudo ./dpdk-devbind.py --bind=igb_uio 03:00.0
+
 sudo ./dpdk-devbind.py --bind=igb_uio 01:00.0
 sudo ./dpdk-devbind.py --bind=igb_uio 01:00.1
 sudo ./dpdk-devbind.py --bind=igb_uio 01:00.2

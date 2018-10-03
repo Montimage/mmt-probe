@@ -40,13 +40,13 @@
 #define READER_BURST_SIZE        64  /* Burst size to receive packets from RX ring */
 #define WORKER_BURST_SIZE        64
 #define DISTRIBUTOR_BURST_SIZE  256
-#define MBUF_CACHE_SIZE          64  //
+#define MBUF_CACHE_SIZE         512  //
 
 //threshold to push pkt to distributor's ring
 #define READER_DRAIN_PKT_THRESH   	 256
 #define READER_DRAIN_CYCLE_THRESH 500000
 
-#define DISTRIBUTOR_RING_SIZE  (RX_DESCRIPTORS * 16)
+#define DISTRIBUTOR_RING_SIZE  (4096 * 16)
 
 /* Symmetric RSS hash key */
 static uint8_t hash_key[52] = {
@@ -442,7 +442,7 @@ static int _distributor_thread( void *arg ){
  * It receives packets from NIC then forward them to Distributer
  */
 static int _reader_thread( void *arg ){
-	struct rte_mbuf *packets[ READER_BURST_SIZE + READER_DRAIN_PKT_THRESH ] __rte_cache_aligned;
+	struct rte_mbuf *packets_buf[ READER_BURST_SIZE + READER_DRAIN_PKT_THRESH ] __rte_cache_aligned;
 
 	struct param *param = (struct param *) arg;
 	probe_context_t *probe_context = param->probe_context;
@@ -461,6 +461,7 @@ static int _reader_thread( void *arg ){
 	}
 	const int queue_id = 0;
 	size_t nb_enqueue_failures = 0;
+	size_t nb_full_nic = 0; //number of times we get full READER_BURST_SIZE
 	size_t total_bytes_dropped = 0, total_pkt_dropped = 0;
 
 	size_t total_pkt_received = 0, total_cycles = 0;;
@@ -476,15 +477,17 @@ static int _reader_thread( void *arg ){
 			input_port = param->input_ports[i];
 
 			// Get burst of RX packets from port
-			nb_rx += rte_eth_rx_burst( input_port, queue_id, packets + nb_rx, READER_BURST_SIZE );
+			nb_rx += rte_eth_rx_burst( input_port, queue_id, packets_buf + nb_rx, READER_BURST_SIZE );
 
 			if( unlikely( nb_rx == 0 )){
 				continue;
 			} else {
+				if( nb_rx == READER_BURST_SIZE )
+					nb_full_nic ++;
 
 				if( nb_rx >= READER_DRAIN_PKT_THRESH || rte_rdtsc() >= next_drain_moment ){
 
-					unsigned sent = rte_ring_sp_enqueue_bulk(ring, (void *)packets, nb_rx, NULL);
+					unsigned sent = rte_ring_sp_enqueue_bulk(ring, (void *)packets_buf, nb_rx, NULL);
 
 					//ring is full
 					if( unlikely( sent < nb_rx )){
@@ -492,19 +495,19 @@ static int _reader_thread( void *arg ){
 						//cumulate total number of packets being dropped
 						total_pkt_dropped += nb_rx - sent;
 
-						while( sent < nb_rx ){
+						do{
 							//store number of bytes being dropped
-							total_bytes_dropped += packets[ sent ]->data_len;
+							total_bytes_dropped += packets_buf[ sent ]->data_len;
 
 							//when a mbuf has not been sent, we need to free it
-							rte_pktmbuf_free( packets[sent ] );
+							rte_pktmbuf_free( packets_buf[sent ] );
 
 							sent ++;
-						}
+						}while( sent < nb_rx );
 					}
 
 
-					total_pkt_received    += nb_rx;
+					total_pkt_received += nb_rx;
 
 					//reset param
 					nb_rx = 0;
@@ -521,11 +524,12 @@ static int _reader_thread( void *arg ){
 		_print_dpdk_stats( input_port );
 	}
 
-	log_write_dual( LOG_INFO, "MMT reader process received %zu pkts, dropped %zu pkts (%.2f%% = %zu bytes), %zu full-dis-ring",
+	log_write_dual( LOG_INFO, "MMT reader process received %zu pkts, dropped %zu pkts (%.2f%% = %zu bytes), %zu full-nic, %zu full-dis-ring",
 			total_pkt_received,
 			total_pkt_dropped,
 			total_pkt_dropped * 100.0 / total_pkt_received,
 			total_bytes_dropped,
+			nb_full_nic,
 			nb_enqueue_failures );
 
 
