@@ -40,11 +40,11 @@
 #define READER_BURST_SIZE        64  /* Burst size to receive packets from RX ring */
 #define WORKER_BURST_SIZE        64
 #define DISTRIBUTOR_BURST_SIZE  256
-#define MBUF_CACHE_SIZE         512  //
+#define MBUF_CACHE_SIZE         256  //
 
 //threshold to push pkt to distributor's ring
-#define READER_DRAIN_PKT_THRESH   	 256
-#define READER_DRAIN_CYCLE_THRESH 500000
+#define READER_DRAIN_PKT_THRESH   	 4096
+#define READER_DRAIN_CYCLE_THRESH (READER_DRAIN_PKT_THRESH*200)
 
 #define DISTRIBUTOR_RING_SIZE  (4096 * 16)
 
