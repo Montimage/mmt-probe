@@ -18,11 +18,12 @@ if [[ -z "$RTE_SDK" ]]; then
 fi
 
 #who is using this?
-sudo service php7.0-fpm stop
-#sudo service postgresql stop
+sudo service php7.0-fpm   stop
+#sudo service postgresql  stop
 sudo service redis-server stop
-sudo service snapd stop
-sudo service irqbalance stop
+sudo service mongod       stop
+sudo service snapd        stop
+sudo service irqbalance   stop
 
 #get the directory containing this script
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"

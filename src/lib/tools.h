@@ -23,7 +23,7 @@
 
 #define MIN( a, b ) (a>b? b : a )
 #define MAX( a, b ) (a<b? b : a )
-
+#define PERCENTAGE( a, tot ) ((tot) == 0? 0 : (a)*100.0/(tot) )
 /**
  * Swap values of two variables x and y typing T
  */
