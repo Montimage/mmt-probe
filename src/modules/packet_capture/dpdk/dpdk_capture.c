@@ -5,20 +5,20 @@
  *      Author: montimage
  *
  * We use:
- * - A NIC has "m" queues
- * - Each queue is read by a Reader
- * - A Reader will distribute packets to the private queue of each worker
- * - A Worker reads packets form its queue, process packets, and output statistic information
+ * - A NIC has "n" queues corresponding "n" workers
+ * - "m" Readers.
+ * Each Reader reads traffic from n/m queues and distributes packets to the private queue of the corresponding worker
+ * Each Worker reads packets form its queue, process packets, and output statistic information
  *
- *            ________       => [ Worker ]
- *           |        |    ||=> [ Worker ]
- *       ===>| Reader | ======> [ Worker ]
- *      ||   |________|      => [ Worker ]
- * NIC= ||    ________
- *      ||   |        |    ||=> [ Worker ]
- *       ===>| Reader | ======> [ Worker ]
- *           |________|    ||=> [ Worker ]
- *                           => [ Worker ]
+ *    [ RX queue ]      ________       => [ Worker ]
+ *    [ RX queue ]     |        |    ||=> [ Worker ]
+ *    [ RX queue ] ===>| Reader | ======> [ Worker ]
+ *    [ RX queue ]     |________|      => [ Worker ]
+ * NIC                  ________
+ *    [ RX queue ]     |        |    ||=> [ Worker ]
+ *    [ RX queue ] ===>| Reader | ======> [ Worker ]
+ *    [ RX queue ]     |________|    ||=> [ Worker ]
+ *    [ RX queue ]                     => [ Worker ]
  */
 
 #ifndef DPDK_MODULE
@@ -44,8 +44,8 @@
 #define NB_READERS_PER_PORT         2  // 2 readers
 #define RX_DESCRIPTORS           4096  // Number of RX descriptors of a NIC queue
 
-#define READER_BURST_SIZE          64  /* Burst size to receive packets from RX ring */
-#define READER_DRAIN_THRESH   	 4096  ////threshold to push pkt to distributor's ring
+#define READER_BURST_SIZE          32  /* Burst size to receive packets from RX ring */
+#define READER_DRAIN_THRESH   	  256  ////threshold to push pkt to distributor's ring
 
 #define WORKER_BURST_SIZE          64
 
@@ -201,7 +201,11 @@ static int _worker_thread( void *arg ){
 		unsigned nb_rx = rte_ring_sc_dequeue_burst(ring, (void *)packets, WORKER_BURST_SIZE, NULL );
 
 		if( unlikely( nb_rx == 0 )){
-			_pause( 2000 );
+			//we need a small pause here -> reader_thread can easily to insert packet to queue
+			//at 14Mpps -> 1 packet consumes ~67 ns (~215 cycles)
+			//=> sleep 50 packets
+			//_pause( 32*215 );
+			_pause( 6000 );
 		}else {
 
 			//last packet is special one to tell worker exist
@@ -279,17 +283,21 @@ static int _reader_thread( void *arg ){
 	const uint8_t input_port = param->input_port;
 	const uint8_t input_queue_begin = param->reader_id * nb_workers;
 
-	struct timeval time_now __rte_cache_aligned;
-	uint32_t last_drain_moment __rte_cache_aligned;
+	struct timeval time_now __rte_cache_aligned; //to get the current timestamp
 
 	struct buffer{
-		uint64_t size;
-		struct rte_mbuf *packets[READER_DRAIN_THRESH + READER_BURST_SIZE]  __rte_cache_aligned;
+		uint32_t packets_count;
+		uint32_t bytes_count;
+		struct rte_mbuf *packets[READER_DRAIN_THRESH + READER_BURST_SIZE];
+
+		//they are for statistic: number of packets and bytes the reader
+		// cannot enqueue to worker's ring
+		uint32_t packets_dropped;
+		uint32_t bytes_dropped;
 	} *buffers;
 
 
 	uint64_t nb_full_nic = 0;
-
 
 	//reader needs to run on lcore having the same socket with the one of its NIC
 	if (rte_eth_dev_socket_id( input_port) > 0 &&
@@ -298,18 +306,20 @@ static int _reader_thread( void *arg ){
 				"RX thread. Performance will not be optimal.",
 				input_port );
 
-	//next statistic moment in number of cycles
-	gettimeofday(&time_now, NULL);
-	last_drain_moment = time_now.tv_sec;
-
 	//local buffers to store packets before inserting by burst to workers' rings
 	buffers = rte_zmalloc("worker buffers", sizeof( struct buffer ) * nb_workers, RTE_CACHE_LINE_SIZE );
 
-	const uint64_t start_cycles = rte_rdtsc();
 	uint16_t worker_id;
+	const uint64_t start_cycles = rte_rdtsc();
+
 
 	/* Run until the distributor received a null packet. */
 	while ( likely( is_continuous )) {
+
+		//timestamp of a packet is the moment we retrieve it from buffer of DPDK
+		//on Intel® Xeon® Processor E5-2699 v4 (55M Cache, 2.20 GHz), this function takes ~17 ns
+		//see: test/perf/gettimeofday.c
+		gettimeofday( &time_now, NULL );
 
 		//for each worker (and also each input queue)
 		for( worker_id=0; worker_id<nb_workers; worker_id++ ){
@@ -317,15 +327,13 @@ static int _reader_thread( void *arg ){
 
 			struct rte_mbuf **packets = buffers[worker_id].packets;
 
-			unsigned nb_rx = rte_eth_rx_burst( input_port, input_queue,
-					packets + buffers[ worker_id ].size,
+			//receive packets from RX queue and append them to buffer of worker
+			unsigned nb_rx = rte_eth_rx_burst( input_port,
+					input_queue,
+					packets + buffers[ worker_id ].packets_count,
 					READER_BURST_SIZE );
 
 			if( unlikely( nb_rx == 0 )){
-				//we need a small pause here -> reader_thread can easily to insert packet to queue
-				//at 14Mpps -> 1 packet consumes ~215 cycles (~67 ns)
-				//=> sleep 20 packets
-				//			_pause( 20*215 );
 				continue;
 			} else {
 
@@ -333,44 +341,38 @@ static int _reader_thread( void *arg ){
 					nb_full_nic ++;
 
 				//increase the number of packets in a buffer of i-th worker
-				buffers[worker_id].size += nb_rx;
+				buffers[worker_id].packets_count += nb_rx;
+
+				//remember the moment received packets
+				for (i = 0; i < nb_rx; i++){
+					// we remember the moment the packet is received
+					struct timeval64 *t = ( struct timeval64 * )& packets[i]->udata64;
+					t->tv_sec = time_now.tv_sec;
+					//suppose that each packet arrives after one microsecond
+					t->tv_usec = time_now.tv_usec + i;
+
+					//cumulate total data this reader received
+					buffers[worker_id].bytes_count += packets[i]->data_len;
+				}
+
+
 				//total number of packets are in buffer of i-th worker
-				unsigned nb_pkts = buffers[worker_id].size;
-
-
-				//timestamp of a packet is the moment we retrieve it from buffer of DPDK
-				//on Intel® Xeon® Processor E5-2699 v4 (55M Cache, 2.20 GHz), this function takes ~17 ns
-				gettimeofday( &time_now, NULL );
+				unsigned nb_pkts = buffers[worker_id].packets_count;
+				//timestamp of the first packet in the buffer of worker_id
+				struct timeval64 *t = ( struct timeval64 * )& buffers[worker_id].packets[0]->udata64;
+				uint32_t timestamp_of_first_packet = t->tv_sec;
 
 				if( nb_pkts >= READER_DRAIN_THRESH
-						//drain each second
-						|| time_now.tv_sec != last_drain_moment ){
-
-					//remember this moment
-					last_drain_moment = time_now.tv_sec;
-
+						//when interval between the first packet and the last one >= 1 second
+						// => drain each second
+						|| time_now.tv_sec != timestamp_of_first_packet ){
 
 					//TODO: this block is for testing only
-					//			{
-					//			for (i = 0; i < nb_rx; i++)
-					//				rte_pktmbuf_free( packets[ i ] );
-					//			nb_rx = 0;
-					//			}
-
-
-					uint64_t received_bytes = 0;
-					//for each received packet,
-					for (i = 0; i < nb_pkts; i++){
-						// we remember the moment the packet is received
-						struct timeval64 *t = ( struct timeval64 * )& packets[i]->udata64;
-						t->tv_sec = time_now.tv_sec;
-						//suppose that each packet arrives after one microsecond
-						t->tv_usec = time_now.tv_usec + i;
-
-						//cumulate total data this reader received
-						received_bytes += packets[i]->data_len;
-
-					}
+					//	{
+					//	for (i = 0; i < nb_rx; i++)
+					//		rte_pktmbuf_free( packets[ i ] );
+					//	nb_rx = 0;
+					//	}
 
 
 					uint64_t pkt_dropped = 0, bytes_dropped = 0;
@@ -379,6 +381,7 @@ static int _reader_thread( void *arg ){
 							(void *) packets, nb_pkts, NULL );
 
 					//worker's ring is full ??
+					//=> we need to free the packets that has not been enqueued
 					if( unlikely( sent < nb_pkts )){
 						//cumulate total number of packets being dropped
 						pkt_dropped += nb_pkts - sent;
@@ -403,10 +406,11 @@ static int _reader_thread( void *arg ){
 
 					//total received packets
 					rte_atomic64_add( & param->stat_received.packets, nb_pkts );
-					rte_atomic64_add( & param->stat_received.bytes,   received_bytes );
+					rte_atomic64_add( & param->stat_received.bytes,   buffers[ worker_id ].bytes_count );
 
 					//reset buffer
-					buffers[worker_id].size = 0;
+					buffers[worker_id].packets_count = 0;
+					buffers[worker_id].bytes_count   = 0;
 				}
 			}
 		}
