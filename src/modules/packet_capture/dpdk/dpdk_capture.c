@@ -45,7 +45,7 @@
 #define RX_DESCRIPTORS           4096  // Number of RX descriptors of a NIC queue
 
 #define READER_BURST_SIZE          32  /* Burst size to receive packets from RX ring */
-#define READER_DRAIN_THRESH   	  256  ////threshold to push pkt to distributor's ring
+#define READER_DRAIN_THRESH   	  512  ////threshold to push pkt to distributor's ring
 
 #define WORKER_BURST_SIZE          64
 
@@ -102,7 +102,7 @@ static const struct rte_eth_rxconf rx_default_conf = {
 				.hthresh = 8,   /* Ring host threshold */
 				.wthresh = 4    /* Ring writeback threshold */
 		},
-		.rx_free_thresh = 8,    /* free RX descriptors */
+		.rx_free_thresh = 4,    /* free RX descriptors */
 		.rx_drop_en     = 1      /* Drop packets if no descriptors are available.*/
 };
 
@@ -219,7 +219,7 @@ static int _worker_thread( void *arg ){
 			rte_prefetch_non_temporal((void *)packets[2]);
 
 			for (i = 0; i < nb_rx; i++){
-				//prefetch
+				//prefetch in advance 3 elements
 				rte_prefetch_non_temporal((void *)packets[ i + 3 ]);
 
 				pkt_header.len         = packets[i]->pkt_len;
@@ -495,11 +495,12 @@ static inline void _port_init( int input_port, probe_context_t *context, uint16_
 		;
 
 		//get the next power of 2
-		unsigned val = 1;
-		while( val <= nb_pktmbuf )
-			val *= 2;
+		//unsigned val = 1;
+		//while( val <= nb_pktmbuf )
+		//	val *= 2;
 		//optimal number : 2^n-1
-		nb_pktmbuf = val - 1;
+		//nb_pktmbuf = val - 1;
+		nb_pktmbuf += 10;
 
 		log_write( LOG_INFO, "Set a mempool for queue %d of port %d containing %u packets, cach size: %d",
 				reader_id, input_port,
@@ -585,7 +586,7 @@ static inline void _dpdk_capture_release( probe_context_t *context ){
 }
 
 void dpdk_capture_start ( probe_context_t *context){
-
+	char name[100];
 	const unsigned total_of_cores   = rte_lcore_count();
 	const uint16_t total_nb_workers = context->config->thread->thread_count;
 	int i, ret;
@@ -725,7 +726,18 @@ void dpdk_capture_start ( probe_context_t *context){
 				bytes_received   += rte_atomic64_read( & p->stat_received.bytes );
 				packets_dropped  += rte_atomic64_read( & p->stat_dropped.packets );
 				bytes_dropped    += rte_atomic64_read( & p->stat_dropped.bytes );
+
+
+				snprintf( name, sizeof( name), "pool_%d_%d", input_port, reader_index);
+				struct rte_mempool *mempool = rte_mempool_lookup( name );
+				printf("\nmempool_%d_%d: use %8u, avail: %8u\n",
+						input_port,
+						reader_index,
+						rte_mempool_in_use_count( mempool ),
+						rte_mempool_avail_count( mempool ) );
 			}
+
+
 		}
 		//update global statistic
 		context->traffic_stat.mmt.packets.receive = packets_received;
