@@ -75,16 +75,18 @@ struct _stat{
 };
 
 //input parameter of reader and distributor threads
-struct param{
+struct reader_param{
 	struct rte_ring  **worker_rings;     // rings of Workers
 	struct _stat stat_received;
 	struct _stat stat_dropped;
+
+	uint64_t *pkts_dropped; //detail no pkts dropped when they cannot be inserted to workers' rings
 
 	uint8_t nb_workers;
 	uint8_t input_port;
 	uint8_t reader_id;
 
-
+	sem_t semaphore;
 
 }__rte_cache_aligned;
 
@@ -94,6 +96,19 @@ struct timeval64{
 	uint32_t tv_usec;
 };
 
+static inline void _timeval_to_uint64( uint64_t *val, const struct timeval *time ){
+	struct timeval64 *p = (struct timeval64* )val;
+	p->tv_sec  = time->tv_sec;
+	p->tv_usec = time->tv_usec;
+}
+
+static inline void _uint64_to_timeval( struct timeval *time, const uint64_t *val ){
+	struct timeval64 *p = (struct timeval64* )val;
+	time->tv_sec = p->tv_sec;
+	time->tv_usec = p->tv_usec;
+	if( p->tv_sec == 0 && p->tv_usec == 0 )
+		printf("mistake\n");
+}
 
 /* RX configuration struct */
 static const struct rte_eth_rxconf rx_default_conf = {
@@ -225,9 +240,7 @@ static int _worker_thread( void *arg ){
 				pkt_header.len         = packets[i]->pkt_len;
 				pkt_header.caplen      = packets[i]->data_len;
 				//decode timestamp
-				struct timeval64 *t   = (struct timeval64 *) & packets[i]->udata64;
-				pkt_header.ts.tv_sec  = t->tv_sec;
-				pkt_header.ts.tv_usec = t->tv_usec;
+				_uint64_to_timeval( & pkt_header.ts, & packets[i]->udata64 );
 
 				//get packet data
 				pkt_data = (packets[i]->buf_addr + packets[i]->data_off);
@@ -275,7 +288,7 @@ static volatile bool is_continuous = true;
 
 static int _reader_thread( void *arg ){
 	int i;
-	struct param *param = (struct param *) arg;
+	struct reader_param *param = (struct reader_param *) arg;
 
 	struct rte_ring **worker_rings = param->worker_rings;
 	const uint16_t nb_workers      = param->nb_workers;
@@ -346,10 +359,10 @@ static int _reader_thread( void *arg ){
 				//remember the moment received packets
 				for (i = 0; i < nb_rx; i++){
 					// we remember the moment the packet is received
-					struct timeval64 *t = ( struct timeval64 * )& packets[i]->udata64;
-					t->tv_sec = time_now.tv_sec;
+					_timeval_to_uint64( & packets[i]->udata64, &time_now );
+
 					//suppose that each packet arrives after one microsecond
-					t->tv_usec = time_now.tv_usec + i;
+					time_now.tv_usec ++;
 
 					//cumulate total data this reader received
 					buffers[worker_id].bytes_count += packets[i]->data_len;
@@ -402,6 +415,9 @@ static int _reader_thread( void *arg ){
 						//update stats about dropped packets and bytes
 						rte_atomic64_add( & param->stat_dropped.packets,  pkt_dropped );
 						rte_atomic64_add( & param->stat_dropped.bytes,    bytes_dropped );
+
+						//update number of packets being dropped by this worker
+						param->pkts_dropped[ worker_id ] += pkt_dropped;
 					}
 
 					//total received packets
@@ -449,6 +465,9 @@ static int _reader_thread( void *arg ){
 
 	rte_free( buffers );
 
+	//finish, wake up the main thread
+	sem_post( &param->semaphore );
+
 	return 0;
 }
 
@@ -457,7 +476,7 @@ static int _reader_thread( void *arg ){
  * Initializes a given port using global settings and with the RX buffers
  * coming from the mbuf_pool passed as a parameter.
  */
-static inline void _port_init( int input_port, probe_context_t *context, uint16_t nb_workers, struct param *param ){
+static inline void _port_init( int input_port, probe_context_t *context, uint16_t nb_workers, struct reader_param *param ){
 	int i;
 	char name[100];
 	unsigned socket_id = rte_eth_dev_socket_id( input_port );
@@ -616,7 +635,7 @@ void dpdk_capture_start ( probe_context_t *context){
 				"enough cores to run this application. It needs at least %d lcores",
 				need_of_cores);
 
-	struct param param[ RTE_MAX_ETHPORTS ][ NB_READERS_PER_PORT ];
+	struct reader_param reader_context[ RTE_MAX_ETHPORTS ][ NB_READERS_PER_PORT ];
 	const uint8_t nb_workers_per_port = total_nb_workers / nb_ports;
 	context->smp = mmt_alloc( sizeof( worker_context_t *) *  total_nb_workers);
 
@@ -630,7 +649,7 @@ void dpdk_capture_start ( probe_context_t *context){
 	for( port_index=0; port_index<nb_ports; port_index++ ){
 		int input_port = input_ports[port_index];
 
-		struct param *p = param[port_index];
+		struct reader_param *p = reader_context[port_index];
 		// Initialize input port
 		_port_init( input_port, context, nb_workers_per_port, p );
 
@@ -677,7 +696,13 @@ void dpdk_capture_start ( probe_context_t *context){
 			//ensure that reader and distributor run on 2 different lcores
 			lcore_id = rte_get_next_lcore( lcore_id, true, true );
 
-			ret = rte_eal_remote_launch( _reader_thread, &param[port_index][reader_index], lcore_id );
+			struct reader_param *p = &reader_context[port_index][reader_index];
+
+			sem_init( &p->semaphore, 0, 0 );
+			p->pkts_dropped = rte_zmalloc( "pkt dropped by each worker",
+					sizeof( uint64_t ) * p->nb_workers, RTE_CACHE_LINE_SIZE  );
+
+			ret = rte_eal_remote_launch( _reader_thread, p, lcore_id );
 
 			if( ret != 0 )
 				rte_exit_failure("Cannot start reader %d of port %d.", reader_index, port_index);
@@ -720,7 +745,7 @@ void dpdk_capture_start ( probe_context_t *context){
 
 			//for each reader
 			for( reader_index=0; reader_index<NB_READERS_PER_PORT; reader_index++ ){
-				struct param *p = & param[port_index][reader_index];
+				struct reader_param *p = & reader_context[port_index][reader_index];
 
 				packets_received += rte_atomic64_read( & p->stat_received.packets );
 				bytes_received   += rte_atomic64_read( & p->stat_received.bytes );
@@ -737,7 +762,6 @@ void dpdk_capture_start ( probe_context_t *context){
 						rte_mempool_avail_count( mempool ) );
 			}
 
-
 		}
 		//update global statistic
 		context->traffic_stat.mmt.packets.receive = packets_received;
@@ -752,12 +776,37 @@ void dpdk_capture_start ( probe_context_t *context){
 	printf("\n");
 	//tell readers to exit
 	is_continuous = false;
+	// Waiting for all readers finish their jobs
+	for( port_index=0; port_index<nb_ports; port_index++ )
+		for( reader_index=0; reader_index < NB_READERS_PER_PORT; reader_index++ )
+			sem_wait( & reader_context[port_index][reader_index].semaphore );
+
+	//====> all readers finish
+
+
 
 	// Waiting for all workers finish their jobs
 	for( worker_index=0; worker_index < total_nb_workers; worker_index++ )
 		sem_wait( & context->smp[worker_index]->dpdk->semaphore );
 
 	//====> all readers and workers have been stopped <====//
+
+	//update number of packets being dropped by Readers when its cannot be inserted into worker's rings
+	// as the rings are full
+	for( port_index=0; port_index<nb_ports; port_index++ )
+		for( reader_index=0; reader_index < NB_READERS_PER_PORT; reader_index++ ){
+			struct reader_param *p =  & reader_context[port_index][reader_index];
+
+			//find worker by its ring address
+			for( i=0; i<p->nb_workers; i++ )
+				for( worker_index=0; worker_index<total_nb_workers; worker_index ++ ){
+					if( context->smp[worker_index]->dpdk->ring == p->worker_rings[i] ){
+						context->smp[worker_index]->stat.pkt_dropped = p->pkts_dropped[i];
+						break;             //exit for worker_index
+					}
+				}
+		}
+
 
 	//statistic of each worker
 	worker_print_common_statistics( context );

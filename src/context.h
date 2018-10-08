@@ -91,9 +91,11 @@ static inline void context_print_traffic_stat( const probe_context_t *context, c
 	output_flush( context->output );
 
 
-	log_write_dual( LOG_INFO, "%s %% NIC dropped: %.4f", message,
+	log_write_dual( LOG_INFO, "%s %% dropped by NIC %.4f, by MMT %.4f", message,
 			context->traffic_stat.nic.receive == 0? 0 :
-					(context->traffic_stat.nic.drop * 100.0 / context->traffic_stat.nic.receive )
+					(context->traffic_stat.nic.drop * 100.0 / context->traffic_stat.nic.receive ),
+			context->traffic_stat.nic.receive == 0? 0 :
+								(context->traffic_stat.mmt.packets.drop * 100.0 / context->traffic_stat.nic.receive )
 	 );
 }
 
