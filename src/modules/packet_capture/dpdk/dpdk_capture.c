@@ -91,24 +91,6 @@ struct reader_param{
 }__rte_cache_aligned;
 
 
-struct timeval64{
-	uint32_t tv_sec;
-	uint32_t tv_usec;
-};
-
-static inline void _timeval_to_uint64( uint64_t *val, const struct timeval *time ){
-	struct timeval64 *p = (struct timeval64* )val;
-	p->tv_sec  = time->tv_sec;
-	p->tv_usec = time->tv_usec;
-}
-
-static inline void _uint64_to_timeval( struct timeval *time, const uint64_t *val ){
-	struct timeval64 *p = (struct timeval64* )val;
-	time->tv_sec = p->tv_sec;
-	time->tv_usec = p->tv_usec;
-	if( p->tv_sec == 0 && p->tv_usec == 0 )
-		printf("mistake\n");
-}
 
 /* RX configuration struct */
 static const struct rte_eth_rxconf rx_default_conf = {
@@ -150,6 +132,33 @@ static inline void _pause( uint16_t cycles ){
 
 	while (rte_rdtsc() < t)
 		rte_pause();
+}
+
+
+/**
+ * Encode a timeval to a number of 8bytes
+ */
+static inline uint64_t _timeval_to_uint64( const struct timeval *time ){
+	uint64_t val = (time->tv_usec & 0xFFFFFFFF) | ( (uint64_t)time->tv_sec << 32 );
+	return val;
+}
+
+/**
+ * Decode a number of 8bytes to a timeval
+ */
+static inline void _uint64_to_timeval( struct timeval *time, uint64_t val ){
+	time->tv_sec  = val >> 32;
+	time->tv_usec = val & 0xFFFFFFFF;
+
+//	if( time->tv_sec == 0 && time->tv_usec == 0 )
+//		printf(".");
+}
+
+/**
+ * Get the 4 highest bytes from a number of 8bytes
+ */
+static inline uint32_t _tv_sec_from_uint64( uint64_t val ){
+	return (val >> 32);
 }
 
 
@@ -240,7 +249,7 @@ static int _worker_thread( void *arg ){
 				pkt_header.len         = packets[i]->pkt_len;
 				pkt_header.caplen      = packets[i]->data_len;
 				//decode timestamp
-				_uint64_to_timeval( & pkt_header.ts, & packets[i]->udata64 );
+				_uint64_to_timeval( & pkt_header.ts, packets[i]->udata64 );
 
 				//get packet data
 				pkt_data = (packets[i]->buf_addr + packets[i]->data_off);
@@ -338,12 +347,13 @@ static int _reader_thread( void *arg ){
 		for( worker_id=0; worker_id<nb_workers; worker_id++ ){
 			uint16_t input_queue = input_queue_begin + worker_id;
 
-			struct rte_mbuf **packets = buffers[worker_id].packets;
+			//take the available part
+			struct rte_mbuf **packets = buffers[worker_id].packets  + buffers[worker_id].packets_count;
 
 			//receive packets from RX queue and append them to buffer of worker
 			unsigned nb_rx = rte_eth_rx_burst( input_port,
 					input_queue,
-					packets + buffers[ worker_id ].packets_count,
+					packets,
 					READER_BURST_SIZE );
 
 			if( unlikely( nb_rx == 0 )){
@@ -359,7 +369,7 @@ static int _reader_thread( void *arg ){
 				//remember the moment received packets
 				for (i = 0; i < nb_rx; i++){
 					// we remember the moment the packet is received
-					_timeval_to_uint64( & packets[i]->udata64, &time_now );
+					packets[i]->udata64 = _timeval_to_uint64( &time_now );
 
 					//suppose that each packet arrives after one microsecond
 					time_now.tv_usec ++;
@@ -372,11 +382,13 @@ static int _reader_thread( void *arg ){
 				//total number of packets are in buffer of i-th worker
 				unsigned nb_pkts = buffers[worker_id].packets_count;
 				//timestamp of the first packet in the buffer of worker_id
-				struct timeval64 *t = ( struct timeval64 * )& buffers[worker_id].packets[0]->udata64;
-				uint32_t timestamp_of_first_packet = t->tv_sec;
+				uint32_t timestamp_of_first_packet = _tv_sec_from_uint64( buffers[worker_id].packets[0]->udata64 );
 
+				//for each worker, we flush the buffer to its ring when
+				// - either the buffer size >= READER_DRAIN_THRESH
+				// - or each one second
 				if( nb_pkts >= READER_DRAIN_THRESH
-						//when interval between the first packet and the last one >= 1 second
+						//when interval between the first packet and now >= 1 second
 						// => drain each second
 						|| time_now.tv_sec != timestamp_of_first_packet ){
 
@@ -391,7 +403,7 @@ static int _reader_thread( void *arg ){
 					uint64_t pkt_dropped = 0, bytes_dropped = 0;
 					//push buffers to workers by enqueueing them into workers' rings
 					unsigned sent = rte_ring_sp_enqueue_burst( worker_rings[worker_id],
-							(void *) packets, nb_pkts, NULL );
+							(void *) buffers[worker_id].packets, nb_pkts, NULL );
 
 					//worker's ring is full ??
 					//=> we need to free the packets that has not been enqueued
@@ -401,22 +413,20 @@ static int _reader_thread( void *arg ){
 
 						do{
 							//store number of bytes being dropped
-							bytes_dropped += packets[ sent ]->data_len;
+							bytes_dropped += buffers[worker_id].packets[ sent ]->data_len;
 
 							//when a mbuf has not been sent, we need to free it
-							rte_pktmbuf_free( packets[ sent ] );
+							rte_pktmbuf_free( buffers[worker_id].packets[ sent ] );
 
 							sent ++;
 						}while( sent < nb_pkts );
-
-						//update stats
-						//probe_context->smp[i]->stat.pkt_dropped += pkt_dropped;
 
 						//update stats about dropped packets and bytes
 						rte_atomic64_add( & param->stat_dropped.packets,  pkt_dropped );
 						rte_atomic64_add( & param->stat_dropped.bytes,    bytes_dropped );
 
 						//update number of packets being dropped by this worker
+						//probe_context->smp[i]->stat.pkt_dropped += pkt_dropped;
 						param->pkts_dropped[ worker_id ] += pkt_dropped;
 					}
 
@@ -753,13 +763,13 @@ void dpdk_capture_start ( probe_context_t *context){
 				bytes_dropped    += rte_atomic64_read( & p->stat_dropped.bytes );
 
 
-				snprintf( name, sizeof( name), "pool_%d_%d", input_port, reader_index);
-				struct rte_mempool *mempool = rte_mempool_lookup( name );
-				printf("\nmempool_%d_%d: use %8u, avail: %8u\n",
-						input_port,
-						reader_index,
-						rte_mempool_in_use_count( mempool ),
-						rte_mempool_avail_count( mempool ) );
+//				snprintf( name, sizeof( name), "pool_%d_%d", input_port, reader_index);
+//				struct rte_mempool *mempool = rte_mempool_lookup( name );
+//				printf("\nmempool_%d_%d: use %8u, avail: %8u\n",
+//						input_port,
+//						reader_index,
+//						rte_mempool_in_use_count( mempool ),
+//						rte_mempool_avail_count( mempool ) );
 			}
 
 		}
@@ -773,7 +783,7 @@ void dpdk_capture_start ( probe_context_t *context){
 	}
 
 
-	printf("\n");
+//	printf("\n");
 	//tell readers to exit
 	is_continuous = false;
 	// Waiting for all readers finish their jobs

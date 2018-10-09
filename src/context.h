@@ -95,7 +95,7 @@ static inline void context_print_traffic_stat( const probe_context_t *context, c
 			context->traffic_stat.nic.receive == 0? 0 :
 					(context->traffic_stat.nic.drop * 100.0 / context->traffic_stat.nic.receive ),
 			context->traffic_stat.nic.receive == 0? 0 :
-								(context->traffic_stat.mmt.packets.drop * 100.0 / context->traffic_stat.nic.receive )
+					(context->traffic_stat.mmt.packets.drop * 100.0 / context->traffic_stat.nic.receive )
 	 );
 }
 
