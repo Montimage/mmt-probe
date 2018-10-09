@@ -74,7 +74,7 @@ struct _stat{
 	rte_atomic64_t bytes;
 };
 
-//input parameter of reader and distributor threads
+//input parameter of reader
 struct reader_param{
 	struct rte_ring  **worker_rings;     // rings of Workers
 	struct _stat stat_received;
@@ -87,7 +87,6 @@ struct reader_param{
 	uint8_t reader_id;
 
 	sem_t semaphore;
-
 }__rte_cache_aligned;
 
 
@@ -360,7 +359,7 @@ static int _reader_thread( void *arg ){
 				continue;
 			} else {
 
-				if( nb_rx == READER_BURST_SIZE )
+				if( unlikely( nb_rx == READER_BURST_SIZE ))
 					nb_full_nic ++;
 
 				//increase the number of packets in a buffer of i-th worker

@@ -25,6 +25,9 @@ sudo service mongod       stop
 sudo service snapd        stop
 sudo service irqbalance   stop
 
+export IRQBALANCE_BANNED_CPUS=0x55555555555
+sudo irqbalance
+
 #get the directory containing this script
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
