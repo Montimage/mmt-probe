@@ -401,32 +401,40 @@ static int _reader_thread( void *arg ){
 
 					uint64_t pkt_dropped = 0, bytes_dropped = 0;
 					//push buffers to workers by enqueueing them into workers' rings
-					unsigned sent = rte_ring_sp_enqueue_burst( worker_rings[worker_id],
+					unsigned sent = rte_ring_sp_enqueue_bulk( worker_rings[worker_id],
 							(void *) buffers[worker_id].packets, nb_pkts, NULL );
 
 					//worker's ring is full ??
 					//=> we need to free the packets that has not been enqueued
 					if( unlikely( sent < nb_pkts )){
-						//cumulate total number of packets being dropped
-						pkt_dropped += nb_pkts - sent;
+						//give another try
+						// since this operation may be fall by occurs of some interrupt
+						sent = rte_ring_sp_enqueue_bulk( worker_rings[worker_id],
+									(void *) buffers[worker_id].packets, nb_pkts, NULL );
 
-						do{
-							//store number of bytes being dropped
-							bytes_dropped += buffers[worker_id].packets[ sent ]->data_len;
+						//ok, now we can conclude that we cannot insert as the worker's ring is full
+						if( unlikely( sent < nb_pkts )){
+							//cumulate total number of packets being dropped
+							pkt_dropped += nb_pkts - sent;
 
-							//when a mbuf has not been sent, we need to free it
-							rte_pktmbuf_free( buffers[worker_id].packets[ sent ] );
+							do{
+								//store number of bytes being dropped
+								bytes_dropped += buffers[worker_id].packets[ sent ]->data_len;
 
-							sent ++;
-						}while( sent < nb_pkts );
+								//when a mbuf has not been sent, we need to free it
+								rte_pktmbuf_free( buffers[worker_id].packets[ sent ] );
 
-						//update stats about dropped packets and bytes
-						rte_atomic64_add( & param->stat_dropped.packets,  pkt_dropped );
-						rte_atomic64_add( & param->stat_dropped.bytes,    bytes_dropped );
+								sent ++;
+							}while( sent < nb_pkts );
 
-						//update number of packets being dropped by this worker
-						//probe_context->smp[i]->stat.pkt_dropped += pkt_dropped;
-						param->pkts_dropped[ worker_id ] += pkt_dropped;
+							//update stats about dropped packets and bytes
+							rte_atomic64_add( & param->stat_dropped.packets,  pkt_dropped );
+							rte_atomic64_add( & param->stat_dropped.bytes,    bytes_dropped );
+
+							//update number of packets being dropped by this worker
+							//probe_context->smp[i]->stat.pkt_dropped += pkt_dropped;
+							param->pkts_dropped[ worker_id ] += pkt_dropped;
+						}
 					}
 
 					//total received packets
