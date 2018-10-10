@@ -68,7 +68,7 @@ do
       #move the oldest file from SRC_FOLDER to DST_FOLDER
       OLDEST=`getOldestPcap $SRC_FOLDER`
       FILESIZE=$(du -h "$OLDEST" | cut -f1)
-      echo $i `date +'%H:%M:%S'` mv $OLDEST ($FILESIZE)
+      echo $i `date +'%H:%M:%S'` $OLDEST $FILESIZE
       mv $OLDEST $DST_FOLDER
       
       #remove the oldest file from $DST_FOLDER if need

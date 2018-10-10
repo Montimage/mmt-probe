@@ -23,7 +23,7 @@
 	"input_mode": "file",
 	"probe_analysis_mode": "online",
 	"pcap_dump": {
-		"folder": "/storage/pcap/",
+		"folder": "/data/pcap/",
 		"interval": 60
 	},
 	"local_network": [
