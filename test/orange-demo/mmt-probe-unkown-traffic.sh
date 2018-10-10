@@ -30,7 +30,7 @@ fi
 #current time
 NOW=`date '+%Y-%m-%d_%H-%M-%S'`
 #folder we put execution logs of the processes (ba, bw, probe, operator, mongodb)
-LOG_IDENT="$DIR/log-probe-unknown-traffic/$NOW/"
+LOG_IDENT="/data/log/log-probe-unknown-traffic/$NOW/"
 
 #create a folder containing log files if need
 if [ ! -d "$LOG_IDENT" ]; then

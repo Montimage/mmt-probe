@@ -28,6 +28,36 @@
 	},
 	"local_network": [
 		{
+			"ip": "192.168.0.0",
+			"mask": "255.255.0.0"
+		},
+		{
+			"ip": "172.16.0.0",
+			"mask": "255.240.0.0"
+		},
+		{
+			"ip": "10.0.0.0",
+			"mask": "255.0.0.0"
+		},
+		{
+			"ip": "fe80::",
+			"mask": "8"
+		},
+		{
+			"ip": "0.0.0.0",
+			"mask": "255.255.255.255"
+		},
+		{
+			"ip": "255.255.255.255",
+			"mask": "255.255.255.255"
+		},
+		{
+			"ip": "127.0.0.1",
+			"mask": "255.255.255.0"
+		}
+	],
+	"_local_network": [
+		{
 			"ip": "143.196.200.0",
 			"mask": "255.255.248.0"
 		},
@@ -232,7 +262,7 @@
 	"retain_detail_report_period": 300,
 	"limit_database_size": 50000000000,
 	"port_number": 80,
-	"log_folder": "/home/mmt/mmt/mmt-operator/",
+	"log_folder": "/data/log/operator/",
 	"is_in_debug_mode": true,
 	"_log": [
 		"error",

@@ -45,7 +45,7 @@
 #define RX_DESCRIPTORS           4096  // Number of RX descriptors of a NIC queue
 
 #define READER_BURST_SIZE          32  /* Burst size to receive packets from RX ring */
-#define READER_DRAIN_THRESH   	  512  ////threshold to push pkt to distributor's ring
+#define READER_DRAIN_THRESH   	  256  ////threshold to push pkt to distributor's ring
 
 #define WORKER_BURST_SIZE          64
 
@@ -134,20 +134,38 @@ static inline void _pause( uint16_t cycles ){
 }
 
 
+struct timeval64{
+	union{
+		uint64_t val;
+		struct{
+			uint32_t tv_sec;
+			uint32_t tv_usec;
+		};
+	};
+};
+
 /**
  * Encode a timeval to a number of 8bytes
  */
 static inline uint64_t _timeval_to_uint64( const struct timeval *time ){
-	uint64_t val = (time->tv_usec & 0xFFFFFFFF) | ( (uint64_t)time->tv_sec << 32 );
-	return val;
+	//uint64_t val = (time->tv_usec & 0xFFFFFFFF) | ( (uint64_t)time->tv_sec << 32 );
+	//return val;
+	struct timeval64 t;
+	t.tv_sec  = time->tv_sec;
+	t.tv_usec = time->tv_usec;
+	return t.val;
 }
 
 /**
  * Decode a number of 8bytes to a timeval
  */
 static inline void _uint64_to_timeval( struct timeval *time, uint64_t val ){
-	time->tv_sec  = val >> 32;
-	time->tv_usec = val & 0xFFFFFFFF;
+	//time->tv_sec  = val >> 32;
+	//time->tv_usec = val & 0xFFFFFFFF;
+	struct timeval64 t;
+	t.val = val;
+	time->tv_sec  = t.tv_sec;
+	time->tv_usec = t.tv_usec;
 
 //	if( time->tv_sec == 0 && time->tv_usec == 0 )
 //		printf(".");
@@ -157,7 +175,10 @@ static inline void _uint64_to_timeval( struct timeval *time, uint64_t val ){
  * Get the 4 highest bytes from a number of 8bytes
  */
 static inline uint32_t _tv_sec_from_uint64( uint64_t val ){
-	return (val >> 32);
+	//return (val >> 32);
+	struct timeval64 t;
+	t.val = val;
+	return t.tv_sec;
 }
 
 
@@ -371,7 +392,7 @@ static int _reader_thread( void *arg ){
 					packets[i]->udata64 = _timeval_to_uint64( &time_now );
 
 					//suppose that each packet arrives after one microsecond
-					time_now.tv_usec ++;
+					//time_now.tv_usec ++;
 
 					//cumulate total data this reader received
 					buffers[worker_id].bytes_count += packets[i]->data_len;
@@ -391,17 +412,10 @@ static int _reader_thread( void *arg ){
 						// => drain each second
 						|| time_now.tv_sec != timestamp_of_first_packet ){
 
-					//TODO: this block is for testing only
-					//	{
-					//	for (i = 0; i < nb_rx; i++)
-					//		rte_pktmbuf_free( packets[ i ] );
-					//	nb_rx = 0;
-					//	}
-
 
 					uint64_t pkt_dropped = 0, bytes_dropped = 0;
 					//push buffers to workers by enqueueing them into workers' rings
-					unsigned sent = rte_ring_sp_enqueue_bulk( worker_rings[worker_id],
+					unsigned sent = rte_ring_sp_enqueue_burst( worker_rings[worker_id],
 							(void *) buffers[worker_id].packets, nb_pkts, NULL );
 
 					//worker's ring is full ??
@@ -409,8 +423,8 @@ static int _reader_thread( void *arg ){
 					if( unlikely( sent < nb_pkts )){
 						//give another try
 						// since this operation may be fall by occurs of some interrupt
-						sent = rte_ring_sp_enqueue_bulk( worker_rings[worker_id],
-									(void *) buffers[worker_id].packets, nb_pkts, NULL );
+						sent += rte_ring_sp_enqueue_burst( worker_rings[worker_id],
+									(void *) buffers[worker_id].packets + sent, nb_pkts - sent, NULL );
 
 						//ok, now we can conclude that we cannot insert as the worker's ring is full
 						if( unlikely( sent < nb_pkts )){
@@ -626,6 +640,11 @@ void dpdk_capture_start ( probe_context_t *context){
 	const unsigned total_of_cores   = rte_lcore_count();
 	const uint16_t total_nb_workers = context->config->thread->thread_count;
 	int i, ret;
+
+	//check size of
+	if( sizeof( struct timeval64 ) != sizeof( uint64_t ) ){
+		rte_exit_failure("The system does not support encapsulate timeval to uint64_t");
+	}
 
 	char *input_port_names[ RTE_MAX_ETHPORTS ];
 	const unsigned nb_ports = string_split( context->config->input->input_source, ",", input_port_names, RTE_MAX_ETHPORTS );

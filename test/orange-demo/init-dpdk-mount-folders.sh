@@ -78,3 +78,6 @@ $mountRAM "/opt/mmt/probe/result/report/online" 5G
 $mountRAM "/opt/mmt/probe/result/behaviour/online" 5G 
 #pcap files
 $mountRAM "/opt/mmt/probe/pcap" 50G 
+
+#create folder containing execution log
+mkdir -p /data/log/operator/ 2>&1
