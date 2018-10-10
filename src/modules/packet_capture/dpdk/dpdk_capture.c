@@ -35,6 +35,7 @@
 
 #include <signal.h>
 #include <unistd.h> //alarm
+#include <time.h>
 
 #include "dpdk_capture.h"
 
@@ -139,7 +140,7 @@ struct timeval64{
 		uint64_t val;
 		struct{
 			uint32_t tv_sec;
-			uint32_t tv_usec;
+			uint32_t tv_nsec;
 		};
 	};
 };
@@ -147,12 +148,12 @@ struct timeval64{
 /**
  * Encode a timeval to a number of 8bytes
  */
-static inline uint64_t _timeval_to_uint64( const struct timeval *time ){
+static inline uint64_t _time_to_uint64( const struct timespec *time ){
 	//uint64_t val = (time->tv_usec & 0xFFFFFFFF) | ( (uint64_t)time->tv_sec << 32 );
 	//return val;
 	struct timeval64 t;
 	t.tv_sec  = time->tv_sec;
-	t.tv_usec = time->tv_usec;
+	t.tv_nsec = time->tv_nsec;
 	return t.val;
 }
 
@@ -165,7 +166,7 @@ static inline void _uint64_to_timeval( struct timeval *time, uint64_t val ){
 	struct timeval64 t;
 	t.val = val;
 	time->tv_sec  = t.tv_sec;
-	time->tv_usec = t.tv_usec;
+	time->tv_usec = t.tv_nsec / 1000;
 
 //	if( time->tv_sec == 0 && time->tv_usec == 0 )
 //		printf(".");
@@ -246,10 +247,10 @@ static int _worker_thread( void *arg ){
 
 		if( unlikely( nb_rx == 0 )){
 			//we need a small pause here -> reader_thread can easily to insert packet to queue
-			//at 14Mpps -> 1 packet consumes ~67 ns (~215 cycles)
-			//=> sleep 50 packets
-			//_pause( 32*215 );
-			_pause( 6000 );
+			//at 14Mpps -> 1 packet consumes ~67 ns (~67*2.2 cycles) (CPU 2.2Ghz)
+			//=> sleep 35 packets
+			//_pause( 35*2.2*67 );
+			_pause( 5000 );
 		}else {
 
 			//last packet is special one to tell worker exist
@@ -325,7 +326,8 @@ static int _reader_thread( void *arg ){
 	const uint8_t input_port = param->input_port;
 	const uint8_t input_queue_begin = param->reader_id * nb_workers;
 
-	struct timeval time_now __rte_cache_aligned; //to get the current timestamp
+	//struct timeval time_now __rte_cache_aligned; //to get the current timestamp
+	struct timespec time_now __rte_cache_aligned; //to get the current timestamp
 
 	struct buffer{
 		uint32_t packets_count;
@@ -359,9 +361,13 @@ static int _reader_thread( void *arg ){
 	while ( likely( is_continuous )) {
 
 		//timestamp of a packet is the moment we retrieve it from buffer of DPDK
-		//on Intel® Xeon® Processor E5-2699 v4 (55M Cache, 2.20 GHz), this function takes ~17 ns
+		//on Intel® Xeon® Processor E5-2699 v4 (55M Cache, 2.20 GHz),
+		// this function takes ~27 ns ( ~ 27*2.2 = 60 cycles)
 		//see: test/perf/gettimeofday.c
-		gettimeofday( &time_now, NULL );
+		//gettimeofday( &time_now, NULL );
+
+		//faster: 8 ns
+		clock_gettime( CLOCK_REALTIME_COARSE, &time_now );
 
 		//for each worker (and also each input queue)
 		for( worker_id=0; worker_id<nb_workers; worker_id++ ){
@@ -389,7 +395,7 @@ static int _reader_thread( void *arg ){
 				//remember the moment received packets
 				for (i = 0; i < nb_rx; i++){
 					// we remember the moment the packet is received
-					packets[i]->udata64 = _timeval_to_uint64( &time_now );
+					packets[i]->udata64 = _time_to_uint64( &time_now );
 
 					//suppose that each packet arrives after one microsecond
 					//time_now.tv_usec ++;
@@ -410,7 +416,7 @@ static int _reader_thread( void *arg ){
 				if( nb_pkts >= READER_DRAIN_THRESH
 						//when interval between the first packet and now >= 1 second
 						// => drain each second
-						|| time_now.tv_sec != timestamp_of_first_packet ){
+						|| time_now.tv_sec > timestamp_of_first_packet ){
 
 
 					uint64_t pkt_dropped = 0, bytes_dropped = 0;
