@@ -1,16 +1,12 @@
 #!/bin/bash
 
-#This script starts MMT-Probe to dump unknown traffic to pcap files
-# and MMT-Operator to see the result 
+# This script starts MMT-Probe for traffic classification
+#   and MMT-Operator to view the results
 
 if [ "$(id -u)" != "0" ]; then
    echo "This script must be run as root" 1>&2
    exit 1
 fi
-
-
-#this folder storages pcap files
-PCAP_STORAGE_FOLDER="/data/pcap"
 
 
 #get the directory containing this script
@@ -30,7 +26,7 @@ fi
 #current time
 NOW=`date '+%Y-%m-%d_%H-%M-%S'`
 #folder we put execution logs of the processes (ba, bw, probe, operator, mongodb)
-LOG_IDENT="/data/log/log-probe-unknown-traffic/$NOW/"
+LOG_IDENT="/data/log/log-classification/$NOW/"
 
 #create a folder containing log files if need
 if [ ! -d "$LOG_IDENT" ]; then
@@ -57,7 +53,7 @@ trap 'echo "Ignore this signal"' SIGINT SIGTERM
 
 
 #0. MongoDB
-DB_PATH=/data/database/mmt-probe-unknown-traffic
+DB_PATH=/data/database/mmt-classification
 mkdir -p $DB_PATH
 #stop the current mongodb
 sudo service mongod stop
@@ -74,21 +70,13 @@ cd $MMT_DIR/mmt-operator/www
 
 #2. MMT-Probe
 cd $MMT_DIR/mmt-probe
-( $FOREVER ${LOG_IDENT}probe ./probe -c $DIR/conf/probe.conf -Xdump-pcap.enable=true )&
-
-
-#3. Sync pcap files from a RAM folder to a disk folder
-# to increase the performance, Probe does not dump directly packets to disk, but to a RAM-mounted folder
-# This script will sync by burst the pcap files from the RAM-folder to a disk-folder
-#this folder is mounted to RAM and receives directly packets from Probe
-PCAP_RAM_FOLDER="/opt/mmt/probe/pcap"
+( $FOREVER ${LOG_IDENT}probe ./probe -c $DIR/conf/probe.conf )&
 
 
 #loop until the PID_FILE is removed
 while [ -f $PID_FILE ];
 do 
-   $DIR/utils/mv-pcap-files.sh $PCAP_RAM_FOLDER $PCAP_STORAGE_FOLDER 16
-   sleep 1
+   sleep 5
 done
 
 echo "Stop MMT"
@@ -97,16 +85,8 @@ echo "Stop MMT"
 stop ${LOG_IDENT}/probe
 stop ${LOG_IDENT}/operator
 stop ${LOG_IDENT}/mongodb
+
 wait
-
-#move the rest pcap files to disk
-for i in $PCAP_RAM_FOLDER/* ;
-do
-   mv $i $PCAP_STORAGE_FOLDER &
-done
-wait
-
-
 
 echo "Bye"
 

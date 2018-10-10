@@ -18,11 +18,15 @@ if [[ -z "$RTE_SDK" ]]; then
 fi
 
 #who is using this?
-sudo service php7.0-fpm stop
-#sudo service postgresql stop
+sudo service php7.0-fpm   stop
+#sudo service postgresql  stop
 sudo service redis-server stop
-sudo service snapd stop
-sudo service irqbalance stop
+sudo service mongod       stop
+sudo service snapd        stop
+sudo service irqbalance   stop
+
+export IRQBALANCE_BANNED_CPUS=0x55555555555
+sudo irqbalance
 
 #get the directory containing this script
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
@@ -74,3 +78,6 @@ $mountRAM "/opt/mmt/probe/result/report/online" 5G
 $mountRAM "/opt/mmt/probe/result/behaviour/online" 5G 
 #pcap files
 $mountRAM "/opt/mmt/probe/pcap" 50G 
+
+#create folder containing execution log
+mkdir -p /data/log/operator/ 2>&1

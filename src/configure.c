@@ -1031,6 +1031,10 @@ int conf_validate( probe_conf_t *conf ){
 		log_write(LOG_ERR, "thread-nb must be greater than 0 in DPDK mode");
 		ret ++;
 	}
+	if( ! is_power_of_two( conf->thread->thread_queue_packet_threshold ) ){
+		log_write(LOG_ERR, "thread-queue must be power of two");
+		ret ++;
+	}
 #endif
 	return ret;
 }

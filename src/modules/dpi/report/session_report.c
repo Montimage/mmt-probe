@@ -75,8 +75,8 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	uint64_t dl_payload = get_session_dl_data_byte_count(dpi_session);
 	uint64_t total_payload = ul_payload + dl_payload;
 
-	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(dpi_session);
-	int proto_id = proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
+	//const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(dpi_session);
+	int proto_id = get_session_protocol_index( dpi_session ); //proto_hierarchy->proto_path[ proto_hierarchy->len - 1 ];
 
 	uint64_t data_transfer_time = 0;
 #ifdef QOS_MODULE

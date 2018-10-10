@@ -22,6 +22,7 @@
  */
 
 #ifdef DO_NOT_USE___DPDK_MODULE
+//#ifdef DPDK_MODULE
 	#include "../modules/packet_capture/dpdk/dpdk_malloc.h"
 
 	#define mmt_alloc(x)               dpdk_malloc( x )
