@@ -25,7 +25,7 @@ fi
 #current time
 NOW=`date '+%Y-%m-%d_%H-%M-%S'`
 #folder we put execution logs of the processes (ba, bw, probe, operator, mongodb)
-LOG_IDENT="$DIR/log-behaviour/$NOW/"
+LOG_IDENT="/data/log/log-behaviour/$NOW/"
 
 #create a folder containing log files if need
 if [ ! -d "$LOG_IDENT" ]; then
