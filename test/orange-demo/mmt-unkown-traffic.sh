@@ -69,7 +69,7 @@ sleep 10
 
 #1. MMT-Operator
 cd $MMT_DIR/mmt-operator/www
-(  $FOREVER ${LOG_IDENT}operator bin/www --config=$DIR/conf/operator.json )&
+(  $FOREVER ${LOG_IDENT}operator bin/www --config=$DIR/conf/operator-unknown-traffic.json )&
 
 
 #2. MMT-Probe

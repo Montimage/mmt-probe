@@ -78,7 +78,7 @@ cd $MMT_DIR/mmt-behaviour
 
 #3. MMT-Operator
 cd $MMT_DIR/mmt-operator/www
-(  $FOREVER ${LOG_IDENT}operator bin/www --config=$DIR/conf/operator.json )&
+(  $FOREVER ${LOG_IDENT}operator bin/www --config=$DIR/conf/operator-behaviour.json )&
 
 
 sleep 2

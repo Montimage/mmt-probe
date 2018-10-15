@@ -290,8 +290,6 @@
 	"modules": [
 		"link",
 		"dpi",
-		"unknown_flow",
-		"security",
-		"behavior"
+		"unknown_traffic"
 	]
 }
