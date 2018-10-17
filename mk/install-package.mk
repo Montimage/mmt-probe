@@ -24,18 +24,24 @@ SYS_VERSION = $(shell uname -p)
 #name of package files
 PACKAGE_FILE_NAME = mmt-probe_$(VERSION)_$(GIT_VERSION)_$(SYS_NAME)_$(SYS_VERSION)
 ifdef DPDK_CAPTURE
-	PACKAGE_FILE_NAME := $(PACKAGE_FILE_NAME)_dpdk
+  PACKAGE_FILE_NAME := $(PACKAGE_FILE_NAME)_dpdk
 else
-	PACKAGE_FILE_NAME := $(PACKAGE_FILE_NAME)_pcap
+  PACKAGE_FILE_NAME := $(PACKAGE_FILE_NAME)_pcap
 endif
 
 
-#List of packages mmt-probe depends on
-RPM_DEPENDING_PACKAGES := mmt-dpi >= 1.6.13  #for .rpm file
-DEB_DEPENDING_PACKAGES := mmt-dpi (>= 1.6.13)#for .def file
+#List of packages mmt-probe depends on:
+
+#1. When use build using STATIC_LINK, we do not need mmt-dpi package
+ifndef STATIC_LINK
+  RPM_DEPENDING_PACKAGES += mmt-dpi >= 1.6.13  #for .rpm file
+  DEB_DEPENDING_PACKAGES += mmt-dpi (>= 1.6.13)#for .def file
+endif
+
+#2. When security enable => we need mmt-security package
 ifdef SECURITY_MODULE
-	RPM_DEPENDING_PACKAGES += , mmt-security >= 1.2.0
-	DEB_DEPENDING_PACKAGES += , mmt-security (>= 1.2.0)
+  RPM_DEPENDING_PACKAGES += , mmt-security >= 1.2.0
+  DEB_DEPENDING_PACKAGES += , mmt-security (>= 1.2.0)
 endif
 
 #temp folder to contain installed files
