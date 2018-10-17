@@ -62,7 +62,7 @@ $(APP):
 #copy to bin
 	$(QUIET) $(CP) $(APP)           $(TEMP_DIR)/bin/probe
 #configuration file
-	$(QUIET) $(CP) mmt_online.conf  $(TEMP_DIR)/mmt-probe.conf
+	$(QUIET) $(CP) mmt-probe.conf   $(TEMP_DIR)/mmt-probe.conf
 
 #Check if having root permission to install MMT-Probe
 --private-check-root:
