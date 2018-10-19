@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
+#include "../../../lib/inet.h"
 #include "../../../lib/malloc_ext.h"
 #include "session_report.h"
 //we take the second IP in a protocol hierarchy
@@ -157,11 +158,11 @@ int print_gtp_report(char *message, size_t message_size, const mmt_session_t * d
 	if( unlikely( gtp == NULL || session_stat->app_type != SESSION_STAT_TYPE_APP_GTP ))
 		return 0;
 
-	char ip_src_str[46];
-	char ip_dst_str[46];
+	char ip_src_str[INET6_ADDRSTRLEN];
+	char ip_dst_str[INET6_ADDRSTRLEN];
 	if (gtp->ip_version == 4) {
-		inet_ntop(AF_INET, (void *) &gtp->ip_src.ipv4, ip_src_str, INET_ADDRSTRLEN);
-		inet_ntop(AF_INET, (void *) &gtp->ip_dst.ipv4, ip_dst_str, INET_ADDRSTRLEN);
+		inet_ntop4(gtp->ip_src.ipv4, ip_src_str);
+		inet_ntop4(gtp->ip_dst.ipv4, ip_dst_str);
 	} else if(gtp->ip_version == 6) {
 		inet_ntop(AF_INET6, (void *) &gtp->ip_src.ipv6, ip_src_str, INET6_ADDRSTRLEN);
 		inet_ntop(AF_INET6, (void *) &gtp->ip_dst.ipv6, ip_dst_str, INET6_ADDRSTRLEN);
