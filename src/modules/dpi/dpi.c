@@ -288,7 +288,7 @@ void dpi_callback_on_stat_period( dpi_context_t *dpi_context){
 
 	IF_ENABLE_STAT_REPORT_FULL(
 		//do report for no-session protocols
-		no_session_report( dpi_context->no_session_report );
+		no_session_report( dpi_context->no_session_report, dpi_context->stat_periods_index );
 	)
 
 	//push DPI to perform session callback: DPI will call `_period_session_report` for each session its has

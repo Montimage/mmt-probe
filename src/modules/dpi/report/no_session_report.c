@@ -19,6 +19,7 @@
 struct no_session_report_context_struct{
 	mmt_handler_t *dpi_handler;
 	output_t *output;
+	uint32_t report_number;
 	bool is_enable_ip_fragementation_stat;
 	bool is_enable_proto_no_session_stat;
 };
@@ -83,6 +84,7 @@ static void _protocols_stats_iterator(uint32_t proto_id, void * args) {
 		//report the stats instance
 		offset = 0;
 		STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
+				__INT( context->report_number ),
 				__INT( proto_id ),
 				__STR( proto_path_str ),
 				__INT( 0 ), //Nb active flows
@@ -151,9 +153,10 @@ static inline void _report_ip_frag_stat( no_session_report_context_t *context ){
  * @param context
  * @return
  */
-void no_session_report( no_session_report_context_t *context ){
+void no_session_report( no_session_report_context_t *context, uint32_t report_number ){
 	if( context == NULL )
 		return;
+	context->report_number = report_number;
 
 	if( context->is_enable_ip_fragementation_stat ){
 		_report_ip_frag_stat( context );

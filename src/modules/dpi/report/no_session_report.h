@@ -23,6 +23,6 @@ void no_session_report_release( no_session_report_context_t* );
  * @param context
  * @return
  */
-void no_session_report( no_session_report_context_t* );
+void no_session_report( no_session_report_context_t*, uint32_t report_number );
 
 #endif /* SRC_MODULES_DPI_REPORT_NO_SESSION_REPORT_H_ */
