@@ -225,6 +225,9 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 
 //this happens before closing dpi_context->dpi_handler
 void dpi_close( dpi_context_t *dpi_context ){
+	//do the last report
+	dpi_callback_on_stat_period( dpi_context );
+
 	unregister_attribute_handler(dpi_context->dpi_handler, PROTO_IP, PROTO_SESSION, _starting_session_handler );
 	unregister_attribute_handler(dpi_context->dpi_handler, PROTO_IPV6, PROTO_SESSION, _starting_session_handler );
 
