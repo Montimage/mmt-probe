@@ -41,3 +41,6 @@ src/examples/proto_attributes_iterator
 /rsync.sh
 /rrrsync.sh
 /rrsync.sh
+/build_mmt_probe/
+/probe
+/.gdb_history

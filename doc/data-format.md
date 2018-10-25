@@ -222,8 +222,7 @@ This is reported for each HTTP transaction. If a TCP flow containing 3 HTTP tran
 | -- | ----------- | ------------------ | 
 | 40 | *ip src*    | IP src after GTP   | 
 | 41 | *ip dst*    | IP dst after GTP   |
-| 42 | *teid 1*    | First TEID being found in the session | 
-| 43 | *teid 2*    | Second TEID being found in the session | 
+| 42 | *TEIDs*     | Array of TEID numbers, surrounded by [ and ] | 
 
 **Format id : 2000 (inside web report (format field), then it is MP2T ) **
 

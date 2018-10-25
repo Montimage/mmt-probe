@@ -58,12 +58,14 @@ int packet_handler(const ipacket_t * ipacket, void * user_args){
 		ret = mmt_attr_sprintf( buffer, sizeof( buffer ), att );
 		switch( att->data_type ){
 		case MMT_DATA_PATH:
-			buffer[ret++] = '\t';
+			while( ret < 35 )
+				buffer[ret++] = ' ';
+
 			ret = proto_hierarchy_to_str( (proto_hierarchy_t*) att->data, buffer + ret );
 			break;
 		}
 	}
-	printf("%lu\t%s\n",  ipacket->packet_id, buffer );
+	printf("%6lu    %s\n",  ipacket->packet_id, buffer );
 
 	return 0;
 }
@@ -211,7 +213,7 @@ int main(int argc, char ** argv){
 
 	register_packet_handler(mmt_handler,1,packet_handler, NULL);
 
-	printf("Packet_id\t%s.%s\n", proto_name, att_name);
+	printf("Packet_id %s.%s\n", proto_name, att_name);
 	if (type == TRACE_FILE) {
 		pcap = pcap_open_offline(filename, errbuf); // open offline trace
 		if (!pcap) { /* pcap error ? */
