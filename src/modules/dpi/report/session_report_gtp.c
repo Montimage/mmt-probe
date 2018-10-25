@@ -23,7 +23,7 @@
 #define IP_ENCAP_INDEX_AFTER_GTP 1
 
 //Number of TEIDs may appear in a TCP/IP session
-#define MAX_NB_TEID 2
+#define MAX_NB_TEID 6
 
 struct session_gtp_stat_struct{
 	uint32_t teids[ MAX_NB_TEID ];
@@ -52,8 +52,7 @@ static inline session_gtp_stat_t *_get_gtp_session_data( const ipacket_t *ipacke
 	session_gtp_stat_t *gtp_data = NULL;
 	//if GTP data is not initialized
 	if( temp_session->apps.gtp == NULL && create_if_need ){
-		gtp_data = (session_gtp_stat_t *) mmt_alloc( sizeof( session_gtp_stat_t ));
-		memset(gtp_data, '\0', sizeof (session_gtp_stat_t));
+		gtp_data = (session_gtp_stat_t *) mmt_alloc_and_init_zero( sizeof( session_gtp_stat_t ));
 
 		temp_session->app_type = SESSION_STAT_TYPE_APP_GTP;
 		temp_session->apps.gtp = gtp_data;
@@ -120,7 +119,7 @@ static inline void _gtp_update_teid( session_gtp_stat_t *gtp_data, const ipacket
 			break;
 		}
 
-	if( i== MAX_NB_TEID ){
+	if( unlikely( i== MAX_NB_TEID )){
 		log_write( LOG_WARNING, "More than %d TEIDs have been found on a session of packet having id = %lu\n", MAX_NB_TEID, ipacket->packet_id);
 	}
 }
@@ -173,13 +172,33 @@ int print_gtp_report(char *message, size_t message_size, const mmt_session_t * d
 
 
 	int  ret = 0;
-	STRING_BUILDER_WITH_SEPARATOR( ret, message, message_size, ",",
+	STRING_BUILDER( ret, message, message_size,
 			__STR( ip_src_str ),
+			__CHAR(','),
 			__STR( ip_dst_str ),
-			__INT( gtp->teids[0] ),
-			__INT( gtp->teids[1] )
+			__CHAR(','),
+			__CHAR('[') //open an array of TEIDs
 	);
 
+	//append the of TEIDs, surrounded by [ and ]
+	int i;
+	bool has_teid = false;
+	for( i=0; i<MAX_NB_TEID; i++ ){
+		//when a TEID is zero, no more after it
+		if( gtp->teids[i] == 0 )
+			break;
+
+		//each TEID is separated by comma
+		// do not add comma before the first TEID
+		if( has_teid )
+			message[ret ++] = ',';
+
+		ret += append_number( &message[ret], message_size - ret, gtp->teids[i] );
+		has_teid = true;
+	}
+
+	message[ret ++] = ']'; //close the array of TEIDs
+	message[ret ++] = '\0';
 
     return ret;
 }
