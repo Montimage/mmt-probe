@@ -192,6 +192,11 @@ void parseOptions(int argc, char ** argv, int * type) {
     return;
 }
 
+
+struct stats{
+	uint64_t packets;
+};
+
 /**
 * Increase number of new IPV4 session has been created
 * @param ipacket   [description]
@@ -200,6 +205,10 @@ void parseOptions(int argc, char ** argv, int * type) {
 */
 void new_ipv4_session_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
     nb_ipv4_sessions++;
+    struct stats *stat = malloc( sizeof( struct stat ));
+    stat->packets = 0;
+
+    set_user_session_context( ipacket->session, stat );
 }
 
 /**
@@ -468,20 +477,38 @@ static void _ending_session_handler(const mmt_session_t * dpi_session, void * us
 	proto_hierarchy_ids_to_str(hierarchy, path);
 	uint64_t ul_packets = get_session_ul_cap_packet_count(dpi_session);
 	uint64_t dl_packets = get_session_dl_cap_packet_count(dpi_session);
-	uint64_t total_packets = get_session_data_packet_count( dpi_session );
+	uint64_t total_packets = get_session_packet_cap_count( dpi_session );
+
 	uint64_t session_id = get_session_id( dpi_session );
-	printf("%c %40s ul: %3lu, dl: %3lu, tot: %3lu, session_id: %lu\n",
-			(total_packets == (ul_packets + dl_packets))? ' ' : '#',
-			path, ul_packets, dl_packets, total_packets, session_id );
 
 
-	hierarchy = get_session_proto_path_direction( dpi_session, 1 );
-	proto_hierarchy_ids_to_str(hierarchy, path);
-	printf("\t %s\n", path );
+	struct stats *stat = (struct stats *) get_user_session_context( dpi_session );
 
-	hierarchy = get_session_proto_path_direction( dpi_session, 0 );
-	proto_hierarchy_ids_to_str(hierarchy, path);
-	printf("\t %s\n", path );
+	if( session_id != 1 )
+		return;
+
+	struct timeval ts = get_session_last_activity_time( dpi_session );
+
+	printf("%lu %s, ul: %3lu, dl: %3lu, tot: %3lu, session_id: %lu, %p, %lu.%06lu\n",
+			total_packets - stat->packets,
+			path, ul_packets, dl_packets,
+			total_packets,
+
+			session_id, dpi_session,
+			ts.tv_sec, ts.tv_usec);
+
+
+
+	stat->packets = total_packets;
+
+
+//	hierarchy = get_session_proto_path_direction( dpi_session, 1 );
+//	proto_hierarchy_ids_to_str(hierarchy, path);
+//	printf("  %40s\n", path );
+//
+//	hierarchy = get_session_proto_path_direction( dpi_session, 0 );
+//	proto_hierarchy_ids_to_str(hierarchy, path);
+//	printf("  %40s\n", path );
 }
 
 /**
@@ -515,32 +542,32 @@ int main(int argc, char ** argv) {
         return EXIT_FAILURE;
     }
 
-    if (ip_address_classify){
-        printf("Enable classification by IP address");
-        enable_ip_address_classify(mmt_handler);
-    }else{
-        disable_ip_address_classify(mmt_handler);
-    }
-
-    if (hostname_classify)
-    {
-        printf("Enable classification by Hostname");
-        enable_hostname_classify(mmt_handler);
-    }
-    else
-    {
-        disable_hostname_classify(mmt_handler);
-    }
-
-    if (port_classify)
-    {
-        printf("Enable classification by Port number");
-        enable_port_classify(mmt_handler);
-    }
-    else
-    {
-        disable_port_classify(mmt_handler);
-    }
+//    if (ip_address_classify){
+//        printf("Enable classification by IP address");
+//        enable_ip_address_classify(mmt_handler);
+//    }else{
+//        disable_ip_address_classify(mmt_handler);
+//    }
+//
+//    if (hostname_classify)
+//    {
+//        printf("Enable classification by Hostname");
+//        enable_hostname_classify(mmt_handler);
+//    }
+//    else
+//    {
+//        disable_hostname_classify(mmt_handler);
+//    }
+//
+//    if (port_classify)
+//    {
+//        printf("Enable classification by Port number");
+//        enable_port_classify(mmt_handler);
+//    }
+//    else
+//    {
+//        disable_port_classify(mmt_handler);
+//    }
     // Interate throught protocols to register extract all attributes of all protocols
     iterate_through_protocols(protocols_iterator, mmt_handler);
     register_packet_handler(mmt_handler, 1, packet_handler, NULL);
@@ -548,7 +575,13 @@ int main(int argc, char ** argv) {
     register_attribute_handler(mmt_handler, PROTO_IP, PROTO_SESSION, new_ipv4_session_handler, NULL,NULL);
     register_attribute_handler(mmt_handler, PROTO_IPV6, PROTO_SESSION, new_ipv6_session_handler, NULL,NULL);
 
-	if( !register_session_timeout_handler( mmt_handler, _ending_session_handler, NULL )){
+
+//	if( !register_session_timeout_handler( mmt_handler, _ending_session_handler, NULL )){
+//		printf( "Cannot register handler for processing a session at ending" );
+//		return EXIT_FAILURE;
+//	}
+
+	if( !register_session_timer_handler( mmt_handler, _ending_session_handler, NULL )){
 		printf( "Cannot register handler for processing a session at ending" );
 		return EXIT_FAILURE;
 	}
@@ -567,6 +600,7 @@ int main(int argc, char ** argv) {
             fprintf(stderr, "pcap_open failed for the following reason\n");
             return EXIT_FAILURE;
         }
+        uint32_t last_ts = 0;
         const u_char *data = NULL;
         while ((data = pcap_next(pcap, &p_pkthdr))) {
             header.ts = p_pkthdr.ts;
@@ -575,7 +609,18 @@ int main(int argc, char ** argv) {
             if (!packet_process(mmt_handler, &header, data)) {
                 fprintf(stderr, "Packet data extraction failure.\n");
             }
+
+            if( last_ts == 0 )
+            	last_ts = p_pkthdr.ts.tv_sec ;
+            //do session report each second
+            else if( p_pkthdr.ts.tv_sec >= last_ts + 5 ){
+            	//push statistic
+            	process_session_timer_handler( mmt_handler );
+            	last_ts = p_pkthdr.ts.tv_sec ;
+            }
+
         }
+//        process_session_timer_handler( mmt_handler );
     } else if(type == LIVE_INTERFACE){
         if(pcap_bs == 0){
             printf("INFO: Use default buffer size: 50 (MB)\n");

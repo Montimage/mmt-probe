@@ -143,16 +143,16 @@ int main(int argc, char ** argv) {
 	}
 
 	//    if (ip_address_classify){
-	//        printf("Enable classification by IP address");
-	//        enable_ip_address_classify(mmt_handler);
+	        printf("Enable classification by IP address");
+	        enable_ip_address_classify(mmt_handler);
 	//    }else{
 	//        disable_ip_address_classify(mmt_handler);
 	//    }
 	//
 	//    if (hostname_classify)
 	//    {
-	//        printf("Enable classification by Hostname");
-	//        enable_hostname_classify(mmt_handler);
+	        printf("Enable classification by Hostname");
+	        enable_hostname_classify(mmt_handler);
 	//    }
 	//    else
 	//    {
@@ -161,8 +161,8 @@ int main(int argc, char ** argv) {
 	//
 	//    if (port_classify)
 	//    {
-	//        printf("Enable classification by Port number");
-	//        enable_port_classify(mmt_handler);
+	        printf("Enable classification by Port number\n");
+	        enable_port_classify(mmt_handler);
 	//    }
 	//    else
 	//    {
