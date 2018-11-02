@@ -211,7 +211,7 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 	if( !register_session_timeout_handler( dpi_handler, _ending_session_handler, ret ))
 		ABORT( "Cannot register handler for processing a session at ending" );
 
-	if( ! register_session_timer_handler( dpi_handler, _period_session_report, ret) )
+	if( ! register_session_timer_handler( dpi_handler, _period_session_report, ret, 1) )
 		ABORT( "Cannot register handler for periodically session reporting" );
 
 	IF_ENABLE_FTP_RECONSTRUCT(

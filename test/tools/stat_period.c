@@ -183,7 +183,7 @@ int main(int argc, char ** argv) {
 	//	}
 
 	if (!register_session_timer_handler(mmt_handler, _session_stat_handler,
-			NULL)) {
+			NULL, 1)) {
 		printf("Cannot register handler for processing a session at ending");
 		return EXIT_FAILURE;
 	}
