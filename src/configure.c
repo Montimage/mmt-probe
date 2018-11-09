@@ -888,6 +888,7 @@ void conf_release( probe_conf_t *conf){
 
 	if( conf->reports.behaviour ){
 		mmt_probe_free( conf->reports.behaviour->directory );
+		mmt_probe_free( conf->reports.behaviour->filename );
 		mmt_probe_free( conf->reports.behaviour );
 	}
 

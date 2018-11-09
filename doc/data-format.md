@@ -305,7 +305,7 @@ This reports is for event based reporting. Whenever a event is present, the attr
 
 | # | Column Name     | Column Description | 
 | - | --------------- | ------------------ | 
-| 5 | *report_number* | Number of reporting events |
+| 5 | *event-id*      | Is a string representing id of event-report |
 | 6 | *event*         | Event that triggers the extraction of attributes |
 | 7 | *attribute 1*   | Attribute that is registered for extraction  |
 | 8 | *attribute 2*   | Attribute that is registered for extraction  |

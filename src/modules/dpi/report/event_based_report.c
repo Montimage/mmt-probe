@@ -61,7 +61,13 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 	int offset = 0;
-	//event
+
+	//event id
+	offset += append_string( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, context->config->title );
+	//separator
+	message[offset] = ',';
+	offset ++;
+	//event data
 	_add_quote_if_need( message, &offset, attribute );
 	offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE, attribute );
 	_add_quote_if_need( message, &offset, attribute );
@@ -80,11 +86,11 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 
 		if( attr_extract == NULL ){
 			//offset += snprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, "null" );
-			offset += append_string( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, "null" );
+			offset += append_string( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, "" );
 		}else{
-			_add_quote_if_need( message, &offset, attribute );
+			_add_quote_if_need( message, &offset, attr_extract );
 			offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, attr_extract );
-			_add_quote_if_need( message, &offset, attribute );
+			_add_quote_if_need( message, &offset, attr_extract );
 		}
 	}
 
