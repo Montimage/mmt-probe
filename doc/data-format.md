@@ -220,8 +220,8 @@ This is reported for each HTTP transaction. If a TCP flow containing 3 HTTP tran
 
 | #  | Column Name | Column Description | 
 | -- | ----------- | ------------------ | 
-| 40 | *ip src*    | IP src after GTP   | 
-| 41 | *ip dst*    | IP dst after GTP   |
+| 40 | *ip src*    | Source of the first IP after Ethernet. The one of IP after GTP is in main part of the report, at index 20  | 
+| 41 | *ip dst*    |  Destination of the first IP after Ethernet. The one of IP after GTP is in main part of the report, at index 21  |
 | 42 | *TEIDs*     | Array of TEID numbers, surrounded by [ and ] | 
 
 **Format id : 2000 (inside web report (format field), then it is MP2T ) **

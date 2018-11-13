@@ -377,65 +377,79 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 
 session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * ipacket, dpi_context_t *context ){
 	mmt_session_t * dpi_session = ipacket->session;
-	if(dpi_session == NULL) return NULL;
+	if( unlikely( dpi_session == NULL)){
+		DEBUG("session of packet %lu must not be NULL", ipacket->packet_id );
+		return NULL;
+	}
 
 	session_stat_t *session_stat = mmt_alloc_and_init_zero( sizeof (session_stat_t));
 
 #ifndef SIMPLE_REPORT
 	session_stat->app_type    = SESSION_STAT_TYPE_APP_IP;
 #endif
+	//the index in the protocol hierarchy of the protocol \session belongs to
+	const uint32_t proto_session_index  = get_session_protocol_index( dpi_session );
 	// Flow extraction
-	int ip_index = get_protocol_index_by_id(ipacket, PROTO_IP);
+	const uint32_t proto_session_id = get_protocol_id_at_index(ipacket, proto_session_index);
+
+	//must be either PROTO_IP or PROTO_IPV6
+	if( unlikely( proto_session_id != PROTO_IP && proto_session_id != PROTO_IPV6 )){
+		DEBUG("session of packet %lu is not on top of IP nor IPv6, but %d", ipacket->packet_id, proto_session_id );
+		return NULL;
+	}
+
+	const bool is_session_over_ipv4 = (proto_session_id == PROTO_IP);
+
 
 	uint8_t *src = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_SRC);
 	uint8_t *dst = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_DST);
 
-	if (src)
+	if (likely( src ))
 		assign_6bytes( session_stat->mac_src, src );
-	if (dst)
+	if (likely( dst ))
 		assign_6bytes( session_stat->mac_dst, dst );
 
 	//IPV4
-	if (ip_index != -1) {
+	if (likely( is_session_over_ipv4 )) {
 
-		uint32_t * ip_src = (uint32_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_SRC);
-		uint32_t * ip_dst = (uint32_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_DST);
+		uint32_t * ip_src = (uint32_t *) get_attribute_extracted_data_at_index(ipacket, PROTO_IP, IP_SRC, proto_session_index);
+		uint32_t * ip_dst = (uint32_t *) get_attribute_extracted_data_at_index(ipacket, PROTO_IP, IP_DST, proto_session_index);
 
-		if (ip_src)
+		if (likely( ip_src ))
 			session_stat->ip_src.ipv4 = *ip_src;
 
-		if (ip_dst)
+		if (likely( ip_dst ))
 			session_stat->ip_dst.ipv4 = (*ip_dst);
 
 
 		inet_ntop4(session_stat->ip_src.ipv4, session_stat->ip_src.ip_string);
 		inet_ntop4(session_stat->ip_dst.ipv4, session_stat->ip_dst.ip_string);
 
-		uint16_t * cport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_CLIENT_PORT);
-		uint16_t * dport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_SERVER_PORT);
-		if (cport)
+		uint16_t * cport = (uint16_t *) get_attribute_extracted_data_at_index(ipacket, PROTO_IP, IP_CLIENT_PORT, proto_session_index);
+		uint16_t * dport = (uint16_t *) get_attribute_extracted_data_at_index(ipacket, PROTO_IP, IP_SERVER_PORT, proto_session_index);
+		if( likely( cport ))
 			session_stat->port_src = *cport;
 
-		if (dport)
+		if( likely( dport ))
 			session_stat->port_dst = *dport;
 
 	} else {
-		void * ipv6_src = (void *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SRC);
-		void * ipv6_dst = (void *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_DST);
-		if (ipv6_src)
+		void * ipv6_src = (void *) get_attribute_extracted_data_at_index(ipacket, PROTO_IPV6, IP6_SRC, proto_session_index);
+		void * ipv6_dst = (void *) get_attribute_extracted_data_at_index(ipacket, PROTO_IPV6, IP6_DST, proto_session_index);
+		if (likely( ipv6_src ))
 			assign_16bytes( &session_stat->ip_src.ipv6, ipv6_src);
-		if (ipv6_dst)
+		if (likely( ipv6_dst ))
 			assign_16bytes(&session_stat->ip_dst.ipv6, ipv6_dst);
 
 		inet_ntop(AF_INET6, (void *) &session_stat->ip_src.ipv6, session_stat->ip_src.ip_string, INET6_ADDRSTRLEN);
 		inet_ntop(AF_INET6, (void *) &session_stat->ip_dst.ipv6, session_stat->ip_dst.ip_string, INET6_ADDRSTRLEN);
 
 
-		uint16_t * cport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_CLIENT_PORT);
-		uint16_t * dport = (uint16_t *) get_attribute_extracted_data(ipacket, PROTO_IPV6, IP6_SERVER_PORT);
-		if (cport)
+		uint16_t * cport = (uint16_t *) get_attribute_extracted_data_at_index(ipacket, PROTO_IPV6, IP6_CLIENT_PORT, proto_session_index);
+		uint16_t * dport = (uint16_t *) get_attribute_extracted_data_at_index(ipacket, PROTO_IPV6, IP6_SERVER_PORT, proto_session_index);
+		if (likely( cport ))
 			session_stat->port_src = *cport;
-		if (dport)
+		if (likely( dport ))
 			session_stat->port_dst = *dport;
 	}
 

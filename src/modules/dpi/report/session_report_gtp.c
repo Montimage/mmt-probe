@@ -19,8 +19,6 @@
 #include "../../../lib/inet.h"
 #include "../../../lib/malloc_ext.h"
 #include "session_report.h"
-//we take the second IP in a protocol hierarchy
-#define IP_ENCAP_INDEX_AFTER_GTP 1
 
 //Number of TEIDs may appear in a TCP/IP session
 #define MAX_NB_TEID 6
@@ -32,8 +30,6 @@ struct session_gtp_stat_struct{
 	mmt_ipv4_ipv6_t ip_dst;
 };
 
-//session is based on IP after GTP, not on IP after ETHERNET
-//this ensures GTP is after IP session
 #define _is_session_based_on_ip_after_gtp( ipacket  )\
 	(ipacket->session && get_protocol_index_by_id(ipacket, PROTO_GTP) + 1 ==  get_session_protocol_index( ipacket->session ))
 
@@ -65,6 +61,8 @@ static inline session_gtp_stat_t *_get_gtp_session_data( const ipacket_t *ipacke
 
 /**
  * Update IP src and DST
+ * This function get the "original" IP: the one after Ethernet layer.
+ * The information of IP after GTP has been extracted by session_report when a new session is created
  * @param gtp_data
  * @param ipacket
  */
@@ -76,20 +74,20 @@ static inline void _gtp_update_ip( session_gtp_stat_t *gtp_data, const ipacket_t
 	}
 
 	//has IPv4 in protocol hierarchy ???
-	const uint32_t * ipv4_src = get_attribute_extracted_data_encap_index( ipacket, PROTO_IP, IP_SRC, IP_ENCAP_INDEX_AFTER_GTP );
+	const uint32_t * ipv4_src = get_attribute_extracted_data( ipacket, PROTO_IP, IP_SRC );
 
 	//IPv4
 	if ( ipv4_src != NULL ) {
 		gtp_data->ip_version = 4;
 		gtp_data->ip_src.ipv4 = *(uint32_t *) ipv4_src;
-		gtp_data->ip_dst.ipv4 = *(uint32_t *) get_attribute_extracted_data_encap_index( ipacket, PROTO_IP, IP_DST, IP_ENCAP_INDEX_AFTER_GTP );
+		gtp_data->ip_dst.ipv4 = *(uint32_t *) get_attribute_extracted_data( ipacket, PROTO_IP, IP_DST );
 	}else{
 		gtp_data->ip_version = 6;
 		memcpy(&gtp_data->ip_src.ipv6,
-				get_attribute_extracted_data_encap_index( ipacket, PROTO_IPV6, IP6_SRC, IP_ENCAP_INDEX_AFTER_GTP ),
+				get_attribute_extracted_data( ipacket, PROTO_IPV6, IP6_SRC ),
 				16);
 		memcpy( gtp_data->ip_dst.ipv6,
-				get_attribute_extracted_data_encap_index( ipacket, PROTO_IPV6, IP6_DST, IP_ENCAP_INDEX_AFTER_GTP ),
+				get_attribute_extracted_data( ipacket, PROTO_IPV6, IP6_DST ),
 				16);
 	}
 }
