@@ -30,8 +30,8 @@ struct list_event_based_report_context_struct{
  * @param offset
  * @param att
  */
-static inline void _add_quote_if_need( char *msg, int *offset, const attribute_t *att ){
-	switch( att->data_type ){
+static inline bool _is_string( int data_type ){
+	switch( data_type ){
 	case MMT_BINARY_VAR_DATA:
 	case MMT_DATA_CHAR:
 	case MMT_DATA_DATE:
@@ -44,10 +44,9 @@ static inline void _add_quote_if_need( char *msg, int *offset, const attribute_t
 	case MMT_STRING_DATA:
 	case MMT_STRING_LONG_DATA:
 	case MMT_GENERIC_HEADER_LINE:
-		msg[ *offset ] = '"';
-		*offset = *offset + 1;
-		return;
+		return true;
 	}
+	return false;
 }
 
 /**
@@ -62,15 +61,22 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 	int offset = 0;
 
+
+
 	//event id
 	offset += append_string( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, context->config->title );
 	//separator
 	message[offset] = ',';
 	offset ++;
+
 	//event data
-	_add_quote_if_need( message, &offset, attribute );
-	offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE, attribute );
-	_add_quote_if_need( message, &offset, attribute );
+	if( _is_string( attribute->data_type ) ){
+		//surround by quotes
+		message[ offset ++ ] = '"';
+		offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE, attribute );
+		message[ offset ++ ] = '"';
+	}else
+		offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE, attribute );
 
 	//attributes
 	attribute_t * attr_extract;
@@ -81,16 +87,26 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 				context->att_ids[i] );
 
 		//separator
-		message[offset] = ',';
-		offset ++;
+		message[offset ++] = ',';
 
-		if( attr_extract == NULL ){
-			//offset += snprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, "null" );
-			offset += append_string( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, "" );
+		if( attr_extract != NULL ){
+			if( _is_string( attr_extract->data_type ) ){
+				//surround by quotes
+				message[ offset ++ ] = '"';
+				if( attr_extract != NULL )
+					offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, attr_extract );
+				message[ offset ++ ] = '"';
+			}
+
+			else
+				offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, attr_extract );
 		}else{
-			_add_quote_if_need( message, &offset, attr_extract );
-			offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, attr_extract );
-			_add_quote_if_need( message, &offset, attr_extract );
+			if( _is_string( get_attribute_data_type( context->proto_ids[i],
+				context->att_ids[i] ) )){
+				message[ offset ++ ] = '"';
+				message[ offset ++ ] = '"';
+			}else
+				message[ offset ++ ] = '0';
 		}
 	}
 
