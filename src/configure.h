@@ -95,6 +95,25 @@ typedef struct dynamic_config_conf_struct{
 	char *descriptor;
 }dynamic_config_conf_t;
 
+typedef enum{
+	CONF_IP_ENCAPSULATION_INDEX_FIRST   = 1,
+	CONF_IP_ENCAPSULATION_INDEX_SECOND     ,
+	CONF_IP_ENCAPSULATION_INDEX_THIRD      ,
+	CONF_IP_ENCAPSULATION_INDEX_FOURTH     ,
+	CONF_IP_ENCAPSULATION_INDEX_FIFTH      ,
+	CONF_IP_ENCAPSULATION_INDEX_SIXTH      ,
+	CONF_IP_ENCAPSULATION_INDEX_SEVENTH    ,
+	CONF_IP_ENCAPSULATION_INDEX_EIGHTH     ,
+	CONF_IP_ENCAPSULATION_INDEX_NINTH      ,
+	CONF_IP_ENCAPSULATION_INDEX_TENTH      ,
+	CONF_IP_ENCAPSULATION_INDEX_ELEVENTH   ,
+	CONF_IP_ENCAPSULATION_INDEX_TWELFTH    ,
+	CONF_IP_ENCAPSULATION_INDEX_THIRTEENTH ,
+	CONF_IP_ENCAPSULATION_INDEX_FOURTEENTH ,
+	CONF_IP_ENCAPSULATION_INDEX_FIFTEENTH  ,
+	CONF_IP_ENCAPSULATION_INDEX_LAST   /*currently, MMT supports maximally 16 proto in hierarchies*/
+}conf_ip_encapsulation_index_t;
+
 typedef struct security_conf_struct{
 	bool is_enable;
 	bool is_report_rule_description;
@@ -113,6 +132,8 @@ typedef struct security_conf_struct{
 		uint32_t security_max_instances;
 		uint32_t security_smp_ring_size;
 	}lib;
+	//indicate which IP will be analyzed in case of IP-in-IP
+	conf_ip_encapsulation_index_t ip_encapsulation_index;
 }security_conf_t;
 
 

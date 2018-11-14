@@ -33,6 +33,8 @@
 //dpi_message_set_data function to set data to message_t
 #include <dpi_message_t.h>
 
+#include <mmt_core.h>
+#include <tcpip/mmt_tcpip.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -46,7 +48,6 @@
 #define IS_CFG_INOGRE( x ) (x->config->ignore_remain_flow )
 
 
-#ifdef TCP_REASSEMBLY_MODULE
 /*
  * return available room inside a message
  */
@@ -56,9 +57,28 @@ static inline uint32_t _get_msg_room( const message_t * msg ){
 	return ( msg->_data_length <= used_room )? 0 : (msg->_data_length - used_room);
 }
 
+/**
+ * Get index of i-th proto_id in a protocol hierarchy
+ * @return
+ *   -1 if proto_id does not exist in the hierarchy
+ *   number is index of proto_id in the hierarchy
+ */
+static inline int _find_proto_index( int proto_id, int encap_index, const proto_hierarchy_t *proto_hierarchy ){
+	int proto_order = 0, last_i = -1;
+	for( int i=0; i<proto_hierarchy->len; i++ )
+		if( proto_hierarchy->proto_path[i] == proto_id ){
+			proto_order ++;
+			last_i = i;
+			if( proto_order == encap_index )
+				return i;
+		}
+	return last_i;
+}
 
-static inline bool _extract_data_for_specific_attribute( const ipacket_t *pkt, int dpi_data_type, message_t *msg, uint32_t proto_id, uint32_t att_id ){
+static inline bool _extract_data_for_specific_attribute(security_context_t *context, const ipacket_t *pkt, int dpi_data_type, message_t *msg, uint32_t proto_id, uint32_t att_id ){
 	uint32_t *data_len = NULL;
+	void *data = NULL;
+
 	switch( proto_id ){
 	case PROTO_TCP:
 		switch( att_id ){
@@ -70,6 +90,24 @@ static inline bool _extract_data_for_specific_attribute( const ipacket_t *pkt, i
 			goto __got_data_len;
 		}
 		return false;
+
+	case PROTO_IP:
+		if( context->config->ip_encapsulation_index == CONF_IP_ENCAPSULATION_INDEX_FIRST )
+			return false;
+		//find index
+		int proto_index = _find_proto_index( PROTO_IP, context->config->ip_encapsulation_index, pkt->proto_hierarchy );
+		//does not exist IP in this packet => do not need to go further
+		if( proto_index == -1 )
+			return true;
+		data = get_attribute_extracted_data_at_index( pkt, proto_id, att_id, proto_index );
+		if( data == NULL )
+			return true;
+		if( dpi_data_type == MMT_DATA_POINTER )
+			dpi_message_set_void_data( pkt, data, msg, proto_id, att_id );
+		else
+			dpi_message_set_dpi_data( data, dpi_data_type, msg, proto_id, att_id );
+		return true;
+		break;
 	default:
 		return false;
 	}
@@ -90,7 +128,7 @@ static inline bool _extract_data_for_specific_attribute( const ipacket_t *pkt, i
 
 	//get the whole data of a tcp flow
 	// this may lead a problem of memory as a TCP flow may tranfer a huge data amount
-	void *data = get_attribute_extracted_data( pkt, proto_id, att_id );
+	data = get_attribute_extracted_data( pkt, proto_id, att_id );
 	if( data == NULL )
 		return true;
 
@@ -100,7 +138,6 @@ static inline bool _extract_data_for_specific_attribute( const ipacket_t *pkt, i
 
 	return true;
 }
-#endif
 
 /**
  * This function is called by mmt-dpi for each incoming packet containing registered proto/att.
@@ -143,14 +180,12 @@ static int _security_packet_handler( const ipacket_t *ipacket, void *args ) {
 	//get a list of proto/attributes being used by mmt-security
 	for( i=0; i<context->proto_atts_count; i++ ){
 
-#ifdef TCP_REASSEMBLY_MODULE
-		ret = _extract_data_for_specific_attribute( ipacket, context->proto_atts[i]->dpi_type, msg,
+		ret = _extract_data_for_specific_attribute( context, ipacket, context->proto_atts[i]->dpi_type, msg,
 				context->proto_atts[i]->proto_id, context->proto_atts[i]->att_id );
 
 		//if this proto/att has been processed, we do not need to call dpi_message_set_data
 		if( ret )
 			continue;
-#endif
 
 		dpi_message_set_data( ipacket, context->proto_atts[i]->dpi_type, msg,
 				context->proto_atts[i]->proto_id, context->proto_atts[i]->att_id );

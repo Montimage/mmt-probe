@@ -84,6 +84,28 @@ static int _conf_parse_socket_type(cfg_t *cfg, cfg_opt_t *opt, const char *value
 	return 0;
 }
 
+
+static int _conf_parse_ip_encapsulation_index(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
+	if (IS_EQUAL_STRINGS(value, "FIRST") )
+		*(int *) result = CONF_IP_ENCAPSULATION_INDEX_FIRST;
+	else if (IS_EQUAL_STRINGS(value, "LAST") )
+		*(int *) result = CONF_IP_ENCAPSULATION_INDEX_LAST;
+	else{
+		int val = atoi( value );
+		if( val >= CONF_IP_ENCAPSULATION_INDEX_FIRST ){
+			if( val <= CONF_IP_ENCAPSULATION_INDEX_LAST )
+				*(int *) result = val;
+			else
+				*(int *) result = CONF_IP_ENCAPSULATION_INDEX_LAST;
+		}else{
+			cfg_error(cfg, "invalid value for option '%s': %s", cfg_opt_name(opt), value);
+			return -1;
+		}
+	}
+	DEBUG( "security.ip-encapsulation-index = %d", *(int *) result );
+	return 0;
+}
+
 static inline cfg_t *_load_cfg_from_file(const char *filename) {
 	cfg_opt_t micro_flows_opts[] = {
 			CFG_BOOL("enable", false, CFGF_NONE),
@@ -165,6 +187,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_INT("security.max-instances",    0, CFGF_NONE),
 			CFG_INT("security.smp.ring-size",    0, CFGF_NONE),
 			CFG_BOOL("ignore-remain-flow",     0, CFGF_NONE ),
+			CFG_INT_CB("ip-encapsulation-index", 0, CFGF_NONE, _conf_parse_ip_encapsulation_index),
 			CFG_END()
 	};
 
@@ -676,6 +699,8 @@ static inline security_conf_t *_parse_security_block( cfg_t *cfg ){
 	ret->lib.security_smp_ring_size = cfg_getint( cfg, "security.smp.ring-size" );
 	ret->lib.input_max_message_size = cfg_getint( cfg, "input.max-message-size" );
 	ret->ignore_remain_flow         = cfg_getbool( cfg, "ignore-remain-flow");
+	ret->ip_encapsulation_index     = cfg_getint(  cfg, "ip-encapsulation-index" );
+
 	return ret;
 }
 
