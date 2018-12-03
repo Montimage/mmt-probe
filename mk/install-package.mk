@@ -88,7 +88,7 @@ endif
 #copy binary file to $PATH
 USR_BIN_FILE_PATH     = /usr/bin/mmt-probe
 #copy binary file to service list
-ETC_SERVICE_FILE_PATH = /etc/init.d/mmt-probe
+ETC_SERVICE_FILE_PATH = /etc/systemd/system/mmt-probe.service
 
 --private-info:
 	$(info MMT-Probe will be installed on folder: $(INSTALL_DIR))
@@ -104,8 +104,8 @@ ifdef NEED_ROOT_PERMISSION
 	@#create an alias
 	$(QUIET) ln -s $(INSTALL_DIR)/bin/probe $(USR_BIN_FILE_PATH)
 	@#create service
-	$(QUIET) $(CP) daemon.sh  $(ETC_SERVICE_FILE_PATH)
-	$(QUIET) chmod 0755       $(ETC_SERVICE_FILE_PATH)
+	$(QUIET) $(CP) mmt-probe.service  $(ETC_SERVICE_FILE_PATH)
+	$(QUIET) chmod +x                 $(ETC_SERVICE_FILE_PATH)
 	$(QUIET) systemctl daemon-reload
 endif
 
@@ -116,7 +116,7 @@ endif
 	
 ifdef NEED_ROOT_PERMISSION
 	@echo " - either: sudo mmt-probe"
-	@echo " - or    : sudo service mmt-probe start"
+	@echo " - or    : sudo systemctl start mmt-probe"
 else
 	@echo "$(INSTALL_DIR)/bin/probe"
 endif
@@ -134,9 +134,9 @@ endif
 	$(QUIET) $(MKDIR) $(PACKAGE_FILE_NAME)/etc/ld.so.conf.d/
 	@echo "$(INSTALL_DIR)/lib" >> $(PACKAGE_FILE_NAME)/etc/ld.so.conf.d/mmt-probe.conf
 
-	$(QUIET) $(MKDIR) $(PACKAGE_FILE_NAME)/etc/init.d/
-	$(QUIET) $(CP) daemon.sh  $(PACKAGE_FILE_NAME)$(ETC_SERVICE_FILE_PATH)
-	$(QUIET) chmod 0755       $(PACKAGE_FILE_NAME)$(ETC_SERVICE_FILE_PATH)
+	$(QUIET) $(MKDIR) $(PACKAGE_FILE_NAME)/etc/systemd/system/
+	$(QUIET) $(CP) mmt-probe.service  $(PACKAGE_FILE_NAME)$(ETC_SERVICE_FILE_PATH)
+	$(QUIET) chmod +x                 $(PACKAGE_FILE_NAME)$(ETC_SERVICE_FILE_PATH)
 
 	$(QUIET) $(MKDIR)  $(PACKAGE_FILE_NAME)$(INSTALL_DIR)
 	$(QUIET) $(CP) -r  $(TEMP_DIR)/* $(PACKAGE_FILE_NAME)$(INSTALL_DIR)

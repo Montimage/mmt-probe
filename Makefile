@@ -69,11 +69,15 @@ endef
 # embedded MMT libraries into probe
 # we need to explicitly indicate either static or dynamic library
 $(eval $(call EXPORT_TARGET,STATIC_LINK))
+
+#always embeddes libconfuse to probe
+LIBS += -l:libconfuse.a
+
 ifdef STATIC_LINK
   CFLAGS += -DSTATIC_LINK
-  LIBS   += -l:libconfuse.a -l:libmmt_tcpip.a -l:libmmt_core.a
+  LIBS   += -l:libmmt_tcpip.a -l:libmmt_core.a
 else
-  LIBS   += -l:libconfuse.so  -l:libmmt_core.so
+  LIBS   += -l:libmmt_core.so
 endif
 
 

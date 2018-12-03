@@ -1,0 +1,16 @@
+[Unit]
+Description = MMT-Probe
+Wants       = network.target
+After       = network.target
+
+[Service]
+Type             = simple
+WorkingDirectory = /opt/mmt/probe/
+ExecStart        = /opt/mmt/probe/bin/probe
+Restart          = on-failure
+StandardOutput   = syslog
+StandardError    = syslog
+PIDFile          = /var/run/mmt-probe.pid
+
+[Install]
+WantedBy = multi-user.target
