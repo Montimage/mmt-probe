@@ -176,7 +176,7 @@ deb: --private-prepare-build
 		> $(PACKAGE_FILE_NAME)/DEBIAN/control
 
 	@#the script will be executed after installing the deb file
-	$(QUIET) echo "ldconfig" \
+	$(QUIET) echo "ldconfig && systemctl daemon-reload" \
 	   > $(PACKAGE_FILE_NAME)/DEBIAN/postinst 
 	
 	$(QUIET) chmod 755 $(PACKAGE_FILE_NAME)/DEBIAN/postinst
