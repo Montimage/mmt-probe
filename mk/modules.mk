@@ -199,6 +199,12 @@ ifdef LICENSE_MODULE
   MODULE_SRCS  +=  $(wildcard $(SRC_DIR)/modules/license/*.c)
 endif
 
+# Report for enodeb lte
+$(eval $(call check_module,LTE_MODULE))
+ifdef LTE_MODULE
+  MODULE_FLAGS += -DLTE_REPORT
+  MODULE_SRCS  +=  $(wildcard $(SRC_DIR)/modules/dpi/lte/*.c)
+endif
 
 $(eval $(call check_module,NETCONF_MODULE))
 ifdef NETCONF_MODULE

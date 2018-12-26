@@ -295,6 +295,49 @@ This reports meta data of files being reconstructed from HTTP flows.
 |   |                    |  - 4: TRANSFER_ENCODING_IDENTITY   |
 | 10| *file-name*        | String: path to reconstructed file |
 
+
+## eNodeB reports
+
+### eNodeB topology reports
+
+Format id: 400
+
+This report is created when an element in LTE network is added or removed.
+An element is identified by its Id.
+
+
+| # | Column Name       |   Type  | Column Description   | 
+| - | ----------------- | ------- | -------------------- | 
+| 5 | *element-id*      | Number  | Unique ID of element |
+| 6 | *event*           | Number  | Add/remove elements/links  |
+
+
+
+An *event* can be:
+
+- 1: Add a new element. The rest of report in this case will contain complement information of the element. Its structure is:
+
+| # | Column Name       |   Type  | Column Description   | 
+| - | ----------------- | ------- | -------------------- | 
+| 7 | *ip*              | String  | IP of the element. We currently support only IPv4  |
+| 8 | *element-type*    | Number  | 1: UE, 2: eNodeB, 3: MME, 4: Packet gateway |
+| 9 | *name*            | String  | Name if MME/eNodeB, IMSI if UE |
+| 10| *ue.m_tmsi*       | Number  | Only for UE |
+
+
+
+- 2: Add a new link between the element and its parent. The rest of report contains the id of the parent.
+- 3: Remove all links of the element but it is still resting in the topology, e.g., it is detaching
+- 4: Remove the element, thus its associated links will be remove also.
+
+
+
+*Example:*
+
+```JSON
+
+```
+
 ## Event report
 
 Channel name: `event.report`

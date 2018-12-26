@@ -9,10 +9,15 @@
 #ifndef SRC_MODULES_DPI_DPI_TOOL_H_
 #define SRC_MODULES_DPI_DPI_TOOL_H_
 
+#include <arpa/inet.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <mmt_core.h>
 #include <tcpip/mmt_tcpip.h>
 #include "../../configure.h"
 #include "../../lib/string_builder.h"
+#include "../../lib/memory.h"
+#include "../../lib/inet.h"
 
 /**
  * Get the last protocol ID on the current protocol hierarchy of the session
@@ -253,5 +258,76 @@ static inline int dpi_unregister_conditional_handler( mmt_handler_t *dpi_handler
 		}
 	}
 	return ret;
+}
+
+
+typedef struct{
+	bool is_ipv4;
+	union {
+		uint32_t ipv4;
+		uint8_t ipv6[16];
+	};
+}mmt_ip_t;
+
+static inline bool dpi_get_ip_from_packet( const ipacket_t *ipacket, mmt_ip_t *ip_src, mmt_ip_t *ip_dst ){
+
+	mmt_session_t * dpi_session = ipacket->session;
+	if( unlikely( dpi_session == NULL))
+		return false;
+
+	//the index in the protocol hierarchy of the protocol \session belongs to
+	const uint32_t proto_session_index  = get_session_protocol_index( dpi_session );
+	// Flow extraction
+	const uint32_t proto_session_id = get_protocol_id_at_index(ipacket, proto_session_index);
+
+	//must be either PROTO_IP or PROTO_IPV6
+	if( unlikely( proto_session_id != PROTO_IP && proto_session_id != PROTO_IPV6 )){
+		DEBUG("session of packet %lu is not on top of IP nor IPv6, but %d", ipacket->packet_id, proto_session_id );
+		return NULL;
+	}
+
+	const bool is_session_over_ipv4 = (proto_session_id == PROTO_IP);
+
+
+	//IPV4
+	if (likely( is_session_over_ipv4 )) {
+
+		ip_src->is_ipv4 = ip_dst->is_ipv4 = true;
+
+		uint32_t * src = (uint32_t *) get_attribute_extracted_data_at_index(ipacket, PROTO_IP, IP_SRC, proto_session_index);
+		uint32_t * dst = (uint32_t *) get_attribute_extracted_data_at_index(ipacket, PROTO_IP, IP_DST, proto_session_index);
+
+		if (likely( src ))
+			ip_src->ipv4 = *src;
+
+		if (likely( dst ))
+			ip_dst->ipv4 = (*dst);
+	} else {
+		ip_src->is_ipv4 = ip_dst->is_ipv4 = false;
+		void * src = (void *) get_attribute_extracted_data_at_index(ipacket, PROTO_IPV6, IP6_SRC, proto_session_index);
+		void * dst = (void *) get_attribute_extracted_data_at_index(ipacket, PROTO_IPV6, IP6_DST, proto_session_index);
+		if (likely( src ))
+			assign_16bytes( &ip_src->ipv6, src);
+		if (likely( dst ))
+			assign_16bytes( &ip_dst->ipv6, dst);
+	}
+
+	return true;
+}
+
+
+static inline bool dpi_get_ip_string_from_packet( const ipacket_t *ipacket, char *ip_src_string, char *ip_dst_string ){
+	mmt_ip_t ip_src, ip_dst;
+	if( !(dpi_get_ip_from_packet( ipacket, &ip_src, &ip_dst)) )
+		return false;
+
+	if( ip_src.is_ipv4 ){
+		inet_ntop4( ip_src.ipv4, ip_src_string );
+		inet_ntop4( ip_dst.ipv4, ip_dst_string );
+	}else{
+		inet_ntop( AF_INET6, &ip_src.ipv6, ip_src_string, INET6_ADDRSTRLEN );
+		inet_ntop( AF_INET6, &ip_dst.ipv6, ip_dst_string, INET6_ADDRSTRLEN );
+	}
+	return true;
 }
 #endif /* SRC_MODULES_DPI_DPI_TOOL_H_ */

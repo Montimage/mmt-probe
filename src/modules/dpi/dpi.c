@@ -28,6 +28,7 @@
 
 #define DPI_PACKET_HANDLER_ID 6
 
+
 static inline packet_session_t * _create_session (const ipacket_t * ipacket, dpi_context_t *context){
 	mmt_session_t * dpi_session = ipacket->session;
 
@@ -178,7 +179,8 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 	IF_ENABLE_STAT_REPORT_FULL(
 		ret->micro_reports = micro_flow_report_alloc_init(config->reports.microflow, output);
 		ret->event_reports = event_based_report_register(dpi_handler, config->reports.events, config->reports.events_size, output);
-		ret->no_session_report = no_session_report_alloc_init(dpi_handler, output, config->is_enable_ip_fragmentation_report, config->is_enable_proto_no_session_report );
+		ret->no_session_report = no_session_report_alloc_init(dpi_handler, output, config->is_enable_ip_fragmentation_report,
+									config->is_enable_proto_no_session_report );
 		ret->radius_report = radius_report_register(dpi_handler, config->reports.radius, output);
 	)
 	IF_ENABLE_STAT_REPORT(
@@ -190,6 +192,11 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 			//this output must use the same id as "normal" output
 			ret->behaviour_output = file_output_alloc_init( config->reports.behaviour, worker_index );
 		}
+	)
+
+	IF_ENABLE_LTE_REPORT(
+		ret->lte_topo_report = lte_topo_report_register( dpi_handler, config->reports.session->is_gtp,
+									config->reports.session->output_channels, output );
 	)
 
 	//This callback is fired before the packets have been reordered and reassembled by mmt_reassembly
@@ -248,6 +255,10 @@ void dpi_close( dpi_context_t *dpi_context ){
 	)
 
 	IF_ENABLE_TCP_REASSEMBLY( tcp_reassembly_close( dpi_context->tcp_reassembly ); )
+
+	IF_ENABLE_LTE_REPORT(
+		lte_topo_report_unregister( dpi_context->lte_topo_report );
+	)
 }
 
 //this happens after closing dpi_context->dpi_handler

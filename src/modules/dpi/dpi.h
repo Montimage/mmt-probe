@@ -43,7 +43,7 @@ typedef struct session_stat_struct session_stat_t;
 #include "reassembly/tcp_reassembly.h"
 #endif
 
-
+#include "lte/topology_report.h"
 
 //the instances of this structure are used on global scope: during running time of MMT-Probe
 typedef struct dpi_context_struct{
@@ -65,6 +65,10 @@ typedef struct dpi_context_struct{
 		radius_report_context_t *radius_report;
 
 		file_output_t *behaviour_output;
+	)
+
+	IF_ENABLE_LTE_REPORT(
+		lte_topo_report_t *lte_topo_report;
 	)
 
 	struct{
@@ -102,6 +106,7 @@ typedef struct packet_session_struct {
 static inline packet_session_t *dpi_get_packet_session( const ipacket_t *ipacket ){
 	return (packet_session_t *) get_user_session_context_from_packet(ipacket);
 }
+
 
 /**
  * This must be called by worker when it is initialize

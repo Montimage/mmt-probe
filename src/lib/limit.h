@@ -121,6 +121,12 @@
 	#define IF_ENABLE_STAT_REPORT( x )
 #endif
 
+#ifdef LTE_REPORT
+	#define IF_ENABLE_LTE_REPORT( x ) x
+#else
+	#define IF_ENABLE_LTE_REPORT( x )
+#endif
+
 #if defined STAT_REPORT && !defined SIMPLE_REPORT
 	#define IF_ENABLE_STAT_REPORT_FULL( x ) x
 #else
