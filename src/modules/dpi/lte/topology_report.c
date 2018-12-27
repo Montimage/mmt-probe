@@ -73,21 +73,25 @@ static inline bool _build_msg_to_add_new_entity( char *message, const s1ap_entit
 	STRING_BUILDER_WITH_SEPARATOR( valid, message, MAX_LENGTH_REPORT_MESSAGE, ",",
 			__INT( entity->id ),
 			__INT( TOPO_ADD_ELEMENT ),
-			__INT( entity->type ),
 			__STR( ip_str  ),
+			__INT( entity->type ),
 			__ARR( message_tmp )
 	);
 	return true;
 }
 
 
-static inline void _build_msg_to_add_new_link( char *message, const s1ap_entity_t *entity){
+static inline bool _build_msg_to_add_new_link( char *message, const s1ap_entity_t *entity){
+	if( entity->parent == 0 )
+		return false;
+
 	int valid = 0;
 	STRING_BUILDER_WITH_SEPARATOR( valid, message, MAX_LENGTH_REPORT_MESSAGE, ",",
 			__INT( entity->id ),
 			__INT( TOPO_ADD_LINK ),
 			__INT( entity->parent )
 	);
+	return true;
 }
 
 static inline void _build_msg_to_rm_entity( char *message, const s1ap_entity_t *entity){
@@ -132,7 +136,8 @@ static void _got_s1ap_packet(const ipacket_t * ipacket, attribute_t * attribute,
 
 	//When an entity has been attached, we need to add a link between it and its parent
 	case S1AP_ENTITY_STATUS_ATTACHED:
-		_build_msg_to_add_new_link( message, entity );
+		if( !_build_msg_to_add_new_link( message, entity ) )
+			return;
 		break;
 
 

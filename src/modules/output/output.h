@@ -19,6 +19,7 @@ typedef struct output_struct output_t;
  * IDs of report types
  */
 typedef enum{
+	START_UP_REPORT_TYPE          =    1, /**< Send only once when starting probe */
 	MICRO_FLOW_REPORT_TYPE        =    8,//!< MICRO_FLOW_REPORT_TYPE
 	RADIUS_REPORT_TYPE            =    9,//!< RADIUS_REPORT_TYPE
 	SECURITY_REPORT_TYPE          =   10,//!< SECURITY_REPORT_TYPE

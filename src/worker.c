@@ -9,6 +9,7 @@
 #include <locale.h>
 #include "worker.h"
 
+#include "lib/version.h"
 #include "lib/string_builder.h"
 #include "modules/output/output.h"
 #include "modules/output/file/file_output.h"
@@ -97,6 +98,33 @@ void worker_print_common_statistics( const probe_context_t *context ){
 	}
 }
 
+void _send_version_information( output_t *output ){
+	struct timeval now;
+	gettimeofday (&now, NULL);
+
+#ifdef SECURITY_MODULE
+	output_write_report_with_format(
+				output,
+				CONF_OUTPUT_CHANNEL_ALL, /*sent to all active channels*/
+				START_UP_REPORT_TYPE,
+				&now,
+				"\"%s\",\"%s\",\"%s\"",
+				get_version(),
+				mmt_version(),
+				mmt_sec_get_version_info()
+	);
+#else
+	output_write_report_with_format(
+				output,
+				CONF_OUTPUT_CHANNEL_ALL, /*sent to all active channels*/
+				START_UP_REPORT_TYPE,
+				&now,
+				"\"%s\",\"%s\"",
+				get_version(),
+				mmt_version()
+	);
+#endif
+}
 /**
  * This callback must be called by a worker thread after starting the thread
  * @param worker_context
@@ -141,6 +169,10 @@ void worker_on_start( worker_context_t *worker_context ){
 		if( !license_check_expiry( get_context()->config->license_file, worker_context->output ))
 			ABORT("Licence is either expired or incorrect");
 #endif
+
+	//this is performed only by the first worker to inform the beginning of Probe
+	if( worker_context->index == 0 )
+		_send_version_information( worker_context->output );
 
 //#ifdef DYNAMIC_CONFIG_MODULE
 //	if( IS_SMP_MODE( worker_context->probe_context ))

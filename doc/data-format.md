@@ -385,20 +385,35 @@ Type of overlapped and duplicated:
 1000,3,"./p1p1_03.pcap",1399407481.189781,1,172.19.190.67,172.19.190.67
 ```
 
-## License report
+## Startup report
 
-Channel name: `license.stat`
+Format id: 1
 
-Format id: 30
-
-This reports the statistics of the license owned by the devices
+This report is sent *only once* at starting Probe.
 
 | # | Column Name       | Column Description | 
 | - | ----------------- | ------------------ |
 | 1 | *format*          | Identifier of the format of the encapsulated application report |
 | 2 | *probe*           | Identifier of the probe generating the report |
 | 3 | *source*          | Identifier of the data source whether it is a trace file name or a network interface |
-| 4 | *timestamp*       | Timestamp (seconds.micros) when the probe was started |
+| 4 | *timestamp*       | Timestamp (seconds.micros) *when the probe was started* |
+| 5 | *version_probe*   | Version of MMT-Probe |
+| 6 | *version_sdk*     | Version of MMT-DPI |
+
+## License report
+
+Channel name: `license.stat`
+
+Format id: 30
+
+This reports the statistics of the license owned by the devices.
+
+| # | Column Name       | Column Description | 
+| - | ----------------- | ------------------ |
+| 1 | *format*          | Identifier of the format of the encapsulated application report |
+| 2 | *probe*           | Identifier of the probe generating the report |
+| 3 | *source*          | Identifier of the data source whether it is a trace file name or a network interface |
+| 4 | *timestamp*       | Timestamp (seconds.micros) when the report has been created  |
 | 5 | *license_info_id* | Identifier for the the license report |
 |   |                   | 1 = BUY_MMT_LICENSE_FOR_THIS_DEVICE |
 |   |                   | 2 = MMT_LICENSE_EXPIRED |
