@@ -171,7 +171,7 @@ void worker_on_start( worker_context_t *worker_context ){
 #endif
 
 	//this is performed only by the first worker to inform the beginning of Probe
-	if( worker_context->index == 0 )
+	if( worker_context->index == 0 && worker_context->output )
 		_send_version_information( worker_context->output );
 
 //#ifdef DYNAMIC_CONFIG_MODULE

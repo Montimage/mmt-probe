@@ -393,12 +393,13 @@ This report is sent *only once* at starting Probe.
 
 | # | Column Name       | Column Description | 
 | - | ----------------- | ------------------ |
-| 1 | *format*          | Identifier of the format of the encapsulated application report |
+| 1 | *format*          | Identifier of the format of the report = 1 |
 | 2 | *probe*           | Identifier of the probe generating the report |
 | 3 | *source*          | Identifier of the data source whether it is a trace file name or a network interface |
 | 4 | *timestamp*       | Timestamp (seconds.micros) *when the probe was started* |
 | 5 | *version_probe*   | Version of MMT-Probe |
-| 6 | *version_sdk*     | Version of MMT-DPI |
+| 6 | *version_dpi*     | Version of MMT-DPI |
+| 7 | *version_security*| Version of MMT-Security if it is enable |
 
 ## License report
 
@@ -410,7 +411,7 @@ This reports the statistics of the license owned by the devices.
 
 | # | Column Name       | Column Description | 
 | - | ----------------- | ------------------ |
-| 1 | *format*          | Identifier of the format of the encapsulated application report |
+| 1 | *format*          | Identifier of the format of the report = 30 |
 | 2 | *probe*           | Identifier of the probe generating the report |
 | 3 | *source*          | Identifier of the data source whether it is a trace file name or a network interface |
 | 4 | *timestamp*       | Timestamp (seconds.micros) when the report has been created  |
@@ -438,7 +439,7 @@ This reports the statistics of the license owned by the devices.
 | - | ----------- | ------------------ | 
 | 1 | *Report length (4 bytes)* | Total length of the report | 
 | 2 | *Number of attributes(1 bytes)* | Number of attributes present in the particular report | 
-| 3 | *Timestamp (16 bytes)* | Time when the report was created | 
+| 3 | *Timestamp (16 bytes)* | Time when the report was created |
 | 4 | *Proto-id (4 bytes)* | Identifier of a protocol | 
 | 5 | *Attribute-id (4 bytes)* | Identifier for the attribute |
 | 6 | *Length* | length of the attribute extracted |

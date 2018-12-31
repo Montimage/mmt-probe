@@ -837,6 +837,7 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 	conf->outputs.socket = _parse_socket_block( cfg );
 	//a global
 	conf->outputs.is_enable = ( (conf->outputs.file != NULL && conf->outputs.file->is_enable )
+									|| (conf->outputs.mongodb != NULL && conf->outputs.mongodb->is_enable)
 									|| (conf->outputs.redis != NULL && conf->outputs.redis->is_enable)
 									|| (conf->outputs.kafka != NULL && conf->outputs.kafka->is_enable )
 									|| (conf->outputs.socket != NULL && conf->outputs.socket->is_enable ));
