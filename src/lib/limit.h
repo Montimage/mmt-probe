@@ -184,6 +184,7 @@
 	IF_ENABLE_HTTP_RECONSTRUCT( ", HTTP_RECONSTRUCT" ) \
 	IF_ENABLE_KAFKA( ", KAFKA" )                       \
 	IF_ENABLE_LICENSE_CHECK( ", LICENSE" )             \
+	IF_ENABLE_LTE_REPORT( ", LTE_REPORT" )             \
 	IF_ENABLE_MONGODB( ", MONGODB" )                   \
 	IF_ENABLE_PCAP( ", PCAP" )                         \
 	IF_ENABLE_PCAP_DUMP( ", PCAP_DUMP" )               \

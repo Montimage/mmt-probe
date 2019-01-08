@@ -147,13 +147,15 @@ wget https://github.com/mongodb/mongo-c-driver/releases/download/1.9.5/mongo-c-d
 tar xzf mongo-c-driver-1.9.5.tar.gz
 cd mongo-c-driver-1.9.5
 ./configure --disable-automatic-init-and-cleanup
+make
+sudo make install
 ```
 
 Compile MMT-Probe:
 
 ```bash
 #support output to file, redis and kafka servers
-make REDIS_MODULE KAFKA_MODULE all
+make REDIS_MODULE KAFKA_MODULE compile
 #or support only output to file and mongodb server
 make MONGODB_MODULE compile
 ```

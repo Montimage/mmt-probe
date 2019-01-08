@@ -262,7 +262,7 @@ This reports security problems detected by MMT-Security
 
 ### Example:
 ```JSON
-10,123,"eth1",1452523000.331799,4,"detected","attack","Two successive TCP SYN requests but with different destnation addresses.",{"event_12":{"timestamp":1452523000.158154,"description":"SYN request","attributes":[{"ip.src":"192.168.0.20"},{"ip.dst":"67.196.156.65"},{"tcp.flags":"2"}]},"event_13":{"timestamp":1452523000.329879,"description":"SYN request","attributes":[{"ip.src":"192.168.0.20"},{"ip.dst":"66.235.120.127"},{"tcp.flags":"2"}]}}
+10,123,"eth1",1452523000.331799,4,"detected","attack","Two successive TCP SYN requests but with different destnation addresses.",{"event_12":{"timestamp":1452523000.158154,"description":"SYN request","attributes":[["ip.src","192.168.0.20"],["ip.dst","67.196.156.65"],["tcp.flags","2"]]},"event_13":{"timestamp":1452523000.329879,"description":"SYN request","attributes":[["ip.src","192.168.0.20"],["ip.dst","66.235.120.127"],["tcp.flags","2"]]}}
 ```
 
 
