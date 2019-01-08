@@ -11,7 +11,7 @@
 
 #include<pthread.h>
 #include <stdint.h>
-#include "../lte/topology_report.h"
+#include "topology_report.h"
 
 
 #include "../dpi.h"
@@ -40,7 +40,10 @@ static inline bool _build_msg_to_add_new_entity( char *message, const s1ap_entit
 	char message_tmp[ MAX_LENGTH_REPORT_MESSAGE ];
 	char ip_str[INET_ADDRSTRLEN];
 
-	if( ! inet_ntop4( entity->ipv4, ip_str ) )
+	//empty ip
+	if( entity->ipv4 == 0 ){
+		ip_str[0] = '\0';
+	}else if( ! inet_ntop4( entity->ipv4, ip_str ) )
 		return false;
 
 	valid = 0;
@@ -49,7 +52,8 @@ static inline bool _build_msg_to_add_new_entity( char *message, const s1ap_entit
 	case S1AP_ENTITY_TYPE_UE:
 		STRING_BUILDER_WITH_SEPARATOR( valid, message_tmp, MAX_LENGTH_REPORT_MESSAGE-valid, ",",
 				__STR( entity->data.ue.imsi ),
-				__INT( entity->data.ue.m_tmsi  )
+				__INT( entity->data.ue.m_tmsi  ),
+				__INT( entity->data.ue.gtp_teid )
 		);
 		break;
 	case S1AP_ENTITY_TYPE_ENODEB:
