@@ -32,16 +32,16 @@ endif
 
 #List of packages mmt-probe depends on:
 
-#1. When use build using STATIC_LINK, we do not need mmt-dpi package
+#1. When use build using STATIC_LINK, we do not need mmt-dpi, mmt-security package
 ifndef STATIC_LINK
   RPM_DEPENDING_PACKAGES += mmt-dpi >= 1.6.13  #for .rpm file
   DEB_DEPENDING_PACKAGES += mmt-dpi (>= 1.6.13)#for .def file
-endif
 
 #2. When security enable => we need mmt-security package
 ifdef SECURITY_MODULE
   RPM_DEPENDING_PACKAGES += , mmt-security >= 1.2.0
   DEB_DEPENDING_PACKAGES += , mmt-security (>= 1.2.0)
+endif
 endif
 
 #temp folder to contain installed files
