@@ -15,6 +15,7 @@
 
 #include "../dpi.h"
 #include "../dpi_tool.h"
+#include "tcp_rtt.h"
 
 #include <mmt_core.h>
 #include <tcpip/mmt_tcpip.h>
@@ -37,6 +38,10 @@ typedef enum{
 	SESSION_STAT_TYPE_APP_GTP = 5
 }session_stat_type_t;
 
+enum{
+	DIRECTION_UPLOAD   = 0,
+	DIRECTION_DOWNLOAD = 1
+};
 
 typedef struct mmt_ipv4_ipv6_struct {
 	union {
@@ -50,6 +55,8 @@ typedef struct flow_stat_data_struct{
 	uint64_t upload;
 	uint64_t download;
 }flow_stat_data_t;
+
+#define reset_flow_stat_data( x ) x.upload = x.download = 0
 
 typedef struct session_web_stat_struct session_web_stat_t;
 typedef struct session_ftp_stat_struct session_ftp_stat_t;
@@ -73,8 +80,6 @@ typedef struct session_stat_struct {
 	flow_stat_data_t payload;
 	flow_stat_data_t packets;
 
-	uint64_t retransmission_count;
-
 	uint16_t content_class;
 
 	//sub statistic (e.g., HTTP) beyond main stat (IP)
@@ -87,16 +92,22 @@ typedef struct session_stat_struct {
 		session_gtp_stat_t *gtp;
 	}apps;
 
-#ifdef QOS_MODULE
-	uint64_t sum_rtt[2];
-	uint64_t rtt_min_usec[2];
-	uint64_t rtt_max_usec[2];
-	uint64_t rtt_avg_usec[2];
-	uint64_t rtt_counter[2];
 
-	struct timeval dtt_start_time;
+#ifdef QOS_MODULE
+	struct{
+		uint64_t sum[2]; //total rtt in microsecond
+		uint64_t max[2]; //max
+		uint64_t min[2]; //min
+		uint64_t counter[2]; //number of packets being calculated rtt => to calculate avg of rtt
+		uint64_t retransmission[2];
+	}rtt;
+
 	uint64_t rtt_at_handshake;
+
+	tcp_rtt_t *tcp_rtt;
 #endif
+
+
 	bool is_classified;
 #endif
 

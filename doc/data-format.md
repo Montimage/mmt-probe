@@ -115,15 +115,15 @@ This report is a session based reporting (When session report is enable). Sessio
 | 25 | *Server_Port* | Server port number (0 if transport protocol is session less like ICMP) |
 | 26 | *Client_Port* | Client port number (0 if transport protocol is session less like ICMP) |
 | 27 | *Thread_number* | Thread number (starts with thread number 0)|
-| 28 | *rtt* | rtt at the tcp handshake (SYN-ACK) in usec|
-| 29 | *rtt_min_server* | Sampled min server rtt (DATA-ACK) in usec|
-| 30 | *rtt_min_client* | Sampled min client rtt (DATA-ACK) in usec|
-| 31 | *rtt_max_server* | Sampled max server rtt (DATA-ACK) in usec|
-| 32 | *rtt_max_client* | Sampled max client rtt (DATA-ACK) in usec|
-| 33 | *rtt_avg_server* | Sampled avg server rtt (DATA-ACK) in usec|
-| 34 | *rtt_avg_client* | Sampled avg client rtt (DATA-ACK) in usec|
-| 35 | Data_transfer_time  | sample data transfer time in usec (Time difference between  first data packet time and the last packet time received in the sample interval|
-| 36 | *retransmission_count* | Sampled TCP retransmission count for each session|
+| 28 | *rtt_handshake* | rtt at the tcp handshake (SYN-ACK) in usec|
+| 29 | *ul_rtt_data_min* | Sampled min upload rtt (DATA-ACK) in usec. `rtt_data` is the rounded trip time of a data packet (the one not in 3-way handshake process). `ul_rtt_data` is the interval between an upload data packet and its ACK. When several data packets are acknownledged by only one ACK, then they have the same `rtt_data` that is calculated by the interval between the last data packet and the ACK|
+| 30 | *dl_rtt_data_min* | Sampled min download rtt (DATA-ACK) in usec|
+| 31 | *ul_rtt_data_max* | Sampled max upload rtt (DATA-ACK) in usec|
+| 32 | *dl_rtt_data_max* | Sampled max download rtt (DATA-ACK) in usec|
+| 33 | *ul_rtt_data_avg* | Sampled avg upload rtt (DATA-ACK) in usec. This does not means `min + max/2` but the average rtt time of all packets captured in the sampled period.|
+| 34 | *dl_rtt_data_avg* | Sampled avg download rtt (DATA-ACK) in usec|
+| 35 | *ul_retransmission* | Sampled TCP retransmission count for upload direction|
+| 36 | *dl_retransmission* | Sampled TCP retransmission count for download direction|
 | 37 | *format* | Identifier of the format of the encapsulated application report | 
 |    |          | We determine the extension part of report based on this number's value |
 | 38 | *Application_Family* | Identifier of the application family (like Web, Network, P2P, etc.). |
