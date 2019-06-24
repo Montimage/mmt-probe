@@ -3,7 +3,15 @@
 
 [TOC]
 
-MMT Probe generates data in a flexible format that fits different applications. 
+MMT Probe generates data in a flexible format that fits different applications.
+By default, the reports use CSV format:
+
+- separator using comma `,`
+- a string is surrounded by `"` and `"`, for example, `"eth1"`
+- new line character is `\n` 
+- a complex value is surrounded by `[` and `]`, for example, `"eth1",[1,2],5`
+
+
 
 The data format follows this generic structure:
 
@@ -115,26 +123,28 @@ This report is a session based reporting (When session report is enable). Sessio
 | 25 | *Server_Port* | Server port number (0 if transport protocol is session less like ICMP) |
 | 26 | *Client_Port* | Client port number (0 if transport protocol is session less like ICMP) |
 | 27 | *Thread_number* | Thread number (starts with thread number 0)|
-| 28 | *rtt_handshake* | rtt at the tcp handshake (SYN-ACK) in usec|
-| 29 | *ul_rtt_data_min* | Sampled min upload rtt (DATA-ACK) in usec. `rtt_data` is the rounded trip time of a data packet (the one not in 3-way handshake process). `ul_rtt_data` is the interval between an upload data packet and its ACK. When several data packets are acknownledged by only one ACK, then they have the same `rtt_data` that is calculated by the interval between the last data packet and the ACK|
-| 30 | *dl_rtt_data_min* | Sampled min download rtt (DATA-ACK) in usec|
-| 31 | *ul_rtt_data_max* | Sampled max upload rtt (DATA-ACK) in usec|
-| 32 | *dl_rtt_data_max* | Sampled max download rtt (DATA-ACK) in usec|
-| 33 | *ul_rtt_data_avg* | Sampled avg upload rtt (DATA-ACK) in usec. This does not means `min + max/2` but the average rtt time of all packets captured in the sampled period.|
-| 34 | *dl_rtt_data_avg* | Sampled avg download rtt (DATA-ACK) in usec|
-| 35 | *ul_retransmission* | Sampled TCP retransmission count for upload direction|
-| 36 | *dl_retransmission* | Sampled TCP retransmission count for download direction|
-| 37 | *format* | Identifier of the format of the encapsulated application report | 
+| 28 | *handshake_time* | interval, in usec, of 3-way handshake|
+| 29 | *app_response_time* | interval, in usec, between the last packet in 3-way handshake, (ACK packet - when session established), and the first data packet being transmitted after that|
+| 30 | *data_transfer_time* | interval, in usec, from the current sampling packet to the latest packet being reported. The sum `(handshake_time + app_response_time + data_transfer_time)` represents timelife of a tcp session. It allows to measure EURT (end-user response time) |
+| 31 | *ul_rtt_data_min* | Sampled min upload rtt (DATA-ACK) in usec. `rtt_data` is the rounded trip time of a data packet (the one not in 3-way handshake process). `ul_rtt_data` is the interval between an upload data packet and its ACK. When several data packets are acknownledged by only one ACK, then they have the same `rtt_data` that is calculated by the interval between the last data packet and the ACK|
+| 32 | *dl_rtt_data_min* | Sampled min download rtt (DATA-ACK) in usec|
+| 33 | *ul_rtt_data_max* | Sampled max upload rtt (DATA-ACK) in usec|
+| 34 | *dl_rtt_data_max* | Sampled max download rtt (DATA-ACK) in usec|
+| 35 | *ul_rtt_data_avg* | Sampled avg upload rtt (DATA-ACK) in usec. This does not means `min + max/2` but the average rtt time of all packets captured in the sampled period.|
+| 36 | *dl_rtt_data_avg* | Sampled avg download rtt (DATA-ACK) in usec|
+| 37 | *ul_retransmission* | Sampled TCP retransmission count for upload direction|
+| 38 | *dl_retransmission* | Sampled TCP retransmission count for download direction|
+| 39 | *format* | Identifier of the format of the encapsulated application report | 
 |    |          | We determine the extension part of report based on this number's value |
-| 38 | *Application_Family* | Identifier of the application family (like Web, Network, P2P, etc.). |
-| 39 | *Content Class* | Identifier of the content class (like text, image, video, etc.) |
+| 40 | *Application_Family* | Identifier of the application family (like Web, Network, P2P, etc.). |
+| 41 | *Content Class* | Identifier of the content class (like text, image, video, etc.) |
 
 **Note**: only the app/protocol at the end of protocol path (hierarchy) are reported. For example, if a packet has a protocol path `Ethernet.IP.TCP.HTTP` then only `HTTP` is reported. The data volume in the report is length of the packet, the payload volume is the payload of `HTTP` in the packet.
 
 ##### Example:
 
 ```JSON
-100,3,"eth1",1399407481.259615,1,340,"99.178.354.340","99.178.354.340",1,260,128,2,194,128,1,66,0,1,1399407481.189781,"172.19.190.67","92.128.87.243","00:10:c6:b4:7d:92","00:1d:46:f0:87:a1",1,59125,22,0,0,69834,0,69834,0,69834,0,0,0,0,13,0
+100,3,"./1-tcp.pcap",1470228655.713042,1,153,"99.178.354.153","99.178.354.153",1,945,269,10,462,124,5,483,145,5,1470228652.710419,"10.13.13.103","10.13.13.102","08:00:27:9A:E2:E2","08:00:27:F0:BD:EA",1,8080,59916,0,0,225,47,0,0,156,47,0,0,0,0,0,1,0
 ```
 Extension of report 100: The extension provides application specific attributes (HTTP, SSL, FTP, RTP, etc).
 
@@ -174,74 +184,75 @@ This is reported for each HTTP transaction. If a TCP flow containing 3 HTTP tran
 
 | #  | Column Name         | Column Description | 
 | -- | ------------------- | ------------------ | 
-| 40 | *Response time*     | Interval, in nanosecond, between the request and the response of an HTTP transaction |
-| 41 | *Transactions Nb*   | Number of HTTP requests/replies per one TCP session|
-| 42 | *Interaction time*  | Interval, in nanosecond, between the first request and the last response. If this is zero then the flow has one request reply |
-| 43 | *Hostname*          | Hostname as reported in the HTTP header |
-| 44 | *MIME type*         | MIME type of the HTTP reply |
-| 45 | *Referrer *         | Referrer as reported in the HTTP header |
-| 46 | *CDN_Flag*          | **0**: CDN not detected (This does not mean it is not used :)). **1**: 1 means CDN flags identified in the message. The referrer should identify the application. Will not be present in HTTPS flows. **2**: CDN delivery, the application name should identify the application. However, we might see Akamai as application. In this case, skip it. |
-| 47 | *URI *              | URI as reported in the HTTP header |
-| 48 | *Method*            | Method as reported in the HTTP header |
-| 49 | *Response *         | Response as reported in the HTTP header |
-| 50 | Content length      | Content-length as reported in the HTTP header |
-| 51 | Req-Res indicator   | It indicates that a particular transaction is finished (with a response) (0: complete, otherwise: >= 1): 1=first block, 2=second block, ..., 0: the last block. This is useful when a long HTTP transition passing through several report periodics. For example, in the first 5 seconds, we see only the request, next 5 seconds, we see nothing concerning this HTTP transaction, then we see its response |
+| 42 | *Response time*     | Interval, in nanosecond, between the request and the response of an HTTP transaction |
+| 43 | *Transactions Nb*   | Number of HTTP requests/replies per one TCP session|
+| 44 | *Interaction time*  | Interval, in nanosecond, between the first request and the last response. If this is zero then the flow has one request reply |
+| 45 | *Hostname*          | Hostname as reported in the HTTP header |
+| 46 | *MIME type*         | MIME type of the HTTP reply |
+| 47 | *Referrer *         | Referrer as reported in the HTTP header |
+| 48 | *CDN_Flag*          | **0**: CDN not detected (This does not mean it is not used :)). **1**: 1 means CDN flags identified in the message. The referrer should identify the application. Will not be present in HTTPS flows. **2**: CDN delivery, the application name should identify the application. However, we might see Akamai as application. In this case, skip it. |
+| 49 | *URI *              | URI as reported in the HTTP header |
+| 50 | *Method*            | Method as reported in the HTTP header |
+| 51 | *Response *         | Response as reported in the HTTP header |
+| 52 | Content length      | Content-length as reported in the HTTP header |
+| 53 | Req-Res indicator   | It indicates that a particular transaction is finished (with a response) (0: complete, otherwise: >= 1): 1=first block, 2=second block, ..., 0: the last block. This is useful when a long HTTP transition passing through several report periodics. For example, in the first 5 seconds, we see only the request, next 5 seconds, we see nothing concerning this HTTP transaction, then we see its response |
 
 **Format id: 2 (SSL)**
 
 | #  | Column Name  | Column Description | 
 | -- | ------------ | ------------------ | 
-| 40 | *Servername* | Servername as reported in the SSL/TLS negotiation. It is not always possible to extract this field. will be empty in that case. |
-| 41 | *CDN_Flag*   | **0**: CDN not detected (This does not mean it is not used :)). **1**: 1 means CDN flags identified in the message. The referrer should identify the application. Will not be present in HTTPS flows. **2**: CDN delivery, the application name should identify the application. However, we might see Akamai as 
+| 42 | *Servername* | Servername as reported in the SSL/TLS negotiation. It is not always possible to extract this field. will be empty in that case. |
+| 43 | *CDN_Flag*   | **0**: CDN not detected (This does not mean it is not used :)). **1**: 1 means CDN flags identified in the message. The referrer should identify the application. Will not be present in HTTPS flows. **2**: CDN delivery, the application name should identify the application. However, we might see Akamai as 
 
 **Format id: 3 (RTP)**
 
 | #  | Column Name              | Column Description | 
 | -- | ------------------------ | ------------------ | 
-| 40 | *Packet loss rate*       | Global packet loss rate of the flow | 
-| 41 | *Packet loss burstiness* | Average packet loss burstiness of the flow | 
-| 42 | *max jitter*             | Maximum jitter value for the flow |
-| 43 | *order error*            | Number of order error |
+| 42 | *Packet loss rate*       | Global packet loss rate of the flow | 
+| 43 | *Packet loss burstiness* | Average packet loss burstiness of the flow | 
+| 44 | *max jitter*             | Maximum jitter value for the flow |
+| 45 | *order error*            | Number of order error |
 
 
 **Format id: 4 (FTP)**
 
 | #  | Column Name | Column Description | 
 | -- |------------ | ------------------ | 
-| 40 | *User name* | User name for the particular the ftp session | 
-| 41 | *Password*  | Password for the particular ftp session |
-| 42 | *File size* | Total size of the file to be downloaded |
-| 43 | *File name* | Download file name     |
-| 44 | *Direction* | Direction of the flow  |
-| 45 | *Control session id* | Control session session_id of the corresponding data session  |
-| 46 | *Response_time* | Response_time of the file transfer only |
+| 42 | *User name* | User name for the particular the ftp session | 
+| 43 | *Password*  | Password for the particular ftp session |
+| 44 | *File size* | Total size of the file to be downloaded |
+| 45 | *File name* | Download file name     |
+| 46 | *Direction* | Direction of the flow  |
+| 47 | *Control session id* | Control session session_id of the corresponding data session  |
+| 48 | *Response_time* | Response_time of the file transfer only |
 
 **Format id: 5 (GTP) **
 
 | #  | Column Name | Column Description | 
 | -- | ----------- | ------------------ | 
-| 40 | *ip src*    | Source of the first IP after Ethernet. The one of IP after GTP is in main part of the report, at index 20  | 
-| 41 | *ip dst*    |  Destination of the first IP after Ethernet. The one of IP after GTP is in main part of the report, at index 21  |
-| 42 | *TEIDs*     | Array of TEID numbers, surrounded by [ and ] | 
+| 42 | *ip src*    | Source of the first IP after Ethernet. The one of IP after GTP is in main part of the report, at index 20  | 
+| 43 | *ip dst*    |  Destination of the first IP after Ethernet. The one of IP after GTP is in main part of the report, at index 21  |
+| 44 | *TEIDs*     | Array of TEID numbers, surrounded by `[` and `]` |
+| 45 | *QCI*       | QoS class identifier
 
 **Format id : 2000 (inside web report (format field), then it is MP2T ) **
 
 | #  | Column Name             | Column Description | 
 | -- | ----------------------- | ------------------ | 
-| 52 | Average-network_bitrate | Average Network bitrates in bytes/sec of a video segment |
-| 53 | Average-video-bitrate   | Average Video bitrates in bytes/sec of a video segment |
-| 54 | Retransmission_count    | Retransmission count of a video segment |
-| 55 | Out-of-order-count      | out_of_order count of a video segment |
-| 56 | Stream-id               | stream id which the segment belongs  |
+| 54 | Average-network_bitrate | Average Network bitrates in bytes/sec of a video segment |
+| 55 | Average-video-bitrate   | Average Video bitrates in bytes/sec of a video segment |
+| 56 | Retransmission_count    | Retransmission count of a video segment |
+| 57 | Out-of-order-count      | out_of_order count of a video segment |
+| 58 | Stream-id               | stream id which the segment belongs  |
 
 **Format : 2001 (inside web report (formatfield), then it is M3U8 ) **
 
 | #  | Column Name     | Column Description | 
 | -- | --------------- | ------------------ | 
-| 52 | Version         | Version of M3U8 |
-| 53 | Media sequence  | Media Sequence|
-| 54 | Target duration | Target duration for each segment |
-| 55 | Allow_cache     | Allow cache |
+| 54 | Version         | Version of M3U8 |
+| 55 | Media sequence  | Media Sequence|
+| 56 | Target duration | Target duration for each segment |
+| 57 | Allow_cache     | Allow cache |
 
 
 ## Security reports

@@ -99,12 +99,26 @@ typedef struct session_stat_struct {
 		uint64_t max[2]; //max
 		uint64_t min[2]; //min
 		uint64_t counter[2]; //number of packets being calculated rtt => to calculate avg of rtt
-		uint64_t retransmission[2];
 	}rtt;
 
-	uint64_t rtt_at_handshake;
+	tcp_rtt_t *tcp_rtt; /**< data structure to calculate rtt*/
 
-	tcp_rtt_t *tcp_rtt;
+	uint64_t retransmission[2];
+
+
+	/*See ~/doc/img/tcp_qos_time.svg */
+	//uint64_t handshake_time;      /**< Interval of 3-way handshake */
+	//uint64_t app_response_time;   /**< Interval between the last packet in 3-way handshake, (ACK packet - when session established), and the first data packet being transmitted after that */
+	//uint64_t data_transfer_time;  /**< Interval between the first data packet being transmitted and the current data packet at the sampling moment */
+
+	struct timeval tcp_established_ts; /**< store the moment where tcp session is established */
+	struct timeval latest_tcp_data_pkt_ts; /**< store the timestamp of the most recent data packet in the tcp session*/
+
+	//handshake_time and app_response_time are reported only once
+	//data_transfer_time is reported progressively
+	uint8_t is_printed_handshake_time;
+	uint8_t is_printed_app_response_time;
+
 #endif
 
 

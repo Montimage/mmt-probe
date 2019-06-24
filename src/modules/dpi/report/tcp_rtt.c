@@ -51,13 +51,30 @@ tcp_rtt_t *tcp_rtt_init(){
 #define expected_ack_number( p ) (p->seq_number + p->data_len)
 
 /**
- * Add packet to the list
- * @output usec interval, in nano second, between the last data packet and the ack packet if pkt acks some packets storing in the list
- * @return number of packets being acknowledged
+ * Add packet to the list. The packet is characterized by 4 numbers:
+ * - direction: either 0 or 1 for uplink or downlink
+ * - ack_num: ACK number
+ * - seq_num: Sequence number
+ * - data_len: data length
+ * - timestamp:
+ *
+ * Wee need to:
+ * - for the same direction of packet: store information of the packet
+ * - for the inverted direction: check whether the packet acknowledges some others
+ *
+ * @return number of packets being acknowledged by the current packet
+ *
+ * @output If the returned number is not zero, then, the
+ * output usec represents the interval, in nano second between
+ * the current packet and the ack packet
+ * if packet acknowledges some packets storing in the list
+ *
  */
-uint32_t tcp_rtt_add_packet( tcp_rtt_t *rtt, uint8_t direction, uint32_t ack_num, uint32_t seq_num, uint16_t len, struct timeval ts, uint64_t *usec ){
+uint32_t tcp_rtt_add_packet( tcp_rtt_t *rtt, uint8_t direction, uint32_t ack_num, uint32_t seq_num,
+		uint16_t data_len, struct timeval timestamp, uint64_t *usec ){
+
 	//1. add data for the current direction
-	uint32_t expected_ack_num = seq_num + len;
+	uint32_t expected_ack_num = seq_num + data_len;
 	struct pkt_node *p = rtt->pkts[ direction ], *prev = NULL;
 
 	//the list is sorted by descending order
@@ -71,12 +88,15 @@ uint32_t tcp_rtt_add_packet( tcp_rtt_t *rtt, uint8_t direction, uint32_t ack_num
 	if( p != NULL && expected_ack_number( p ) == expected_ack_num ){
 		//do nothing??
 		//use new timestamp?
-		p->timestamp = ts;
-		DEBUG("Duplicate packet having seq = %u", seq_num );
+		p->timestamp = timestamp;
+		//DEBUG("Duplicate packet having seq = %u", seq_num );
 
 	} else {
-		struct pkt_node *new_node = _new_pkt_node( seq_num, len, ts );
+		//create a new node, then insert it into the linked list
+		struct pkt_node *new_node = _new_pkt_node( seq_num, data_len, timestamp );
 		new_node->next = p;
+
+		//the list is empty (for the first time)
 		if( prev == NULL )
 			rtt->pkts[ direction ] = new_node;
 		else
@@ -99,7 +119,7 @@ uint32_t tcp_rtt_add_packet( tcp_rtt_t *rtt, uint8_t direction, uint32_t ack_num
 	//found one
 	if( p != NULL && expected_ack_number( p ) == ack_num ){
 
-		*usec = u_second_diff( &ts, &p->timestamp );
+		*usec = u_second_diff( &timestamp, &p->timestamp );
 
 		//remove this node and the ones have been acknowledged
 		while( p != NULL && expected_ack_number( p ) == ack_num){
@@ -125,18 +145,18 @@ uint32_t tcp_rtt_add_packet( tcp_rtt_t *rtt, uint8_t direction, uint32_t ack_num
 
 static inline void _free_linked_list( struct pkt_node *node ){
 	struct pkt_node *p;
-	uint16_t counter = 0;
+	//uint16_t counter = 0;
 	while( node != NULL ){
 		p = node;
-		DEBUG("no ack seq = %u", p->seq_number );
+		//DEBUG("no ack seq = %u", p->seq_number );
 		mmt_probe_free( p );
 		node = node->next;
-		counter ++;
+		//counter ++;
 	}
 
 #ifdef DEBUG_MODE
-	if( counter )
-		DEBUG("Rest %d packets that have no ack", counter );
+	//if( counter )
+	//	DEBUG("Rest %d packets that have no ack", counter );
 #endif
 }
 

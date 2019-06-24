@@ -90,14 +90,41 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 			get_session_proto_path_direction( dpi_session, 0 ),
 			path_dl, sizeof( path_dl ));
 
+	struct timeval timestamp = get_session_last_activity_time( dpi_session );
 	uint64_t total_active_sessions = get_active_session_count( context->dpi_handler );
 
 #ifdef QOS_MODULE
-	struct timeval rtt_time = get_session_rtt(dpi_session);
-	uint64_t rtt_at_handshake = u_second( &rtt_time );
+	uint64_t handshake_time = 0, app_response_time = 0, data_transfer_time = 0;
+
+	//calculate data only when TCP session has been establisehd
+	if( ! is_zero_timestamp( & session_stat->tcp_established_ts )){
+
+		if( ! session_stat->is_printed_handshake_time ){
+			struct timeval rtt_time = get_session_rtt(dpi_session);
+			handshake_time = u_second( &rtt_time );
+			session_stat->is_printed_handshake_time = true;
+		}
+
+		if( !is_zero_timestamp( & session_stat->latest_tcp_data_pkt_ts ) ){
+
+			if( ! session_stat->is_printed_app_response_time ){
+				app_response_time = u_second_diff( & session_stat->latest_tcp_data_pkt_ts, & session_stat->tcp_established_ts );
+				 session_stat->is_printed_app_response_time = true;
+			}
+
+			//data transfer time
+			//ensure that the timestamp of the current packet (given by get_session_last_activity_time) is after the first data packet of the tcp session
+			if( is_after( & session_stat->latest_tcp_data_pkt_ts, &timestamp )){
+				data_transfer_time = u_second_diff( &timestamp, & session_stat->latest_tcp_data_pkt_ts );
+
+				//update the new moment of data transfer that need to report
+				session_stat->latest_tcp_data_pkt_ts = timestamp;
+			}
+		}
+	}
 #endif
 
-	//DEBUG("handshake: %lu", rtt_at_handshake );
+	//DEBUG("handshake: %lu", handshake_time );
 
 	struct timeval start_time = get_session_init_time(dpi_session);
 
@@ -128,17 +155,19 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 		__INT( session_stat->port_src),
 		__INT( context->worker_index),
 	#ifdef QOS_MODULE
-		__INT( ((session_stat->rtt_at_handshake == 0)? rtt_at_handshake : 0)),
+		__INT( handshake_time ),
+		__INT( app_response_time ),
+		__INT( data_transfer_time ),
 		__INT( session_stat->rtt.min[DIRECTION_UPLOAD] ),
 		__INT( session_stat->rtt.min[DIRECTION_DOWNLOAD] ),
 		__INT( session_stat->rtt.max[DIRECTION_UPLOAD] ),
 		__INT( session_stat->rtt.max[DIRECTION_DOWNLOAD] ),
 		__INT( _div( session_stat->rtt.sum[DIRECTION_UPLOAD]   , session_stat->rtt.counter[DIRECTION_UPLOAD] )),
 		__INT( _div( session_stat->rtt.sum[DIRECTION_DOWNLOAD] , session_stat->rtt.counter[DIRECTION_DOWNLOAD] )),
-		__INT( session_stat->rtt.retransmission[DIRECTION_UPLOAD] ),
-		__INT( session_stat->rtt.retransmission[DIRECTION_DOWNLOAD] ),
+		__INT( session_stat->retransmission[DIRECTION_UPLOAD] ),
+		__INT( session_stat->retransmission[DIRECTION_DOWNLOAD] ),
 	#else
-		__ARR( "0,0,0,0,0,0,0,0,0" ), //string without closing by quotes
+		__ARR( "0,0,0,0,0,0,0,0,0,0,0" ), //string without closing by quotes
 	#endif
 		__INT(    session_stat->app_type),
 		__INT(    get_application_class_by_protocol_id( proto_id )),
@@ -181,8 +210,6 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 		message[ valid ] = '\0';
 	}
 
-	struct timeval timestamp = get_session_last_activity_time( dpi_session );
-
 	output_write_report( context->output,
 			context->probe_config->reports.session->output_channels,
 			SESSION_REPORT_TYPE,
@@ -215,15 +242,15 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	session_stat->packets.download = dl_packets;
 
 #ifdef QOS_MODULE
+
 #define _reset_data( x ) x[0] = x[1] = 0
 
 	_reset_data( session_stat->rtt.min );
 	_reset_data( session_stat->rtt.max );
 	_reset_data( session_stat->rtt.sum );
 	_reset_data( session_stat->rtt.counter );
-	_reset_data( session_stat->rtt.retransmission );
 
-	session_stat->rtt_at_handshake = rtt_at_handshake;
+	_reset_data( session_stat->retransmission );
 #endif
 }
 
@@ -300,47 +327,6 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	session->volumes.download = dl_volumes;
 }
 #endif
-//
-///* This function calculates Round Trip Time (RTT) for each session */
-//void ip_rtt_handler(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
-//
-//	mmt_probe_context_t * probe_context = get_probe_context_config();
-//	if(attribute->data == NULL) return;
-//	ip_rtt_t ip_rtt = *((ip_rtt_t *)attribute->data);
-//	session_struct_t *temp_session = get_user_session_context(ip_rtt.session);
-//	if (temp_session == NULL) {
-//		return;
-//	}
-//	if (temp_session->stat == NULL) {
-//		temp_session->stat = (temp_session_statistics_t *) malloc(sizeof (temp_session_statistics_t));
-//		memset(temp_session->stat, 0, sizeof (temp_session_statistics_t));
-//	}
-//	uint8_t * proto_id = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_IP, IP_PROTO_ID);
-//
-//	if (ip_rtt.rtt.tv_sec < 0 || ip_rtt.rtt.tv_usec < 0 )return;
-//
-//	uint64_t latest_rtt = (uint64_t) TIMEVAL_2_USEC(ip_rtt.rtt);
-//	if (proto_id != NULL && * proto_id == 6 &&  latest_rtt > 0 ) {
-//		if (temp_session->stat.rtt_min_usec[ip_rtt.direction] == 0){
-//			temp_session->stat.rtt_min_usec[ip_rtt.direction] = latest_rtt;
-//			temp_session->stat.rtt_counter[ip_rtt.direction] = 1;
-//
-//		} else {
-//			temp_session->stat.rtt_min_usec[ip_rtt.direction] = (temp_session->stat.rtt_min_usec[ip_rtt.direction] < latest_rtt) ? temp_session->stat.rtt_min_usec[ip_rtt.direction] : latest_rtt;
-//			temp_session->stat.rtt_counter[ip_rtt.direction]++;
-//		}
-//
-//		if (temp_session->stat.rtt_max_usec[ip_rtt.direction] == 0){
-//			temp_session->stat.rtt_max_usec[ip_rtt.direction] = latest_rtt;
-//
-//		} else {
-//			temp_session->stat.rtt_max_usec[ip_rtt.direction] = (temp_session->stat.rtt_max_usec[ip_rtt.direction] > latest_rtt) ? temp_session->stat.rtt_max_usec[ip_rtt.direction] : latest_rtt;
-//		}
-//		temp_session->stat.sum_rtt[ip_rtt.direction] += latest_rtt;
-//		temp_session->stat.rtt_avg_usec[ip_rtt.direction] = temp_session->stat.sum_rtt [ip_rtt.direction]/temp_session->stat.rtt_counter[ip_rtt.direction];
-//
-//	}
-//}
 
 
 session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * ipacket, dpi_context_t *context ){
@@ -353,7 +339,7 @@ session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * 
 	session_stat_t *session_stat = mmt_alloc_and_init_zero( sizeof (session_stat_t));
 
 #ifndef SIMPLE_REPORT
-	session_stat->app_type    = SESSION_STAT_TYPE_APP_IP;
+	session_stat->app_type = SESSION_STAT_TYPE_APP_IP;
 #endif
 	//the index in the protocol hierarchy of the protocol session belongs to
 	const uint32_t proto_session_index  = get_session_protocol_index( dpi_session );
@@ -422,6 +408,7 @@ session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * 
 	}
 
 #ifdef QOS_MODULE
+	//initialize a data structure to calculate RTT of data packets
 	session_stat->tcp_rtt = tcp_rtt_init();
 #endif
 
@@ -465,6 +452,9 @@ void session_report_callback_on_ending_session(const mmt_session_t * dpi_session
  * Return -1 if not found
  */
 static inline int32_t _get_protocol_index_after_session( uint32_t proto_id, const mmt_session_t *dpi_session ){
+	if( dpi_session == NULL )
+		return -1;
+
 	//the index in the protocol hierarchy of the protocol session belongs to
 	uint32_t proto_index  = get_session_protocol_index( dpi_session );
 	const proto_hierarchy_t *proto_hierarchy = get_session_protocol_hierarchy( dpi_session );
@@ -497,8 +487,9 @@ int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, sessi
 		//calculate upload and download retransmission counters
 		if( retransmission != NULL )
 			//DEBUG("retransmission: %u", *retransmission );
-			session_stat->rtt.retransmission[ dir ]   += *retransmission;
+			session_stat->retransmission[ dir ]   += *retransmission;
 
+		//calculate RTT
 		uint64_t usec = 0;
 		uint32_t *ack_number = get_attribute_extracted_data_at_index(ipacket, PROTO_TCP, TCP_ACK_NB, proto_index);
 		uint32_t *seq_number = get_attribute_extracted_data_at_index(ipacket, PROTO_TCP, TCP_SEQ_NB, proto_index);
@@ -513,11 +504,24 @@ int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, sessi
 				dir = (dir == DIRECTION_UPLOAD )? DIRECTION_DOWNLOAD : DIRECTION_UPLOAD;
 				session_stat->rtt.counter[dir] += counter;
 				session_stat->rtt.sum[dir]     += (usec * counter);
-				if( session_stat->rtt.max[dir] > usec )
+				if( session_stat->rtt.max[dir] < usec )
 					session_stat->rtt.max[dir] = usec;
-				if( session_stat->rtt.min[dir] < usec )
+				if( session_stat->rtt.min[dir] == 0 || session_stat->rtt.min[dir] > usec )
 					session_stat->rtt.min[dir] = usec;
 			}
+		}
+
+		if( is_zero_timestamp( & session_stat->tcp_established_ts )){
+			//this function does not work, it always return NULL
+			//uint32_t *established = get_attribute_extracted_data_at_index( ipacket, PROTO_TCP, TCP_CONN_ESTABLISHED, proto_index );
+			attribute_t *att = get_extracted_attribute_at_index( ipacket, PROTO_TCP, TCP_CONN_ESTABLISHED, proto_index );
+
+			if( att && att->data )
+				session_stat->tcp_established_ts = ipacket->p_hdr->ts;
+		} else if( is_zero_timestamp( & session_stat->latest_tcp_data_pkt_ts )){
+			//to calculate app_response_time, data_transfer_time
+			if( is_after( &session_stat->tcp_established_ts, &ipacket->p_hdr->ts ) )
+				session_stat->latest_tcp_data_pkt_ts = ipacket->p_hdr->ts;
 		}
 
 	} else {
@@ -566,6 +570,7 @@ static inline void
 	ret &= register_extraction_attribute(mmt_handler, PROTO_TCP, TCP_ACK_NB);
 	ret &= register_extraction_attribute(mmt_handler, PROTO_TCP, TCP_SEQ_NB);
 	ret &= register_extraction_attribute(mmt_handler, PROTO_TCP, TCP_PAYLOAD_LEN );
+	ret &= register_extraction_attribute(mmt_handler, PROTO_TCP, TCP_CONN_ESTABLISHED );
 #endif
 
 	if(!ret) {

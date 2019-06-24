@@ -61,6 +61,22 @@ static ALWAYS_INLINE long u_second_diff( const struct timeval *end, const struct
 }
 
 /**
+ * Whether end occurs after start
+ * @param end
+ * @param start
+ */
+static ALWAYS_INLINE bool is_after( const struct timeval *start, const struct timeval *end ){
+	return ( end->tv_sec > start->tv_sec )
+			|| (
+					( end->tv_sec == start->tv_sec ) && ( end->tv_usec > start->tv_usec )
+			);
+}
+
+static ALWAYS_INLINE bool is_zero_timestamp( const struct timeval *ts ){
+	return (ts->tv_sec == 0 &&  ts->tv_usec == 0);
+}
+
+/**
  * Get number of micro seconds of a timeval
  * @param ts
  * @return
