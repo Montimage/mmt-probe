@@ -197,6 +197,11 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 	IF_ENABLE_LTE_REPORT(
 		ret->lte_topo_report = lte_topo_report_register( dpi_handler, config->reports.session->is_gtp,
 									config->reports.session->output_channels, output );
+
+		IF_ENABLE_QOS(
+				ret->lte_qos_report = lte_qos_report_register( dpi_handler, config->reports.session->is_gtp,
+						config->reports.session->output_channels, output );
+		)
 	)
 
 	//This callback is fired before the packets have been reordered and reassembled by mmt_reassembly
@@ -258,6 +263,9 @@ void dpi_close( dpi_context_t *dpi_context ){
 
 	IF_ENABLE_LTE_REPORT(
 		lte_topo_report_unregister( dpi_context->lte_topo_report );
+		IF_ENABLE_QOS(
+				lte_qos_report_unregister( dpi_context->lte_qos_report );
+		)
 	)
 }
 

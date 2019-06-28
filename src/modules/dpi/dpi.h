@@ -44,6 +44,7 @@ typedef struct session_stat_struct session_stat_t;
 #endif
 
 #include "lte/topology_report.h"
+#include "lte/lte_qos_report.h"
 
 //the instances of this structure are used on global scope: during running time of MMT-Probe
 typedef struct dpi_context_struct{
@@ -69,6 +70,7 @@ typedef struct dpi_context_struct{
 
 	IF_ENABLE_LTE_REPORT(
 		lte_topo_report_t *lte_topo_report;
+		IF_ENABLE_QOS( lte_qos_report_t *lte_qos_report; )
 	)
 
 	struct{
