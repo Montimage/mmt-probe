@@ -123,15 +123,15 @@ This report is a session based reporting (When session report is enable). Sessio
 | 25 | *Server_Port* | Server port number (0 if transport protocol is session less like ICMP) |
 | 26 | *Client_Port* | Client port number (0 if transport protocol is session less like ICMP) |
 | 27 | *Thread_number* | Thread number (starts with thread number 0)|
-| 28 | *handshake_time* | interval, in usec, of 3-way handshake|
-| 29 | *app_response_time* | interval, in usec, between the last packet in 3-way handshake, (ACK packet - when session established), and the first data packet being transmitted after that|
-| 30 | *data_transfer_time* | interval, in usec, from the current sampling packet to the latest packet being reported. The sum `(handshake_time + app_response_time + data_transfer_time)` represents timelife of a tcp session. It allows to measure EURT (end-user response time) |
-| 31 | *ul_rtt_data_min* | Sampled min upload rtt (DATA-ACK) in usec. `rtt_data` is the rounded trip time of a data packet (the one not in 3-way handshake process). `ul_rtt_data` is the interval between an upload data packet and its ACK. When several data packets are acknownledged by only one ACK, then they have the same `rtt_data` that is calculated by the interval between the last data packet and the ACK|
-| 32 | *dl_rtt_data_min* | Sampled min download rtt (DATA-ACK) in usec|
-| 33 | *ul_rtt_data_max* | Sampled max upload rtt (DATA-ACK) in usec|
-| 34 | *dl_rtt_data_max* | Sampled max download rtt (DATA-ACK) in usec|
-| 35 | *ul_rtt_data_avg* | Sampled avg upload rtt (DATA-ACK) in usec. This does not means `min + max/2` but the average rtt time of all packets captured in the sampled period.|
-| 36 | *dl_rtt_data_avg* | Sampled avg download rtt (DATA-ACK) in usec|
+| 28 | *handshake_time* | interval, in microsecond, of 3-way handshake|
+| 29 | *app_response_time* | interval, in microsecond, between the last packet in 3-way handshake, (ACK packet - when session established), and the first data packet being transmitted after that|
+| 30 | *data_transfer_time* | interval, in microsecond, from the current sampling packet to the latest packet being reported. The sum `(handshake_time + app_response_time + data_transfer_time)` represents timelife of a tcp session. It allows to measure EURT (end-user response time) |
+| 31 | *ul_rtt_data_min* | Sampled min upload rtt (DATA-ACK) in microsecond. `rtt_data` is the rounded trip time of a data packet (the one not in 3-way handshake process). `ul_rtt_data` is the interval between an upload data packet and its ACK. When several data packets are acknownledged by only one ACK, then they have the same `rtt_data` that is calculated by the interval between the last data packet and the ACK|
+| 32 | *dl_rtt_data_min* | Sampled min download rtt (DATA-ACK) in microsecond|
+| 33 | *ul_rtt_data_max* | Sampled max upload rtt (DATA-ACK) in microsecond|
+| 34 | *dl_rtt_data_max* | Sampled max download rtt (DATA-ACK) in microsecond|
+| 35 | *ul_rtt_data_avg* | Sampled avg upload rtt (DATA-ACK) in microsecond. This does not means `min + max/2` but the average rtt time of all packets captured in the sampled period.|
+| 36 | *dl_rtt_data_avg* | Sampled avg download rtt (DATA-ACK) in microsecond|
 | 37 | *ul_retransmission* | Sampled TCP retransmission count for upload direction|
 | 38 | *dl_retransmission* | Sampled TCP retransmission count for download direction|
 | 39 | *format* | Identifier of the format of the encapsulated application report | 
@@ -184,9 +184,9 @@ This is reported for each HTTP transaction. If a TCP flow containing 3 HTTP tran
 
 | #  | Column Name         | Column Description | 
 | -- | ------------------- | ------------------ | 
-| 42 | *Response time*     | Interval, in nanosecond, between the request and the response of an HTTP transaction |
+| 42 | *Response time*     | Interval, in microsecond, between the request and the response of an HTTP transaction |
 | 43 | *Transactions Nb*   | Number of HTTP requests/replies per one TCP session|
-| 44 | *Interaction time*  | Interval, in nanosecond, between the first request and the last response. If this is zero then the flow has one request reply |
+| 44 | *Interaction time*  | Interval, in microsecond, between the first request and the last response. If this is zero then the flow has one request reply |
 | 45 | *Hostname*          | Hostname as reported in the HTTP header |
 | 46 | *MIME type*         | MIME type of the HTTP reply |
 | 47 | *Referrer *         | Referrer as reported in the HTTP header |
