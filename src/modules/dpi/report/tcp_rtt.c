@@ -87,8 +87,10 @@ uint32_t tcp_rtt_add_packet( tcp_rtt_t *rtt, uint8_t direction, uint32_t ack_num
 	//Duplicated (retransmission) packet
 	if( p != NULL && expected_ack_number( p ) == expected_ack_num ){
 		//do nothing??
-		//use new timestamp?
-		p->timestamp = timestamp;
+		//use new timestamp? (only if it is more recent
+		if( p->timestamp.tv_sec < timestamp.tv_sec ||
+				(p->timestamp.tv_usec < timestamp.tv_usec && p->timestamp.tv_sec == timestamp.tv_sec))
+			p->timestamp = timestamp;
 		//DEBUG("Duplicate packet having seq = %u", seq_num );
 
 	} else {
@@ -103,6 +105,11 @@ uint32_t tcp_rtt_add_packet( tcp_rtt_t *rtt, uint8_t direction, uint32_t ack_num
 			prev->next = new_node;
 	}
 
+	uint32_t counter = 0;
+
+	//if this packet does not contain ACK
+	if( ack_num == 0 )
+		return counter;
 
 	//2. check ack_num for other direction
 
@@ -110,13 +117,14 @@ uint32_t tcp_rtt_add_packet( tcp_rtt_t *rtt, uint8_t direction, uint32_t ack_num
 	uint8_t other_dir = (direction == 0? 1: 0);
 	p = rtt->pkts[ other_dir ];
 	prev = NULL;
+
 	while( p!= NULL && expected_ack_number(p) != ack_num){
 		prev = p;
 		p = p->next;
 	}
 
-	uint32_t counter = 0;
-	//found one
+
+	//found one ??
 	if( p != NULL && expected_ack_number( p ) == ack_num ){
 
 		*usec = u_second_diff( &timestamp, &p->timestamp );
@@ -148,7 +156,7 @@ static inline void _free_linked_list( struct pkt_node *node ){
 	//uint16_t counter = 0;
 	while( node != NULL ){
 		p = node;
-		//DEBUG("no ack seq = %u", p->seq_number );
+		DEBUG("no ack seq = %u", p->seq_number );
 		mmt_probe_free( p );
 		node = node->next;
 		//counter ++;
