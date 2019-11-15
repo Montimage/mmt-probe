@@ -482,7 +482,8 @@ int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, sessi
 
 		//whether the current packet is the retransmission
 		uint32_t *retransmission = get_attribute_extracted_data_at_index(ipacket, PROTO_TCP, TCP_RETRANSMISSION, proto_index);
-		int dir = get_session_last_packet_direction( ipacket->session );
+		// !! to ensure dir is either 0 or 1
+		uint8_t dir = !! (get_session_last_packet_direction( ipacket->session ) );
 
 		//calculate upload and download retransmission counters
 		if( retransmission != NULL )
