@@ -65,6 +65,10 @@ static inline uint32_t _get_msg_room( const message_t * msg ){
  */
 static inline int _find_proto_index( int proto_id, int encap_index, const proto_hierarchy_t *proto_hierarchy ){
 	int proto_order = 0, last_i = -1;
+   //no session => no IP
+   if( proto_hierarchy == NULL )
+      return last_i;
+
 	for( int i=0; i<proto_hierarchy->len; i++ )
 		if( proto_hierarchy->proto_path[i] == proto_id ){
 			proto_order ++;
