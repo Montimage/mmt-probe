@@ -213,12 +213,13 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 	)
 
 	//callback when starting a new IP session
+	/*
 	if( ! register_attribute_handler(dpi_handler, PROTO_IP, PROTO_SESSION, _starting_session_handler, NULL, ret ) )
 		ABORT("Cannot register handler for processing a session at starting");
 
 	if( ! register_attribute_handler(dpi_handler, PROTO_IPV6, PROTO_SESSION, _starting_session_handler, NULL, ret ) )
 		ABORT("Cannot register handler for processing a session at starting");
-
+*/
 	//callback when a session is expired
 	if( !register_session_timeout_handler( dpi_handler, _ending_session_handler, ret ))
 		ABORT( "Cannot register handler for processing a session at ending" );

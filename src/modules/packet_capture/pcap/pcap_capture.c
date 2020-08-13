@@ -500,7 +500,7 @@ void pcap_capture_start( probe_context_t *context ){
 		//pcap_datalink() must not be called on a pcap  descriptor  created  by  pcap_create()
 		//  that has not yet been activated by pcap_activate().
 		ret = pcap_datalink( pcap );
-		ASSERT( ret == DLT_EN10MB,
+		ASSERT( ret == 800,
 			"'%s' is not an Ethernet. (be sure that you are running probe with root permission)",
 			context->config->input->input_source);
 	}

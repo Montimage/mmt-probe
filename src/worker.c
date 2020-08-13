@@ -27,7 +27,7 @@ worker_context_t * worker_alloc_init(){
 	char errbuf[1024];
 
 	worker_context_t *ret = mmt_alloc_and_init_zero( sizeof( worker_context_t ));
-	ret->dpi_handler = mmt_init_handler(DLT_EN10MB, 0, errbuf);
+	ret->dpi_handler = mmt_init_handler(800, 0, errbuf);
 
 	ASSERT( ret->dpi_handler != NULL,
 		"Cannot initialize MMT-DPI handler: %s", errbuf );

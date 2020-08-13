@@ -129,7 +129,7 @@ int pcap_dump_callback_on_receiving_packet(const ipacket_t * ipacket, pcap_dump_
 						context->worker_index);
 
 				//open new file
-				context->file = _create_pcap_file( file_name, DLT_EN10MB, 0, context->config->snap_len );
+				context->file = _create_pcap_file( file_name, 800, 0, context->config->snap_len );
 				if( context->file == NULL){
 					log_write( LOG_ERR, "Cannot open file %s for dumping pcap: %s",
 							file_name,
