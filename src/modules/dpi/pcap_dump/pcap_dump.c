@@ -18,6 +18,7 @@ typedef struct pcap_dump_context_struct{
 	uint32_t next_ts_to_dump_to_new_file;
 	uint32_t *proto_ids_lst;
 	uint16_t worker_index;
+	uint32_t stack_type;
 } pcap_dump_context_t;
 
 
@@ -129,7 +130,7 @@ int pcap_dump_callback_on_receiving_packet(const ipacket_t * ipacket, pcap_dump_
 						context->worker_index);
 
 				//open new file
-				context->file = _create_pcap_file( file_name, 800, 0, context->config->snap_len );
+				context->file = _create_pcap_file( file_name, context->stack_type, 0, context->config->snap_len );
 				if( context->file == NULL){
 					log_write( LOG_ERR, "Cannot open file %s for dumping pcap: %s",
 							file_name,
@@ -153,7 +154,8 @@ int pcap_dump_callback_on_receiving_packet(const ipacket_t * ipacket, pcap_dump_
 }
 
 
-pcap_dump_context_t* pcap_dump_start( uint16_t worker_index, pcap_dump_conf_t *config, mmt_handler_t *dpi_handler ){
+pcap_dump_context_t* pcap_dump_start( uint16_t worker_index, const probe_conf_t *probe_config, mmt_handler_t *dpi_handler ){
+	pcap_dump_conf_t *config = probe_config->reports.pcap_dump;
 	if( ! config->is_enable )
 		return NULL;
 
@@ -161,6 +163,7 @@ pcap_dump_context_t* pcap_dump_start( uint16_t worker_index, pcap_dump_conf_t *c
 	context->file = NULL;
 	context->config = config;
 	context->worker_index = worker_index;
+	context->stack_type = probe_config->stack_type;
 
 	//protocol ids
 	context->proto_ids_lst = mmt_alloc( sizeof( uint32_t ) * context->config->protocols_size );

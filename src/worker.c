@@ -23,11 +23,11 @@
  * This function must be called by the main thread when allocating a worker
  * @return
  */
-worker_context_t * worker_alloc_init(){
+worker_context_t * worker_alloc_init(uint32_t stack_type){
 	char errbuf[1024];
 
 	worker_context_t *ret = mmt_alloc_and_init_zero( sizeof( worker_context_t ));
-	ret->dpi_handler = mmt_init_handler(800, 0, errbuf);
+	ret->dpi_handler = mmt_init_handler(stack_type, 0, errbuf);
 
 	ASSERT( ret->dpi_handler != NULL,
 		"Cannot initialize MMT-DPI handler: %s", errbuf );
