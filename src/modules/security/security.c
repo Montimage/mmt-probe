@@ -64,12 +64,12 @@ static inline uint32_t _get_msg_room( const message_t * msg ){
  *   number is index of proto_id in the hierarchy
  */
 static inline int _find_proto_index( int proto_id, int encap_index, const proto_hierarchy_t *proto_hierarchy ){
-	int proto_order = 0, last_i = -1;
+	int proto_order = 0, last_i = -1, i;
    //no session => no IP
    if( proto_hierarchy == NULL )
       return last_i;
 
-	for( int i=0; i<proto_hierarchy->len; i++ )
+	for( i=0; i<proto_hierarchy->len; i++ )
 		if( proto_hierarchy->proto_path[i] == proto_id ){
 			proto_order ++;
 			last_i = i;
