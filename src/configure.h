@@ -246,7 +246,7 @@ typedef struct probe_conf_struct{
 	bool is_enable_ip_defragmentation;      //perform de-fragmentation
 	bool is_enable_tcp_reassembly;
 
-
+	uint32_t stack_type; //dpi stack type
 	uint32_t probe_id;
 
 	output_conf_t outputs;

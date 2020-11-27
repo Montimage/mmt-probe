@@ -702,7 +702,7 @@ void dpdk_capture_start ( probe_context_t *context){
 				//put a worker on a core being different with main core
 				lcore_id = rte_get_next_lcore( lcore_id, true, true );
 
-				worker_context_t *smp = worker_alloc_init();
+				worker_context_t *smp = worker_alloc_init( context->config->stack_type );
 				//general part
 				smp->lcore_id      = lcore_id;
 				smp->index         = worker_id;

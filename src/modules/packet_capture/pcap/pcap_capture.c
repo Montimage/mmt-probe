@@ -429,7 +429,7 @@ void pcap_capture_start( probe_context_t *context ){
 
 	//allocate and initialize memory for each worker
 	for( i=0; i<workers_count; i++ ){
-		context->smp[i] = worker_alloc_init();
+		context->smp[i] = worker_alloc_init( context->config->stack_type );
 
 		context->smp[i]->index = i;
 
@@ -500,9 +500,10 @@ void pcap_capture_start( probe_context_t *context ){
 		//pcap_datalink() must not be called on a pcap  descriptor  created  by  pcap_create()
 		//  that has not yet been activated by pcap_activate().
 		ret = pcap_datalink( pcap );
-		ASSERT( ret == DLT_EN10MB,
-			"'%s' is not an Ethernet. (be sure that you are running probe with root permission)",
-			context->config->input->input_source);
+		ASSERT( ret == context->config->stack_type,
+			"Stack type of '%s is incorrect (being %d but expecting %d). Please recheck 'stack-type' in the .conf file.",
+			context->config->input->input_source,
+			ret, context->config->stack_type);
 	}
 
 	context->modules.pcap->handler = pcap;

@@ -49,6 +49,30 @@ static inline bool _is_string( int data_type ){
 	return false;
 }
 
+//specical attribute format
+#define PROTO_IEEE802154 800
+#define IEEE802154_DST_ADDRESS_EXTENDED 10
+#define IEEE802154_SRC_ADDRESS_EXTENDED 13
+static int _process_ieee802154_src_dst( char *msg, int length, uint32_t proto_id, uint32_t att_id, const attribute_t *data ){
+	if( proto_id != PROTO_IEEE802154 )
+		return 0;
+	if( att_id != IEEE802154_SRC_ADDRESS_EXTENDED && att_id != IEEE802154_DST_ADDRESS_EXTENDED)
+		return 0;
+	//no data => use empty string
+	if( data == NULL || data->data == NULL){
+		msg[0] = '"';
+		msg[1] = '"';
+		return 2; //2 characters have been added to msg
+	}
+
+	uint8_t *add = (uint8_t *) data->data;
+
+	int len = snprintf( msg , length, "\"%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\"",
+			add[7], add[6], add[5], add[4], add[3], add[2], add[1], add[0] );
+
+	return len;
+}
+
 /**
  * This callback is called by DPI when it sees one of the attributes in a event report.
  * @param packet
@@ -89,6 +113,15 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 		//separator
 		message[offset ++] = ',';
 
+		//special processing for IEEE_802154
+		int ret = _process_ieee802154_src_dst( message+offset, MAX_LENGTH_REPORT_MESSAGE - offset,
+				context->proto_ids[i], context->att_ids[i], attr_extract);
+		offset += ret;
+
+		//one of attributes of IEEE_802154 has been processed?
+		if( ret != 0 )
+			continue;
+
 		if( attr_extract != NULL ){
 			if( _is_string( attr_extract->data_type ) ){
 				//surround by quotes
@@ -101,6 +134,9 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 			else
 				offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, attr_extract );
 		}else{
+			//no value, use default value:
+			// "" for string
+			// 0  for number
 			if( _is_string( get_attribute_data_type( context->proto_ids[i],
 				context->att_ids[i] ) )){
 				message[ offset ++ ] = '"';

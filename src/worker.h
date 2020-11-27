@@ -86,7 +86,7 @@ static inline void worker_process_a_packet( worker_context_t *worker_context, st
 	worker_context->stat.pkt_processed ++;
 }
 
-worker_context_t * worker_alloc_init();
+worker_context_t * worker_alloc_init(uint32_t stack_type);
 
 void worker_release( worker_context_t *worker_context );
 

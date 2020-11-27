@@ -12,7 +12,7 @@
 
 typedef struct pcap_dump_context_struct pcap_dump_context_t;
 
-pcap_dump_context_t* pcap_dump_start( uint16_t worker_index, pcap_dump_conf_t *config, mmt_handler_t *dpi_handler );
+pcap_dump_context_t* pcap_dump_start( uint16_t worker_index, const probe_conf_t *config, mmt_handler_t *dpi_handler );
 
 /**
  * This function must be called on each coming packet
