@@ -38,6 +38,7 @@
 static uint32_t proto_id = PROTO_ETHERNET; //protocol to extract, by default: ethernet
 static uint32_t att_id   = ETH_SRC;        //attribute to extract, by default: address source
 static uint16_t proto_index = 0;
+static uint32_t proto_stack = 1;
 /**
  * Packet handler
  * @param ipacket   packet
@@ -78,6 +79,7 @@ void usage(const char * prg_name) {
 	fprintf(stderr, "\t-p             : Protocol ID to be extracted.\n");
 	fprintf(stderr, "\t-a             : Attribute ID to be extracted.\n");
 	fprintf(stderr, "\t-d             : Index of protocol to extract. For example: ETH.IP.UDP.GTP.IP, if d=3 (or ignored) IP after ETH, d=6 represent IP after GTP\n");
+	fprintf(stderr, "\t-r             : ID of protocol stack. Default = 1 (Ethernet)\n");
 	fprintf(stderr, "\t-l             : Print list of protocol and attribute, then exit.\n");
 	fprintf(stderr, "\t-h             : Prints this help.\n");
 	exit(1);
@@ -101,7 +103,7 @@ void protocols_iterator(uint32_t proto_id, void * args) {
  */
 void parseOptions(int argc, char ** argv, char * filename, int * type) {
 	int opt, optcount = 0;
-	while ((opt = getopt(argc, argv, "t:i:p:a:d:hl")) != EOF) {
+	while ((opt = getopt(argc, argv, "t:i:p:a:d:r:hl")) != EOF) {
 		switch (opt) {
 		case 't':
 			optcount++;
@@ -127,6 +129,9 @@ void parseOptions(int argc, char ** argv, char * filename, int * type) {
 			break;
 		case 'd':
 			proto_index = atoi( optarg );
+			break;
+		case 'r':
+			proto_stack = atoi( optarg );
 			break;
 		case 'l':
 			//Initialize MMT
@@ -189,7 +194,7 @@ int main(int argc, char ** argv){
 	init_extraction();
 
 	//Initialize MMT handler
-	mmt_handler =mmt_init_handler(DLT_EN10MB,0,mmt_errbuf);
+	mmt_handler =mmt_init_handler( proto_stack,0,mmt_errbuf);
 	if(!mmt_handler){
 		fprintf(stderr, "MMT handler init failed for the following reason: %s\n",mmt_errbuf );
 		return EXIT_FAILURE;
