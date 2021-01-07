@@ -16,7 +16,7 @@
 
 #include "configure.h"
 
-#define DLT_EN10MB 1/**< Ethernet (10Mb) *
+#define DLT_EN10MB 1/**< Ethernet (10Mb) */
 
 //bool conf_parse_security_ignore_mode( int *result, const char *string ){
 //	if (IS_EQUAL_STRINGS(string, "NONE") )
@@ -39,7 +39,7 @@
 //}
 
 
-/* parse values for the input-mode option */
+// parse values for the input-mode option
 bool conf_parse_input_mode(int *result, const char *value) {
 	if (IS_EQUAL_STRINGS(value, "ONLINE") )
 		*result = ONLINE_ANALYSIS;
@@ -176,6 +176,15 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_END()
 		};
 
+	cfg_opt_t forward_packet_opts[] = {
+			CFG_BOOL("enable", false, CFGF_NONE),
+			CFG_STR("output-nic", 0, CFGF_NONE),
+			CFG_INT("snap-len", 0, CFGF_NONE),
+			CFG_INT("promisc", 0, CFGF_NONE),
+			CFG_END()
+		};
+
+
 	cfg_opt_t security2_opts[] = {
 			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_BOOL("report-rule-description", true, CFGF_NONE),
@@ -280,6 +289,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_SEC("mongodb-output", mongodb_output_opts, CFGF_NONE),
 			CFG_SEC("radius-report", radius_output_opts, CFGF_NONE),
 			CFG_SEC("dump-pcap", dump_pcap_opts, CFGF_NONE),
+			CFG_SEC("forward-packet", forward_packet_opts, CFGF_NONE),
 
 			CFG_INT("stats-period", 5, CFGF_NONE),
 			CFG_BOOL("enable-proto-without-session-report", false, CFGF_NONE),
@@ -441,6 +451,20 @@ static inline pcap_dump_conf_t *_parse_dump_to_file( cfg_t *cfg ){
 		str = cfg_getnstr(cfg, "protocols", i);
 		ret->protocols[i] = mmt_strdup( str );
 	}
+	return ret;
+}
+
+static inline forward_packet_conf_t *_parse_forward_packet( cfg_t *cfg ){
+	cfg = _get_first_cfg_block( cfg, "forward-packet" );
+	if( cfg == NULL )
+		return NULL;
+
+	forward_packet_conf_t *ret = mmt_alloc( sizeof( forward_packet_conf_t ));
+
+	ret->is_enable  = cfg_getbool( cfg, "enable" );
+	ret->output_nic = _cfg_get_str(cfg, "output-nic");
+	ret->snap_len = cfg_getint( cfg, "snap-len" );
+	ret->promisc = cfg_getint( cfg, "promisc" );
 	return ret;
 }
 
@@ -866,6 +890,7 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 
 
 	conf->reports.pcap_dump = _parse_dump_to_file(cfg);
+	conf->forward_packet = _parse_forward_packet(cfg);
 	conf->reports.radius   = _parse_radius_block( cfg );
 
 	conf->session_timeout = _parse_session_timeout_block( cfg );
@@ -928,6 +953,11 @@ void conf_release( probe_conf_t *conf){
 		mmt_probe_free( conf->reports.security->excluded_rules );
 		mmt_probe_free( conf->reports.security->rules_mask );
 		mmt_probe_free( conf->reports.security );
+	}
+
+	if( conf->forward_packet ){
+		mmt_probe_free( conf->forward_packet->output_nic );
+		mmt_probe_free( conf->forward_packet );
 	}
 
 	mmt_probe_free( conf->reports.session );

@@ -104,6 +104,11 @@ static void _ending_session_handler(const mmt_session_t * dpi_session, void * us
 static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 	dpi_context_t *context = (dpi_context_t *)user_args;
 
+	IF_ENABLE_PCAP_DUMP(
+		if( context->pcap_dump )
+			pcap_dump_callback_on_receiving_packet( ipacket, context->pcap_dump );
+	)
+
 	//when packet is below to one session
 	if( ipacket->session != NULL ){
 		packet_session_t *session = dpi_get_packet_session(ipacket);
@@ -111,16 +116,16 @@ static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 		if( session == NULL )
 			session = _create_session (ipacket, context);
 
-		IF_ENABLE_PCAP_DUMP(
-			if( context->pcap_dump )
-				pcap_dump_callback_on_receiving_packet( ipacket, context->pcap_dump );
-		)
-
 		IF_ENABLE_STAT_REPORT(
 			if( context->probe_config->reports.session->is_enable )
 				session_report_callback_on_receiving_packet( ipacket, session->session_stat );
 		)
 	}
+	IF_ENABLE_FORWARD_PACKET(
+		if( context->forward_packet )
+			forward_packet_callback_on_receiving_packet( ipacket, context->forward_packet );
+	)
+
 	return 0;
 }
 
@@ -174,6 +179,10 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 
 	IF_ENABLE_PCAP_DUMP(
 		ret->pcap_dump = pcap_dump_start( worker_index, config, dpi_handler )
+	);
+
+	IF_ENABLE_FORWARD_PACKET(
+		ret->forward_packet = forward_packet_start( worker_index, config, dpi_handler )
 	);
 
 	IF_ENABLE_STAT_REPORT_FULL(
@@ -286,6 +295,10 @@ void dpi_release( dpi_context_t *dpi_context ){
 
 	IF_ENABLE_PCAP_DUMP(
 		pcap_dump_stop( dpi_context->pcap_dump );
+	)
+
+	IF_ENABLE_FORWARD_PACKET(
+		forward_packet_stop( dpi_context->forward_packet );
 	)
 
 	IF_ENABLE_FTP_RECONSTRUCT(

@@ -62,6 +62,12 @@ void worker_print_common_statistics( const probe_context_t *context ){
 #define SEC_MSG_FORMAT ""
 #endif
 
+#ifdef FORWARD_PACKET_MODULE
+#define FORWARD_PACKET_FORMAT ", forwarded %"PRIu64" packets"
+#else
+#define FORWARD_PACKET_FORMAT ""
+#endif
+
 	int i;
 	uint64_t pkt_received = 0;
 

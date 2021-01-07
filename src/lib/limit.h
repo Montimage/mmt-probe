@@ -106,6 +106,11 @@
 	#define IF_ENABLE_PCAP_DUMP( x )
 #endif
 
+#ifdef FORWARD_PACKET_MODULE
+	#define IF_ENABLE_FORWARD_PACKET( x ) x
+#else
+	#define IF_ENABLE_FORWARD_PACKET( x )
+#endif
 
 #ifdef SIMPLE_REPORT
 	#define IF_ENABLE_SIMPLE_REPORT( x ) x
@@ -180,6 +185,7 @@
 	"DPI"                                              \
 	IF_ENABLE_DPDK( ", DPDK" )                         \
 	IF_ENABLE_DYNAMIC_CONFIG( ", DYNAMIC_CONF" )       \
+	IF_ENABLE_FORWARD_PACKET( ", FORWARD_PACKET" )     \
 	IF_ENABLE_FTP_RECONSTRUCT( ", FTP_RECONSTRUCT" )   \
 	IF_ENABLE_HTTP_RECONSTRUCT( ", HTTP_RECONSTRUCT" ) \
 	IF_ENABLE_KAFKA( ", KAFKA" )                       \

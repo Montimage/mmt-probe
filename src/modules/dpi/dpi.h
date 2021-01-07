@@ -43,6 +43,8 @@ typedef struct session_stat_struct session_stat_t;
 #include "reassembly/tcp_reassembly.h"
 #endif
 
+#include "forward/forward_packet.h"
+
 #include "lte/topology_report.h"
 #include "lte/lte_qos_report.h"
 
@@ -58,6 +60,7 @@ typedef struct dpi_context_struct{
 
 	IF_ENABLE_PCAP_DUMP( pcap_dump_context_t *pcap_dump );
 
+	IF_ENABLE_FORWARD_PACKET( forward_packet_context_t *forward_packet );
 
 	IF_ENABLE_STAT_REPORT(
 		no_session_report_context_t *no_session_report;

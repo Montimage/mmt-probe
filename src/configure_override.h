@@ -215,6 +215,13 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__DUMP_PCAP__SNAP_LEN,     "dump-pcap.snap-len",     &conf->reports.pcap_dump->snap_len,             UINT16_T),
 #endif
 
+#ifdef FORWARD_PACKET_MODULE
+	(CONF_ATT__FORWARD_PACKET__ENABLE,       "forward-packet.enable",       &conf->forward_packet->is_enable,            BOOL),
+	(CONF_ATT__FORWARD_PACKET__OUTPUT_NIC,   "forward-packet.output-nic",   &conf->forward_packet->output_nic,           CHAR_STAR),
+	(CONF_ATT__FORWARD_PACKET__SNAP_LEN,     "forward-packet.snap-len",     &conf->forward_packet->snap_len,             UINT16_T),
+	(CONF_ATT__FORWARD_PACKET__PROMISC,      "forward-packet.promisc",      &conf->forward_packet->promisc,              UINT16_T),
+#endif
+
 	//system-report
 	(CONF_ATT__SYSTEM_REPORT__ENABLE,         "system-report.enable", &conf->reports.cpu_mem->is_enable, BOOL),
 	(CONF_ATT__SYSTEM_REPORT__PERIOD,         "system-report.period", &conf->reports.cpu_mem->frequency, UINT16_T),

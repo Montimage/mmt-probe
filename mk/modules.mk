@@ -192,6 +192,12 @@ ifdef PCAP_DUMP_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/dpi/pcap_dump/*.c)
 endif
 
+$(eval $(call check_module,FORWARD_PACKET_MODULE))
+ifdef FORWARD_PACKET_MODULE
+  MODULE_FLAGS += -DFORWARD_PACKET_MODULE -lpcap
+  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/dpi/forward/*.c)
+endif
+
 # check license
 $(eval $(call check_module,LICENSE_MODULE))
 ifdef LICENSE_MODULE

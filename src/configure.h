@@ -157,6 +157,13 @@ typedef struct pcap_dump_conf_struct{
 	uint16_t snap_len;
 }pcap_dump_conf_t;
 
+typedef struct forward_packet_conf_struct{
+	bool is_enable;
+	char *output_nic;
+	uint16_t snap_len;
+	uint16_t promisc;
+}forward_packet_conf_t;
+
 typedef struct reconstruct_data_conf_struct{
 	bool is_enable;
 	char *directory; //indicates the folder where the output file is created
@@ -255,6 +262,7 @@ typedef struct probe_conf_struct{
 
 	session_timeout_conf_t *session_timeout;
 	dynamic_config_conf_t *dynamic_conf;
+	forward_packet_conf_t *forward_packet;
 
 	struct report_conf_struct{
 		security_conf_t *security;
