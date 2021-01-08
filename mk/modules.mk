@@ -194,7 +194,8 @@ endif
 
 $(eval $(call check_module,FORWARD_PACKET_MODULE))
 ifdef FORWARD_PACKET_MODULE
-  MODULE_FLAGS += -DFORWARD_PACKET_MODULE -lpcap
+  MODULE_LIBS  +=  -lpcap -lmmt_tmobile
+  MODULE_FLAGS += -DFORWARD_PACKET_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/dpi/forward/*.c)
 endif
 

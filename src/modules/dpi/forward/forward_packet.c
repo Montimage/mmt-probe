@@ -9,6 +9,7 @@
 #include "../dpi_tool.h"
 #include "../../../lib/malloc_ext.h"
 #include "../../../lib/memory.h"
+#include "process_packet.h"
 
 #include <arpa/inet.h>
 #include <linux/if_packet.h>
@@ -26,6 +27,16 @@ struct forward_packet_context_struct{
 	uint64_t nb_forwarded_packets;
 	int raw_socket;
 };
+
+//TODO: need to be fixed in multi-threading
+static struct packet_forward{
+	pcap_t *pcap;
+	u_char data[0xFFFF];
+	const ipacket_t *ipacket;
+	//to update attribute's value
+	uint32_t proto_id, att_id;
+	uint64_t new_val;
+}cache;
 
 static pcap_t * _create_pcap_handler( const forward_packet_conf_t *conf ){
 	char pcap_errbuf[PCAP_ERRBUF_SIZE];
@@ -87,6 +98,10 @@ forward_packet_context_t* forward_packet_start( uint16_t worker_index, const pro
 	context->pcap_handler = pcap;
 
 //	context->raw_socket = sockfd;
+
+	cache.pcap = pcap;
+	cache.ipacket = NULL;
+
 	return context;
 }
 
@@ -104,8 +119,11 @@ void forward_packet_stop( forward_packet_context_t *context ){
 	//if( context->raw_socket )
 	//	close( context->raw_socket );
 
+	cache.ipacket = NULL;
+
 	mmt_probe_free( context );
 }
+
 
 /**
  * This function must be called on each coming packet
@@ -118,6 +136,11 @@ int forward_packet_callback_on_receiving_packet(const ipacket_t * ipacket, forwa
 	size_t pkt_size = ipacket->p_hdr->caplen;
 	const void *buffer = ipacket->data;
 
+	//store data to cache
+	cache.ipacket = ipacket;
+	return 0;
+
+	//the following will be used when no cache
 	int ret;
 	ret = pcap_inject(pcap, ipacket->data, pkt_size);
 	/*
@@ -131,3 +154,20 @@ int forward_packet_callback_on_receiving_packet(const ipacket_t * ipacket, forwa
 	return ret;
 }
 
+
+extern uint32_t update_ngap_data( u_char *data, uint32_t data_size, const ipacket_t *ipacket, uint32_t proto_id, uint32_t att_id, uint64_t new_val );
+
+void set_forward_action(forward_action_t act){
+	printf("forward packet\n");
+	if( act == ACTION_FORWARD && cache.ipacket ){
+		update_ngap_data(cache.data, 0xFFFF, cache.ipacket, cache.proto_id, cache.att_id, cache.new_val );
+		if( cache.pcap )
+			pcap_inject( cache.pcap, cache.data, cache.ipacket->p_hdr->caplen );
+	}
+	cache.ipacket = NULL;
+}
+void set_attribute_value(uint32_t proto_id, uint32_t att_id, uint64_t new_val){
+	cache.proto_id = proto_id;
+	cache.att_id   = att_id;
+	cache.new_val  = new_val;
+}
