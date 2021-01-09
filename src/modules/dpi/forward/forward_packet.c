@@ -30,13 +30,18 @@ struct forward_packet_context_struct{
 
 //TODO: need to be fixed in multi-threading
 static struct packet_forward{
-	pcap_t *pcap;
-	u_char data[0xFFFF];
-	const ipacket_t *ipacket;
 	//to update attribute's value
 	uint32_t proto_id, att_id;
 	uint64_t new_val;
+	forward_action_t action;
+	bool is_need_to_update_packet;
 }cache;
+
+static void _reset_cache(){
+	//by default we forward packets and no need to modify them before forwarding
+	cache.is_need_to_update_packet = false;
+	cache.action = ACTION_FORWARD;
+}
 
 static pcap_t * _create_pcap_handler( const forward_packet_conf_t *conf ){
 	char pcap_errbuf[PCAP_ERRBUF_SIZE];
@@ -99,9 +104,7 @@ forward_packet_context_t* forward_packet_start( uint16_t worker_index, const pro
 
 //	context->raw_socket = sockfd;
 
-	cache.pcap = pcap;
-	cache.ipacket = NULL;
-
+	_reset_cache();
 	return context;
 }
 
@@ -119,10 +122,10 @@ void forward_packet_stop( forward_packet_context_t *context ){
 	//if( context->raw_socket )
 	//	close( context->raw_socket );
 
-	cache.ipacket = NULL;
-
 	mmt_probe_free( context );
 }
+
+extern uint32_t update_ngap_data( u_char *data, uint32_t data_size, const ipacket_t *ipacket, uint32_t proto_id, uint32_t att_id, uint64_t new_val );
 
 
 /**
@@ -132,42 +135,48 @@ int forward_packet_callback_on_receiving_packet(const ipacket_t * ipacket, forwa
 	if( unlikely(!context ))
 		return 0;
 
+	if( cache.action == ACTION_DROP ){
+		DEBUG("Drop packet %"PRIu64, ipacket->packet_id );
+		_reset_cache(); //reset to default action
+		return 0;
+	}
+
 	pcap_t *pcap = context->pcap_handler;
-	size_t pkt_size = ipacket->p_hdr->caplen;
-	const void *buffer = ipacket->data;
+	size_t pkt_len = ipacket->p_hdr->caplen;
 
-	//store data to cache
-	cache.ipacket = ipacket;
-	return 0;
+	u_char buffer[0xFFFF]; //2bytes length of packet size
+	int ret = 0;
+	if( cache.is_need_to_update_packet ){
+		//copy packet data, then modify packet's content
+		memcpy(buffer, ipacket->data, pkt_len );
+		if(!update_ngap_data(buffer, pkt_len, ipacket, cache.proto_id, cache.att_id, cache.new_val )){
+			DEBUG("Cannot update packet data for packet id%"PRIu64, ipacket->packet_id);
+		}
+		ret = pcap_inject(pcap, buffer, pkt_len);
+	}
+	else
+		ret = pcap_inject(pcap, ipacket->data, pkt_len);
 
-	//the following will be used when no cache
-	int ret;
-	ret = pcap_inject(pcap, ipacket->data, pkt_size);
 	/*
 	ret = sendto( context->raw_socket, buffer, pkt_size, 0,
 			(struct sockaddr*)&socket_address, sizeof(struct sockaddr_ll));
 	*/
-	if( ret ==  pkt_size)
+	if( ret ==  pkt_len)
 		context->nb_forwarded_packets ++;
 	//else
 	//	printf("error writing\n");
+	_reset_cache(); //reset to default action
 	return ret;
 }
 
-
-extern uint32_t update_ngap_data( u_char *data, uint32_t data_size, const ipacket_t *ipacket, uint32_t proto_id, uint32_t att_id, uint64_t new_val );
-
 void set_forward_action(forward_action_t act){
-	printf("forward packet\n");
-	if( act == ACTION_FORWARD && cache.ipacket ){
-		update_ngap_data(cache.data, 0xFFFF, cache.ipacket, cache.proto_id, cache.att_id, cache.new_val );
-		if( cache.pcap )
-			pcap_inject( cache.pcap, cache.data, cache.ipacket->p_hdr->caplen );
-	}
-	cache.ipacket = NULL;
+	//TODO need to be fixed in multithreading
+	cache.action = act;
 }
 void set_attribute_value(uint32_t proto_id, uint32_t att_id, uint64_t new_val){
+	//TODO need to be fixed in multithreading
 	cache.proto_id = proto_id;
 	cache.att_id   = att_id;
 	cache.new_val  = new_val;
+	cache.is_need_to_update_packet = true;
 }

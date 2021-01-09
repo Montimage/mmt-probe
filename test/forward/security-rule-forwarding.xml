@@ -1,0 +1,49 @@
+<beginning>
+<embedded_functions><![CDATA[
+#include <mmt_core.h>
+#include <tcpip/mmt_tcpip.h>
+#include <mobile/mmt_mobile.h>
+
+typedef enum { ACTION_FORWARD, ACTION_DROP }forward_action_t;
+extern void set_forward_action(forward_action_t);
+extern void set_attribute_value(uint32_t, uint32_t, uint64_t);
+extern uint64_t get_number_value(uint32_t proto_id, uint32_t att_id, const mmt_array_t *const trace);
+
+static void em_update_then_forward(
+      const rule_info_t *rule, int verdict, uint64_t timestamp, 
+      uint64_t counter, const mmt_array_t * const trace ){
+
+   uint64_t old_value = get_number_value( PROTO_NGAP, NGAP_ATT_RAN_UE_ID, trace );
+
+   set_attribute_value( PROTO_NGAP, NGAP_ATT_RAN_UE_ID, old_value + 1 );
+}
+
+static void em_donot_forward(
+      const rule_info_t *rule, int verdict, uint64_t timestamp, 
+      uint64_t counter, const mmt_array_t * const trace ){
+
+   set_forward_action( ACTION_DROP );
+}
+]]></embedded_functions>
+
+<property value="THEN" delay_units="s" delay_min="0" delay_max="0" property_id="102" type_property="ATTACK" 
+    description="5G testing" if_satisfied="em_update_then_forward">
+    <event value="COMPUTE" event_id="1" 
+        description="registration request"
+           boolean_expression="((ngap.procedure_code == 15) &amp;&amp;  (nas_5g.message_type == 65))"/>
+    <event value="COMPUTE" event_id="2" 
+           description="Nothing"
+           boolean_expression="(ngap.ran_ue_id != 1)"/>
+</property>
+
+<property value="THEN" delay_units="s" delay_min="0" delay_max="0" property_id="103" type_property="ATTACK" 
+    description="5G testing" if_satisfied="em_donot_forward">
+    <event value="COMPUTE" event_id="1" 
+        description="registration request"
+           boolean_expression="(ngap.procedure_code != 15)"/>
+    <event value="COMPUTE" event_id="2" 
+           description="Nothing"
+           boolean_expression="(true)"/>
+</property>
+
+</beginning>

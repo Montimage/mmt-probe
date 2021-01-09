@@ -26,7 +26,12 @@
 #include "reassembly/tcp_reassembly.h"
 #endif
 
-#define DPI_PACKET_HANDLER_ID 6
+#define DPI_PACKET_HANDLER_ID     6
+//we need a different handler for forwarding packets
+// because we need that the handler callback is called lattest as possible,
+//  it is called after any other handler. So the packet is processed by other (e.g., security) before being forwarded.
+//=> must be the biggest handler number
+#define FORWARD_PACKET_HANDLER_ID 99
 
 
 static inline packet_session_t * _create_session (const ipacket_t * ipacket, dpi_context_t *context){
@@ -121,10 +126,6 @@ static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 				session_report_callback_on_receiving_packet( ipacket, session->session_stat );
 		)
 	}
-	IF_ENABLE_FORWARD_PACKET(
-		if( context->forward_packet )
-			forward_packet_callback_on_receiving_packet( ipacket, context->forward_packet );
-	)
 
 	return 0;
 }
@@ -133,6 +134,13 @@ static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 //callback when a tcp segment is re-constructed
 static void _tcp_reassembly_handler(const void *data, uint32_t payload_len, void * user_args) {
 	//DEBUG("got tcp segment %"PRIu64, ipacket->packet_id );
+}
+#endif
+
+#ifdef FORWARD_PACKET_MODULE
+static int _forward_packet_handler(const ipacket_t * ipacket, void * user_args) {
+	dpi_context_t *context = (dpi_context_t *)user_args;
+	forward_packet_callback_on_receiving_packet( ipacket, context->forward_packet );
 }
 #endif
 /// <=== end of packet handler=============================
@@ -216,6 +224,11 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 	//This callback is fired before the packets have been reordered and reassembled by mmt_reassembly
 	if(! register_packet_handler( dpi_handler, DPI_PACKET_HANDLER_ID, _packet_handler, ret ) )
 		ABORT( "Cannot register handler for processing packet" );
+
+	IF_ENABLE_FORWARD_PACKET(
+		if(! register_packet_handler( dpi_handler, FORWARD_PACKET_HANDLER_ID, _forward_packet_handler, ret ) )
+			ABORT( "Cannot register handler for fowarding packets" );
+	)
 
 	IF_ENABLE_TCP_REASSEMBLY(
 		ret->tcp_reassembly = tcp_reassembly_alloc_init(config->is_enable_tcp_reassembly, dpi_handler, _tcp_reassembly_handler, ret);

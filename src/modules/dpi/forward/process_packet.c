@@ -15,8 +15,12 @@ uint64_t get_number_value(uint32_t proto_id, uint32_t att_id,
 	int i, j;
 	for (i = 0; i < trace->elements_count; i++) {
 		msg = trace->data[i];
+		if( !msg )
+			continue;
 		for (j = 0; j < msg->elements_count; j++) {
 			me = &msg->elements[i];
+			if( !me )
+				continue;
 			if (me->proto_id == proto_id && me->att_id == att_id) {
 				if (me->data_type == MMT_SEC_MSG_DATA_TYPE_NUMERIC)
 					value = *(double*) me->data;
