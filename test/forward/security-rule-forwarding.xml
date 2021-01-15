@@ -15,7 +15,7 @@ static void em_update_then_forward(
 
    uint64_t old_value = get_number_value( PROTO_NGAP, NGAP_ATT_RAN_UE_ID, trace );
 
-   set_attribute_value( PROTO_NGAP, NGAP_ATT_RAN_UE_ID, old_value + 1 );
+   set_attribute_value( PROTO_NGAP, NGAP_ATT_RAN_UE_ID, 22 );
 }
 
 static void em_donot_forward(
@@ -29,8 +29,8 @@ static void em_donot_forward(
 <property value="THEN" delay_units="s" delay_min="0" delay_max="0" property_id="102" type_property="ATTACK" 
     description="5G testing" if_satisfied="em_update_then_forward">
     <event value="COMPUTE" event_id="1" 
-        description="registration request"
-           boolean_expression="((ngap.procedure_code == 15) &amp;&amp;  (nas_5g.message_type == 65))"/>
+        description="Authentication response, Uplink NAS Transport"
+           boolean_expression="((ngap.procedure_code == 46) &amp;&amp;  (nas_5g.message_type == 87))"/>
     <event value="COMPUTE" event_id="2" 
            description="Nothing"
            boolean_expression="(ngap.ran_ue_id != 1)"/>
@@ -40,10 +40,26 @@ static void em_donot_forward(
     description="5G testing" if_satisfied="em_donot_forward">
     <event value="COMPUTE" event_id="1" 
         description="registration request"
-           boolean_expression="(ngap.procedure_code != 15)"/>
+           boolean_expression="(ethernet.proto == 16393"/>
     <event value="COMPUTE" event_id="2" 
            description="Nothing"
            boolean_expression="(true)"/>
+</property>
+
+<property value="THEN" delay_units="s" delay_min="0" delay_max="1" property_id="104" type_property="ATTACK" 
+    description="5G UE authentication hijack: UE IDs in Authentication Response is different with the one of Authetication Request">
+    <event value="COMPUTE" event_id="1" 
+        description="Authentication request, Downlink NAS Transport"
+           boolean_expression="((ngap.procedure_code == 4) &amp;&amp;  (nas_5g.message_type == 86))"/>
+    
+    <event value="COMPUTE" event_id="2" 
+        description="In Authentication Response of the same SCTP stream, same AMF-UE-ID but different RAN-UE-ID"
+           boolean_expression="((sctp_data.data_stream == sctp_data.data_stream.1) 
+           &amp;&amp; ((((ngap.procedure_code == 46) 
+           &amp;&amp;  (((nas_5g.message_type == 87) 
+           &amp;&amp;  ((ngap.amf_ue_id == ngap.amf_ue_id.1)
+           &amp;&amp;   (ngap.ran_ue_id != ngap.ran_ue_id.1) )))))))"/>
+    
 </property>
 
 </beginning>
