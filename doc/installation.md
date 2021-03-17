@@ -1,7 +1,6 @@
 # Installation
 
 Before installing MMT-probe, we need to install MMT-SDK. 
-Currently MMT-Probe uses the features in the **branch `dev` of MMT-SDK**.
 
 To compile and install  MMT-SDK follow the instructions in MMT-SDK section [here](https://bitbucket.org/montimage/mmt-sdk/wiki/Compilation%20and%20Installation%20Instructions).
 
