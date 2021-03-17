@@ -113,10 +113,20 @@ static inline int _parse_update_parameters( char *buffer, size_t buffer_len, cha
 	char *ident_str, *val_str;
 	const char *str_ptr;
 	const identity_t *ident;
-	uint16_t val, val_len;
+	uint16_t val, val_len, len;
 	int i;
 
-	DEBUG( "Update parameter: %s", buffer );
+	printf( "Update parameter: %s", buffer );
+
+	//0. no parameter?
+	if( buffer_len == 0 ){
+		_reply( sock, CMD_SYNTAX_ERROR, "The update command must contain at least one parameter\n");
+		return 0;
+	}
+
+	//exclude null byte
+	if( buffer[ buffer_len-1] == '\0' )
+		buffer_len -= 1;
 
 	//1. must surround by { and }
 	if( buffer_len < 2 || buffer[0] != '{' || buffer[ buffer_len - 1 ] != '}' ){
@@ -127,19 +137,18 @@ static inline int _parse_update_parameters( char *buffer, size_t buffer_len, cha
 	buffer_len -= 2; //exclude { and }
 	buffer[ buffer_len ] = '\0'; //well null-terminated
 
-	//0. no parameter?
-	if( buffer_len == 0 ){
-		_reply( sock, CMD_SYNTAX_ERROR, "The update command must contain at least one parameter");
-		return 0;
-	}
+	//jump over \n
+	buffer ++;
+	buffer_len -= 1;
 
 	//2. check parameters
 
 	//each parameter must be ended by \n
 	if( buffer[ buffer_len - 1 ] != NEW_LINE ){
-		_reply( sock, CMD_SYNTAX_ERROR, "The last parameter of update command must ended by \\n" );
+		_reply( sock, CMD_SYNTAX_ERROR, "The last parameter of update command must ended by \\n\n" );
 		return 0;
 	}
+
 
 	ident_str = buffer;
 	val_str   = ident_str;
@@ -155,7 +164,7 @@ static inline int _parse_update_parameters( char *buffer, size_t buffer_len, cha
 		//not found = character
 		if( *val_str == NEW_LINE ){
 			*val_str = '\0'; //terminate ident_str to be able to used in the next _reply
-			_reply( sock, CMD_SYNTAX_ERROR, "Parameter and its value (%s) must be separated by '='", ident_str );
+			_reply( sock, CMD_SYNTAX_ERROR, "Parameter and its value (%s) must be separated by '='\n", ident_str );
 			return 0;
 		}
 
@@ -169,7 +178,7 @@ static inline int _parse_update_parameters( char *buffer, size_t buffer_len, cha
 		ident = conf_get_identity_from_string( ident_str );
 		//not found or not supported yet
 		if( ident == NULL || ident->data_type == NO_SUPPORT ){
-			_reply( sock, CMD_SYNTAX_ERROR, "Does not support parameter '%s'", ident_str );
+			_reply( sock, CMD_SYNTAX_ERROR, "Does not support parameter '%s'\n", ident_str );
 			return 0;
 		}
 
@@ -180,7 +189,7 @@ static inline int _parse_update_parameters( char *buffer, size_t buffer_len, cha
 
 		//value is empty
 		if( val_len == 0 ){
-			_reply( sock, CMD_SYNTAX_ERROR, "Expect value for '%s'", ident_str );
+			_reply( sock, CMD_SYNTAX_ERROR, "Expect value for '%s'\n", ident_str );
 			return 0;
 		}
 
@@ -201,7 +210,7 @@ static inline int _parse_update_parameters( char *buffer, size_t buffer_len, cha
 
 		//ensure that we have enough place to stock this parameter
 		if( offset + 2 + 2 + val_len > param_size ){
-			_reply( sock, CMD_SYNTAX_ERROR, "Huge data value for parameters");
+			_reply( sock, CMD_SYNTAX_ERROR, "Huge data value for parameters\n");
 			return 0;
 		}
 
@@ -273,46 +282,69 @@ static inline void _processing( int sock ) {
 	uint16_t reply_code;
 	const char *cmd_str = NULL;
 	command_t command;
-	int offset = 0;
+	int buffer_len = 0, i;
+	buffer[0] = '\0';
 
-	do{
-		ret = recv( sock, buffer + offset, BUFFER_SIZE - offset, MSG_WAITALL);
-		offset += ret;
+	do {
+		ret = read( sock, buffer + buffer_len, BUFFER_SIZE - buffer_len );
 
-		if( ret == 0 || offset >= BUFFER_SIZE ) break;
-	}while( true );
+		//error
+		if( ret == -1 ){
+			log_write( LOG_INFO, "error while reading socket: %d %s", errno, strerror(errno) );
+			goto _finish;
+		}
+		else if( ret == 0 ){
+			//no data is available
+			if( buffer_len == 0 ){
+				usleep(1);
+				continue;
+			}
+			//no more data
+			else
+				goto _process_command;
+		}
+		buffer_len += ret;
 
+		if( buffer_len >= BUFFER_SIZE )
+			goto _process_command;
 
-	//if buffer is ended by null-terminated
-	if (buffer[offset - 1] == '\0')
-		offset--; // ret = strlen( buffer )
-	else {
-		//buffer is full => reserve the last element to contain '\0'
-		if (offset == BUFFER_SIZE)
-			offset--;
-		buffer[offset] = '\0'; //well terminate the string
+		//whether the buffer contain '\0' => end of a command
+		for( i=0; i<ret; i++ )
+			if( buffer[buffer_len-ret+i] == '\0' ){
+				buffer_len = buffer_len-ret+i + 1;
+				goto _process_command;
+			}
+	} while( true );
+
+	_process_command:
+
+	if( buffer_len == 0 ){
+		_reply(sock, CMD_SYNTAX_ERROR, "Does not support the command: %s\n", buffer);
+		goto _finish;
 	}
+
+	buffer[buffer_len-1] = '\0'; //well terminate the string
 
 	log_write( LOG_INFO, "received command [%s]", buffer );
 
 	//ls
-	if (IS_CMD(buffer, CMD_LS_STR) && offset == LENGTH( CMD_LS_STR )) {
+	if (IS_CMD(buffer, CMD_LS_STR) ) {
 		_reply_list_of_update_parameters(sock);
 		goto _finish;
 	} else //start
-	if (IS_CMD(buffer, CMD_START_STR) && offset == LENGTH( CMD_START_STR )) {
+	if (IS_CMD(buffer, CMD_START_STR) ) {
 		command.id = DYN_CONF_CMD_START;
 		command.parameter_length = 0;
 		cmd_str = CMD_START_STR;
 	} else //stop
-	if (IS_CMD(buffer, CMD_STOP_STR) && offset == LENGTH( CMD_STOP_STR )) {
+	if (IS_CMD(buffer, CMD_STOP_STR) ) {
 		command.id = DYN_CONF_CMD_STOP;
 		command.parameter_length = 0;
 		cmd_str = CMD_STOP_STR;
 	} else //update
 	if (IS_CMD(buffer, CMD_UPDATE_STR)) {
 		ret = _parse_update_parameters(buffer + LENGTH(CMD_UPDATE_STR),
-				offset - LENGTH(CMD_UPDATE_STR), command.parameter,
+				buffer_len - LENGTH(CMD_UPDATE_STR), command.parameter,
 				sizeof(command.parameter), sock);
 
 		//syntax error. We notified the error inside _parse_update_parameters function
@@ -323,7 +355,7 @@ static inline void _processing( int sock ) {
 		command.id = DYN_CONF_CMD_UPDATE;
 		cmd_str = CMD_UPDATE_STR;
 	} else {
-		_reply(sock, CMD_SYNTAX_ERROR, "Does not support the command: %s", buffer);
+		_reply(sock, CMD_SYNTAX_ERROR, "Does not support the command: %s\n", buffer);
 		goto _finish;
 	}
 
@@ -339,7 +371,7 @@ static inline void _processing( int sock ) {
 				"Old message is not consumed. Need to wait then resend again.");
 		break;
 	case MMT_BUS_SUCCESS:
-		_reply(sock, CMD_SUCCESS, "Successfully processed the command: %s",
+		_reply(sock, CMD_SUCCESS, "Successfully processed the command: %s\n",
 				cmd_str);
 		break;
 	}
