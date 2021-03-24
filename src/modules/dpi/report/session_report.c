@@ -468,7 +468,7 @@ static inline int32_t _get_protocol_index_after_session( uint32_t proto_id, cons
 	return -1;
 }
 
-int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, session_stat_t * session_stat){
+int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, session_stat_t * session_stat, dpi_context_t *context ){
 
 #ifndef SIMPLE_REPORT
 
@@ -492,13 +492,36 @@ int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, sessi
 
 		//calculate RTT
 		uint64_t usec = 0;
-		uint32_t *ack_number = get_attribute_extracted_data_at_index(ipacket, PROTO_TCP, TCP_ACK_NB, proto_index);
-		uint32_t *seq_number = get_attribute_extracted_data_at_index(ipacket, PROTO_TCP, TCP_SEQ_NB, proto_index);
-		uint32_t *data_len   = get_attribute_extracted_data_at_index(ipacket, PROTO_TCP, TCP_PAYLOAD_LEN, proto_index);
+		uint32_t seq_number = 0, ack_number = 0, data_len = 0, *val;
+		conf_rtt_base_t rtt_base = context->probe_config->reports.session->rtt_base;
+		if( rtt_base == CONF_RTT_BASE_SENDER || rtt_base == CONF_RTT_BASE_PREFER_SENDER ){
+			val = get_attribute_extracted_data_at_index(ipacket, PROTO_TCP, TCP_TSVAL, proto_index);
+			if( val ) seq_number = *val;
+			val = get_attribute_extracted_data_at_index(ipacket, PROTO_TCP, TCP_TSECR, proto_index);
+			if( val ) ack_number = *val;
+		}
 
-		if( ack_number && seq_number && data_len ){
+		if( rtt_base == CONF_RTT_BASE_CAPTOR || rtt_base == CONF_RTT_BASE_PREFER_SENDER ){
+			bool is_rtt_base_captor = (rtt_base == CONF_RTT_BASE_CAPTOR);
+			val = get_attribute_extracted_data_at_index(ipacket, PROTO_TCP, TCP_ACK_NB, proto_index);
+
+			if( val //has value
+				&& (is_rtt_base_captor     //rtt is based on captor
+						|| ack_number == 0 //PREFER_SENDER
+				) ) ack_number = *val;
+
+			val = get_attribute_extracted_data_at_index(ipacket, PROTO_TCP, TCP_SEQ_NB, proto_index);
+			if( val && (is_rtt_base_captor || seq_number == 0) ) seq_number = *val;
+			//we donot need data_len when rtt uses SENDER
+			if( is_rtt_base_captor ){
+				val = get_attribute_extracted_data_at_index(ipacket, PROTO_TCP, TCP_PAYLOAD_LEN, proto_index);
+				if( val ) data_len = *val;
+			}
+		}
+
+		if( ack_number && seq_number ){
 			uint32_t counter = tcp_rtt_add_packet( session_stat->tcp_rtt, dir,
-					*ack_number, *seq_number, *data_len,
+					ack_number, seq_number, data_len,
 					ipacket->p_hdr->ts, &usec );
 			if( counter ){
 				//invert direction: the current upload packet acknowledges download packets
@@ -572,6 +595,9 @@ static inline void
 	ret &= register_extraction_attribute(mmt_handler, PROTO_TCP, TCP_SEQ_NB);
 	ret &= register_extraction_attribute(mmt_handler, PROTO_TCP, TCP_PAYLOAD_LEN );
 	ret &= register_extraction_attribute(mmt_handler, PROTO_TCP, TCP_CONN_ESTABLISHED );
+	//calculate RTT using TCP timestamp options
+	ret &= register_extraction_attribute(mmt_handler, PROTO_TCP, TCP_TSVAL );
+	ret &= register_extraction_attribute(mmt_handler, PROTO_TCP, TCP_TSECR );
 #endif
 
 	if(!ret) {

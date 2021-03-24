@@ -272,6 +272,7 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__SESSION_REPORT__RTP,    "session-report.rtp",    &conf->reports.session->is_rtp,    BOOL ),
 	(CONF_ATT__SESSION_REPORT__GTP,    "session-report.gtp",    &conf->reports.session->is_gtp,    BOOL ),
 	(CONF_ATT__SESSION_REPORT__SSL,    "session-report.ssl",    &conf->reports.session->is_ssl,    BOOL),
+(CONF_ATT__SESSION_REPORT__RTT_BASE,   "session-report.rtt-base", &conf->reports.session->rtt_base, UINT16_T),
 	(CONF_ATT__SESSION_REPORT__OUTPUT_CHANNEL, "session-report.output-channel",    &conf->reports.session->output_channels, LIST),
 
 	//radius-report

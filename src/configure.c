@@ -58,6 +58,26 @@ static int _conf_parse_input_mode(cfg_t *cfg, cfg_opt_t *opt, const char *value,
 	return -1;
 }
 
+/* parse values for the rtt-base option */
+bool conf_parse_rtt_base(int *result, const char *value) {
+	if (IS_EQUAL_STRINGS(value, "PREFER_SENDER") )
+		*result = CONF_RTT_BASE_PREFER_SENDER;
+	else if (IS_EQUAL_STRINGS(value, "SENDER") )
+		*result = CONF_RTT_BASE_SENDER;
+	else if (IS_EQUAL_STRINGS(value, "CAPTOR") )
+		*result = CONF_RTT_BASE_CAPTOR;
+	else
+		return false;
+	return true;
+}
+
+static int _conf_parse_rtt_base(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
+	if ( conf_parse_rtt_base( result, value) )
+		return 0;
+	cfg_error(cfg, "invalid value for option '%s': %s", cfg_opt_name(opt), value);
+	return -1;
+}
+
 /* parse values for the output format option */
 int conf_parse_output_format(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
 	if( value == NULL || value[0] == '\0' || strcasecmp(value, "CSV") == 0)
@@ -250,6 +270,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_BOOL("http", false, CFGF_NONE),
 			CFG_BOOL("ssl", false, CFGF_NONE),
 			CFG_BOOL("gtp", false, CFGF_NONE),
+			CFG_INT_CB("rtt-base", CONF_RTT_BASE_SENDER, CFGF_NONE, _conf_parse_rtt_base),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_END()
 	};
@@ -752,6 +773,7 @@ static inline session_report_conf_t *_parse_session_block( cfg_t *cfg ){
 	ret->is_http   = cfg_getbool( cfg, "http" );
 	ret->is_ssl    = cfg_getbool( cfg, "ssl" );
 	ret->is_gtp    = cfg_getbool( cfg, "gtp" );
+	ret->rtt_base  = cfg_getint( cfg, "rtt-base" );
 	ret->output_channels = _parse_output_channel( cfg );
 	return ret;
 }

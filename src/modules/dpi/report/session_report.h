@@ -144,7 +144,7 @@ session_stat_t *session_report_callback_on_starting_session ( const ipacket_t * 
 /**
  * This function must be called on each coming packet
  */
-int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, session_stat_t * session_stat);
+int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, session_stat_t * session_stat, dpi_context_t *dpi_context );
 
 /**
  * This function must be called when finishing a tcp session

@@ -114,6 +114,12 @@ typedef enum{
 	CONF_IP_ENCAPSULATION_INDEX_LAST   /*currently, MMT supports maximally 16 proto in hierarchies*/
 }conf_ip_encapsulation_index_t;
 
+typedef enum{
+	CONF_RTT_BASE_SENDER        = 1,
+	CONF_RTT_BASE_CAPTOR        = 2,
+	CONF_RTT_BASE_PREFER_SENDER = 3
+}conf_rtt_base_t;
+
 typedef struct security_conf_struct{
 	bool is_enable;
 	bool is_report_rule_description;
@@ -221,6 +227,7 @@ typedef struct session_report_conf_struct{
 	bool is_ssl;
 	bool is_rtp;
 	bool is_gtp;
+	conf_rtt_base_t rtt_base; //timestamp's origin will be used to calculate RTT, e.g., CAPTURE_TS, SENDER_TS
 }session_report_conf_t;
 
 typedef struct radius_report_conf_struct{
@@ -330,5 +337,6 @@ size_t conf_parse_list( const char *string, char ***proto_lst );
 int conf_validate( probe_conf_t *conf );
 
 bool conf_parse_input_mode( int *result, const char *string );
+bool conf_parse_rtt_base(int *result, const char *value);
 //bool conf_parse_security_ignore_mode( int *result, const char *string );
 #endif /* SRC_LIB_CONFIGURE_H_ */
