@@ -118,7 +118,7 @@ static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 
 		IF_ENABLE_STAT_REPORT(
 			if( context->probe_config->reports.session->is_enable )
-				session_report_callback_on_receiving_packet( ipacket, session->session_stat );
+				session_report_callback_on_receiving_packet( ipacket, session->session_stat, context);
 		)
 	}
 	return 0;
