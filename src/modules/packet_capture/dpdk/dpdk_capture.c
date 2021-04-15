@@ -120,7 +120,7 @@ static const struct rte_eth_conf port_default_conf = {
 				.rss_conf = {
 						.rss_key     = hash_key,
 						.rss_key_len = 52,
-						.rss_hf      = ETH_RSS_PROTO_MASK,
+						.rss_hf      = 0x0,
 				},
 		},
 };
