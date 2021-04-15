@@ -271,3 +271,21 @@ else
   MODULE_FLAGS += -DPCAP_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/pcap/*.c)
 endif
+
+# to use ONVM
+$(eval $(call EXPORT_TARGET,ONVM))
+ifdef ONVM
+  $(info - Use ONVM to deploy a chain of microservices)
+  MODULE_FLAGS += -DONVM
+  MODULE_FLAGS += -I$(SRC_DIR)/modules/onvm/
+  MODULE_FLAGS += -I$(SRC_DIR)/modules/onvm/lib
+  MODULE_FLAGS += -I$(SRC_DIR)/modules/onvm/onvm_nflib/
+  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/onvm/lib/*.c)
+  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/onvm/onvm_nflib/*.c)
+  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/onvm/onvm_mgr/*.c)
+  
+  #we need to export these variables as we need them in the second call of compile-dpdk.mk by the makefile of DPDK
+  export MODULE_FLAGS
+  export MODULE_SRCS
+  export MODULE_LIBS
+endif

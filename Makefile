@@ -142,6 +142,9 @@ else
   -include mk/compile-pcap.mk
 endif
 
+ifdef ONVM
+	-include $(TOP_DIR)/mk/compile-dpdk.mk
+endif
 
 #other makefiles
 -include mk/serial-key.mk

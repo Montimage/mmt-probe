@@ -29,6 +29,9 @@ else
   PACKAGE_FILE_NAME := $(PACKAGE_FILE_NAME)_pcap
 endif
 
+ifdef ONVM
+  PACKAGE_FILE_NAME := $(PACKAGE_FILE_NAME)_onvm
+endif
 
 #List of packages mmt-probe depends on:
 
@@ -253,4 +256,3 @@ endif
 	$(QUIET) $(RM) -rf $(INSTALL_DIR)
 	@echo "INFO: Removed successfully MMT-Probe from $(INSTALL_DIR)"
 	@echo "Done"
-	
