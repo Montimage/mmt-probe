@@ -42,7 +42,7 @@
 #include "../../../worker.h"
 #include "../../../lib/memory.h"
 
-#define NB_READERS_PER_PORT         2  // 2 readers
+#define NB_READERS_PER_PORT         1  // 1 reader
 #define RX_DESCRIPTORS           4096  // Number of RX descriptors of a NIC queue
 
 #define READER_BURST_SIZE          32  /* Burst size to receive packets from RX ring */
