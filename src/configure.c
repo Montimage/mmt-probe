@@ -271,6 +271,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_STR("source", "", CFGF_NONE),
 			CFG_INT("snap-len", 65535, CFGF_NONE),
 			CFG_STR("dpdk-option", "", CFGF_NONE ),
+			CFG_STR("onvm-option", "", CFGF_NONE ),
 			CFG_END()
 	};
 
@@ -405,6 +406,9 @@ static inline input_source_conf_t * _parse_input_source( cfg_t *cfg ){
 	#error("Either DPDK_MODULE or PCAP_MODULE is defined but must not all of them")
 #endif
 
+#ifdef ONVM
+	ret->onvm_options = _cfg_get_str(cfg, "onvm-option");
+#endif
 
 #ifdef DPDK_MODULE
 	ret->capture_mode = DPDK_CAPTURE;
