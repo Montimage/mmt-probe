@@ -46,6 +46,11 @@
 #include "modules/packet_capture/dpdk/dpdk_capture.h"
 #endif
 
+#ifdef ONVM
+#include "modules/onvm/onvm_nflib/onvm_nflib.h"
+#include "modules/onvm/onvm_nflib/onvm_pkt_helper.h"
+#endif
+
 #ifdef PCAP_MODULE
 #include "modules/packet_capture/pcap/pcap_capture.h"
 #endif
@@ -331,6 +336,52 @@ static inline void _load_tcp_plugin(){
 }
 #endif
 
+#ifdef ONVM
+#define NF_TAG "probe"
+static uint32_t print_delay = 1000000;
+
+static void
+do_stats_display(struct rte_mbuf *pkt) {
+    const char clr[] = {27, '[', '2', 'J', '\0'};
+    const char topLeft[] = {27, '[', '1', ';', '1', 'H', '\0'};
+    static uint64_t pkt_process = 0;
+    struct rte_ipv4_hdr *ip;
+
+    pkt_process += print_delay;
+
+    /* Clear screen and move to top left */
+    printf("%s%s", clr, topLeft);
+
+    printf("PACKETS\n");
+    printf("-----\n");
+    printf("Port : %d\n", pkt->port);
+    printf("Size : %d\n", pkt->pkt_len);
+    printf("N°   : %" PRIu64 "\n", pkt_process);
+    printf("\n\n");
+
+    ip = onvm_pkt_ipv4_hdr(pkt);
+    if (ip != NULL) {
+        onvm_pkt_print(pkt);
+    } else {
+        printf("No IP4 header found\n");
+    }
+}
+
+static int
+packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
+    __attribute__((unused)) struct onvm_nf_local_ctx *nf_local_ctx) {
+    static uint32_t counter = 0;
+    if (++counter == print_delay) {
+        do_stats_display(pkt);
+        counter = 0;
+    }
+
+    meta->action = ONVM_NF_ACTION_TONF;
+    meta->destination = 1;//destination;
+    return 0;
+}
+#endif
+
 /**
  * This is the main processing process of MMT-Probe.
  * Every packets processing are done here.
@@ -359,6 +410,45 @@ static int _main_processing( int argc, char** argv ){
 	ret = rte_eal_init( dpdk_argc, dpdk_argv );
 	if (ret < 0)
 		rte_exit_failure( "Error while EAL initialization" );
+#endif
+
+#ifdef ONVM
+    char *onvm_argv[100];
+	int onvm_argc = string_split( context->config->input->onvm_options, " ", &onvm_argv[1], 100-1 );
+    struct onvm_nf_local_ctx *nf_local_ctx;
+    struct onvm_nf_function_table *nf_function_table;
+    int arg_offset;
+
+    //the first parameter is normally program name
+	onvm_argv[0] = LOG_IDENT;
+	onvm_argc   += 1;
+
+    printf("onvm_argc: %d\n", onvm_argc);
+    int i;
+    for(i = 0; i < onvm_argc; ++i) {
+        printf("%s ", onvm_argv[i]);
+    }
+
+    nf_local_ctx = onvm_nflib_init_nf_local_ctx();
+    onvm_nflib_start_signal_handler(nf_local_ctx, NULL);
+
+    nf_function_table = onvm_nflib_init_nf_function_table();
+    nf_function_table->pkt_handler = &packet_handler;
+
+    if ((arg_offset = onvm_nflib_init(onvm_argc, onvm_argv, NF_TAG, nf_local_ctx, nf_function_table)) < 0) {
+        onvm_nflib_stop(nf_local_ctx);
+        if (arg_offset == ONVM_SIGNAL_TERMINATION) {
+            printf("Exiting due to user termination\n");
+            return 0;
+        } else {
+            rte_exit(EXIT_FAILURE, "Failed ONVM init\n");
+        }
+    }
+
+    onvm_nflib_run(nf_local_ctx);
+
+    onvm_nflib_stop(nf_local_ctx);
+    printf("If we reach here, program is ending\n");
 #endif
 
 	IF_ENABLE_SECURITY(
