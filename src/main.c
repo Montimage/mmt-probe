@@ -339,6 +339,30 @@ static inline void _load_tcp_plugin(){
 #ifdef ONVM
 #define NF_TAG "probe"
 static uint32_t print_delay = 1000000;
+static uint32_t destination;
+
+static int
+parse_app_args(int argc, char *argv[]) {
+    int c, dst_flag = 0;
+    while ((c = getopt(argc, argv, "d:p:")) != -1) {
+        switch (c) {
+            case 'd':
+                destination = strtoul(optarg, NULL, 10);
+                dst_flag = 1;
+                break;
+            case 'p':
+                print_delay = strtoul(optarg, NULL, 10);
+                break;
+            default:
+                return -1;
+        }
+    }
+    if (!dst_flag) {
+        return -1;
+    }
+    return 0;
+}
+
 
 static void
 do_stats_display(struct rte_mbuf *pkt) {
@@ -377,7 +401,7 @@ packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
     }
 
     meta->action = ONVM_NF_ACTION_TONF;
-    meta->destination = 1;//destination;
+    meta->destination = destination;
     return 0;
 }
 #endif
@@ -419,10 +443,9 @@ static int _main_processing( int argc, char** argv ){
     struct onvm_nf_function_table *nf_function_table;
     int arg_offset;
 
-    //the first parameter is normally program name
+    //the first parameter is normally program name "mmt-probe"
 	onvm_argv[0] = LOG_IDENT;
 	onvm_argc   += 1;
-
     printf("onvm_argc: %d\n", onvm_argc);
     int i;
     for(i = 0; i < onvm_argc; ++i) {
@@ -445,10 +468,16 @@ static int _main_processing( int argc, char** argv ){
         }
     }
 
+    // parse <NF ARGS>
+    onvm_argc -= arg_offset;
+    if (parse_app_args(onvm_argc, &onvm_argv[arg_offset]) < 0) {
+        onvm_nflib_stop(nf_local_ctx);
+        rte_exit(EXIT_FAILURE, "Invalid command-line arguments\n");
+    }
+
     onvm_nflib_run(nf_local_ctx);
 
     onvm_nflib_stop(nf_local_ctx);
-    printf("If we reach here, program is ending\n");
 #endif
 
 	IF_ENABLE_SECURITY(
