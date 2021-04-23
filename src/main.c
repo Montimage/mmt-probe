@@ -49,6 +49,25 @@
 #ifdef ONVM
 #include "modules/onvm/onvm_nflib/onvm_nflib.h"
 #include "modules/onvm/onvm_nflib/onvm_pkt_helper.h"
+
+#include "modules/output/output.h"
+#include "modules/dpi/dpi.h"
+#include "worker.h"
+
+mmt_handler_t *dpi_handler;
+dpi_context_t *dpi_context;
+output_t *output;
+
+struct timeval64{
+	union{
+		uint64_t val;
+		struct{
+			uint32_t tv_sec;
+			uint32_t tv_nsec;
+		};
+	};
+};
+
 #endif
 
 #ifdef PCAP_MODULE
@@ -363,7 +382,6 @@ parse_app_args(int argc, char *argv[]) {
     return 0;
 }
 
-
 static void
 do_stats_display(struct rte_mbuf *pkt) {
     const char clr[] = {27, '[', '2', 'J', '\0'};
@@ -375,20 +393,37 @@ do_stats_display(struct rte_mbuf *pkt) {
 
     /* Clear screen and move to top left */
     printf("%s%s", clr, topLeft);
+    struct timespec time_now __rte_cache_aligned;
+    clock_gettime( CLOCK_REALTIME_COARSE, &time_now );
+    const u_char *pkt_data;
+    struct pkthdr pkt_header __rte_cache_aligned;
+    pkt_header.len = pkt->pkt_len;
+    pkt_header.caplen = pkt-> data_len;
+    pkt_header.ts.tv_sec = time_now.tv_sec;
+    pkt_header.ts.tv_usec = time_now.tv_nsec / 1000;
+    //_uint64_to_timeval(&pkt_header.ts, pkt->udata64 );
+    pkt_data = (pkt->buf_addr + pkt->data_off);
+    if (!packet_process(dpi_handler, &pkt_header, pkt_data)) {
+        rte_exit(EXIT_FAILURE, "Packet process failed\n");
+    }
+    output_flush(output);
 
     printf("PACKETS\n");
     printf("-----\n");
     printf("Port : %d\n", pkt->port);
     printf("Size : %d\n", pkt->pkt_len);
     printf("N°   : %" PRIu64 "\n", pkt_process);
-    printf("\n\n");
+    printf("Time : %d.%d\n", time_now.tv_sec, time_now.tv_nsec / 1000);
+    printf("\n");
 
-    ip = onvm_pkt_ipv4_hdr(pkt);
+    printf("Total packets: %9" PRIu64 " \n", pkt_process);
+
+    /*ip = onvm_pkt_ipv4_hdr(pkt);
     if (ip != NULL) {
         onvm_pkt_print(pkt);
     } else {
         printf("No IP4 header found\n");
-    }
+    }*/
 }
 
 static int
@@ -400,9 +435,46 @@ packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
         counter = 0;
     }
 
-    meta->action = ONVM_NF_ACTION_TONF;
-    meta->destination = destination;
+    //meta->action = ONVM_NF_ACTION_TONF;
+    //meta->destination = destination;
     return 0;
+}
+
+void onvm_capture_start(probe_context_t *context){
+    //Initialize MMT handler
+    char errbuf[1024];
+    dpi_handler = mmt_init_handler(1, 0, errbuf);
+    if(dpi_handler){
+	    printf("MMT handler init OK\n");
+    }
+
+    probe_conf_t *config = context->config;
+    output = output_alloc_init(1,
+			&(config->outputs),
+			config->probe_id,
+			config->input->input_source,
+
+			//when enable security, we need to synchronize output as it can be called from
+			//- worker thread, or,
+			//- security threads
+#ifdef SECURITY_MODULE
+			(config->reports.security->is_enable
+			&& config->reports.security->threads_size != 0)
+#else
+			false
+#endif
+	);
+    if(output){
+	    printf("Output init OK\n");
+    }
+
+    dpi_context = dpi_alloc_init(config, dpi_handler, output, 0);
+    if(dpi_context){
+	    printf("DPI context init OK\n");
+    }
+
+    if(output)
+		_send_version_information(output);
 }
 #endif
 
@@ -474,10 +546,6 @@ static int _main_processing( int argc, char** argv ){
         onvm_nflib_stop(nf_local_ctx);
         rte_exit(EXIT_FAILURE, "Invalid command-line arguments\n");
     }
-
-    onvm_nflib_run(nf_local_ctx);
-
-    onvm_nflib_stop(nf_local_ctx);
 #endif
 
 	IF_ENABLE_SECURITY(
@@ -512,8 +580,15 @@ static int _main_processing( int argc, char** argv ){
 	//other stubs, such as, system usage report
 	routine_t *routine = routine_create_and_start( context );
 
-#ifdef DPDK_MODULE
+#if defined(DPDK_MODULE)
 	dpdk_capture_start( context );
+#elif defined(ONVM)
+    onvm_capture_start(context);
+    onvm_nflib_run(nf_local_ctx);
+    onvm_nflib_stop(nf_local_ctx);
+
+    mmt_close_handler(dpi_handler);
+    dpi_release(dpi_context);
 #else
 	pcap_capture_start( context );
 #endif
