@@ -89,6 +89,9 @@ forward_packet_context_t* forward_packet_start( uint16_t worker_index, const pro
 	if( ! conf->is_enable )
 		return NULL;
 
+	//TODO: limit only main thread (no multi-thread) for now
+	ASSERT( config->thread->thread_count == 0, "5Greplay support using only main thread. Set thread-nb=0 in the .conf file." );
+
 	pcap_t *pcap = _create_pcap_handler( conf );
 	if( !pcap )
 		return NULL;
@@ -116,8 +119,10 @@ void forward_packet_stop( forward_packet_context_t *context ){
 	if( !context )
 		return;
 	log_write_dual(LOG_INFO, "Number of packets being forwarded successfully: %"PRIu64, context->nb_forwarded_packets );
-	if( context->pcap_handler )
+	if( context->pcap_handler ){
 		pcap_close(context->pcap_handler);
+		context->pcap_handler = NULL;
+	}
 
 	//if( context->raw_socket )
 	//	close( context->raw_socket );
@@ -173,7 +178,7 @@ void set_forward_action(forward_action_t act){
 	//TODO need to be fixed in multithreading
 	cache.action = act;
 }
-void set_attribute_value(uint32_t proto_id, uint32_t att_id, uint64_t new_val){
+void set_attribute_number_value(uint32_t proto_id, uint32_t att_id, uint64_t new_val){
 	//TODO need to be fixed in multithreading
 	cache.proto_id = proto_id;
 	cache.att_id   = att_id;

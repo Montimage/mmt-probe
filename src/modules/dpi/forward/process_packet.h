@@ -19,7 +19,7 @@ typedef enum {
 }forward_action_t;
 
 void set_forward_action(forward_action_t);
-void set_attribute_value(uint32_t, uint32_t, uint64_t);
+void set_attribute_number_value(uint32_t, uint32_t, uint64_t);
 
 uint64_t get_number_value(uint32_t proto_id, uint32_t att_id, const mmt_array_t *const trace);
 

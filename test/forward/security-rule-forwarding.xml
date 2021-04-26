@@ -26,8 +26,8 @@ static void em_donot_forward(
 }
 ]]></embedded_functions>
 
-<property value="THEN" delay_units="s" delay_min="0" delay_max="0" property_id="102" type_property="ATTACK" 
-    description="5G testing" if_satisfied="em_update_then_forward">
+<property value="THEN" property_id="102" type_property="FORWARD" 
+    description="5G testing" if_satisfied="#update(ngap.procedure_code, (ngap.procedure_code.1 + 10)">
     <event value="COMPUTE" event_id="1" 
         description="Authentication response, Uplink NAS Transport"
            boolean_expression="((ngap.procedure_code == 46) &amp;&amp;  (nas_5g.message_type == 87))"/>
@@ -36,14 +36,10 @@ static void em_donot_forward(
            boolean_expression="(ngap.ran_ue_id != 1)"/>
 </property>
 
-<property value="THEN" delay_units="s" delay_min="0" delay_max="0" property_id="103" type_property="ATTACK" 
-    description="5G testing" if_satisfied="em_donot_forward">
-    <event value="COMPUTE" event_id="1" 
-        description="registration request"
+<property value="COMPUTE" property_id="103" type_property="FORWARD" 
+    description="Drop no-5G traffic" if_satisfied="#drop()">
+    <event description="registration request"
            boolean_expression="(ethernet.proto == 16393"/>
-    <event value="COMPUTE" event_id="2" 
-           description="Nothing"
-           boolean_expression="(true)"/>
 </property>
 
 <property value="THEN" delay_units="s" delay_min="0" delay_max="1" property_id="104" type_property="ATTACK" 
