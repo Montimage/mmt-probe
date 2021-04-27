@@ -38,6 +38,24 @@
 //	return -1;
 //}
 
+//parse forward default-aciton
+bool conf_parse_forward_default_action(int *result, const char *value) {
+	if (IS_EQUAL_STRINGS(value, "FORWARD") )
+		*result = ACTION_FORWARD;
+	else if (IS_EQUAL_STRINGS(value, "DROP") )
+		*result = ACTION_DROP;
+	else {
+		return false;
+	}
+	return true;
+}
+
+static int _conf_parse_forward_default_action(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
+	if ( conf_parse_forward_default_action( result, value) )
+		return 0;
+	cfg_error(cfg, "invalid value for option '%s': %s. Expected either FORWARD or DROP.", cfg_opt_name(opt), value);
+	return -1;
+}
 
 // parse values for the input-mode option
 bool conf_parse_input_mode(int *result, const char *value) {
@@ -54,7 +72,7 @@ bool conf_parse_input_mode(int *result, const char *value) {
 static int _conf_parse_input_mode(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
 	if ( conf_parse_input_mode( result, value) )
 		return 0;
-	cfg_error(cfg, "invalid value for option '%s': %s", cfg_opt_name(opt), value);
+	cfg_error(cfg, "invalid value for option '%s': %s. Expected either ONLINE or OFFLINE.", cfg_opt_name(opt), value);
 	return -1;
 }
 
@@ -74,7 +92,7 @@ bool conf_parse_rtt_base(int *result, const char *value) {
 static int _conf_parse_rtt_base(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
 	if ( conf_parse_rtt_base( result, value) )
 		return 0;
-	cfg_error(cfg, "invalid value for option '%s': %s", cfg_opt_name(opt), value);
+	cfg_error(cfg, "invalid value for option '%s': %s. Expected either PREFER_SENDER, SENDER, or CAPTOR.", cfg_opt_name(opt), value);
 	return -1;
 }
 
@@ -201,6 +219,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_STR("output-nic", 0, CFGF_NONE),
 			CFG_INT("snap-len", 0, CFGF_NONE),
 			CFG_INT("promisc", 0, CFGF_NONE),
+			CFG_INT_CB("default", 0, CFGF_NONE, _conf_parse_forward_default_action),
 			CFG_END()
 		};
 
@@ -486,6 +505,7 @@ static inline forward_packet_conf_t *_parse_forward_packet( cfg_t *cfg ){
 	ret->output_nic = _cfg_get_str(cfg, "output-nic");
 	ret->snap_len = cfg_getint( cfg, "snap-len" );
 	ret->promisc = cfg_getint( cfg, "promisc" );
+	ret->default_action = cfg_getint( cfg, "default" );
 	return ret;
 }
 

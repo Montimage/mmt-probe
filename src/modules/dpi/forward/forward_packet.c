@@ -21,11 +21,6 @@
 #include <net/if.h>
 #include <netinet/ether.h>
 
-typedef enum {
-	ACTION_FORWARD,
-	ACTION_DROP
-}forward_action_t;
-
 struct forward_packet_context_struct{
 	pcap_t *pcap_handler;
 	const forward_packet_conf_t *config;
@@ -42,10 +37,10 @@ static struct packet_forward{
 	bool is_need_to_update_packet;
 }cache;
 
-static void _reset_cache(){
+static void _reset_cache( const struct forward_packet_context_struct *context ){
 	//by default we forward packets and no need to modify them before forwarding
 	cache.is_need_to_update_packet = false;
-	cache.action = ACTION_FORWARD;
+	cache.action = context->config->default_action;
 }
 
 static pcap_t * _create_pcap_handler( const forward_packet_conf_t *conf ){
@@ -112,7 +107,7 @@ forward_packet_context_t* forward_packet_start( uint16_t worker_index, const pro
 
 //	context->raw_socket = sockfd;
 
-	_reset_cache();
+	_reset_cache( context );
 	return context;
 }
 
@@ -148,7 +143,7 @@ int forward_packet_callback_on_receiving_packet(const ipacket_t * ipacket, forwa
 
 	if( cache.action == ACTION_DROP ){
 		DEBUG("Drop packet %"PRIu64, ipacket->packet_id );
-		_reset_cache(); //reset to default action
+		_reset_cache( context ); //reset to default action
 		return 0;
 	}
 
@@ -176,7 +171,7 @@ int forward_packet_callback_on_receiving_packet(const ipacket_t * ipacket, forwa
 		context->nb_forwarded_packets ++;
 	//else
 	//	printf("error writing\n");
-	_reset_cache(); //reset to default action
+	_reset_cache( context ); //reset to default action
 	return ret;
 }
 

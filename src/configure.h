@@ -163,11 +163,17 @@ typedef struct pcap_dump_conf_struct{
 	uint16_t snap_len;
 }pcap_dump_conf_t;
 
+typedef enum {
+	ACTION_FORWARD,
+	ACTION_DROP
+}forward_action_t;
+
 typedef struct forward_packet_conf_struct{
 	bool is_enable;
 	char *output_nic;
 	uint16_t snap_len;
 	uint16_t promisc;
+	forward_action_t default_action;
 }forward_packet_conf_t;
 
 typedef struct reconstruct_data_conf_struct{
