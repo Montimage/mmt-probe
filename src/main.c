@@ -159,7 +159,7 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 	if( conf == NULL ){
 		//config_file is indicated by user by -c parameter
 		if( is_user_gives_conf_file ){
-			fprintf(stderr, "Cannot read configuration file from %s\n", config_file );
+			log_write_dual(LOG_ERR, "Cannot read configuration file from \"%s\"\n", config_file );
 			abort();
 		}else{
 			//try again to read config from /opt/mmt/probe/mmt-probe.conf

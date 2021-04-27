@@ -336,7 +336,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 	cfg_t *cfg = cfg_init(opts, CFGF_NONE);
 	switch (cfg_parse(cfg, filename)) {
 	case CFG_FILE_ERROR:
-		log_write(LOG_ERR, "Error: configuration file '%s' could not be read: %s\n", filename, strerror(errno));
+		//log_write(LOG_ERR, "Error: configuration file '%s' could not be read: %s\n", filename, strerror(errno));
 		cfg_free( cfg );
 		return NULL;
 	case CFG_SUCCESS:
@@ -1048,6 +1048,16 @@ void conf_release( probe_conf_t *conf){
 
 int conf_validate( probe_conf_t *conf ){
 	int ret = 0;
+	//forward packet requires security
+#ifdef FORWARD_PACKET_MODULE
+	if( conf->forward_packet->is_enable ){
+		bool is_enable_security = false;
+		//when security module is availabe inside mmt-probe => take into account its setting parameter
+		IF_ENABLE_SECURITY( is_enable_security = conf->reports.security->is_enable; )
+		ASSERT( is_enable_security == true, "Forward packet module requires security module");
+	}
+#endif
+
 	if( conf->outputs.mongodb ){
 	}
 

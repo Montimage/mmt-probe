@@ -13,14 +13,9 @@
 #include <tcpip/mmt_tcpip.h>
 #include <mobile/mmt_mobile.h>
 
-typedef enum {
-	ACTION_FORWARD,
-	ACTION_DROP
-}forward_action_t;
-
-void set_forward_action(forward_action_t);
-void set_attribute_number_value(uint32_t, uint32_t, uint64_t);
-
-uint64_t get_number_value(uint32_t proto_id, uint32_t att_id, const mmt_array_t *const trace);
+/* the functions can be called in embedded_functions of mmt-security in FORWARD rules */
+void mmt_probe_do_not_forward_packet();
+void mmt_probe_forward_packet();
+void mmt_probe_set_attribute_number_value(uint32_t, uint32_t, uint64_t);
 
 #endif /* SRC_MODULES_DPI_FORWARD_PROCESS_PACKET_H_ */

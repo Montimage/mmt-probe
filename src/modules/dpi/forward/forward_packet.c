@@ -21,6 +21,11 @@
 #include <net/if.h>
 #include <netinet/ether.h>
 
+typedef enum {
+	ACTION_FORWARD,
+	ACTION_DROP
+}forward_action_t;
+
 struct forward_packet_context_struct{
 	pcap_t *pcap_handler;
 	const forward_packet_conf_t *config;
@@ -130,6 +135,7 @@ void forward_packet_stop( forward_packet_context_t *context ){
 	mmt_probe_free( context );
 }
 
+//this function is implemented inside mmt-dpi to update NGAP protocol
 extern uint32_t update_ngap_data( u_char *data, uint32_t data_size, const ipacket_t *ipacket, uint32_t proto_id, uint32_t att_id, uint64_t new_val );
 
 
@@ -174,11 +180,24 @@ int forward_packet_callback_on_receiving_packet(const ipacket_t * ipacket, forwa
 	return ret;
 }
 
-void set_forward_action(forward_action_t act){
+/**
+ * This function is called by mmt-security when a FORWARD rule is satisified
+ *   and its if_satisfied="#drop"
+ */
+void mmt_probe_do_not_forward_packet(){
 	//TODO need to be fixed in multithreading
-	cache.action = act;
+	cache.action = ACTION_DROP;
 }
-void set_attribute_number_value(uint32_t proto_id, uint32_t att_id, uint64_t new_val){
+void mmt_probe_forward_packet(){
+	//TODO need to be fixed in multithreading
+	cache.action = ACTION_FORWARD;
+}
+
+/**
+ * This function is called by mmt-security when a FORWARD rule is satisified
+ *   and its if_satisfied="#update( xx.yy, ..)"
+ */
+void mmt_probe_set_attribute_number_value(uint32_t proto_id, uint32_t att_id, uint64_t new_val){
 	//TODO need to be fixed in multithreading
 	cache.proto_id = proto_id;
 	cache.att_id   = att_id;
