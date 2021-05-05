@@ -47,6 +47,7 @@
 
 #define IS_CFG_INOGRE( x ) (x->config->ignore_remain_flow )
 
+#define SECURITY_RULE_TYPE_FORWARD 4 //see RULE_TYPE_FORWARD in mmt-security/src/lib/rule.h
 
 /*
  * return available room inside a message
@@ -158,6 +159,9 @@ static int _security_packet_handler( const ipacket_t *ipacket, void *args ) {
 
 	uint64_t session_id = 0;
 
+	IF_ENABLE_FORWARD_PACKET(
+		forward_packet_on_receiving_packet_before_rule_processing( ipacket, context->forward_packet_context );
+	)
 	//when parameter ignore_remain_flow is active
 	if( IS_CFG_INOGRE( context )){
 		session_id = get_session_id_from_packet( ipacket );
@@ -168,7 +172,8 @@ static int _security_packet_handler( const ipacket_t *ipacket, void *args ) {
 		//the first part of the flow has been examined and we got at least one alert from that part
 		// => we do not need to continue to examine the rest of the flow
 		if( can_ignore ){
-			return 0;
+			//return 0;
+			goto __finish_security;
 		}
 	}
 
@@ -198,7 +203,8 @@ static int _security_packet_handler( const ipacket_t *ipacket, void *args ) {
 	//if there is no interested information
 	if( unlikely( msg->elements_count == 0 )){
 		free_message_t( msg );
-		return 0;
+		//return 0;
+		goto __finish_security;
 	}
 
 	//add other information to the message, such as, timestamp, packet_id, session_id
@@ -213,6 +219,13 @@ static int _security_packet_handler( const ipacket_t *ipacket, void *args ) {
 
 	//give the message to MMT-Security
 	mmt_sec_process( context->sec_handler, msg );
+
+	//when forwarding packet is enable
+	// we need to call this function to forward the current packet if it is not satisfied by any rule
+	__finish_security:
+	IF_ENABLE_FORWARD_PACKET(
+		forward_packet_on_receiving_packet_after_rule_processing( ipacket, context->forward_packet_context );
+	)
 
 	return 0;
 }
@@ -247,6 +260,19 @@ static void _print_security_verdict(
 		void *user_data                 //#user-data being given in register_security
 ){
 	security_context_t *context = (security_context_t *) user_data;
+
+#ifdef FORWARD_PACKET_MODULE
+	//Special processing when the rule is FORWARD
+	if( rule->type_id == SECURITY_RULE_TYPE_FORWARD ){
+		//mark that there exists a FORWARD rule that is satisfied,
+		//  thus do not need to peform default action (forward/drop) on the current packet
+		//  because this action is decided by user in the satisfied rule
+		forward_packet_mark_being_satisfied( context->forward_packet_context );
+
+		//do not create any report
+		return;
+	}
+#endif
 
 	//depending on the configuration of security.report-rule-description,
 	// we include the description of the rule or not
@@ -340,9 +366,10 @@ static inline void _update_lib_security_param( int param_id, uint32_t val ){
  * @param user_data
  * @return
  */
-security_context_t* security_worker_alloc_init( const security_conf_t *config,
+security_context_t* security_worker_alloc_init( const probe_conf_t *probe_config,
 		mmt_handler_t *dpi_handler, const uint32_t *cores_id,
 		bool verbose, output_t *output, bool is_enable_tcp_reassembly ){
+	const security_conf_t *config = probe_config->reports.security;
 	size_t threads_count = config->threads_size;
 	int i;
 
@@ -421,7 +448,9 @@ security_context_t* security_worker_alloc_init( const security_conf_t *config,
 				mmt_sec_get_rules_info( &rules_array ),
 				att_registed );
 	}
-
+#ifdef FORWARD_PACKET_MODULE
+	ret->forward_packet_context = forward_packet_alloc( probe_config, dpi_handler);
+#endif
 	//Register a packet handler, it will be called for every processed packet
 	register_packet_handler( dpi_handler, SECURITY_DPI_PACKET_HANDLER_ID, _security_packet_handler, ret );
 
@@ -438,6 +467,7 @@ size_t security_worker_release( security_context_t* ret ){
 	if( unlikely( ret == NULL || ret->sec_handler == NULL ) )
 		return 0;
 
+	IF_ENABLE_FORWARD_PACKET( forward_packet_release( ret->forward_packet_context ) );
 	alerts_count = mmt_sec_unregister( ret->sec_handler );
 
 	ret->sec_handler = NULL;

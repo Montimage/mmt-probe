@@ -13,6 +13,7 @@
 #include <mmt_security.h>
 #include "../../configure.h"
 #include "../output/output.h"
+#include "forward/forward_packet.h"
 
 typedef struct security_context_struct{
 	mmt_handler_t *dpi_handler;
@@ -27,6 +28,7 @@ typedef struct security_context_struct{
 	const security_conf_t *config;
 
 	output_t *output;
+	forward_packet_context_t *forward_packet_context;
 } security_context_t;
 
 /**
@@ -44,7 +46,7 @@ void security_close();
 
 /**
  */
-security_context_t* security_worker_alloc_init( const security_conf_t *config,
+security_context_t* security_worker_alloc_init( const probe_conf_t *config,
 		mmt_handler_t *dpi_handler, const uint32_t *core_mask,
 		bool verbose,
 		output_t *output, bool is_enable_tcp_reassembly );

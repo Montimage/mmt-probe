@@ -161,7 +161,7 @@ void worker_on_start( worker_context_t *worker_context ){
 
 #ifdef SECURITY_MODULE
 	worker_context->security = security_worker_alloc_init(
-		config->reports.security,
+		config,
 		worker_context->dpi_handler,
 		NULL, //core_id is NULL to allow OS arbitrarily arranging security threads on logical cores
 		(worker_context->index == 0), //verbose for only the first worker

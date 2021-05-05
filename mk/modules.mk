@@ -199,7 +199,7 @@ ifdef FORWARD_PACKET_MODULE
   endif
   MODULE_LIBS  +=  -lpcap -lmmt_tmobile
   MODULE_FLAGS += -DFORWARD_PACKET_MODULE
-  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/dpi/forward/*.c)
+  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/security/forward/*.c)
 endif
 
 # check license
