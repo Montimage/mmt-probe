@@ -76,13 +76,15 @@ static int _create_raw_socket( const forward_packet_conf_t *conf ){
 */
 
 static inline bool _send_packet_to_nic( forward_packet_context_t *context ){
+
+	//returns the number of bytes written on success and -1 on failure.
 	int ret = pcap_inject(context->pcap_handler, context->packet_data, context->packet_size );
 
 	/*
 	ret = sendto( context->raw_socket, buffer, pkt_size, 0,
 		(struct sockaddr*)&socket_address, sizeof(struct sockaddr_ll));
 	*/
-	return (ret == 0);
+	return (ret > 0);
 }
 
 /**
