@@ -2,6 +2,18 @@
 # COMPILE MMT-Probe USING DPDK TO CAPTURE PACKETS #
 ###################################################
 
+# DPDK supports building using Makefile until version 20.08 (using meson+ninja after that)
+# So this compilation works only for DPDK <= 20.08
+# To build DPDK: http://doc.dpdk.org/guides-20.08/linux_gsg/build_dpdk.html#installation-of-dpdk-target-environment-using-make
+#
+# For example:
+#
+# make config T=x86_64-native-linux-gcc O=build
+# make -j2
+
+#this avoids DPDK pausing to print deprecation message (as it prefers menson+ninja)
+MAKE_PAUSE=n
+
 #DPDK variables
 ifndef RTE_SDK
   $(error Need RTE_SDK variable)

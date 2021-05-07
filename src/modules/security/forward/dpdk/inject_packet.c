@@ -60,8 +60,7 @@ static struct rte_eth_txconf tx_conf = {
 		.hthresh = 0,   /* Ring host threshold */
 		.wthresh = 0,   /* Ring writeback threshold */
 	},
-	.tx_free_thresh = 32,
-	.txq_flags = ETH_TXQ_FLAGS_NOOFFLOADS | ETH_TXQ_FLAGS_NOMULTSEGS,
+	.tx_free_thresh = 32
 };
 
 
@@ -108,7 +107,7 @@ inject_packet_context_t* inject_packet_alloc( const probe_conf_t *probe_config )
 	inject_packet_context_t *context;
 
 	int port_id = atoi( conf->output_nic ); //port number
-	init_port( context->port_id );
+	init_port( port_id );
 
 	context = rte_malloc( NULL, (sizeof( struct inject_packet_context_struct ) ), RTE_CACHE_LINE_SIZE );;
 	context->port_id = port_id;
@@ -129,8 +128,10 @@ inject_packet_context_t* inject_packet_alloc( const probe_conf_t *probe_config )
 	// initializing every element for be used as mbuf, and allocating on the current NUMA node
 	context->memory_pool = rte_mempool_create(MEMPOOL_NAME, buffer_size*2 - 1,
 			MEMPOOL_ELEM_SZ, MEMPOOL_CACHE_SZ,
-			sizeof(struct rte_memory_pool_private), rte_pktmbuf_pool_init,
-			NULL, rte_pktmbuf_init, NULL, rte_socket_id(), 0);
+			0,
+			rte_pktmbuf_pool_init, NULL,
+			rte_pktmbuf_init, NULL,
+			rte_socket_id(), 0);
 
 	if (context->memory_pool == NULL)
 		FATAL_ERROR("Cannot create %s. Errno: %d\n", MEMPOOL_NAME, rte_errno);

@@ -8,7 +8,9 @@
 #ifndef __USE_GNU
 #define __USE_GNU
 #endif
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <sched.h>
 #include <unistd.h>
 #include <stdio.h>

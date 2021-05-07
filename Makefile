@@ -134,7 +134,7 @@ LIB_SRCS = $(wildcard $(SRC_DIR)/lib/*.c) \
 ALL_SRCS  := $(LIB_SRCS) $(MODULE_SRCS) $(MAIN_SRCS)
 
 
-ifdef NEED_CAPTURE 
+ifdef NEED_DPDK
 #use makefiles of dpdk
 #we need explicitly TOP_DIR as this line will be called second times from ./build folder by dpdk
   -include $(TOP_DIR)/mk/compile-dpdk.mk

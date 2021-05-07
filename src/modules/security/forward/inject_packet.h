@@ -30,7 +30,7 @@ inject_packet_context_t* inject_packet_alloc( const probe_conf_t *config );
  * @param packet_size
  * @return number of packets being successfully injected to the output NIC
  */
-bool inject_packet_send_packet( inject_packet_context_t *context, const uint8_t *packet_data, uint16_t packet_size );
+int inject_packet_send_packet( inject_packet_context_t *context, const uint8_t *packet_data, uint16_t packet_size );
 
 /**
  * This is call only one at the end to release the context
