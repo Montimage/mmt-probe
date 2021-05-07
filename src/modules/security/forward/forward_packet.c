@@ -13,6 +13,7 @@
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/ether.h>
+#include <time.h>
 
 #include "forward_packet.h"
 #include "../../dpi/dpi_tool.h"
@@ -33,6 +34,11 @@ struct forward_packet_context_struct{
 	const ipacket_t *ipacket;
 
 	inject_packet_context_t *injector;
+
+	struct{
+		uint32_t nb_packets, nb_bytes;
+		time_t last_time;
+	}stat;
 };
 
 //TODO: need to be fixed in multi-threading
@@ -50,6 +56,19 @@ static inline bool _send_packet_to_nic( forward_packet_context_t *context ){
 	if( ret > 0 )
 		context->nb_forwarded_packets += ret;
 
+	context->stat.nb_packets += ret;
+	context->stat.nb_bytes   += ( ret * context->packet_size );
+	time_t now = time(NULL); //return number of second from 1970
+	if( now != context->stat.last_time ){
+		float interval = (now - context->stat.last_time);
+		log_write_dual(LOG_INFO, "Statistics of forwarded packets %.2f pps, %.2f bps",
+				context->stat.nb_packets   / interval,
+				context->stat.nb_bytes * 8 / interval);
+		//reset stat
+		context->stat.last_time  = now;
+		context->stat.nb_bytes   = 0;
+		context->stat.nb_packets = 0;
+	}
 	return (ret > 0);
 }
 
@@ -76,6 +95,7 @@ forward_packet_context_t* forward_packet_alloc( const probe_conf_t *config, mmt_
 	context->packet_data = mmt_alloc( 0xFFFF ); //max size of a IP packet
 	context->packet_size = 0;
 	context->has_a_satisfied_rule = false;
+	context->stat.last_time = time(NULL);
 
 	//TODO: not work in multi-threading
 	cache = context;
@@ -123,7 +143,9 @@ void forward_packet_on_receiving_packet_before_rule_processing(const ipacket_t *
  *   but after all rules being processed on the current packet
  */
 void forward_packet_on_receiving_packet_after_rule_processing( const ipacket_t * ipacket, forward_packet_context_t *context ){
-	if( context->has_a_satisfied_rule == false )
+	//whether the current packet is handled by a security rule ?
+	// if yes, we do nothing
+	if( context->has_a_satisfied_rule )
 		return;
 	if( context->config->default_action  == ACTION_DROP ){
 		context->nb_dropped_packets ++;
