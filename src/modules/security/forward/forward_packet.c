@@ -46,9 +46,11 @@ static forward_packet_context_t * _get_current_context(){
 
 static inline bool _send_packet_to_nic( forward_packet_context_t *context ){
 
-	bool ret = inject_packet_send_packet(context->injector,  context->packet_data, context->packet_size );
+	int ret = inject_packet_send_packet(context->injector,  context->packet_data, context->packet_size );
+	if( ret > 0 )
+		context->nb_forwarded_packets += ret;
 
-	return ret;
+	return (ret > 0);
 }
 
 /**
@@ -126,9 +128,7 @@ void forward_packet_on_receiving_packet_after_rule_processing( const ipacket_t *
 	if( context->config->default_action  == ACTION_DROP ){
 		context->nb_dropped_packets ++;
 	} else {
-		if( _send_packet_to_nic(context) )
-			context->nb_forwarded_packets ++;
-		else
+		if( ! _send_packet_to_nic(context) )
 			context->nb_dropped_packets ++;
 	}
 }
@@ -151,8 +151,7 @@ void mmt_probe_do_not_forward_packet(){
  */
 void mmt_probe_forward_packet(){
 	forward_packet_context_t *context = _get_current_context();
-	if( _send_packet_to_nic(context) )
-		context->nb_forwarded_packets ++;
+	_send_packet_to_nic(context);
 }
 
 

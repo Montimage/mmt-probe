@@ -192,6 +192,7 @@ ifdef PCAP_DUMP_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/dpi/pcap_dump/*.c)
 endif
 
+#forward packets using libpcap
 $(eval $(call check_module,FORWARD_PACKET_MODULE))
 ifdef FORWARD_PACKET_MODULE
   ifndef SECURITY_MODULE
@@ -202,6 +203,27 @@ ifdef FORWARD_PACKET_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/security/forward/*.c)
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/security/forward/pcap/*.c) #use libpcap
 endif
+
+#forward packets using DPDK
+$(eval $(call check_module,FORWARD_PACKET_DPDK_MODULE))
+ifdef FORWARD_PACKET_DPDK_MODULE
+  ifndef SECURITY_MODULE
+    $(error FORWARD_PACKET_DPDK_MODULE requires SECURITY_MODULE is enabled)
+  endif
+  ifdef STATIC_LINK
+    $(error FORWARD_PACKET_DPDK_MODULE and STATIC_LINK cannot be together)
+  endif
+  ifdef FORWARD_PACKET_MODULE
+    $(error FORWARD_PACKET_DPDK_MODULE and FORWARD_PACKET_MODULE cannot be together)
+  endif
+  export NEED_DPDK=1 #Yes, we need DPDK
+  MODULE_LIBS  += -lmmt_tmobile
+  MODULE_FLAGS += -DFORWARD_PACKET_MODULE
+  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/security/forward/*.c)
+  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/security/forward/dpdk/*.c) #use DPDK
+endif
+
+
 
 # check license
 $(eval $(call check_module,LICENSE_MODULE))
@@ -260,18 +282,15 @@ endif
 $(eval $(call EXPORT_TARGET,DPDK_CAPTURE))
 
 ifdef DPDK_CAPTURE
+  ifdef STATIC_LINK
+    $(error DPDK_CAPTURE and STATIC_LINK cannot be together)
+  endif
   $(info - Use DPDK to capture packet)
   MODULE_FLAGS += -DDPDK_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/dpdk/*.c)
   
-  #we need to export these variables as we need them in the second call of compile-dpdk.mk by the makefile of DPDK
-  export MODULE_FLAGS
-  export MODULE_SRCS
-  export MODULE_LIBS
-  
-  ifdef STATIC_LINK
-    $(error DPDK_CAPTURE and STATIC_LINK cannot be together)
-  endif
+  export NEED_DPDK=1
+#capture packet using libpcap
 else
   $(eval $(call _info,- Use PCAP to capture packet))
   ifdef STATIC_LINK
@@ -281,4 +300,13 @@ else
   endif
   MODULE_FLAGS += -DPCAP_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/pcap/*.c)
+endif
+
+
+#when use DPDK to (i) capture packets or (ii) forward packets
+ifdef NEED_DPDK 
+  #we need to export these variables as we need them in the second call of compile-dpdk.mk by the makefile of DPDK
+  export MODULE_FLAGS
+  export MODULE_SRCS
+  export MODULE_LIBS
 endif
