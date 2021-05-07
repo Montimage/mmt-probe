@@ -200,6 +200,7 @@ ifdef FORWARD_PACKET_MODULE
   MODULE_LIBS  +=  -lpcap -lmmt_tmobile
   MODULE_FLAGS += -DFORWARD_PACKET_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/security/forward/*.c)
+  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/security/forward/pcap/*.c) #use libpcap
 endif
 
 # check license

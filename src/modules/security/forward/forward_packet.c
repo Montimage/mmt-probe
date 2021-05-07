@@ -4,13 +4,6 @@
  *  Created on: Jan 7, 2021
  *      Author: nhnghia
  */
-#include <pcap/pcap.h>
-#include "forward_packet.h"
-#include "../../dpi/dpi_tool.h"
-#include "../../../lib/malloc_ext.h"
-#include "../../../lib/memory.h"
-#include "process_packet.h"
-
 #include <arpa/inet.h>
 #include <linux/if_packet.h>
 #include <stdio.h>
@@ -21,16 +14,25 @@
 #include <net/if.h>
 #include <netinet/ether.h>
 
+#include "forward_packet.h"
+#include "../../dpi/dpi_tool.h"
+#include "../../../lib/malloc_ext.h"
+#include "../../../lib/memory.h"
+#include "process_packet.h"
+#include "inject_packet.h"
+
+
+
 struct forward_packet_context_struct{
-	pcap_t *pcap_handler;
 	const forward_packet_conf_t *config;
 	uint64_t nb_forwarded_packets;
 	uint64_t nb_dropped_packets;
-	int raw_socket;
 	uint8_t *packet_data; //a copy of a packet
 	uint16_t packet_size;
 	bool has_a_satisfied_rule; //whether there exists a rule that satisfied
 	const ipacket_t *ipacket;
+
+	inject_packet_context_t *injector;
 };
 
 //TODO: need to be fixed in multi-threading
@@ -41,50 +43,12 @@ static forward_packet_context_t * _get_current_context(){
 	return cache;
 }
 
-static pcap_t * _create_pcap_handler( const forward_packet_conf_t *conf ){
-	char pcap_errbuf[PCAP_ERRBUF_SIZE];
-	pcap_errbuf[0] = '\0';
-	pcap_t* pcap = pcap_open_live( conf->output_nic, conf->snap_len,
-			conf->promisc, //promisc mode
-			0, //timeout
-			pcap_errbuf );
-
-	//having error?
-	if (pcap_errbuf[0]!='\0')
-		ABORT("Cannot open NIC %s to forward packets: %s", conf->output_nic, pcap_errbuf);
-
-	return pcap;
-}
-
-/*
-static int _create_raw_socket( const forward_packet_conf_t *conf ){
-	int sockfd =-1;
-	struct ifreq if_idx;
-	sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-	if( sockfd == -1 )
-		ABORT("Cannot create raw socket to send packets");
-
-	// Get the index of the interface to send on
-	memset(&if_idx, 0, sizeof(struct ifreq));
-	strncpy(if_idx.ifr_name, conf->output_nic, IFNAMSIZ-1);
-
-	if (ioctl(sockfd, SIOCGIFINDEX, &if_idx) < 0)
-		perror("SIOCGIFINDEX");
-
-	return sockfd;
-}
-*/
 
 static inline bool _send_packet_to_nic( forward_packet_context_t *context ){
 
-	//returns the number of bytes written on success and -1 on failure.
-	int ret = pcap_inject(context->pcap_handler, context->packet_data, context->packet_size );
+	bool ret = inject_packet_send_packet(context->injector,  context->packet_data, context->packet_size );
 
-	/*
-	ret = sendto( context->raw_socket, buffer, pkt_size, 0,
-		(struct sockaddr*)&socket_address, sizeof(struct sockaddr_ll));
-	*/
-	return (ret > 0);
+	return ret;
 }
 
 /**
@@ -97,27 +61,19 @@ forward_packet_context_t* forward_packet_alloc( const probe_conf_t *config, mmt_
 	const forward_packet_conf_t *conf = config->forward_packet;
 	if( ! conf->is_enable )
 		return NULL;
+
 	//TODO: limit only main thread (no multi-thread) for now
 	ASSERT( config->thread->thread_count == 0, "5Greplay support using only main thread. Set thread-nb=0 in the .conf file." );
 	ASSERT( config->reports.security->threads_size == 0, "5Greplay does not support multi-threading for now. Set security.thread-nb=0");
-	pcap_t *pcap = _create_pcap_handler( conf );
-	if( !pcap )
-		return NULL;
-/*
-	int sockfd = _create_raw_socket(conf);
-	if( sockfd == -1)
-		return NULL;
-*/
 
 	forward_packet_context_t *context = mmt_alloc_and_init_zero( sizeof( forward_packet_context_t ));
 	context->config = conf;
-	context->pcap_handler = pcap;
+	//init packet injector that can be PCAP or DPDK (or other?)
+	context->injector = inject_packet_alloc(config);
 
 	context->packet_data = mmt_alloc( 0xFFFF ); //max size of a IP packet
 	context->packet_size = 0;
 	context->has_a_satisfied_rule = false;
-
-//	context->raw_socket = sockfd;
 
 	//TODO: not work in multi-threading
 	cache = context;
@@ -134,15 +90,12 @@ void forward_packet_release( forward_packet_context_t *context ){
 		return;
 	log_write_dual(LOG_INFO, "Number of packets being successfully forwarded: %"PRIu64", dropped: %"PRIu64,
 			context->nb_forwarded_packets, context->nb_dropped_packets );
-	if( context->pcap_handler ){
-		pcap_close(context->pcap_handler);
-		context->pcap_handler = NULL;
+	if( context->injector ){
+		inject_packet_release( context->injector );
+		context->injector = NULL;
 	}
 
 	mmt_probe_free( context->packet_data );
-	//if( context->raw_socket )
-	//	close( context->raw_socket );
-
 	mmt_probe_free( context );
 }
 
@@ -178,7 +131,6 @@ void forward_packet_on_receiving_packet_after_rule_processing( const ipacket_t *
 		else
 			context->nb_dropped_packets ++;
 	}
-
 }
 
 
