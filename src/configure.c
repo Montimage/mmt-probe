@@ -298,7 +298,6 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_INT_CB("mode", 0, CFGF_NONE, _conf_parse_input_mode),
 			CFG_STR("source", "", CFGF_NONE),
 			CFG_INT("snap-len", 65535, CFGF_NONE),
-			CFG_STR("dpdk-option", "", CFGF_NONE ),
 			CFG_END()
 	};
 
@@ -345,6 +344,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_STR("logfile", 0, CFGF_NONE),
 			CFG_STR("license", 0, CFGF_NONE),
 			CFG_INT("loglevel", 2, CFGF_NONE),
+			CFG_STR("dpdk-option", 0, CFGF_NONE),
 
 			CFG_SEC("event-report", event_report_opts, CFGF_TITLE | CFGF_MULTI),
 			CFG_SEC("session-report", session_report_opts, CFGF_NONE),
@@ -437,7 +437,6 @@ static inline input_source_conf_t * _parse_input_source( cfg_t *cfg ){
 
 #ifdef DPDK_CAPTURE_MODULE
 	ret->capture_mode = DPDK_CAPTURE;
-	ret->dpdk_options = _cfg_get_str(cfg, "dpdk-option");
 #endif
 
 #ifdef PCAP_CAPTURE_MODULE
@@ -889,6 +888,7 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 	conf->stack_type   = cfg_getint(cfg, "stack-type");
 	conf->stat_period  = cfg_getint(cfg, "stats-period");
 	conf->license_file = _cfg_get_str(cfg, "license" );
+	conf->dpdk_options  = _cfg_get_str(cfg, "dpdk-option" );
 
 	conf->is_enable_proto_no_session_report  = cfg_getbool(cfg, "enable-proto-without-session-report");
 	conf->is_enable_ip_fragmentation_report  = cfg_getbool(cfg, "enable-ip-fragmentation-report");
@@ -1063,6 +1063,7 @@ void conf_release( probe_conf_t *conf){
 	mmt_probe_free( conf->session_timeout );
 
 	mmt_probe_free( conf->license_file );
+	mmt_probe_free( conf->dpdk_options );
 	mmt_probe_free( conf );
 }
 

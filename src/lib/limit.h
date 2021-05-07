@@ -52,15 +52,16 @@
 //end of block to be removed
 
 #ifdef PCAP_CAPTURE_MODULE
-	#define IF_ENABLE_PCAP( x ) x
+	#define IF_ENABLE_PCAP_CAPTURE( x ) x
 #else
-	#define IF_ENABLE_PCAP( x )
+	#define IF_ENABLE_PCAP_CAPTURE( x )
 #endif
 
 #ifdef DPDK_CAPTURE_MODULE
-	#define IF_ENABLE_DPDK( x ) x
+	#define IF_ENABLE_DPDK_CAPTURE( x ) x
+	#define NEED_DPDK
 #else
-	#define IF_ENABLE_DPDK( x )
+	#define IF_ENABLE_DPDK_CAPTURE( x )
 #endif
 
 #ifdef SECURITY_MODULE
@@ -109,8 +110,14 @@
 #ifdef FORWARD_PACKET_MODULE
 	#define IF_ENABLE_FORWARD_PACKET( x ) x
 #else
-	#define IF_ENABLE_FORWARD_PACKET( x )
+	#ifdef FORWARD_PACKET_DPDK_MODULE
+		#define IF_ENABLE_FORWARD_PACKET( x ) x
+		#define NEED_DPDK
+	#else
+		#define IF_ENABLE_FORWARD_PACKET( x )
+	#endif
 #endif
+
 
 #ifdef SIMPLE_REPORT
 	#define IF_ENABLE_SIMPLE_REPORT( x ) x
@@ -180,10 +187,18 @@
 #else
 	#define IF_ENABLE_STATIC_LINK( x )
 #endif
+
+#ifdef NEED_DPDK
+	#define IF_NEED_DPDK( x ) x
+#else
+	#define IF_NEED_DPDK( x )
+#endif
+
+
 //a string contains list of compiled modules
 #define MODULES_LIST                                   \
 	"DPI"                                              \
-	IF_ENABLE_DPDK( ", DPDK" )                         \
+	IF_NEED_DPDK( ", DPDK" )                           \
 	IF_ENABLE_DYNAMIC_CONFIG( ", DYNAMIC_CONF" )       \
 	IF_ENABLE_FORWARD_PACKET( ", FORWARD_PACKET" )     \
 	IF_ENABLE_FTP_RECONSTRUCT( ", FTP_RECONSTRUCT" )   \
@@ -192,7 +207,7 @@
 	IF_ENABLE_LICENSE_CHECK( ", LICENSE" )             \
 	IF_ENABLE_LTE_REPORT( ", LTE_REPORT" )             \
 	IF_ENABLE_MONGODB( ", MONGODB" )                   \
-	IF_ENABLE_PCAP( ", PCAP" )                         \
+	IF_ENABLE_PCAP_CAPTURE( ", PCAP" )                         \
 	IF_ENABLE_PCAP_DUMP( ", PCAP_DUMP" )               \
 	IF_ENABLE_QOS( ", QOS" )                           \
 	IF_ENABLE_STAT_REPORT(", REPORT" )                 \

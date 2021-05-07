@@ -154,8 +154,8 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__INPUT__SOURCE,      "input.source",      &conf->input->input_source, CHAR_STAR),
 	(CONF_ATT__INPUT__SNAP_LEN,    "input.snap-len",    &conf->input->snap_len,     UINT16_T),
 
-#ifdef DPDK_CAPTURE_MODULE
-	(CONF_ATT__INPUT__DPDK_OPTION, "input.dpdk-option", &conf->input->dpdk_options, CHAR_STAR),
+#ifdef NEED_DPDK
+	(CONF_ATT__INPUT__DPDK_OPTION, "dpdk-option", &conf->dpdk_options, CHAR_STAR),
 #endif
 
 	//output

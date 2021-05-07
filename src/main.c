@@ -83,7 +83,7 @@ static void _print_usage(const char * prg_name) {
 	printf("\t-v               : Print version information, then exits.\n");
 	printf("\t-c <config file> : Gives the path to the configuration file (default: %s, %s).\n",
 				DEFAULT_CONFIG_FILE, DEFAULT_CONFIG_FILE_OPT);
-IF_ENABLE_PCAP(
+IF_ENABLE_PCAP_CAPTURE(
 	printf("\t-t <trace file>  : Gives the trace file for offline analyse.\n");
 )
 	printf("\t-i <interface>   : Gives the interface name for live traffic analysis.\n");
@@ -234,7 +234,7 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 }
 
 static inline void _stop_modules( probe_context_t *context){
-	IF_ENABLE_PCAP(
+	IF_ENABLE_PCAP_CAPTURE(
 		pcap_capture_stop(context);
 	)
 
@@ -348,9 +348,11 @@ static int _main_processing( int argc, char** argv ){
 
 	probe_context_t *context = get_context();
 
-#ifdef DPDK_CAPTURE_MODULE
+#ifdef NEED_DPDK
+
 	char *dpdk_argv[ 100 ];
-	int dpdk_argc = string_split( context->config->input->dpdk_options, " ", &dpdk_argv[1], 100-1 );
+	int dpdk_argc = 0;
+	dpdk_argc = string_split( context->config->dpdk_options, " ", &dpdk_argv[1], 100-1 );
 
 	//the first parameter is normally program name
 	dpdk_argv[0] = LOG_IDENT;

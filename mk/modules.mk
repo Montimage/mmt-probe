@@ -286,7 +286,7 @@ ifdef DPDK_CAPTURE
     $(error DPDK_CAPTURE and STATIC_LINK cannot be together)
   endif
   $(info - Use DPDK to capture packet)
-  MODULE_FLAGS += -DDPDK_MODULE
+  MODULE_FLAGS += -DDPDK_CAPTURE_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/dpdk/*.c)
   
   export NEED_DPDK=1
@@ -298,7 +298,7 @@ else
   else
     MODULE_LIBS  += -lpcap
   endif
-  MODULE_FLAGS += -DPCAP_MODULE
+  MODULE_FLAGS += -DPCAP_CAPTURE_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/pcap/*.c)
 endif
 
