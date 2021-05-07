@@ -13,6 +13,7 @@
 
 struct inject_packet_context_struct{
 	pcap_t *pcap_handler;
+	uint16_t nb_copies;
 };
 
 /**
@@ -37,6 +38,7 @@ inject_packet_context_t* inject_packet_alloc( const probe_conf_t *probe_config )
 
 	inject_packet_context_t *context = mmt_alloc_and_init_zero( sizeof( struct inject_packet_context_struct ));
 	context->pcap_handler = pcap;
+	context->nb_copies = conf->nb_copies;
 	return context;
 }
 
@@ -47,10 +49,17 @@ inject_packet_context_t* inject_packet_alloc( const probe_conf_t *probe_config )
  * @param packet_size
  * @return number of packets being successfully injected to the output NIC
  */
-bool inject_packet_send_packet( inject_packet_context_t *context, const uint8_t *packet_data, uint16_t packet_size ){
-	//returns the number of bytes written on success and -1 on failure.
-	int ret = pcap_inject(context->pcap_handler, packet_data, packet_size );
-	return (ret > 0);
+int inject_packet_send_packet( inject_packet_context_t *context, const uint8_t *packet_data, uint16_t packet_size ){
+	uint16_t nb_pkt_sent = 0;
+	int ret, i;
+
+	for( i=0; i<context->nb_copies; i++ ){
+		//returns the number of bytes written on success and -1 on failure.
+		ret = pcap_inject(context->pcap_handler, packet_data, packet_size );
+		if( ret > 0 )
+			nb_pkt_sent ++;
+	}
+	return nb_pkt_sent;
 }
 
 /**

@@ -218,6 +218,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_STR("output-nic", 0, CFGF_NONE),
 			CFG_INT("snap-len", 0, CFGF_NONE),
+			CFG_INT("nb-copies", 1, CFGF_NONE),
 			CFG_INT("promisc", 0, CFGF_NONE),
 			CFG_INT_CB("default", 0, CFGF_NONE, _conf_parse_forward_default_action),
 			CFG_END()
@@ -298,6 +299,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_INT_CB("mode", 0, CFGF_NONE, _conf_parse_input_mode),
 			CFG_STR("source", "", CFGF_NONE),
 			CFG_INT("snap-len", 65535, CFGF_NONE),
+			CFG_STR("dpdk-option", "", CFGF_NONE), //keep this for compatibility
 			CFG_END()
 	};
 
@@ -503,6 +505,7 @@ static inline forward_packet_conf_t *_parse_forward_packet( cfg_t *cfg ){
 	ret->is_enable  = cfg_getbool( cfg, "enable" );
 	ret->output_nic = _cfg_get_str(cfg, "output-nic");
 	ret->snap_len = cfg_getint( cfg, "snap-len" );
+	ret->nb_copies = cfg_getint( cfg, "nb-copies" );
 	ret->promisc = cfg_getint( cfg, "promisc" );
 	ret->default_action = cfg_getint( cfg, "default" );
 	return ret;
@@ -1076,6 +1079,7 @@ int conf_validate( probe_conf_t *conf ){
 		//when security module is availabe inside mmt-probe => take into account its setting parameter
 		IF_ENABLE_SECURITY( is_enable_security = conf->reports.security->is_enable; )
 		ASSERT( is_enable_security == true, "Forward packet module requires security module");
+		ASSERT( conf->forward_packet->nb_copies > 0, "Number of copies of packet to be sent must be greater than 0: nb-copies > 0");
 	}
 #endif
 
@@ -1136,12 +1140,12 @@ int conf_validate( probe_conf_t *conf ){
 
 #ifdef DPDK_CAPTURE_MODULE
 	if( conf->input->input_mode == OFFLINE_ANALYSIS ){
-		log_write(LOG_ERR, "input.mode must be ONLINE in DPDK mode");
+		log_write(LOG_ERR, "input.mode must be ONLINE in DPDK_CAPTURE mode");
 		ret ++;
 	}
 
 	if( conf->thread->thread_count == 0 ){
-		log_write(LOG_ERR, "thread-nb must be greater than 0 in DPDK mode");
+		log_write(LOG_ERR, "thread-nb must be greater than 0 in DPDK_CAPTURE mode");
 		ret ++;
 	}
 	if( ! is_power_of_two( conf->thread->thread_queue_packet_threshold ) ){

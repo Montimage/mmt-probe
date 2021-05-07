@@ -37,7 +37,11 @@ struct inject_packet_context_struct{
 	struct rte_mbuf **mbuf_arr; //array of pointers to contain the duplicates' pointers
 };
 
-#define FATAL_ERROR(fmt, args...)  rte_exit(EXIT_FAILURE, fmt "\n", ##args)
+#define FATAL_ERROR(fmt, args...)                 \
+	do{                                           \
+		log_write( LOG_ERR, fmt, ##args );        \
+		rte_exit(EXIT_FAILURE, fmt "\n", ##args); \
+	}while(0)
 
 /* Constants of the system */
 #define MEMPOOL_NAME "mmt_liveplay_mempool"  // Name of the mem_pool
@@ -74,7 +78,7 @@ static void init_port(int i) {
 	/* Configure device with '0' rx queues and 1 tx queue */
 	ret = rte_eth_dev_configure(i, 0, 1, &port_conf);
 	if (ret < 0)
-		FATAL_ERROR("Error configuring the port\n");
+		FATAL_ERROR("Error configuring the port %d", i);
 
 	//free buffer after sending all duplicated packets
 	//if( tx_conf.tx_free_thresh < pkt_dup_times )
@@ -84,7 +88,7 @@ static void init_port(int i) {
 	ret = rte_eth_tx_queue_setup(i, 0, TX_QUEUE_SZ, rte_socket_id(), &tx_conf);
 	if (ret < 0)
 		FATAL_ERROR(
-				"Error configuring transmitting queue. Errno: %d (%d bad arg, %d no mem)\n",
+				"Error configuring transmitting queue. Errno: %d (%d bad arg, %d no mem)",
 				-ret, EINVAL, ENOMEM);
 
 	// Start device
@@ -111,7 +115,7 @@ inject_packet_context_t* inject_packet_alloc( const probe_conf_t *probe_config )
 
 	context = rte_malloc( NULL, (sizeof( struct inject_packet_context_struct ) ), RTE_CACHE_LINE_SIZE );;
 	context->port_id = port_id;
-	context->pkt_dup_times = 1;
+	context->pkt_dup_times = conf->nb_copies;
 	context->mbuf_arr = rte_malloc( NULL, (sizeof( struct rte_mbuf * ) * context->pkt_dup_times ), RTE_CACHE_LINE_SIZE );;
 
 	size_t buffer_size = context->pkt_dup_times;
@@ -134,7 +138,7 @@ inject_packet_context_t* inject_packet_alloc( const probe_conf_t *probe_config )
 			rte_socket_id(), 0);
 
 	if (context->memory_pool == NULL)
-		FATAL_ERROR("Cannot create %s. Errno: %d\n", MEMPOOL_NAME, rte_errno);
+		FATAL_ERROR("Cannot create %s. Errno: %d", MEMPOOL_NAME, rte_errno);
 
 	return context;
 }
