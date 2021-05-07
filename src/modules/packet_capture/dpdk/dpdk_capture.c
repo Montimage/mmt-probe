@@ -21,8 +21,8 @@
  *    [ RX queue ]                     => [ Worker ]
  */
 
-#ifndef DPDK_MODULE
-#define DPDK_MODULE
+#ifndef DPDK_CAPTURE_MODULE
+#define DPDK_CAPTURE_MODULE
 #endif
 
 #include <semaphore.h>

@@ -42,11 +42,11 @@
 #include "configure_override.h"
 #include "modules/routine/routine.h"
 
-#ifdef DPDK_MODULE
+#ifdef DPDK_CAPTURE_MODULE
 #include "modules/packet_capture/dpdk/dpdk_capture.h"
 #endif
 
-#ifdef PCAP_MODULE
+#ifdef PCAP_CAPTURE_MODULE
 #include "modules/packet_capture/pcap/pcap_capture.h"
 #endif
 
@@ -58,8 +58,8 @@
 #include "modules/dynamic_conf/dynamic_conf.h"
 #endif
 
-#if defined DPDK_MODULE && defined PCAP_MODULE
-#error("Either DPDK_MODULE or PCAP_MODULE is defined but must not all of them")
+#if defined DPDK_CAPTURE_MODULE && defined PCAP_CAPTURE_MODULE
+#error("Either DPDK_CAPTURE_MODULE or PCAP_CAPTURE_MODULE is defined but must not all of them")
 #endif
 
 #ifdef DEBUG_MODE
@@ -114,7 +114,7 @@ static inline void _override_string_conf( char **conf, const char*new_val ){
 static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 	int opt, optcount = 0;
 	int val;
-#ifdef DPDK_MODULE
+#ifdef DPDK_CAPTURE_MODULE
 	const char *options = "c:i:vhxX:"; //not allow -t to analyze pcap files
 #else
 	const char *options = "c:t:i:vhxX:";
@@ -348,7 +348,7 @@ static int _main_processing( int argc, char** argv ){
 
 	probe_context_t *context = get_context();
 
-#ifdef DPDK_MODULE
+#ifdef DPDK_CAPTURE_MODULE
 	char *dpdk_argv[ 100 ];
 	int dpdk_argc = string_split( context->config->input->dpdk_options, " ", &dpdk_argv[1], 100-1 );
 
@@ -393,7 +393,7 @@ static int _main_processing( int argc, char** argv ){
 	//other stubs, such as, system usage report
 	routine_t *routine = routine_create_and_start( context );
 
-#ifdef DPDK_MODULE
+#ifdef DPDK_CAPTURE_MODULE
 	dpdk_capture_start( context );
 #else
 	pcap_capture_start( context );

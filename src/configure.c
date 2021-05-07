@@ -424,23 +424,23 @@ static inline input_source_conf_t * _parse_input_source( cfg_t *cfg ){
 	ret->input_mode   = cfg_getint(cfg, "mode");
 	ret->input_source = _cfg_get_str(cfg, "source");
 
-#ifndef DPDK_MODULE
-#ifndef PCAP_MODULE
+#ifndef DPDK_CAPTURE_MODULE
+#ifndef PCAP_CAPTURE_MODULE
 	#error("Neither DPDK nor PCAP is defined")
 #endif
 #endif
 
-#if defined DPDK_MODULE && defined PCAP_MODULE
-	#error("Either DPDK_MODULE or PCAP_MODULE is defined but must not all of them")
+#if defined DPDK_CAPTURE_MODULE && defined PCAP_CAPTURE_MODULE
+	#error("Either DPDK_CAPTURE_MODULE or PCAP_CAPTURE_MODULE is defined but must not all of them")
 #endif
 
 
-#ifdef DPDK_MODULE
+#ifdef DPDK_CAPTURE_MODULE
 	ret->capture_mode = DPDK_CAPTURE;
 	ret->dpdk_options = _cfg_get_str(cfg, "dpdk-option");
 #endif
 
-#ifdef PCAP_MODULE
+#ifdef PCAP_CAPTURE_MODULE
 	ret->capture_mode = PCAP_CAPTURE;
 #endif
 
@@ -1133,7 +1133,7 @@ int conf_validate( probe_conf_t *conf ){
 #endif
 
 
-#ifdef DPDK_MODULE
+#ifdef DPDK_CAPTURE_MODULE
 	if( conf->input->input_mode == OFFLINE_ANALYSIS ){
 		log_write(LOG_ERR, "input.mode must be ONLINE in DPDK mode");
 		ret ++;

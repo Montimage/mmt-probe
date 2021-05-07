@@ -5,8 +5,8 @@
  *          by: Huu Nghia
  */
 
-#ifndef PCAP_MODULE
-#define PCAP_MODULE
+#ifndef PCAP_CAPTURE_MODULE
+#define PCAP_CAPTURE_MODULE
 #endif
 
 #include <pthread.h>

@@ -17,8 +17,8 @@
 #ifndef DEBUG_MODE
 #define DEBUG_MODE
 #endif
-#ifndef PCAP_MODULE
-#define PCAP_MODULE
+#ifndef PCAP_CAPTURE_MODULE
+#define PCAP_CAPTURE_MODULE
 #endif
 #ifndef SECURITY_MODULE
 #define SECURITY_MODULE
@@ -51,13 +51,13 @@
 
 //end of block to be removed
 
-#ifdef PCAP_MODULE
+#ifdef PCAP_CAPTURE_MODULE
 	#define IF_ENABLE_PCAP( x ) x
 #else
 	#define IF_ENABLE_PCAP( x )
 #endif
 
-#ifdef DPDK_MODULE
+#ifdef DPDK_CAPTURE_MODULE
 	#define IF_ENABLE_DPDK( x ) x
 #else
 	#define IF_ENABLE_DPDK( x )
