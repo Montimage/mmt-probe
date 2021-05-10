@@ -43,8 +43,6 @@ typedef struct session_stat_struct session_stat_t;
 #include "reassembly/tcp_reassembly.h"
 #endif
 
-#include "forward/forward_packet.h"
-
 #include "lte/topology_report.h"
 #include "lte/lte_qos_report.h"
 
