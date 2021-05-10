@@ -227,7 +227,7 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 
 			switch( conf_override_element(conf, string_att, string_val) ){
 			case 0:
-				log_write( LOG_INFO, "Overridden value of configuration parameter '%s' by '%s'", string_att, string_val );
+				//log_write( LOG_INFO, "Overridden value of configuration parameter '%s' by '%s'", string_att, string_val );
 				break;
 			case -1:
 				fprintf(stderr, "Unknown parameter identity %s\n", string_att );

@@ -48,7 +48,7 @@ struct inject_packet_context_struct{
 #define MEMPOOL_ELEM_SZ  2048                // Power of two greater than 1500
 #define MEMPOOL_CACHE_SZ  512                // Max is 512
 #define TX_QUEUE_SZ      4096                //
-#define MAX_PKT_BURST     128
+#define MAX_PKT_BURST      64
 
 /* Struct for devices configuration for const defines see rte_ethdev.h */
 static const struct rte_eth_conf port_conf = {

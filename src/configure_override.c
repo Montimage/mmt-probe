@@ -114,6 +114,7 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 			log_write( LOG_WARNING, "Unexpected value [%s] for [%s]", value_str, ident->ident );
 			return false;
 		}
+		log_write( LOG_INFO, "Overridden value of configuration parameter '%s' by '%d'", ident->ident, enum_val );
 		return true;
 		//
 	case CONF_ATT__SESSION_REPORT__RTT_BASE:
@@ -123,6 +124,7 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 			log_write( LOG_WARNING, "Unexpected value [%s] for [%s]", value_str, ident->ident );
 			return false;
 		}
+		log_write( LOG_INFO, "Overridden value of configuration parameter '%s' by '%d'", ident->ident, enum_val );
 		return true;
 //#ifdef SECURITY_MODULE
 //	case CONF_ATT__SECURITY__INGORE_REMAIN_FLOW:
@@ -151,6 +153,7 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 			return false;
 		mmt_probe_free( *string_ptr );
 		*string_ptr = mmt_strdup( value_str );
+		log_write( LOG_INFO, "Overridden value of configuration parameter '%s' by '%s'", ident->ident, *string_ptr );
 		return true;
 	case LIST:
 		switch( ident->val ){
@@ -164,7 +167,10 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 			int_val = conf_parse_output_channel( value_str );
 			if( int_val == *(output_channel_conf_t *) field_ptr )
 				return false;
+
 			(*(output_channel_conf_t *) field_ptr) = int_val;
+			log_write( LOG_INFO, "Overridden value of configuration parameter '%s' by '%d'",
+							ident->ident, *((output_channel_conf_t *)field_ptr) );
 			return true;
 
 #ifdef PCAP_DUMP_MODULE
@@ -190,8 +196,11 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 		//value does not change => do nothing
 		if( int_val == *((bool *)field_ptr) )
 			return false;
+
 		//update value
 		*((bool *)field_ptr) = int_val;
+		log_write( LOG_INFO, "Overridden value of configuration parameter '%s' by '%d'",
+						ident->ident, *((bool *)field_ptr) );
 		return true;
 
 
@@ -200,7 +209,10 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 		//value does not change ==> do nothing
 		if( int_val == *((uint16_t *)field_ptr) )
 			return false;
+
 		*((uint16_t *)field_ptr) = int_val;
+		log_write( LOG_INFO, "Overridden value of configuration parameter '%s' by '%d'",
+				ident->ident, *((uint16_t *)field_ptr) );
 		return true;
 
 	case UINT32_T:
@@ -209,6 +221,8 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 		if( int_val == *((uint32_t *)field_ptr) )
 			return false;
 		*((uint32_t *)field_ptr) = int_val;
+		log_write( LOG_INFO, "Overridden value of configuration parameter '%s' by '%d'",
+						ident->ident, *((uint16_t *)field_ptr) );
 		return true;
 	default:
 		break;

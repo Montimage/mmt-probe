@@ -172,7 +172,7 @@ typedef struct forward_packet_conf_struct{
 	char *output_nic;
 	uint16_t snap_len;
 	uint16_t promisc;
-	uint16_t nb_copies;
+	uint32_t nb_copies;
 	forward_action_t default_action;
 }forward_packet_conf_t;
 
