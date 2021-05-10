@@ -42,6 +42,19 @@
 #include "configure_override.h"
 #include "modules/routine/routine.h"
 
+#ifdef NEED_DPDK
+#include <rte_eal.h>
+#include <rte_ethdev.h>
+#include <rte_cycles.h>
+#include <rte_lcore.h>
+#include <rte_mbuf.h>
+#include <rte_common.h>
+#include <rte_errno.h>
+#include <rte_malloc.h>
+#include <rte_mempool.h>
+#include <rte_ring.h>
+#endif
+
 #ifdef DPDK_CAPTURE_MODULE
 #include "modules/packet_capture/dpdk/dpdk_capture.h"
 #endif
@@ -349,7 +362,6 @@ static int _main_processing( int argc, char** argv ){
 	probe_context_t *context = get_context();
 
 #ifdef NEED_DPDK
-
 	char *dpdk_argv[ 100 ];
 	int dpdk_argc = 0;
 	dpdk_argc = string_split( context->config->dpdk_options, " ", &dpdk_argv[1], 100-1 );
@@ -359,8 +371,11 @@ static int _main_processing( int argc, char** argv ){
 	dpdk_argc   += 1;
 
 	ret = rte_eal_init( dpdk_argc, dpdk_argv );
-	if (ret < 0)
-		rte_exit_failure( "Error while EAL initialization" );
+	if (ret < 0){
+		log_write(LOG_ERR, "Error while EAL initialization: %s", context->config->dpdk_options);
+		rte_exit( EXIT_SUCCESS, "Error while EAL initialization" );
+	} else
+		log_write(LOG_INFO, "Successfully initialized DPDK EAL: %s", context->config->dpdk_options);
 #endif
 
 	IF_ENABLE_SECURITY(

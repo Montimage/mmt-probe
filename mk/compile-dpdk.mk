@@ -6,10 +6,13 @@
 # So this compilation works only for DPDK <= 20.08
 # To build DPDK: http://doc.dpdk.org/guides-20.08/linux_gsg/build_dpdk.html#installation-of-dpdk-target-environment-using-make
 #
-# For example:
+# For example (DPDK 20.08):
 #
 # make config T=x86_64-native-linux-gcc O=build
+# vi build/.config
+#   change "CONFIG_RTE_EAL_IGB_UIO=n" to "CONFIG_RTE_EAL_IGB_UIO=y"
 # make -j2
+# make install O=build DESTDIR=myinstall prefix=
 
 #this avoids DPDK pausing to print deprecation message (as it prefers menson+ninja)
 MAKE_PAUSE=n

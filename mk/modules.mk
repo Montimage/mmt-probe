@@ -218,7 +218,7 @@ ifdef FORWARD_PACKET_DPDK_MODULE
   endif
   export NEED_DPDK=1 #Yes, we need DPDK
   MODULE_LIBS  += -lmmt_tmobile
-  MODULE_FLAGS += -DFORWARD_PACKET_MODULE
+  MODULE_FLAGS += -DFORWARD_PACKET_MODULE -DNEED_DPDK
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/security/forward/*.c)
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/security/forward/dpdk/*.c) #use DPDK
 endif
@@ -286,7 +286,7 @@ ifdef DPDK_CAPTURE
     $(error DPDK_CAPTURE and STATIC_LINK cannot be together)
   endif
   $(info - Use DPDK to capture packet)
-  MODULE_FLAGS += -DDPDK_CAPTURE_MODULE
+  MODULE_FLAGS += -DDPDK_CAPTURE_MODULE -DNEED_DPDK
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/dpdk/*.c)
   
   export NEED_DPDK=1
