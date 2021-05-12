@@ -2,20 +2,18 @@
 1. Download, compile, and install the lastest version of mmt-sdk, and mmt-security
 
 - MMT-SDK
-
-  + branch `proto-s1ap`
-  + HN tested on the commit [`901a677`](https://bitbucket.org/montimage/mmt-sdk/commits/901a67723fd997b9a2be58194c29d9c206ef018a)
+    + branch `proto-s1ap`
+    + HN tested on the commit [`901a677`](https://bitbucket.org/montimage/mmt-sdk/commits/901a67723fd997b9a2be58194c29d9c206ef018a)
 
 - MMT-Security
-
-  + branch `5greplay`
-  + HN tested on the commit [`75d1a14`](https://bitbucket.org/montimage/mmt-security/commits/75d1a1484f411064414df2a61f9fca4cd76b005e)
+    + branch `5greplay`
+    + HN tested on the commit [`75d1a14`](https://bitbucket.org/montimage/mmt-security/commits/75d1a1484f411064414df2a61f9fca4cd76b005e)
 
 2. Download and compile mmt-probe
 
 - Code info:
-  + branch `replay`
-  + HN tested on the commit [`19c5148`](https://bitbucket.org/montimage/mmt-probe/commits/19c51484773ea6e955d74fac2eb7475f32a6c7cb)
+    + branch `replay`
+    + HN tested on the commit [`19c5148`](https://bitbucket.org/montimage/mmt-probe/commits/19c51484773ea6e955d74fac2eb7475f32a6c7cb)
 
 - Compile MMT-Probe: `make clean; make DEBUG FORWARD_PACKET_MODULE SECURITY_MODULE compile`
 
@@ -26,15 +24,14 @@
 3. Start UERANSIM
 
 - Suppose that you installed open5Gs and UERANSIM and MMT in the same machine. And UERANSIM works ok with open5Gs
-  + Install open5gs
 
 - Start gNb: `./nr-gnb -c ../config/open5gs-gnb.yaml`
 
 - Start UE: `sudo ./nr-ue -c ../config/open5gs-ue.yaml`
 
 - Note: 
-  + If you see this message in gNb: `[ngap] [error] UE context not found with id: 1`, then: restart gNb by pressing Ctrl+c to stop it and start it again, and, restart UE
-  + After some stop/start, open5Gs AFM crashed
+    + If you see this message in gNb: `[ngap] [error] UE context not found with id: 1`, then: restart gNb by pressing Ctrl+c to stop it and start it again, and, restart UE
+    + After some stop/start, open5Gs AFM crashed
 
 4. Execution logs
 
