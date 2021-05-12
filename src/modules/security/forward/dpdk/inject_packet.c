@@ -102,8 +102,9 @@ static void init_port(int port_id) {
 	if (ret < 0)
 		FATAL_ERROR("Cannot start port\n");
 
+	// this is needed only when receiving packets (not for sending packets)
 	// Enable promiscuous mode for an Ethernet device
-	rte_eth_promiscuous_enable(port_id);
+	//rte_eth_promiscuous_enable(port_id);
 }
 
 

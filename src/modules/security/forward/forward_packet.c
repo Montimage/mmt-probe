@@ -49,10 +49,35 @@ static forward_packet_context_t * _get_current_context(){
 	return cache;
 }
 
+struct sctp_datahdr {
+        uint8_t type;
+        uint8_t flags;
+        uint16_t length;
+        uint32_t tsn;
+        uint16_t stream;
+        uint16_t ssn;
+        uint32_t ppid;
+        //uint8_t payload[0];
+    };
+
+//keep only SCTP payload in context->packet_data
+static inline int _get_sctp_data_offset( forward_packet_context_t *context ){
+	const ipacket_t *ipacket = context->ipacket;
+	int sctp_index = get_protocol_index_by_id( ipacket, PROTO_SCTP_DATA );
+	//not found SCTP
+	if( sctp_index == -1 )
+		return 0;
+	//offset of sctp in packet
+	return get_packet_offset_at_index(ipacket, sctp_index) + sizeof( struct sctp_datahdr );
+}
 
 static inline bool _send_packet_to_nic( forward_packet_context_t *context ){
+	int offset = _get_sctp_data_offset( context );
+	if( offset == 0 )
+		return false;
 
-	int ret = inject_packet_send_packet(context->injector,  context->packet_data, context->packet_size );
+	DEBUG("%"PRIu64" SCTP_DATA offset: %d", context->ipacket->packet_id, offset );
+	int ret = inject_packet_send_packet(context->injector,  context->packet_data + offset, context->packet_size - offset);
 	if( ret > 0 )
 		context->nb_forwarded_packets += ret;
 
