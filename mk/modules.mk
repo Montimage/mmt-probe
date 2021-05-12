@@ -193,20 +193,20 @@ ifdef PCAP_DUMP_MODULE
 endif
 
 #forward packets using libpcap
-$(eval $(call check_module,FORWARD_PACKET_MODULE))
-ifdef FORWARD_PACKET_MODULE
-  ifndef SECURITY_MODULE
-    $(error FORWARD_PACKET_MODULE requires SECURITY_MODULE is enabled)
-  endif
-  MODULE_LIBS  +=  -lpcap -lmmt_tmobile
-  MODULE_FLAGS += -DFORWARD_PACKET_MODULE
-  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/security/forward/*.c)
-  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/security/forward/pcap/*.c) #use libpcap
-endif
+#$(eval $(call check_module,FORWARD_PACKET_MODULE))
+#ifdef FORWARD_PACKET_MODULE
+#  ifndef SECURITY_MODULE
+#    $(error FORWARD_PACKET_MODULE requires SECURITY_MODULE is enabled)
+#  endif
+#  MODULE_LIBS  +=  -lpcap -lmmt_tmobile
+#  MODULE_FLAGS += -DFORWARD_PACKET_MODULE
+#  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/security/forward/*.c)
+#  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/security/forward/pcap/*.c) #use libpcap
+#endif
 
 #forward packets using using SCTP proxy
-$(eval $(call check_module,FORWARD_PACKET_SCTP_MODULE))
-ifdef FORWARD_PACKET_SCTP_MODULE
+$(eval $(call check_module,FORWARD_PACKET_MODULE))
+ifdef FORWARD_PACKET_MODULE
   ifndef SECURITY_MODULE
     $(error FORWARD_PACKET_SCTP_MODULE requires SECURITY_MODULE is enabled)
   endif

@@ -76,17 +76,35 @@ static inline void _reconnect_sctp_if_need( inject_packet_context_t *context ){
     printf("outstrms  = %d\n--------\n\n", status.sstat_outstrms);
 }
 
+static inline void _clear_sctp_buffer_if_need( inject_packet_context_t *context ){
+	char buffer[1024];
+	int ret;
+	do {
+		ret = recv( context->client_fd, buffer, sizeof( buffer), MSG_DONTWAIT );
+		/*
+		if (ret > 0) {
+			printf("Received %d bytes data: %s\n", ret, buffer);
+			fflush(stdout);
+		}*/
+	} while( ret > 0);
+}
+
 int inject_packet_send_packet( inject_packet_context_t *context, const uint8_t *packet_data, uint16_t packet_size ){
 	uint16_t nb_pkt_sent = 0;
 	int ret, i;
-	_reconnect_sctp_if_need( context );
+
+//	_reconnect_sctp_if_need( context );
+	_clear_sctp_buffer_if_need( context );
 
 	for( i=0; i<context->nb_copies; i++ ){
 		//returns the number of bytes written on success and -1 on failure.
-		ret = sctp_sendmsg( context->client_fd, packet_data,  packet_size, NULL, 0, 0, 0, 0, 0, 0 );
+		//ret = sctp_sendmsg( context->client_fd, packet_data,  packet_size, NULL, 0, 0, 0, 0, 0, 0 );
+		ret = sctp_send( context->client_fd, packet_data, packet_size, NULL, 0 );
 		if( ret > 0 )
 			nb_pkt_sent ++;
 	}
+
+	//sleep(1);
 	return nb_pkt_sent;
 }
 
