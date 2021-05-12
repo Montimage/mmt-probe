@@ -357,20 +357,18 @@ static inline void _load_tcp_plugin(){
 
 #ifdef ONVM
 #define NF_TAG "probe"
-static uint32_t print_delay = 1000000;
+
 static uint32_t destination;
+static uint32_t total_packets = 0;
 
 static int
 parse_app_args(int argc, char *argv[]) {
     int c, dst_flag = 0;
-    while ((c = getopt(argc, argv, "d:p:")) != -1) {
+    while ((c = getopt(argc, argv, "d:")) != -1) {
         switch (c) {
             case 'd':
                 destination = strtoul(optarg, NULL, 10);
                 dst_flag = 1;
-                break;
-            case 'p':
-                print_delay = strtoul(optarg, NULL, 10);
                 break;
             default:
                 return -1;
@@ -382,16 +380,28 @@ parse_app_args(int argc, char *argv[]) {
     return 0;
 }
 
-static void
-do_stats_display(struct rte_mbuf *pkt) {
+int http_packet_handler(const ipacket_t *ipacket, void *user_args) {
+	unsigned int http_index = get_protocol_index_by_id(ipacket, PROTO_HTTP);
+	if (http_index == -1) {
+		printf("[debug] not HTTP packet: %lu\n", ipacket->packet_id);
+	} else {
+		printf("[debug] HTTP packet: %lu\n", ipacket->packet_id);
+	}
+	return 0;
+}
+
+static int
+packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
+    __attribute__((unused)) struct onvm_nf_local_ctx *nf_local_ctx) {
+    static uint32_t counter = 0;
+    total_packets++;
+
     const char clr[] = {27, '[', '2', 'J', '\0'};
     const char topLeft[] = {27, '[', '1', ';', '1', 'H', '\0'};
     static uint64_t pkt_process = 0;
     struct rte_ipv4_hdr *ip;
 
-    pkt_process += print_delay;
-
-    /* Clear screen and move to top left */
+    /*Clear screen and move to top left*/
     printf("%s%s", clr, topLeft);
     struct timespec time_now __rte_cache_aligned;
     clock_gettime( CLOCK_REALTIME_COARSE, &time_now );
@@ -412,11 +422,10 @@ do_stats_display(struct rte_mbuf *pkt) {
     printf("-----\n");
     printf("Port : %d\n", pkt->port);
     printf("Size : %d\n", pkt->pkt_len);
-    printf("N°   : %" PRIu64 "\n", pkt_process);
+    printf("N°   : %" PRIu64 "\n", total_packets);
     printf("Time : %d.%d\n", time_now.tv_sec, time_now.tv_nsec / 1000);
     printf("\n");
-
-    printf("Total packets: %9" PRIu64 " \n", pkt_process);
+    printf("Total packets received: %" PRIu64 " \n", total_packets);
 
     /*ip = onvm_pkt_ipv4_hdr(pkt);
     if (ip != NULL) {
@@ -424,19 +433,9 @@ do_stats_display(struct rte_mbuf *pkt) {
     } else {
         printf("No IP4 header found\n");
     }*/
-}
 
-static int
-packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
-    __attribute__((unused)) struct onvm_nf_local_ctx *nf_local_ctx) {
-    static uint32_t counter = 0;
-    if (++counter == print_delay) {
-        do_stats_display(pkt);
-        counter = 0;
-    }
-
-    //meta->action = ONVM_NF_ACTION_TONF;
-    //meta->destination = destination;
+    meta->action = ONVM_NF_ACTION_TONF;
+    meta->destination = destination;
     return 0;
 }
 
@@ -447,6 +446,8 @@ void onvm_capture_start(probe_context_t *context){
     if(dpi_handler){
 	    printf("MMT handler init OK\n");
     }
+
+    register_packet_handler(dpi_handler, 1, http_packet_handler, NULL);
 
     probe_conf_t *config = context->config;
     output = output_alloc_init(1,
