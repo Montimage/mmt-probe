@@ -73,9 +73,13 @@ static inline bool _send_packet_to_nic( forward_packet_context_t *context ){
 
 
 
-	int ret;
+	int ret = INJECT_PROTO_NO_AVAIL;
+
 	//try firstly using a real connection by using proto_injector
+	//do not use proto_injector when DPDK
+#ifndef NEED_DPDK
 	ret = inject_proto_send_packet(context->proto_injector, context->ipacket, context->packet_data, context->packet_size);
+#endif
 	//if no protocol is available, then use default injector (libpcap/DPDK) to inject the raw packet to output NIC
 	if( ret == INJECT_PROTO_NO_AVAIL )
 		ret = inject_packet_send_packet(context->injector,  context->packet_data, context->packet_size);
