@@ -221,6 +221,9 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_INT("nb-copies", 1, CFGF_NONE),
 			CFG_INT("promisc", 0, CFGF_NONE),
 			CFG_INT_CB("default", 0, CFGF_NONE, _conf_parse_forward_default_action),
+			CFG_STR_LIST("target-protocols", "{}", CFGF_NONE),
+			CFG_STR_LIST("target-hosts", "{}", CFGF_NONE),
+			CFG_STR_LIST("target-ports", "{}", CFGF_NONE),
 			CFG_END()
 		};
 
@@ -508,6 +511,30 @@ static inline forward_packet_conf_t *_parse_forward_packet( cfg_t *cfg ){
 	ret->nb_copies = cfg_getint( cfg, "nb-copies" );
 	ret->promisc = cfg_getint( cfg, "promisc" );
 	ret->default_action = cfg_getint( cfg, "default" );
+
+	ret->target_size = cfg_size( cfg, "target-protocols");
+	ASSERT( ret->target_size == cfg_size( cfg, "target-hosts"), "Number of elements in target-protocols and target-hosts are different");
+	ASSERT( ret->target_size == cfg_size( cfg, "target-ports"), "Number of elements in target-protocols and target-ports are different");
+
+	ret->targets = mmt_alloc( sizeof( forward_packet_target_conf_t ) * ret->target_size );
+	int i;
+	char *str;
+	for( i=0; i<ret->target_size; i++) {
+		//protocol
+		str = cfg_getnstr(cfg, "target-protocols", i);
+		if( IS_EQUAL_STRINGS(str, "SCTP") )
+			ret->targets[i].protocol = FORWARD_PACKET_PROTO_SCTP;
+		else
+			ABORT("Does not support yet the protocol: %s", str);
+		//host
+		str = cfg_getnstr(cfg, "target-hosts", i);
+		ret->targets[i].host = mmt_strdup( str );
+		//port
+		//ret->targets[i].port = cfg_getnint(cfg, "target-ports", i);
+		//do not understand why ret->targets[i].port is zero
+		str = cfg_getnstr(cfg, "target-ports", i);
+		ret->targets[i].port = atoi( str );
+	}
 	return ret;
 }
 
@@ -1002,6 +1029,10 @@ void conf_release( probe_conf_t *conf){
 
 	if( conf->forward_packet ){
 		mmt_probe_free( conf->forward_packet->output_nic );
+		for( i=0; i<conf->forward_packet->target_size; i++ ){
+			mmt_probe_free( conf->forward_packet->targets[i].host );
+		}
+		mmt_probe_free( conf->forward_packet->targets );
 		mmt_probe_free( conf->forward_packet );
 	}
 

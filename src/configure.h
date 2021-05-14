@@ -167,6 +167,12 @@ typedef enum {
 	ACTION_DROP
 }forward_action_t;
 
+typedef struct forward_packet_target_conf_struct{
+	enum{ FORWARD_PACKET_PROTO_SCTP } protocol;
+	char * host;
+	uint16_t port;
+}forward_packet_target_conf_t;
+
 typedef struct forward_packet_conf_struct{
 	bool is_enable;
 	char *output_nic;
@@ -174,6 +180,9 @@ typedef struct forward_packet_conf_struct{
 	uint16_t promisc;
 	uint32_t nb_copies;
 	forward_action_t default_action;
+
+	forward_packet_target_conf_t *targets;
+	uint16_t target_size;
 }forward_packet_conf_t;
 
 typedef struct reconstruct_data_conf_struct{

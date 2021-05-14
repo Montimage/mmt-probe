@@ -24,45 +24,47 @@
 #include <netinet/sctp.h>
 #include <arpa/inet.h>
 
-#include "../inject_packet.h"
+#include "inject_sctp.h"
+#include "../../../../lib/malloc.h"
+#include "../../../../lib/memory.h"
 
-struct inject_packet_context_struct{
+struct inject_sctp_context_struct{
 	int client_fd;
 	uint16_t nb_copies;
+	const char* host;
+	uint16_t port;
 };
 
-#define TARGET_PORT 38412
-#define TARGET_IP   "127.0.0.5"
-
-int _sctp_connect(){
+void _sctp_connect( inject_sctp_context_t *context ){
 	int conn_fd, ret;
 	struct sockaddr_in servaddr = {
 			.sin_family = AF_INET,
-			.sin_port = htons( TARGET_PORT ),
-			.sin_addr.s_addr = inet_addr( TARGET_IP ),
+			.sin_port = htons( context->port ),
+			.sin_addr.s_addr = inet_addr( context->host ),
 	};
 
 	conn_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_SCTP);
 	ASSERT( conn_fd >= 0, "Cannot create SCTP socket" );
 
 	ret = connect(conn_fd, (struct sockaddr *) &servaddr, sizeof(servaddr));
-	ASSERT( ret >= 0, "Cannot connect to %s:%d using SCTP", TARGET_IP, TARGET_PORT );
+	ASSERT( ret >= 0, "Cannot connect to %s:%d using SCTP", context->host, context->port );
 
-	return conn_fd;
+	context->client_fd = conn_fd;
 }
 
-inject_packet_context_t* inject_packet_alloc( const probe_conf_t *probe_config ){
+inject_sctp_context_t* inject_sctp_alloc( const forward_packet_target_conf_t *conf, uint32_t nb_copies ){
 
 
-	const forward_packet_conf_t *conf = probe_config->forward_packet;
-	inject_packet_context_t *context = mmt_alloc_and_init_zero( sizeof( struct inject_packet_context_struct ));
-	context->client_fd = _sctp_connect();
-	context->nb_copies = conf->nb_copies;
+	inject_sctp_context_t *context = mmt_alloc_and_init_zero( sizeof( struct inject_sctp_context_struct ));
+	context->host      = conf->host;
+	context->port      = conf->port;
+	context->nb_copies = nb_copies;
+	_sctp_connect( context );
 	return context;
 }
 
 
-static inline void _reconnect_sctp_if_need( inject_packet_context_t *context ){
+static inline void _reconnect_sctp_if_need( inject_sctp_context_t *context ){
 	struct sctp_status status;
 	int ret;
     int i = sizeof(status);
@@ -76,7 +78,7 @@ static inline void _reconnect_sctp_if_need( inject_packet_context_t *context ){
     printf("outstrms  = %d\n--------\n\n", status.sstat_outstrms);
 }
 
-static inline void _clear_sctp_buffer_if_need( inject_packet_context_t *context ){
+static inline void _clear_sctp_buffer_if_need( inject_sctp_context_t *context ){
 	char buffer[1024];
 	int ret;
 	do {
@@ -89,7 +91,7 @@ static inline void _clear_sctp_buffer_if_need( inject_packet_context_t *context 
 	} while( ret > 0);
 }
 
-int inject_packet_send_packet( inject_packet_context_t *context, const uint8_t *packet_data, uint16_t packet_size ){
+int inject_sctp_send_packet( inject_sctp_context_t *context, const uint8_t *packet_data, uint16_t packet_size ){
 	uint16_t nb_pkt_sent = 0;
 	int ret, i;
 
@@ -108,7 +110,7 @@ int inject_packet_send_packet( inject_packet_context_t *context, const uint8_t *
 	return nb_pkt_sent;
 }
 
-void inject_packet_release( inject_packet_context_t *context ){
+void inject_sctp_release( inject_sctp_context_t *context ){
 	if( !context )
 		return;
 	close(context->client_fd);

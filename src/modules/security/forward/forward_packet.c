@@ -21,6 +21,7 @@
 #include "../../../lib/memory.h"
 #include "process_packet.h"
 #include "inject_packet.h"
+#include "proto/inject_proto.h"
 
 
 
@@ -33,7 +34,8 @@ struct forward_packet_context_struct{
 	bool has_a_satisfied_rule; //whether there exists a rule that satisfied
 	const ipacket_t *ipacket;
 
-	inject_packet_context_t *injector;
+	inject_packet_context_t *injector;    //injector by default
+	inject_proto_context_t *proto_injector; //injector to inject a special protocol
 
 	struct{
 		uint32_t nb_packets, nb_bytes;
@@ -49,40 +51,11 @@ static forward_packet_context_t * _get_current_context(){
 	return cache;
 }
 
-struct sctp_datahdr {
-        uint8_t type;
-        uint8_t flags;
-        uint16_t length;
-        uint32_t tsn;
-        uint16_t stream;
-        uint16_t ssn;
-        uint32_t ppid;
-        //uint8_t payload[0];
-    };
 
-//keep only SCTP payload in context->packet_data
-static inline int _get_sctp_data_offset( forward_packet_context_t *context ){
-	const ipacket_t *ipacket = context->ipacket;
-	int sctp_index = get_protocol_index_by_id( ipacket, PROTO_SCTP_DATA );
-	//not found SCTP
-	if( sctp_index == -1 )
-		return 0;
-	//offset of sctp in packet
-	return get_packet_offset_at_index(ipacket, sctp_index) + sizeof( struct sctp_datahdr );
-}
+static inline void _update_stat( forward_packet_context_t *context, uint32_t nb_packets ){
 
-static inline bool _send_packet_to_nic( forward_packet_context_t *context ){
-	int offset = _get_sctp_data_offset( context );
-	if( offset == 0 )
-		return false;
-
-	DEBUG("%"PRIu64" SCTP_DATA offset: %d", context->ipacket->packet_id, offset );
-	int ret = inject_packet_send_packet(context->injector,  context->packet_data + offset, context->packet_size - offset);
-	if( ret > 0 )
-		context->nb_forwarded_packets += ret;
-
-	context->stat.nb_packets += ret;
-	context->stat.nb_bytes   += ( ret * context->packet_size );
+	context->stat.nb_packets += nb_packets;
+	context->stat.nb_bytes   += ( nb_packets * context->packet_size );
 	time_t now = time(NULL); //return number of second from 1970
 	if( now != context->stat.last_time ){
 		float interval = (now - context->stat.last_time);
@@ -94,6 +67,25 @@ static inline bool _send_packet_to_nic( forward_packet_context_t *context ){
 		context->stat.nb_bytes   = 0;
 		context->stat.nb_packets = 0;
 	}
+}
+
+static inline bool _send_packet_to_nic( forward_packet_context_t *context ){
+
+
+
+	int ret;
+	//try firstly using a real connection by using proto_injector
+	ret = inject_proto_send_packet(context->proto_injector, context->ipacket, context->packet_data, context->packet_size);
+	//if no protocol is available, then use default injector (libpcap/DPDK) to inject the raw packet to output NIC
+	if( ret == INJECT_PROTO_NO_AVAIL )
+		ret = inject_packet_send_packet(context->injector,  context->packet_data, context->packet_size);
+
+	if( ret > 0 ){
+		context->nb_forwarded_packets += ret;
+
+		_update_stat( context, ret );
+	}
+
 	return (ret > 0);
 }
 
@@ -104,6 +96,8 @@ static inline bool _send_packet_to_nic( forward_packet_context_t *context ){
  * @return
  */
 forward_packet_context_t* forward_packet_alloc( const probe_conf_t *config, mmt_handler_t *dpi_handler ){
+	int i;
+	const forward_packet_target_conf_t *target;
 	const forward_packet_conf_t *conf = config->forward_packet;
 	if( ! conf->is_enable )
 		return NULL;
@@ -114,6 +108,8 @@ forward_packet_context_t* forward_packet_alloc( const probe_conf_t *config, mmt_
 
 	forward_packet_context_t *context = mmt_alloc_and_init_zero( sizeof( forward_packet_context_t ));
 	context->config = conf;
+
+	context->proto_injector = inject_proto_alloc(config);
 	//init packet injector that can be PCAP or DPDK (or other?)
 	context->injector = inject_packet_alloc(config);
 
@@ -142,6 +138,7 @@ void forward_packet_release( forward_packet_context_t *context ){
 		context->injector = NULL;
 	}
 
+	inject_proto_release( context->proto_injector );
 	mmt_probe_free( context->packet_data );
 	mmt_probe_free( context );
 }
