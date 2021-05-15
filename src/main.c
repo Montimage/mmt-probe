@@ -360,6 +360,13 @@ static inline void _load_tcp_plugin(){
 
 static uint32_t destination;
 static uint32_t total_packets = 0;
+static uint64_t nb_http_pkts = 0;
+static uint64_t nb_not_processed = 0;
+time_t next_stat_ts = 0; //moment we need to do statistic
+time_t next_output_ts = 0; //moment we need flush output to channels
+time_t now; //current timestamp that is either
+//- real timestamp of system when running online
+//- packet timestamp when running offline
 
 static int
 parse_app_args(int argc, char *argv[]) {
@@ -386,27 +393,82 @@ int http_packet_handler(const ipacket_t *ipacket, void *user_args) {
 		printf("[debug] not HTTP packet: %lu\n", ipacket->packet_id);
 	} else {
 		printf("[debug] HTTP packet: %lu\n", ipacket->packet_id);
+        nb_http_pkts++;
 	}
 	return 0;
 }
 
 static int
-packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
+pcap_packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
     __attribute__((unused)) struct onvm_nf_local_ctx *nf_local_ctx) {
-    static uint32_t counter = 0;
-    total_packets++;
-
     const char clr[] = {27, '[', '2', 'J', '\0'};
     const char topLeft[] = {27, '[', '1', ';', '1', 'H', '\0'};
-    static uint64_t pkt_process = 0;
-    struct rte_ipv4_hdr *ip;
-
     /*Clear screen and move to top left*/
     printf("%s%s", clr, topLeft);
-    struct timespec time_now __rte_cache_aligned;
-    clock_gettime( CLOCK_REALTIME_COARSE, &time_now );
+
+    static uint64_t pkt_process = 0;
+    struct rte_ipv4_hdr *ip;
+    struct pkthdr header;
+    struct pcap_pkthdr p_pkthdr;
     const u_char *pkt_data;
     struct pkthdr pkt_header __rte_cache_aligned;
+
+    total_packets++;
+    pkt_header.len = pkt->pkt_len;
+    pkt_header.caplen = pkt-> data_len;
+    pkt_header.ts.tv_sec = pkt->timestamp / US_PER_S;
+    pkt_header.ts.tv_usec = pkt->timestamp % US_PER_S;
+    pkt_data = (pkt->buf_addr + pkt->data_off);
+    if (!packet_process(dpi_handler, &pkt_header, pkt_data)) {
+        nb_not_processed++;
+        rte_exit(EXIT_FAILURE, "Packet process failed\n");
+    }
+    //rte_pktmbuf_free(pkt);
+
+    printf("PACKETS\n");
+    printf("-----\n");
+    printf("Size : %d\n", pkt->pkt_len);
+    printf("N°   : %" PRIu64 "\n", total_packets);
+    printf("Time : %d.%d\n", pkt_header.ts.tv_sec, pkt_header.ts.tv_usec);
+    printf("Timestamp   : %" PRIu64 "\n", pkt->timestamp);
+    printf("\n");
+
+    ip = onvm_pkt_ipv4_hdr(pkt);
+    char ip_string[16];
+    if (ip != NULL) {
+        //onvm_pkt_print(pkt);
+        onvm_pkt_parse_char_ip(ip_string, rte_be_to_cpu_32(ip->src_addr));
+        printf("Process packet from IP source %s\n", ip_string);
+    } else {
+        printf("No IP4 header found\n");
+    }
+
+    printf("Total HTTP packets received: %" PRIu64 " \n", nb_http_pkts);
+    printf("Total packets not being processed: %" PRIu64 " \n", nb_not_processed);
+    printf("Total packets received: %" PRIu64 " \n", total_packets);
+
+    meta->action = ONVM_NF_ACTION_TONF;
+    meta->destination = destination;
+    return 0;
+}
+
+static int
+packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
+    __attribute__((unused)) struct onvm_nf_local_ctx *nf_local_ctx) {
+    const char clr[] = {27, '[', '2', 'J', '\0'};
+    const char topLeft[] = {27, '[', '1', ';', '1', 'H', '\0'};
+    /*Clear screen and move to top left*/
+    printf("%s%s", clr, topLeft);
+
+    static uint32_t counter = 0;
+    static uint64_t pkt_process = 0;
+    struct rte_ipv4_hdr *ip;
+    const u_char *pkt_data;
+    struct pkthdr pkt_header __rte_cache_aligned;
+    struct timespec time_now __rte_cache_aligned;
+
+    clock_gettime( CLOCK_REALTIME_COARSE, &time_now );
+    total_packets++;
     pkt_header.len = pkt->pkt_len;
     pkt_header.caplen = pkt-> data_len;
     pkt_header.ts.tv_sec = time_now.tv_sec;
@@ -416,7 +478,6 @@ packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
     if (!packet_process(dpi_handler, &pkt_header, pkt_data)) {
         rte_exit(EXIT_FAILURE, "Packet process failed\n");
     }
-    output_flush(output);
 
     printf("PACKETS\n");
     printf("-----\n");
@@ -425,18 +486,39 @@ packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
     printf("N°   : %" PRIu64 "\n", total_packets);
     printf("Time : %d.%d\n", time_now.tv_sec, time_now.tv_nsec / 1000);
     printf("\n");
-    printf("Total packets received: %" PRIu64 " \n", total_packets);
 
-    /*ip = onvm_pkt_ipv4_hdr(pkt);
+    ip = onvm_pkt_ipv4_hdr(pkt);
+    char ip_string[16];
     if (ip != NULL) {
-        onvm_pkt_print(pkt);
+        //onvm_pkt_print(pkt);
+        onvm_pkt_parse_char_ip(ip_string, rte_be_to_cpu_32(ip->src_addr));
+        printf("Process packet from IP source %s\n", ip_string);
     } else {
         printf("No IP4 header found\n");
-    }*/
+    }
+
+    printf("Total HTTP packets received: %" PRIu64 " \n", nb_http_pkts);
+    printf("Total packets received: %" PRIu64 " \n", total_packets);
 
     meta->action = ONVM_NF_ACTION_TONF;
     meta->destination = destination;
     return 0;
+}
+
+static int
+callback_handler(__attribute__((unused)) struct onvm_nf_local_ctx *nf_local_ctx) {
+    now = time(NULL);
+    //statistic periodically
+    if(now >= next_stat_ts){
+        next_stat_ts += 5;
+        printf("callback_handler now   : %ld\n", now);
+        printf("callback_handler next_start_ts   : %ld\n", next_stat_ts);
+        //call worker
+        dpi_callback_on_stat_period(dpi_context);
+        output_flush(output);
+    }
+    /*dpi_callback_on_stat_period(dpi_context);*/
+    output_flush(output);
 }
 
 void onvm_capture_start(probe_context_t *context){
@@ -474,8 +556,8 @@ void onvm_capture_start(probe_context_t *context){
 	    printf("DPI context init OK\n");
     }
 
-    if(output)
-		_send_version_information(output);
+    /*if(output)*/
+		/*_send_version_information(output);*/
 }
 #endif
 
@@ -529,7 +611,9 @@ static int _main_processing( int argc, char** argv ){
     onvm_nflib_start_signal_handler(nf_local_ctx, NULL);
 
     nf_function_table = onvm_nflib_init_nf_function_table();
-    nf_function_table->pkt_handler = &packet_handler;
+    /*nf_function_table->pkt_handler = &packet_handler;*/
+    nf_function_table->pkt_handler = &pcap_packet_handler;
+    nf_function_table->user_actions = &callback_handler;
 
     if ((arg_offset = onvm_nflib_init(onvm_argc, onvm_argv, NF_TAG, nf_local_ctx, nf_function_table)) < 0) {
         onvm_nflib_stop(nf_local_ctx);
@@ -585,11 +669,18 @@ static int _main_processing( int argc, char** argv ){
 	dpdk_capture_start( context );
 #elif defined(ONVM)
     onvm_capture_start(context);
+
+    now = time( NULL );
+    next_stat_ts   = now + 5;
+    printf("now in _main_processing   : %ld\n", now);
+    printf("next_start_ts   : %ld\n", next_stat_ts);
+
     onvm_nflib_run(nf_local_ctx);
     onvm_nflib_stop(nf_local_ctx);
 
     mmt_close_handler(dpi_handler);
     dpi_release(dpi_context);
+
 #else
 	pcap_capture_start( context );
 #endif
@@ -597,7 +688,7 @@ static int _main_processing( int argc, char** argv ){
 	//end
 	close_extraction();
 
-	IF_ENABLE_SECURITY(
+    IF_ENABLE_SECURITY(
 		if( context->config->reports.security != NULL && context->config->reports.security->is_enable )
 			security_close();
 	)
