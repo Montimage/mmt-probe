@@ -272,6 +272,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_INT("snap-len", 65535, CFGF_NONE),
 			CFG_STR("dpdk-option", "", CFGF_NONE ),
 			CFG_STR("onvm-option", "", CFGF_NONE ),
+			CFG_INT("onvm-mode", 1, CFGF_NONE),
 			CFG_END()
 	};
 
@@ -408,6 +409,7 @@ static inline input_source_conf_t * _parse_input_source( cfg_t *cfg ){
 
 #ifdef ONVM
 	ret->onvm_options = _cfg_get_str(cfg, "onvm-option");
+	ret->onvm_mode = cfg_getint(cfg, "onvm-mode");
 #endif
 
 #ifdef DPDK_MODULE

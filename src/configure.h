@@ -70,7 +70,7 @@ typedef struct input_source_conf_struct{
 	char *input_source;
 	uint16_t snap_len;
 	IF_ENABLE_DPDK( char *dpdk_options; )
-	IF_ENABLE_ONVM( char *onvm_options; )
+	IF_ENABLE_ONVM( char *onvm_options; uint8_t onvm_mode; )
 }input_source_conf_t;
 
 
