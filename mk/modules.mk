@@ -283,6 +283,7 @@ ifdef ONVM
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/onvm/lib/*.c)
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/onvm/onvm_nflib/*.c)
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/onvm/onvm_mgr/*.c)
+  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/onvm/*.c)
   
   #we need to export these variables as we need them in the second call of compile-dpdk.mk by the makefile of DPDK
   export MODULE_FLAGS
