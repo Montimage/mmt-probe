@@ -13,7 +13,7 @@
 
 #define NF_TAG "probe"
 
-static uint32_t print_delay = 10000000; // number of package between each print
+static uint32_t print_delay = 1; // default number of package between each print
 static uint32_t destination;
 static uint8_t onvm_mode = 1; // default online mode
 const char* progname = "mmt-probe";
@@ -38,13 +38,11 @@ usage(const char* progname) {
     printf("Usage:\n");
     printf(
         "%s [EAL args] -- [NF_LIB args] -- -d <destination> [-p <print_delay>] "
-        "[-m <onvm_mode>] \n",
-        progname);
+        " \n", progname);
     printf("%s -F <CONFIG_FILE.json> [EAL args] -- [NF_LIB args] -- [NF args]\n\n", progname);
     printf("Flags:\n");
     printf(" - `-d DST`: Destination Service ID to foward to\n");
     printf(" - `-p PRINT_DELAY`: Number of packets between each print, e.g. `-p 1` prints every packets.\n");
-    printf(" - `-m MODE`: ONVM capture mode, e.g. `-m 1` captures online, `-m 0` replays pcap files.\n");
 }
 
 /*
@@ -53,7 +51,7 @@ usage(const char* progname) {
 static int
 parse_app_args(int argc, char *argv[]) {
     int c, dst_flag = 0;
-    while ((c = getopt(argc, argv, "d:p")) != -1) {
+    while ((c = getopt(argc, argv, "d:p:")) != -1) {
         switch (c) {
             case 'd':
                 destination = strtoul(optarg, NULL, 10);
@@ -96,12 +94,34 @@ int
 http_packet_handler(const ipacket_t *ipacket, void *user_args) {
     unsigned int http_index = get_protocol_index_by_id(ipacket, PROTO_HTTP);
     if (http_index == -1) {
-        DEBUG("not HTTP packet: %lu\n", ipacket->packet_id);
+        DEBUG("not HTTP packet: %lu", ipacket->packet_id);
     } else {
-        DEBUG("HTTP packet: %lu\n", ipacket->packet_id);
+        DEBUG("HTTP packet: %lu", ipacket->packet_id);
         nb_http_pkts++;
     }
     return 0;
+}
+
+/*
+ * This function displays stats. It uses ANSI terminal codes to clear
+ * screen when called. It is called from a single non-master
+ * thread in the server process, when the process is run with more
+ * than one lcore enabled.
+ */
+static void
+do_stats_display(struct rte_mbuf *pkt) {
+    const char clr[] = {27, '[', '2', 'J', '\0'};
+    const char topLeft[] = {27, '[', '1', ';', '1', 'H', '\0'};
+
+    /* Clear screen and move to top left */
+    printf("%s%s", clr, topLeft);
+
+    DEBUG("PACKETS");
+    DEBUG("-----");
+    DEBUG("Port : %d", pkt->port);
+    DEBUG("Size : %d", pkt->pkt_len);
+    DEBUG("N°   : %" PRIu64 "", total_packets);
+    DEBUG("");
 }
 
 /*
@@ -110,76 +130,35 @@ http_packet_handler(const ipacket_t *ipacket, void *user_args) {
 static int
 packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
     __attribute__((unused)) struct onvm_nf_local_ctx *nf_local_ctx) {
-    const char clr[] = {27, '[', '2', 'J', '\0'};
-    const char topLeft[] = {27, '[', '1', ';', '1', 'H', '\0'};
-    /*Clear screen and move to top left*/
-    printf("%s%s", clr, topLeft);
-
     static uint32_t counter = 0;
     static uint64_t pkt_process = 0;
     const u_char *pkt_data;
-    struct pkthdr pkt_header __rte_cache_aligned;
     struct timespec time_now __rte_cache_aligned;
-
-    clock_gettime( CLOCK_REALTIME_COARSE, &time_now );
-    total_packets++;
-    pkt_header.len = pkt->pkt_len;
-    pkt_header.caplen = pkt-> data_len;
-    pkt_header.ts.tv_sec = time_now.tv_sec;
-    pkt_header.ts.tv_usec = time_now.tv_nsec / 1000;
-    //_uint64_to_timeval(&pkt_header.ts, pkt->udata64 );
-    pkt_data = (pkt->buf_addr + pkt->data_off);
-    if (!packet_process(dpi_handler, &pkt_header, pkt_data)) {
-        rte_exit(EXIT_FAILURE, "Packet process failed\n");
-    }
-
-    DEBUG("PACKETS\n");
-    DEBUG("-----\n");
-    DEBUG("Port : %d\n", pkt->port);
-    DEBUG("Size : %d\n", pkt->pkt_len);
-    DEBUG("N°   : %" PRIu64 "\n", total_packets);
-    DEBUG("Time : %ld.%ld\n", time_now.tv_sec, time_now.tv_nsec / 1000);
-    DEBUG("\n");
-
-    meta->action = ONVM_NF_ACTION_TONF;
-    meta->destination = destination;
-    return 0;
-}
-
-/*
- * Processes each packet from the pcap file.
- */
-static int
-pcap_packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
-    __attribute__((unused)) struct onvm_nf_local_ctx *nf_local_ctx) {
-    const char clr[] = {27, '[', '2', 'J', '\0'};
-    const char topLeft[] = {27, '[', '1', ';', '1', 'H', '\0'};
-    /*Clear screen and move to top left*/
-    printf("%s%s", clr, topLeft);
-
-    static uint64_t pkt_process = 0;
-    struct pkthdr header;
-    const u_char *pkt_data;
     struct pkthdr pkt_header __rte_cache_aligned;
 
     total_packets++;
     pkt_header.len = pkt->pkt_len;
     pkt_header.caplen = pkt-> data_len;
-    pkt_header.ts.tv_sec = pkt->timestamp / US_PER_S;
-    pkt_header.ts.tv_usec = pkt->timestamp % US_PER_S;
+    if (onvm_mode) {
+        clock_gettime(CLOCK_REALTIME_COARSE, &time_now);
+        pkt_header.ts.tv_sec = time_now.tv_sec;
+        pkt_header.ts.tv_usec = time_now.tv_nsec / 1000;
+        DEBUG("Time : %ld.%ld", time_now.tv_sec, time_now.tv_nsec / 1000);
+    } else {
+        pkt_header.ts.tv_sec = pkt->timestamp / US_PER_S;
+        pkt_header.ts.tv_usec = pkt->timestamp % US_PER_S;
+        DEBUG("Time : %ld.%ld", pkt->timestamp / US_PER_S, pkt->timestamp % US_PER_S);
+    }
     pkt_data = (pkt->buf_addr + pkt->data_off);
     if (!packet_process(dpi_handler, &pkt_header, pkt_data)) {
         nb_not_processed++;
         rte_exit(EXIT_FAILURE, "Packet process failed\n");
     }
 
-    DEBUG("PACKETS\n");
-    DEBUG("-----\n");
-    DEBUG("Size : %d\n", pkt->pkt_len);
-    DEBUG("N°   : %" PRIu64 "\n", total_packets);
-    DEBUG("Time : %ld.%ld\n", pkt_header.ts.tv_sec, pkt_header.ts.tv_usec);
-    DEBUG("Timestamp   : %" PRIu64 "\n", pkt->timestamp);
-    DEBUG("\n");
+    if (counter++ == print_delay) {
+        do_stats_display(pkt);
+        counter = 0;
+    }
 
     meta->action = ONVM_NF_ACTION_TONF;
     meta->destination = destination;
@@ -195,8 +174,6 @@ callback_handler(__attribute__((unused)) struct onvm_nf_local_ctx *nf_local_ctx)
     // send reports periodically
     if(cur_time >= next_stat_ts){
         next_stat_ts += stat_period;
-        /*printf("callback_handler now   : %ld\n", cur_time);*/
-        /*printf("callback_handler next_start_ts   : %ld\n", next_stat_ts);*/
         dpi_callback_on_stat_period(dpi_context);
         output_flush(output);
     }
@@ -232,11 +209,7 @@ onvm_capture_init(probe_context_t *context) {
     onvm_nflib_start_signal_handler(nf_local_ctx, NULL);
 
     nf_function_table = onvm_nflib_init_nf_function_table();
-    // call corresponding packet_handler() depending on the onvm capture mode (1: online; 0: pcap)
-    if (onvm_mode)
-        nf_function_table->pkt_handler = &packet_handler;
-    else
-        nf_function_table->pkt_handler = &pcap_packet_handler;
+    nf_function_table->pkt_handler = &packet_handler;
     nf_function_table->user_actions = &callback_handler;
 
     if ((arg_offset = onvm_nflib_init(onvm_argc, onvm_argv, NF_TAG, nf_local_ctx, nf_function_table)) < 0) {
