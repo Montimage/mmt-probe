@@ -74,15 +74,31 @@ parse_app_args(int argc, char *argv[]) {
 }
 
 /*
+ * Gets IP source of each packet.
+ */
+static void
+get_ip_source(struct rte_mbuf *pkt) {
+    struct rte_ipv4_hdr *ip = onvm_pkt_ipv4_hdr(pkt);
+    char ip_string[16];
+    if (ip != NULL) {
+        //onvm_pkt_print(pkt);
+        onvm_pkt_parse_char_ip(ip_string, rte_be_to_cpu_32(ip->src_addr));
+        printf("Process packet from IP source %s\n", ip_string);
+    } else {
+        printf("No IP4 header found\n");
+    }
+}
+
+/*
  * Checks whether packets are HTTP or not.
  */
 int
 http_packet_handler(const ipacket_t *ipacket, void *user_args) {
     unsigned int http_index = get_protocol_index_by_id(ipacket, PROTO_HTTP);
     if (http_index == -1) {
-        printf("[debug] not HTTP packet: %lu\n", ipacket->packet_id);
+        DEBUG("not HTTP packet: %lu\n", ipacket->packet_id);
     } else {
-        printf("[debug] HTTP packet: %lu\n", ipacket->packet_id);
+        DEBUG("HTTP packet: %lu\n", ipacket->packet_id);
         nb_http_pkts++;
     }
     return 0;
@@ -101,7 +117,6 @@ packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
 
     static uint32_t counter = 0;
     static uint64_t pkt_process = 0;
-    struct rte_ipv4_hdr *ip;
     const u_char *pkt_data;
     struct pkthdr pkt_header __rte_cache_aligned;
     struct timespec time_now __rte_cache_aligned;
@@ -118,26 +133,13 @@ packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
         rte_exit(EXIT_FAILURE, "Packet process failed\n");
     }
 
-    printf("PACKETS\n");
-    printf("-----\n");
-    printf("Port : %d\n", pkt->port);
-    printf("Size : %d\n", pkt->pkt_len);
-    printf("N°   : %" PRIu64 "\n", total_packets);
-    printf("Time : %ld.%ld\n", time_now.tv_sec, time_now.tv_nsec / 1000);
-    printf("\n");
-
-    ip = onvm_pkt_ipv4_hdr(pkt);
-    char ip_string[16];
-    if (ip != NULL) {
-        //onvm_pkt_print(pkt);
-        onvm_pkt_parse_char_ip(ip_string, rte_be_to_cpu_32(ip->src_addr));
-        printf("Process packet from IP source %s\n", ip_string);
-    } else {
-        printf("No IP4 header found\n");
-    }
-
-    printf("Total HTTP packets received: %" PRIu64 " \n", nb_http_pkts);
-    printf("Total packets received: %" PRIu64 " \n", total_packets);
+    DEBUG("PACKETS\n");
+    DEBUG("-----\n");
+    DEBUG("Port : %d\n", pkt->port);
+    DEBUG("Size : %d\n", pkt->pkt_len);
+    DEBUG("N°   : %" PRIu64 "\n", total_packets);
+    DEBUG("Time : %ld.%ld\n", time_now.tv_sec, time_now.tv_nsec / 1000);
+    DEBUG("\n");
 
     meta->action = ONVM_NF_ACTION_TONF;
     meta->destination = destination;
@@ -156,7 +158,6 @@ pcap_packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
     printf("%s%s", clr, topLeft);
 
     static uint64_t pkt_process = 0;
-    struct rte_ipv4_hdr *ip;
     struct pkthdr header;
     const u_char *pkt_data;
     struct pkthdr pkt_header __rte_cache_aligned;
@@ -172,27 +173,13 @@ pcap_packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
         rte_exit(EXIT_FAILURE, "Packet process failed\n");
     }
 
-    printf("PACKETS\n");
-    printf("-----\n");
-    printf("Size : %d\n", pkt->pkt_len);
-    printf("N°   : %" PRIu64 "\n", total_packets);
-    printf("Time : %ld.%ld\n", pkt_header.ts.tv_sec, pkt_header.ts.tv_usec);
-    printf("Timestamp   : %" PRIu64 "\n", pkt->timestamp);
-    printf("\n");
-
-    ip = onvm_pkt_ipv4_hdr(pkt);
-    char ip_string[16];
-    if (ip != NULL) {
-        //onvm_pkt_print(pkt);
-        onvm_pkt_parse_char_ip(ip_string, rte_be_to_cpu_32(ip->src_addr));
-        printf("Process packet from IP source %s\n", ip_string);
-    } else {
-        printf("No IP4 header found\n");
-    }
-
-    printf("Total HTTP packets received: %" PRIu64 " \n", nb_http_pkts);
-    printf("Total packets not being processed: %" PRIu64 " \n", nb_not_processed);
-    printf("Total packets received: %" PRIu64 " \n", total_packets);
+    DEBUG("PACKETS\n");
+    DEBUG("-----\n");
+    DEBUG("Size : %d\n", pkt->pkt_len);
+    DEBUG("N°   : %" PRIu64 "\n", total_packets);
+    DEBUG("Time : %ld.%ld\n", pkt_header.ts.tv_sec, pkt_header.ts.tv_usec);
+    DEBUG("Timestamp   : %" PRIu64 "\n", pkt->timestamp);
+    DEBUG("\n");
 
     meta->action = ONVM_NF_ACTION_TONF;
     meta->destination = destination;
@@ -329,4 +316,8 @@ onvm_capture_stop(struct onvm_nf_local_ctx *nf_local_ctx) {
 
     mmt_close_handler(dpi_handler);
     dpi_release(dpi_context);
+
+    printf("Total packets received: %" PRIu64 " \n", total_packets);
+    printf("Total HTTP packets received: %" PRIu64 " \n", nb_http_pkts);
+    printf("Total packets not being processed: %" PRIu64 " \n", nb_not_processed);
 }
