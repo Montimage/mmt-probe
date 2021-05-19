@@ -524,6 +524,8 @@ static inline forward_packet_conf_t *_parse_forward_packet( cfg_t *cfg ){
 		str = cfg_getnstr(cfg, "target-protocols", i);
 		if( IS_EQUAL_STRINGS(str, "SCTP") )
 			ret->targets[i].protocol = FORWARD_PACKET_PROTO_SCTP;
+		else if( IS_EQUAL_STRINGS(str, "UDP") )
+			ret->targets[i].protocol = FORWARD_PACKET_PROTO_UDP;
 		else
 			ABORT("Does not support yet the protocol: %s", str);
 		//host
