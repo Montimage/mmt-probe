@@ -62,10 +62,13 @@ static inline int _get_sctp_data_offset( const ipacket_t *ipacket ){
 
 int inject_proto_send_packet( inject_proto_context_t *context, const ipacket_t *ipacket, const uint8_t *packet_data, uint16_t packet_size ){
 	int offset;
-	offset = _get_sctp_data_offset( ipacket );
-	if( offset >= 0 ){
-		DEBUG("%"PRIu64" SCTP_DATA offset: %d", ipacket->packet_id, offset );
-		inject_sctp_send_packet(context->sctp, packet_data + offset, packet_size - offset);
+	//when SCTP injector is enable
+	if( context->sctp ){
+		offset = _get_sctp_data_offset( ipacket );
+		if( offset >= 0 ){
+			DEBUG("%"PRIu64" SCTP_DATA offset: %d", ipacket->packet_id, offset );
+			inject_sctp_send_packet(context->sctp, packet_data + offset, packet_size - offset);
+		}
 	}
 	return INJECT_PROTO_NO_AVAIL;
 }

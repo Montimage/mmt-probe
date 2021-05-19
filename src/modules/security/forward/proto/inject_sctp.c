@@ -100,8 +100,15 @@ int inject_sctp_send_packet( inject_sctp_context_t *context, const uint8_t *pack
 
 	for( i=0; i<context->nb_copies; i++ ){
 		//returns the number of bytes written on success and -1 on failure.
-		//ret = sctp_sendmsg( context->client_fd, packet_data,  packet_size, NULL, 0, 0, 0, 0, 0, 0 );
-		ret = sctp_send( context->client_fd, packet_data, packet_size, NULL, 0 );
+		ret = sctp_sendmsg( context->client_fd, packet_data,  packet_size, NULL,
+				0,
+				60, //payload protocol id => S1AP
+				0,  //flags
+				0,  //stream no
+				0,  //TTL
+				0   //context
+			);
+		//ret = sctp_send( context->client_fd, packet_data, packet_size, NULL, 0 );
 		if( ret > 0 )
 			nb_pkt_sent ++;
 	}
