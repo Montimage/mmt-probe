@@ -102,7 +102,7 @@ int inject_sctp_send_packet( inject_sctp_context_t *context, const uint8_t *pack
 		//returns the number of bytes written on success and -1 on failure.
 		ret = sctp_sendmsg( context->client_fd, packet_data,  packet_size, NULL,
 				0,
-				60, //payload protocol id => S1AP
+				htonl(0x3C), //payload protocol id => S1AP
 				0,  //flags
 				0,  //stream no
 				0,  //TTL
