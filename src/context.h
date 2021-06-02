@@ -57,9 +57,7 @@ typedef struct probe_context_struct{
 	output_t *output;
 
 	struct{
-#ifdef PCAP_CAPTURE_MODULE
-		struct pcap_probe_context_struct *pcap;
-#endif
+		struct packet_capture_probe_context_struct *packet_captor;
 	}modules;
 }probe_context_t;
 

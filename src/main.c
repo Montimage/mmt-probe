@@ -55,13 +55,7 @@
 #include <rte_ring.h>
 #endif
 
-#ifdef DPDK_CAPTURE_MODULE
-#include "modules/packet_capture/dpdk/dpdk_capture.h"
-#endif
-
-#ifdef PCAP_CAPTURE_MODULE
-#include "modules/packet_capture/pcap/pcap_capture.h"
-#endif
+#include "modules/packet_capture/packet_capture.h"
 
 #ifdef SECURITY_MODULE
 #include "modules/security/security.h"
@@ -247,10 +241,7 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 }
 
 static inline void _stop_modules( probe_context_t *context){
-	IF_ENABLE_PCAP_CAPTURE(
-		pcap_capture_stop(context);
-	)
-
+	packet_capture_stop(context);
 }
 
 //global context of MMT-Probe
@@ -410,11 +401,7 @@ static int _main_processing( int argc, char** argv ){
 	//other stubs, such as, system usage report
 	routine_t *routine = routine_create_and_start( context );
 
-#ifdef DPDK_CAPTURE_MODULE
-	dpdk_capture_start( context );
-#else
-	pcap_capture_start( context );
-#endif
+	packet_capture_start( context );
 
 	//end
 	close_extraction();

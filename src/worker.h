@@ -56,12 +56,7 @@ struct worker_context_struct{
 
 	//input capturing, either PCAP or DPDK capture is used but not both of them
 	//This checking is done in main.c when compiling
-	IF_ENABLE_PCAP_CAPTURE(
-			struct pcap_worker_context_struct *pcap );
-
-	IF_ENABLE_DPDK_CAPTURE(
-			struct dpdk_worker_context_struct *dpdk );
-
+	struct packet_capture_worker_context_struct *packet_captor;
 
 	IF_ENABLE_SECURITY(
 			struct security_context_struct *security );

@@ -22,16 +22,16 @@
 
 #define BREAK_PCAP_NUMBER 0
 
-#include "pcap_capture.h"
+#include "../packet_capture.h"
 
 //for one thread
-struct pcap_worker_context_struct{
+struct packet_capture_worker_context_struct{
 	pthread_t thread_handler;
 	data_spsc_ring_t fifo;
 };
 
 //for all application
-struct pcap_probe_context_struct{
+struct packet_capture_probe_context_struct{
 	pcap_t *handler;
 };
 
@@ -124,7 +124,7 @@ static inline uint32_t _get_packet_hash_number( const uint8_t *packet, size_t pk
 //worker thread
 static void *_worker_thread( void *arg){
 	worker_context_t *worker_context = (worker_context_t*) arg;
-	data_spsc_ring_t *fifo = &worker_context->pcap->fifo;
+	data_spsc_ring_t *fifo = &worker_context->packet_captor->fifo;
 	const probe_conf_t *config = worker_context->probe_context->config;
 	uint32_t fifo_tail_index;
 	pkthdr_t *pkt_header;
@@ -228,7 +228,7 @@ static inline void _got_a_packet_smp( u_char* user, const struct pcap_pkthdr *pc
 
 	pkthdr_t *pkt_header;
 	//get available space to put the packet into
-	data_spsc_ring_get_tmp_element( &worker_context->pcap->fifo,  (void**) &pkt_header );
+	data_spsc_ring_get_tmp_element( &worker_context->packet_captor->fifo,  (void**) &pkt_header );
 
 	/* fill smp_pkt fields and copy packet data from pcap buffer */
 	pkt_header->len       = pcap_header->len;
@@ -240,7 +240,7 @@ static inline void _got_a_packet_smp( u_char* user, const struct pcap_pkthdr *pc
 	memcpy( pkt_data, pcap_data, pcap_header->caplen );
 
 	//queue is full??
-	while(  unlikely( data_spsc_ring_push_tmp_element( &worker_context->pcap->fifo ) != QUEUE_SUCCESS )){
+	while(  unlikely( data_spsc_ring_push_tmp_element( &worker_context->packet_captor->fifo ) != QUEUE_SUCCESS )){
 		//in offline mode, we must not reject a packet when queue is full
 		// but we need to wait until we can insert the packet into queue
 		if( context->config->input->input_mode == OFFLINE_ANALYSIS )
@@ -262,8 +262,8 @@ static inline void _print_traffic_statistics( probe_context_t *context ){
 		return;
 
 	//get statistics from libpcap
-	if (pcap_stats(context->modules.pcap->handler, &pcs) < 0) {
-		log_write_dual( LOG_WARNING, "Cannot get statistics from pcap: %s", pcap_geterr( context->modules.pcap->handler ));
+	if (pcap_stats(context->modules.packet_captor->handler, &pcs) < 0) {
+		log_write_dual( LOG_WARNING, "Cannot get statistics from pcap: %s", pcap_geterr( context->modules.packet_captor->handler ));
 	}else{
 		context->traffic_stat.nic.receive = pcs.ps_recv;
 		context->traffic_stat.nic.drop    = pcs.ps_ifdrop + pcs.ps_drop;
@@ -341,10 +341,10 @@ static void _got_a_packet(u_char* user, const struct pcap_pkthdr *pcap_header, c
 }
 
 //this function is called by main thread when user press Ctrl+C
-void pcap_capture_stop( probe_context_t *context ){
+void packet_capture_stop( probe_context_t *context ){
 	//stop processing packets by breaking pcap_loop()
-	EXEC_ONLY_IN_VALGRIND_MODE(ANNOTATE_HAPPENS_AFTER( &( context->modules.pcap->handler ) ));
-	pcap_breakloop( context->modules.pcap->handler );
+	EXEC_ONLY_IN_VALGRIND_MODE(ANNOTATE_HAPPENS_AFTER( &( context->modules.packet_captor->handler ) ));
+	pcap_breakloop( context->modules.packet_captor->handler );
 }
 
 
@@ -353,8 +353,8 @@ static inline void _print_pcap_stats( const probe_context_t *context ){
 
 	//get statistics from pcap
 	if( context->config->input->input_mode == ONLINE_ANALYSIS ){
-		if (pcap_stats(context->modules.pcap->handler, &pcs) < 0) {
-			log_write_dual( LOG_WARNING, "Cannot get statistics from pcap: %s", pcap_geterr( context->modules.pcap->handler ));
+		if (pcap_stats(context->modules.packet_captor->handler, &pcs) < 0) {
+			log_write_dual( LOG_WARNING, "Cannot get statistics from pcap: %s", pcap_geterr( context->modules.packet_captor->handler ));
 		}else{
 			u_int pkt_received = pcs.ps_recv;
 			u_int pkt_dropped  = pcs.ps_ifdrop + pcs.ps_drop;
@@ -375,8 +375,8 @@ static inline void _print_pcap_stats( const probe_context_t *context ){
 static inline void _pcap_capture_release( probe_context_t *context ){
 	int i;
 	//close pcap in main thread
-	pcap_close( context->modules.pcap->handler );
-	context->modules.pcap->handler = NULL;
+	pcap_close( context->modules.packet_captor->handler );
+	context->modules.packet_captor->handler = NULL;
 
 	//release resources of each worker
 	int workers_count;
@@ -387,21 +387,21 @@ static inline void _pcap_capture_release( probe_context_t *context ){
 
 	for( i=0; i<workers_count; i++ ){
 		if( IS_SMP_MODE( context ) ){
-			data_spsc_ring_free( & context->smp[i]->pcap->fifo );
+			data_spsc_ring_free( & context->smp[i]->packet_captor->fifo );
 		}
 
-		mmt_probe_free( context->smp[i]->pcap );
+		mmt_probe_free( context->smp[i]->packet_captor );
 		worker_release( context->smp[i] );
 	}
 
 	mmt_probe_free( context->smp );
-	mmt_probe_free( context->modules.pcap );
+	mmt_probe_free( context->modules.packet_captor );
 }
 
 
 
 //public API
-void pcap_capture_start( probe_context_t *context ){
+void packet_capture_start( probe_context_t *context ){
 	int i, ret;
 	char errbuf[PCAP_ERRBUF_SIZE]; /* error buffer */
 	pcap_t *pcap;
@@ -422,7 +422,7 @@ void pcap_capture_start( probe_context_t *context ){
 	}
 
 	//memory for the pcap module
-	context->modules.pcap = mmt_alloc_and_init_zero( sizeof( struct pcap_probe_context_struct ));
+	context->modules.packet_captor = mmt_alloc_and_init_zero( sizeof( struct packet_capture_probe_context_struct ));
 
 	//allocate context for each thread
 	context->smp = mmt_alloc_and_init_zero( sizeof( worker_context_t ) * workers_count );
@@ -438,14 +438,14 @@ void pcap_capture_start( probe_context_t *context ){
 
 
 		//specific for pcap module
-		context->smp[i]->pcap = mmt_alloc_and_init_zero( sizeof( struct pcap_worker_context_struct ));
+		context->smp[i]->packet_captor = mmt_alloc_and_init_zero( sizeof( struct packet_capture_worker_context_struct ));
 
 		//pthread_spin_init( & context->smp[i]->pcap->spin_lock, PTHREAD_PROCESS_PRIVATE);
 
 		//initialize in case of multi-threading
 		if( IS_SMP_MODE( context ) ){
 			//a spsc buffer shared between a worker and the main thread
-			if( data_spsc_ring_init( &context->smp[i]->pcap->fifo,
+			if( data_spsc_ring_init( &context->smp[i]->packet_captor->fifo,
 					context->config->thread->thread_queue_packet_threshold,
 					//one element to contains packet: header + data
 					(sizeof( pkthdr_t ) + context->config->input->snap_len)
@@ -456,7 +456,7 @@ void pcap_capture_start( probe_context_t *context ){
 			}
 
 			//start worker thread
-			pthread_create( &context->smp[i]->pcap->thread_handler, NULL,
+			pthread_create( &context->smp[i]->packet_captor->thread_handler, NULL,
 					_worker_thread, context->smp[i] );
 		}
 		else
@@ -506,7 +506,7 @@ void pcap_capture_start( probe_context_t *context ){
 			ret, context->config->stack_type);
 	}
 
-	context->modules.pcap->handler = pcap;
+	context->modules.packet_captor->handler = pcap;
 
 	ret = 0;
 	//set in non-blocking mode in case of no threading
@@ -568,11 +568,11 @@ void pcap_capture_start( probe_context_t *context ){
 
 		//send empty message to each thread to tell them to stop
 		for( i=0; i<context->config->thread->thread_count; i++ ){
-			data_spsc_ring_get_tmp_element( &context->smp[i]->pcap->fifo,  (void **)(&pkt_header) );
+			data_spsc_ring_get_tmp_element( &context->smp[i]->packet_captor->fifo,  (void **)(&pkt_header) );
 			pkt_header->len = BREAK_PCAP_NUMBER;
 
 			//queue is full??
-			while(  unlikely( data_spsc_ring_push_tmp_element( &context->smp[i]->pcap->fifo ) != QUEUE_SUCCESS )){
+			while(  unlikely( data_spsc_ring_push_tmp_element( &context->smp[i]->packet_captor->fifo ) != QUEUE_SUCCESS )){
 				//we need to wait until we can insert the dummy packet into queue
 				nanosleep( (const struct timespec[]){{0, 10000L}}, NULL );
 			}
@@ -580,7 +580,7 @@ void pcap_capture_start( probe_context_t *context ){
 
 		//waiting for all workers finish their jobs
 		for( i=0; i<context->config->thread->thread_count; i++ ){
-			ret = pthread_join( context->smp[i]->pcap->thread_handler, NULL );
+			ret = pthread_join( context->smp[i]->packet_captor->thread_handler, NULL );
 			if( ret != 0 ){
 				log_write( LOG_ERR, "Cannot stop worker %d: %s", i, strerror( errno ) );
 				continue;

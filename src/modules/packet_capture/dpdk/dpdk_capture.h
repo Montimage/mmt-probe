@@ -33,6 +33,4 @@
    }while( 0 )
 
 
-void dpdk_capture_start( probe_context_t *context );
-
 #endif /* SRC_MODULES_DPDK_DPDK_CAPTURE_H_ */

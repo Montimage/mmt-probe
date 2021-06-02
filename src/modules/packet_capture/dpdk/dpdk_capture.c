@@ -38,6 +38,7 @@
 #include <time.h>
 
 #include "dpdk_capture.h"
+#include "../packet_capture.h"
 
 #include "../../../worker.h"
 #include "../../../lib/memory.h"
@@ -65,7 +66,7 @@ static uint8_t hash_key[52] = {
 };
 
 //input parameter of each worker thread
-struct dpdk_worker_context_struct{
+struct packet_capture_worker_context_struct{
 	struct rte_ring *ring;
 	sem_t semaphore;
 }__rte_cache_aligned;
@@ -214,7 +215,7 @@ static inline void _print_dpdk_stats( uint8_t port_number ){
 static int _worker_thread( void *arg ){
 	worker_context_t *worker_context = (worker_context_t *)arg;
 	const probe_conf_t *config       = worker_context->probe_context->config;
-	struct rte_ring *ring            = worker_context->dpdk->ring;
+	struct rte_ring *ring            = worker_context->packet_captor->ring;
 	int i;
 	struct pkthdr pkt_header __rte_cache_aligned;
 	const u_char* pkt_data;
@@ -308,7 +309,7 @@ static int _worker_thread( void *arg ){
 	worker_on_stop( worker_context );
 
 	//finish, wake up the main thread
-	sem_post( &worker_context->dpdk->semaphore );
+	sem_post( &worker_context->packet_captor->semaphore );
 
 	return 0;
 }
@@ -641,7 +642,7 @@ static inline void _dpdk_capture_release( probe_context_t *context ){
 	mmt_probe_free( context->smp );
 }
 
-void dpdk_capture_start ( probe_context_t *context){
+void packet_capture_start ( probe_context_t *context){
 	char name[100];
 	const unsigned total_of_cores   = rte_lcore_count();
 	const uint16_t total_nb_workers = context->config->thread->thread_count;
@@ -709,9 +710,9 @@ void dpdk_capture_start ( probe_context_t *context){
 				//keep a reference to its root
 				smp->probe_context = context;
 				//for DPDK
-				smp->dpdk = mmt_alloc( sizeof( struct dpdk_worker_context_struct ));
-				sem_init( &smp->dpdk->semaphore, 0, 0 );
-				smp->dpdk->ring = p[reader_index].worker_rings[worker_index];
+				smp->packet_captor = mmt_alloc( sizeof( struct packet_capture_worker_context_struct ));
+				sem_init( &smp->packet_captor->semaphore, 0, 0 );
+				smp->packet_captor->ring = p[reader_index].worker_rings[worker_index];
 
 
 				context->smp[ worker_id ] = smp;
@@ -829,7 +830,7 @@ void dpdk_capture_start ( probe_context_t *context){
 
 	// Waiting for all workers finish their jobs
 	for( worker_index=0; worker_index < total_nb_workers; worker_index++ )
-		sem_wait( & context->smp[worker_index]->dpdk->semaphore );
+		sem_wait( & context->smp[worker_index]->packet_captor->semaphore );
 
 	//====> all readers and workers have been stopped <====//
 
@@ -842,7 +843,7 @@ void dpdk_capture_start ( probe_context_t *context){
 			//find worker by its ring address
 			for( i=0; i<p->nb_workers; i++ )
 				for( worker_index=0; worker_index<total_nb_workers; worker_index ++ ){
-					if( context->smp[worker_index]->dpdk->ring == p->worker_rings[i] ){
+					if( context->smp[worker_index]->packet_captor->ring == p->worker_rings[i] ){
 						context->smp[worker_index]->stat.pkt_dropped = p->pkts_dropped[i];
 						break;             //exit for worker_index
 					}
@@ -863,4 +864,9 @@ void dpdk_capture_start ( probe_context_t *context){
 		rte_eth_dev_stop(  input_ports[i] );
 		rte_eth_dev_close( input_ports[i] );
 	}
+}
+
+
+void packet_capture_stop( probe_context_t *context ){
+
 }
