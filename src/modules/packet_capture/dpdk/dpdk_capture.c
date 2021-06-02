@@ -868,5 +868,5 @@ void packet_capture_start ( probe_context_t *context){
 
 
 void packet_capture_stop( probe_context_t *context ){
-
+	context->is_exiting = true;
 }

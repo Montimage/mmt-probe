@@ -43,7 +43,7 @@ void _udp_connect( inject_udp_context_t *context ){
 	};
 
 	conn_fd = socket(AF_INET, SOCK_DGRAM, 0);
-	ASSERT( conn_fd >= 0, "Cannot create UDP socket, errno %d: ", errno, strerror( errno ) );
+	ASSERT( conn_fd >= 0, "Cannot create UDP socket, errno %d: %s", errno, strerror( errno ) );
 
 	ret = connect(conn_fd, (struct sockaddr *) &servaddr, sizeof(servaddr));
 	ASSERT( ret >= 0, "Cannot connect to %s:%d using UDP", context->host, context->port );

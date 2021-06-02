@@ -431,12 +431,14 @@ static inline input_source_conf_t * _parse_input_source( cfg_t *cfg ){
 
 #ifndef DPDK_CAPTURE_MODULE
 #ifndef PCAP_CAPTURE_MODULE
-	#error("Neither DPDK nor PCAP is defined")
+#ifndef STREAM_CAPTURE_MODULE
+	#error("Neither DPDK nor PCAP nor STREAM is defined")
+#endif
 #endif
 #endif
 
-#if defined DPDK_CAPTURE_MODULE && defined PCAP_CAPTURE_MODULE
-	#error("Either DPDK_CAPTURE_MODULE or PCAP_CAPTURE_MODULE is defined but must not all of them")
+#if defined DPDK_CAPTURE_MODULE && defined PCAP_CAPTURE_MODULE && defined STREAM_CAPTURE_MODULE
+	#error("Either DPDK_CAPTURE_MODULE or PCAP_CAPTURE_MODULE or STREAM_CAPTURE_MODULE is defined but must not all of them")
 #endif
 
 
