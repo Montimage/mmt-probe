@@ -53,13 +53,18 @@ make
 # Run PktGen with only 1 port
 ./run-pktgen.sh 1
 
-> start all -- start sending packets to all ports (maximum 2 ports)
-> start 0 -- start sending packets to port 0
-> stp -- stop sending packets
+> start all # start sending packets to all ports (maximum 2 ports)
+> start 0 # start sending packets to port 0
+> stp # stop sending packets
 > quit
 ```
 
-## Probe
+## NF Pcap-replay
+```bash
+TODO
+```
+
+## NF Probe
 ```bash
 # Clone and compile Probe
 git clone https://manhdung_nguyen@bitbucket.org/montimage/mmt-probe.git onvm
@@ -69,3 +74,14 @@ sudo make ONVM compile
 # Run Probe with a specific config file
 sudo ./probe -c onvm.conf
 ```
+
+## NF Firewall
+```bash
+# Run NF Firewall with ID 1 and the firewall rule onvm.json
+cd openNetVm/examples; make firewall
+./start_nf.sh firewall 1 -d 2 -f firewall/onvm.json -b
+```
+
+## NF Load Balancer
+
+## NFs in Docker
