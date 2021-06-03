@@ -148,6 +148,8 @@ void forward_packet_release( forward_packet_context_t *context ){
 }
 
 void forward_packet_mark_being_satisfied( forward_packet_context_t *context ){
+	if( context == NULL )
+		return;
 	context->has_a_satisfied_rule = true;
 }
 
@@ -157,6 +159,8 @@ void forward_packet_mark_being_satisfied( forward_packet_context_t *context ){
  *   but before any rule being processed on the the current packet
  */
 void forward_packet_on_receiving_packet_before_rule_processing(const ipacket_t * ipacket, forward_packet_context_t *context){
+	if( context == NULL )
+		return;
 	context->ipacket = ipacket;
 	context->packet_size = ipacket->p_hdr->caplen;
 	context->has_a_satisfied_rule = false;
@@ -169,6 +173,8 @@ void forward_packet_on_receiving_packet_before_rule_processing(const ipacket_t *
  *   but after all rules being processed on the current packet
  */
 void forward_packet_on_receiving_packet_after_rule_processing( const ipacket_t * ipacket, forward_packet_context_t *context ){
+	if( context == NULL )
+		return;
 	//whether the current packet is handled by a security rule ?
 	// if yes, we do nothing
 	if( context->has_a_satisfied_rule )
@@ -189,6 +195,8 @@ void forward_packet_on_receiving_packet_after_rule_processing( const ipacket_t *
 void mmt_probe_do_not_forward_packet(){
 	//do nothing
 	forward_packet_context_t *context = _get_current_context();
+	if( context == NULL )
+		return;
 	context->nb_dropped_packets ++;
 }
 
@@ -199,6 +207,8 @@ void mmt_probe_do_not_forward_packet(){
  */
 void mmt_probe_forward_packet(){
 	forward_packet_context_t *context = _get_current_context();
+	if( context == NULL )
+		return;
 	_send_packet_to_nic(context);
 }
 
@@ -213,6 +223,8 @@ extern uint32_t update_ngap_data( u_char *data, uint32_t data_size, const ipacke
  */
 void mmt_probe_set_attribute_number_value(uint32_t proto_id, uint32_t att_id, uint64_t new_val){
 	forward_packet_context_t *context = _get_current_context();
+	if( context == NULL )
+		return;
 	int ret = 0;
 	ret = update_ngap_data(context->packet_data, context->packet_size, context->ipacket, proto_id, att_id, new_val );
 	if( ! ret )
