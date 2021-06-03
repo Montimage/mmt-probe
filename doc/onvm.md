@@ -1,7 +1,7 @@
 # OpenNetVM
 
 ## Installation
-```
+```bash
 sudo apt-get install libnuma-dev 
 
 # Clone source code
@@ -26,16 +26,16 @@ cd onvm; make; cd ..
 cd examples; make; cd ..
 
 # Bind DPDK port
-cd dpdk; sudo python3 usertools/dpdk-devbind.py --status
-sudo python3 usertools/dpdk-devbind.py --bind=igb_uio 0000:01:00.0
-sudo python3 usertools/dpdk-devbind.py --unbind 0000:01:00.0
+cd dpdk; sudo python3 usertools/dpdk-devbind.py --status # show ports
+sudo python3 usertools/dpdk-devbind.py --bind=igb_uio 0000:01:00.0 # bind DPDK interface 0000:01:00.0
+sudo python3 usertools/dpdk-devbind.py --unbind 0000:01:00.0 # unbind DPDK interface 0000:01:00.0
 
 # Run openNetVM
 onvm/go.sh -k 1 -n 0xF8 -s stdout -m 0,1,2
 ```
 
 ## Tool PktGen
-```
+```bash
 sudo apt-get install libpcap-dev libreadline-dev
 
 # Install Lua version 5.3.5
@@ -50,19 +50,22 @@ sudo make install
 cd tools/Pktgen/pktgen-dpdk/
 make
 
-# Run PktGen
+# Run PktGen with only 1 port
 ./run-pktgen.sh 1
 
-> start all
-> start 0
-> stp
+> start all -- start sending packets to all ports (maximum 2 ports)
+> start 0 -- start sending packets to port 0
+> stp -- stop sending packets
 > quit
 ```
 
 ## Probe
-```
+```bash
+# Clone and compile Probe
 git clone https://manhdung_nguyen@bitbucket.org/montimage/mmt-probe.git onvm
 cd onvm; git checkout onvm
 sudo make ONVM compile
+
+# Run Probe with a specific config file
 sudo ./probe -c onvm.conf
 ```
