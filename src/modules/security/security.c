@@ -478,3 +478,13 @@ size_t security_worker_release( security_context_t* ret ){
 
 	return alerts_count;
 }
+
+//create dummy functions when forward_packet is disable when compiling
+// So that there is no error when loading rules that have been used to forward packets
+#ifndef FORWARD_PACKET_MODULE
+#ifndef FORWARD_PACKET_DPDK_MODULE
+void mmt_probe_do_not_forward_packet(){}
+void mmt_probe_forward_packet(){}
+void mmt_probe_set_attribute_number_value(uint32_t a, uint32_t b, uint64_t c){}
+#endif
+#endif
