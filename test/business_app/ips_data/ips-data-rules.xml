@@ -1,0 +1,38 @@
+<beginning>
+
+<embedded_functions><![CDATA[
+bool em_check_trolley_pos( double val ){
+	
+	if( val < -32.23 ){
+		//debug: print out to console
+		printf("5eceived hoist_pos: %.5f\n", val);
+		return true;
+	} else
+		return false;
+}
+
+//any numeric values in mmt-security are "double" 
+// (even integer ou float, they are stored in a double)
+bool em_check_marker(double x, double y){
+	//debug
+	printf("received marker x=%.0f, y=%.0f\n", x, y);
+	//just an example:
+	return (x >= 100 && y >= 100);
+}
+]]></embedded_functions>
+
+<property property_id="110" type_property="ATTACK"
+    description="TrolleyPosmustt not be negative">
+    <event event_id="1" description="TrolleyPos"
+           boolean_expression="( #em_check_trolley_pos( ips_data.trolley_pos ) )"/>
+</property>
+
+<property property_id="111" type_property="ATTACK" value="THEN" 
+    description="Marker 1 is in forbidden position">
+    <event event_id="1" description="Position of Hoistpos" 
+           boolean_expression="( ips_data.hoist_pos >= 40 )"/>
+    <event event_id="2" description="Position of Markers 1 and 2"
+           boolean_expression="( (( ips_data.m1_x > 4000 ) &amp;&amp; (ips_data.m1_y &lt; 50000) ) )" />
+</property>
+
+</beginning>

@@ -71,7 +71,9 @@ static void _got_a_line(u_char* user, size_t len, const u_char *data){
 	if( data != NULL ){
 		pkthdr_t pkt_header;
 		//convert from pcap's header to mmt packet's header
-		pkt_header.ts.tv_sec = now;
+		//as no timestamp in "packet" => use the current time
+		pkt_header.ts.tv_sec = time( NULL );
+		pkt_header.ts.tv_usec = 0;
 		pkt_header.caplen    = len;
 		pkt_header.len       = len;
 		pkt_header.user_args = NULL;
@@ -209,7 +211,7 @@ void packet_capture_start( probe_context_t *context ){
 	while( ! context->is_exiting ){
 		read = getdelim( &line, &len, '\n', fd_handler );
 		if( read > 0 ){
-			DEBUG("%s",  line);
+			//DEBUG("%s",  line);
 			_got_a_line( (u_char*) context, len, (u_char *) line );
 		} else
 			break;
