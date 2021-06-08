@@ -129,7 +129,7 @@ endif
 $(eval $(call check_module,KAFKA_MODULE))
 ifdef KAFKA_MODULE
   ifdef STATIC_LINK
-    MODULE_LIBS  += -lrdkafka
+    MODULE_LIBS  += -l:librdkafka.a
   else
     MODULE_LIBS  += -lrdkafka
   endif
@@ -140,7 +140,7 @@ endif
 $(eval $(call check_module,MONGODB_MODULE))
 ifdef MONGODB_MODULE
   ifdef STATIC_LINK
-    MODULE_LIBS  += -lmongoc-1.0 -lbson-1.0
+    MODULE_LIBS  += -l:libmongoc-1.0.la -l:libbson-1.0.la
   else
     MODULE_LIBS  += -lmongoc-1.0 -lbson-1.0
   endif
@@ -198,11 +198,14 @@ ifdef FORWARD_PACKET_MODULE
   ifndef SECURITY_MODULE
     $(error FORWARD_PACKET_MODULE requires SECURITY_MODULE is enabled)
   endif
-  MODULE_LIBS  +=  -lpcap -lmmt_tmobile
+  ifdef STATIC_LINK
+    MODULE_LIBS  += -l:libpcap.a -l:libmmt_tmobile.a -l:libsctp.a
+  else
+    MODULE_LIBS  += -lpcap -lmmt_tmobile -lsctp
+  endif
   MODULE_FLAGS += -DFORWARD_PACKET_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/security/forward/*.c)
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/security/forward/pcap/*.c) #libpcap
-  MODULE_LIBS  +=  -lsctp
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/security/forward/proto/*.c) #forward packets using using proxy (SCTP, etc)
 endif
 
