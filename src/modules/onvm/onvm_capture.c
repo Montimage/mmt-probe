@@ -30,6 +30,26 @@ mmt_handler_t *dpi_handler;
 dpi_context_t *dpi_context;
 output_t *output;
 
+#define PKTMBUF_POOL_NAME "MProc_pktmbuf_pool"
+#define PKT_READ_SIZE ((uint16_t)32)
+#define LOCAL_EXPERIMENTAL_ETHER 0x88B5
+#define DEFAULT_PKT_NUM 128
+#define MAX_PKT_NUM NF_QUEUE_RINGSIZE
+#define DEFAULT_NUM_CHILDREN 0
+static uint16_t num_children = DEFAULT_NUM_CHILDREN;
+static uint8_t use_shared_core_allocation = 0;
+static uint8_t d_addr_bytes[RTE_ETHER_ADDR_LEN];
+static uint16_t packet_size = RTE_ETHER_HDR_LEN;
+static uint32_t packet_number = DEFAULT_PKT_NUM;
+
+/* For advanced rings scaling */
+rte_atomic16_t signal_exit_flag;
+uint8_t ONVM_NF_SHARE_CORES;
+struct child_spawn_info {
+    struct onvm_nf_init_cfg *child_cfg;
+    struct onvm_nf *parent;
+};
+
 /*
  * Print a usage message.
  */
@@ -51,7 +71,7 @@ usage(const char* progname) {
 static int
 parse_app_args(int argc, char *argv[]) {
     int c, dst_flag = 0;
-    while ((c = getopt(argc, argv, "d:p:")) != -1) {
+    while ((c = getopt(argc, argv, "d:p:n:")) != -1) {
         switch (c) {
             case 'd':
                 destination = strtoul(optarg, NULL, 10);
@@ -59,6 +79,9 @@ parse_app_args(int argc, char *argv[]) {
                 break;
             case 'p':
                 print_delay = strtoul(optarg, NULL, 10);
+                break;
+            case 'n':
+                num_children = strtoul(optarg, NULL, 10);
                 break;
             default:
                 usage(progname);
@@ -122,6 +145,48 @@ do_stats_display(struct rte_mbuf *pkt) {
     DEBUG("Size : %d", pkt->pkt_len);
     DEBUG("N°   : %" PRIu64 "", total_packets);
     DEBUG("");
+}
+
+void
+nf_setup(__attribute__((unused)) struct onvm_nf_local_ctx *nf_local_ctx) {
+    uint32_t i;
+    struct rte_mempool *pktmbuf_pool;
+
+    pktmbuf_pool = rte_mempool_lookup(PKTMBUF_POOL_NAME);
+    if (pktmbuf_pool == NULL) {
+        onvm_nflib_stop(nf_local_ctx);
+        rte_exit(EXIT_FAILURE, "Cannot find mbuf pool!\n");
+    }
+
+    for (i = 0; i < packet_number; ++i) {
+        struct onvm_pkt_meta *pmeta;
+        struct rte_ether_hdr *ehdr;
+        int j;
+
+        struct rte_mbuf *pkt = rte_pktmbuf_alloc(pktmbuf_pool);
+        if (pkt == NULL)
+            break;
+
+        /* set up ether header and set new packet size */
+        ehdr = (struct rte_ether_hdr *)rte_pktmbuf_append(pkt, packet_size);
+
+        /* Using manager mac addr for source*/
+        if (onvm_get_macaddr(0, &ehdr->s_addr) == -1) {
+            onvm_get_fake_macaddr(&ehdr->s_addr);
+        }
+        for (j = 0; j < RTE_ETHER_ADDR_LEN; ++j) {
+            ehdr->d_addr.addr_bytes[j] = d_addr_bytes[j];
+        }
+        ehdr->ether_type = LOCAL_EXPERIMENTAL_ETHER;
+
+        pmeta = onvm_get_pkt_meta(pkt);
+        pmeta->destination = destination;
+        pmeta->action = ONVM_NF_ACTION_TONF;
+        pkt->hash.rss = i;
+        pkt->port = 0;
+
+        onvm_nflib_return_pkt(nf_local_ctx->nf, pkt);
+    }
 }
 
 /*
@@ -191,23 +256,6 @@ callback_handler(__attribute__((unused)) struct onvm_nf_local_ctx *nf_local_ctx)
 
     return 0;
 }
-
-#define DEFAULT_NUM_CHILDREN 0
-#define DEFAULT_PKT_NUM 128
-#define PKT_READ_SIZE ((uint16_t)32)
-static uint16_t num_children = DEFAULT_NUM_CHILDREN;
-static uint8_t use_shared_core_allocation = 0;
-static uint8_t d_addr_bytes[RTE_ETHER_ADDR_LEN];
-static uint16_t packet_size = RTE_ETHER_HDR_LEN;
-static uint32_t packet_number = DEFAULT_PKT_NUM;
-
-/* For advanced rings scaling */
-rte_atomic16_t signal_exit_flag;
-uint8_t ONVM_NF_SHARE_CORES;
-struct child_spawn_info {
-    struct onvm_nf_init_cfg *child_cfg;
-    struct onvm_nf *parent;
-};
 
 void sig_handler(int sig) {
     if (sig != SIGINT && sig != SIGTERM)
@@ -331,11 +379,8 @@ onvm_capture_init(probe_context_t *context) {
 	int onvm_argc = string_split(context->config->input->onvm_options, " ", &onvm_argv[1], 100-1);
     int arg_offset, i;
 
-    pthread_t nf_thread[num_children];
-    struct onvm_configuration *onvm_config;
     struct onvm_nf_local_ctx *nf_local_ctx;
     struct onvm_nf_function_table *nf_function_table;
-    struct onvm_nf *nf;
 
     nf_local_ctx = onvm_nflib_init_nf_local_ctx();
     /* If we're using advanced rings also pass a custom cleanup function,
@@ -358,8 +403,8 @@ onvm_capture_init(probe_context_t *context) {
         printf("%s ", onvm_argv[i]);
     }
 
-    nf_local_ctx = onvm_nflib_init_nf_local_ctx();
-    onvm_nflib_start_signal_handler(nf_local_ctx, NULL);
+    /*nf_local_ctx = onvm_nflib_init_nf_local_ctx();*/
+    /*onvm_nflib_start_signal_handler(nf_local_ctx, NULL);*/
 
     /*nf_function_table = onvm_nflib_init_nf_function_table();*/
     /*nf_function_table->pkt_handler = &packet_handler;*/
@@ -382,58 +427,9 @@ onvm_capture_init(probe_context_t *context) {
         rte_exit(EXIT_FAILURE, "Invalid command-line arguments\n");
     }
 
-    return nf_local_ctx;
-}
-
-/*
- * Start capturing packets.
- */
-void
-onvm_capture_start(probe_context_t *context, struct onvm_nf_local_ctx *nf_local_ctx) {
-    cur_time = time(NULL);
-    next_stat_ts = cur_time + stat_period;
-
-    // initialize MMT handler
-    char errbuf[1024];
-    dpi_handler = mmt_init_handler(1, 0, errbuf);
-    if(dpi_handler){
-	    printf("MMT handler init OK\n");
-    }
-    // also check HTTP/non-HTTP packets
-    register_packet_handler(dpi_handler, 1, http_packet_handler, NULL);
-
-    probe_conf_t *config = context->config;
-    output = output_alloc_init(1,
-			&(config->outputs),
-			config->probe_id,
-			config->input->input_source,
-
-			//when enable security, we need to synchronize output as it can be called from
-			//- worker thread, or,
-			//- security threads
-#ifdef SECURITY_MODULE
-			(config->reports.security->is_enable
-			&& config->reports.security->threads_size != 0)
-#else
-			false
-#endif
-	);
-    if(output){
-	    printf("Output init OK\n");
-    }
-
-    dpi_context = dpi_alloc_init(config, dpi_handler, output, 0);
-    if(dpi_context){
-	    printf("DPI context init OK\n");
-    }
-
-    /*if(output)*/
-		/*_send_version_information(output);*/
-
     pthread_t nf_thread[num_children];
     struct onvm_configuration *onvm_config;
     struct onvm_nf *nf;
-    int i;
     nf = nf_local_ctx->nf;
     onvm_config = onvm_nflib_get_onvm_config();
     ONVM_NF_SHARE_CORES = onvm_config->flags.ONVM_NF_SHARE_CORES;
@@ -457,6 +453,53 @@ onvm_capture_start(probe_context_t *context, struct onvm_nf_local_ctx *nf_local_
     for (i = 0; i < num_children; i++) {
         pthread_join(nf_thread[i], NULL);
     }
+    return nf_local_ctx;
+}
+
+/*
+ * Start capturing packets.
+ */
+void
+onvm_capture_start(probe_context_t *context, struct onvm_nf_local_ctx *nf_local_ctx) {
+    cur_time = time(NULL);
+    next_stat_ts = cur_time + stat_period;
+
+    // initialize MMT handler
+    char errbuf[1024];
+    dpi_handler = mmt_init_handler(1, 0, errbuf);
+    if(dpi_handler){
+        printf("MMT handler init OK\n");
+    }
+    // also check HTTP/non-HTTP packets
+    register_packet_handler(dpi_handler, 1, http_packet_handler, NULL);
+
+    probe_conf_t *config = context->config;
+    output = output_alloc_init(1,
+            &(config->outputs),
+            config->probe_id,
+            config->input->input_source,
+
+            //when enable security, we need to synchronize output as it can be called from
+            //- worker thread, or,
+            //- security threads
+#ifdef SECURITY_MODULE
+            (config->reports.security->is_enable
+            && config->reports.security->threads_size != 0)
+#else
+            false
+#endif
+    );
+    if(output){
+        printf("Output init OK\n");
+    }
+
+    dpi_context = dpi_alloc_init(config, dpi_handler, output, 0);
+    if(dpi_context){
+        printf("DPI context init OK\n");
+    }
+
+    if(output)
+        _send_version_information(output);
 
     /*onvm_nflib_run(nf_local_ctx);*/
 }
