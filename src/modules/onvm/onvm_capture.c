@@ -160,8 +160,18 @@ packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
         counter = 0;
     }
 
-    meta->action = ONVM_NF_ACTION_TONF;
     meta->destination = destination;
+    meta->action = ONVM_NF_ACTION_TONF;
+
+    cur_time = time(NULL);
+    // send reports periodically
+    if(cur_time >= next_stat_ts){
+        next_stat_ts += stat_period;
+        dpi_callback_on_stat_period(dpi_context);
+        /*output_flush(output);*/
+    }
+    output_flush(output);
+
     return 0;
 }
 
@@ -182,16 +192,159 @@ callback_handler(__attribute__((unused)) struct onvm_nf_local_ctx *nf_local_ctx)
     return 0;
 }
 
+#define DEFAULT_NUM_CHILDREN 0
+#define DEFAULT_PKT_NUM 128
+#define PKT_READ_SIZE ((uint16_t)32)
+static uint16_t num_children = DEFAULT_NUM_CHILDREN;
+static uint8_t use_shared_core_allocation = 0;
+static uint8_t d_addr_bytes[RTE_ETHER_ADDR_LEN];
+static uint16_t packet_size = RTE_ETHER_HDR_LEN;
+static uint32_t packet_number = DEFAULT_PKT_NUM;
+
+/* For advanced rings scaling */
+rte_atomic16_t signal_exit_flag;
+uint8_t ONVM_NF_SHARE_CORES;
+struct child_spawn_info {
+    struct onvm_nf_init_cfg *child_cfg;
+    struct onvm_nf *parent;
+};
+
+void sig_handler(int sig) {
+    if (sig != SIGINT && sig != SIGTERM)
+        return;
+
+    /* Will stop the processing for all spawned threads in advanced rings mode */
+    rte_atomic16_set(&signal_exit_flag, 1);
+}
+
+/*
+ * Basic packet handler, just forwards all packets to destination
+ */
+static int
+packet_handler_fwd(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
+                   __attribute__((unused)) struct onvm_nf_local_ctx *nf_local_ctx) {
+    (void)pkt;
+    meta->destination = destination;
+    meta->action = ONVM_NF_ACTION_TONF;
+
+    return 0;
+}
+
+void *
+start_child(void *arg) {
+    struct onvm_nf_local_ctx *child_local_ctx;
+    struct onvm_nf_init_cfg *child_init_cfg;
+    struct onvm_nf *parent;
+    struct child_spawn_info *spawn_info;
+
+    spawn_info = (struct child_spawn_info *)arg;
+    child_init_cfg = spawn_info->child_cfg;
+    parent = spawn_info->parent;
+    child_local_ctx = onvm_nflib_init_nf_local_ctx();
+
+    if (onvm_nflib_start_nf(child_local_ctx, child_init_cfg) < 0) {
+        printf("Failed to spawn child NF\n");
+        return NULL;
+    }
+
+    /* Keep track of parent for proper termination */
+    child_local_ctx->nf->thread_info.parent = parent->instance_id;
+
+    thread_main_loop(child_local_ctx);
+    onvm_nflib_stop(child_local_ctx);
+    free(spawn_info);
+    return NULL;
+}
+
+int
+thread_main_loop(struct onvm_nf_local_ctx *nf_local_ctx) {
+    void *pkts[PKT_READ_SIZE];
+    struct onvm_pkt_meta *meta;
+    uint16_t i, nb_pkts;
+    struct rte_mbuf *pktsTX[PKT_READ_SIZE];
+    int tx_batch_size;
+    struct rte_ring *rx_ring;
+    struct rte_ring *msg_q;
+    struct onvm_nf *nf;
+    struct onvm_nf_msg *msg;
+    struct rte_mempool *nf_msg_pool;
+
+    nf = nf_local_ctx->nf;
+
+    onvm_nflib_nf_ready(nf);
+    /*nf_setup(nf_local_ctx);*/
+
+    /* Get rings from nflib */
+    rx_ring = nf->rx_q;
+    msg_q = nf->msg_q;
+    nf_msg_pool = rte_mempool_lookup(_NF_MSG_POOL_NAME);
+
+    printf("Process %d handling packets using advanced rings\n", nf->instance_id);
+    if (onvm_threading_core_affinitize(nf->thread_info.core) < 0)
+            rte_exit(EXIT_FAILURE, "Failed to affinitize to core %d\n", nf->thread_info.core);
+
+    while (!rte_atomic16_read(&signal_exit_flag)) {
+        /* Check for a stop message from the manager */
+        if (unlikely(rte_ring_count(msg_q) > 0)) {
+            msg = NULL;
+            rte_ring_dequeue(msg_q, (void **)(&msg));
+            if (msg->msg_type == MSG_STOP) {
+                rte_atomic16_set(&signal_exit_flag, 1);
+            } else {
+                printf("Received message %d, ignoring", msg->msg_type);
+            }
+            rte_mempool_put(nf_msg_pool, (void *)msg);
+        }
+
+        tx_batch_size = 0;
+        /* Dequeue all packets in ring up to max possible */
+        nb_pkts = rte_ring_dequeue_burst(rx_ring, pkts, PKT_READ_SIZE, NULL);
+
+        if (unlikely(nb_pkts == 0)) {
+            if (ONVM_NF_SHARE_CORES) {
+                rte_atomic16_set(nf->shared_core.sleep_state, 1);
+                sem_wait(nf->shared_core.nf_mutex);
+            }
+            continue;
+        }
+        /* Process all the packets */
+        for (i = 0; i < nb_pkts; i++) {
+            meta = onvm_get_pkt_meta((struct rte_mbuf *)pkts[i]);
+            packet_handler_fwd((struct rte_mbuf *)pkts[i], meta, nf_local_ctx);
+            pktsTX[tx_batch_size++] = pkts[i];
+        }
+        /* Process all packet actions */
+        onvm_pkt_process_tx_batch(nf->nf_tx_mgr, pktsTX, tx_batch_size, nf);
+        if (tx_batch_size < PACKET_READ_SIZE) {
+            onvm_pkt_flush_all_nfs(nf->nf_tx_mgr, nf);
+        }
+    }
+    return 0;
+}
+
 /*
  * Initalize onvm local context.
  */
 struct onvm_nf_local_ctx*
 onvm_capture_init(probe_context_t *context) {
-    struct onvm_nf_local_ctx *nf_local_ctx;
-    struct onvm_nf_function_table *nf_function_table;
     char *onvm_argv[100];
 	int onvm_argc = string_split(context->config->input->onvm_options, " ", &onvm_argv[1], 100-1);
     int arg_offset, i;
+
+    pthread_t nf_thread[num_children];
+    struct onvm_configuration *onvm_config;
+    struct onvm_nf_local_ctx *nf_local_ctx;
+    struct onvm_nf_function_table *nf_function_table;
+    struct onvm_nf *nf;
+
+    nf_local_ctx = onvm_nflib_init_nf_local_ctx();
+    /* If we're using advanced rings also pass a custom cleanup function,
+     * this can be used to handle NF specific (non onvm) cleanup logic */
+    rte_atomic16_init(&signal_exit_flag);
+    rte_atomic16_set(&signal_exit_flag, 0);
+    onvm_nflib_start_signal_handler(nf_local_ctx, sig_handler);
+    /* No need to define a function table as adv rings won't run onvm_nflib_run */
+    nf_function_table = NULL;
 
     stat_period = context->config->stat_period;
     onvm_mode = context->config->input->onvm_mode;
@@ -208,9 +361,9 @@ onvm_capture_init(probe_context_t *context) {
     nf_local_ctx = onvm_nflib_init_nf_local_ctx();
     onvm_nflib_start_signal_handler(nf_local_ctx, NULL);
 
-    nf_function_table = onvm_nflib_init_nf_function_table();
-    nf_function_table->pkt_handler = &packet_handler;
-    nf_function_table->user_actions = &callback_handler;
+    /*nf_function_table = onvm_nflib_init_nf_function_table();*/
+    /*nf_function_table->pkt_handler = &packet_handler;*/
+    /*nf_function_table->user_actions = &callback_handler;*/
 
     if ((arg_offset = onvm_nflib_init(onvm_argc, onvm_argv, NF_TAG, nf_local_ctx, nf_function_table)) < 0) {
         onvm_nflib_stop(nf_local_ctx);
@@ -277,7 +430,35 @@ onvm_capture_start(probe_context_t *context, struct onvm_nf_local_ctx *nf_local_
     /*if(output)*/
 		/*_send_version_information(output);*/
 
-    onvm_nflib_run(nf_local_ctx);
+    pthread_t nf_thread[num_children];
+    struct onvm_configuration *onvm_config;
+    struct onvm_nf *nf;
+    int i;
+    nf = nf_local_ctx->nf;
+    onvm_config = onvm_nflib_get_onvm_config();
+    ONVM_NF_SHARE_CORES = onvm_config->flags.ONVM_NF_SHARE_CORES;
+
+    for (i = 0; i < num_children; i++) {
+        struct onvm_nf_init_cfg *child_cfg;
+        child_cfg = onvm_nflib_init_nf_init_cfg(nf->tag);
+        /* Prepare init data for the child */
+        child_cfg->service_id = nf->service_id;
+        struct child_spawn_info *child_data = malloc(sizeof(struct child_spawn_info));
+        child_data->child_cfg = child_cfg;
+        child_data->parent = nf;
+        /* Increment the children count so that stats are displayed and NF does proper cleanup */
+        rte_atomic16_inc(&nf->thread_info.children_cnt);
+        pthread_create(&nf_thread[i], NULL, start_child, (void *)child_data);
+    }
+
+    thread_main_loop(nf_local_ctx);
+    onvm_nflib_stop(nf_local_ctx);
+
+    for (i = 0; i < num_children; i++) {
+        pthread_join(nf_thread[i], NULL);
+    }
+
+    /*onvm_nflib_run(nf_local_ctx);*/
 }
 
 /*
