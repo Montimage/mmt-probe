@@ -24,15 +24,15 @@ bool em_check_marker(double x, double y){
 <property property_id="110" type_property="ATTACK"
     description="TrolleyPosmustt not be negative">
     <event event_id="1" description="TrolleyPos"
-           boolean_expression="( #em_check_trolley_pos( ips_data.trolley_pos ) )"/>
+           boolean_expression="( #em_check_trolley_pos( lps_data.trolley_pos ) )"/>
 </property>
 
 <property property_id="111" type_property="ATTACK" value="THEN" 
     description="Marker 1 is in forbidden position">
     <event event_id="1" description="Position of Hoistpos" 
-           boolean_expression="( ips_data.hoist_pos >= 40 )"/>
+           boolean_expression="( lps_data.hoist_pos >= 40 )"/>
     <event event_id="2" description="Position of Markers 1 and 2"
-           boolean_expression="( (( ips_data.m1_x > 4000 ) &amp;&amp; (ips_data.m1_y &lt; 50000) ) )" />
+           boolean_expression="( (( lps_data.m1_x > 4000 ) &amp;&amp; (lps_data.m1_y &lt; 50000) ) )" />
 </property>
 
 </beginning>
