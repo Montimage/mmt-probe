@@ -26,16 +26,15 @@ time_t next_stat_ts = 0; // moment we need to do statistic
 time_t next_output_ts = 0; // moment we need flush output to channels
 time_t cur_time; // current timestamp
 
-mmt_handler_t *dpi_handler;
-dpi_context_t *dpi_context;
-output_t *output;
+//mmt_handler_t *dpi_handler[2];
+//dpi_context_t *dpi_context[2];
+//output_t *output[2];
 
-#define PKTMBUF_POOL_NAME "MProc_pktmbuf_pool"
-#define PKT_READ_SIZE ((uint16_t)32)
-#define LOCAL_EXPERIMENTAL_ETHER 0x88B5
+//probe_context_t *context;
+
+#define DEFAULT_NUM_CHILDREN 1
 #define DEFAULT_PKT_NUM 128
-#define MAX_PKT_NUM NF_QUEUE_RINGSIZE
-#define DEFAULT_NUM_CHILDREN 0
+#define PKT_READ_SIZE ((uint16_t)64)
 static uint16_t num_children = DEFAULT_NUM_CHILDREN;
 static uint8_t use_shared_core_allocation = 0;
 static uint8_t d_addr_bytes[RTE_ETHER_ADDR_LEN];
@@ -50,6 +49,7 @@ struct child_spawn_info {
     struct onvm_nf *parent;
 };
 
+
 /*
  * Print a usage message.
  */
@@ -63,6 +63,7 @@ usage(const char* progname) {
     printf("Flags:\n");
     printf(" - `-d DST`: Destination Service ID to foward to\n");
     printf(" - `-p PRINT_DELAY`: Number of packets between each print, e.g. `-p 1` prints every packets.\n");
+    printf(" - `-n NUM_CHILDREN`: Sets the number of children for the NF to spawn\n");
 }
 
 /*
@@ -80,7 +81,7 @@ parse_app_args(int argc, char *argv[]) {
             case 'p':
                 print_delay = strtoul(optarg, NULL, 10);
                 break;
-            case 'n':
+	    case 'n':
                 num_children = strtoul(optarg, NULL, 10);
                 break;
             default:
@@ -147,52 +148,10 @@ do_stats_display(struct rte_mbuf *pkt) {
     DEBUG("");
 }
 
-void
-nf_setup(__attribute__((unused)) struct onvm_nf_local_ctx *nf_local_ctx) {
-    uint32_t i;
-    struct rte_mempool *pktmbuf_pool;
-
-    pktmbuf_pool = rte_mempool_lookup(PKTMBUF_POOL_NAME);
-    if (pktmbuf_pool == NULL) {
-        onvm_nflib_stop(nf_local_ctx);
-        rte_exit(EXIT_FAILURE, "Cannot find mbuf pool!\n");
-    }
-
-    for (i = 0; i < packet_number; ++i) {
-        struct onvm_pkt_meta *pmeta;
-        struct rte_ether_hdr *ehdr;
-        int j;
-
-        struct rte_mbuf *pkt = rte_pktmbuf_alloc(pktmbuf_pool);
-        if (pkt == NULL)
-            break;
-
-        /* set up ether header and set new packet size */
-        ehdr = (struct rte_ether_hdr *)rte_pktmbuf_append(pkt, packet_size);
-
-        /* Using manager mac addr for source*/
-        if (onvm_get_macaddr(0, &ehdr->s_addr) == -1) {
-            onvm_get_fake_macaddr(&ehdr->s_addr);
-        }
-        for (j = 0; j < RTE_ETHER_ADDR_LEN; ++j) {
-            ehdr->d_addr.addr_bytes[j] = d_addr_bytes[j];
-        }
-        ehdr->ether_type = LOCAL_EXPERIMENTAL_ETHER;
-
-        pmeta = onvm_get_pkt_meta(pkt);
-        pmeta->destination = destination;
-        pmeta->action = ONVM_NF_ACTION_TONF;
-        pkt->hash.rss = i;
-        pkt->port = 0;
-
-        onvm_nflib_return_pkt(nf_local_ctx->nf, pkt);
-    }
-}
-
 /*
  * Processes each incoming packet.
  */
-static int
+/*static int
 packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
     __attribute__((unused)) struct onvm_nf_local_ctx *nf_local_ctx) {
     static uint32_t counter = 0;
@@ -215,9 +174,10 @@ packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
         DEBUG("Time : %ld.%ld", pkt->timestamp / US_PER_S, pkt->timestamp % US_PER_S);
     }
     pkt_data = (pkt->buf_addr + pkt->data_off);
+    //packet_process(dpi_handler, &pkt_header, pkt_data);
     if (!packet_process(dpi_handler, &pkt_header, pkt_data)) {
         nb_not_processed++;
-        rte_exit(EXIT_FAILURE, "Packet process failed\n");
+    //    rte_exit(EXIT_FAILURE, "Packet process failed\n");
     }
 
     if (counter++ == print_delay) {
@@ -227,23 +187,15 @@ packet_handler(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
 
     meta->destination = destination;
     meta->action = ONVM_NF_ACTION_TONF;
-
-    cur_time = time(NULL);
-    // send reports periodically
-    if(cur_time >= next_stat_ts){
-        next_stat_ts += stat_period;
-        dpi_callback_on_stat_period(dpi_context);
-        /*output_flush(output);*/
-    }
-    output_flush(output);
+    //meta->action = ONVM_NF_ACTION_DROP;
 
     return 0;
-}
+}*/
 
 /*
  * Generates reports each "start_period" seconds.
  */
-static int
+/*static int
 callback_handler(__attribute__((unused)) struct onvm_nf_local_ctx *nf_local_ctx) {
     cur_time = time(NULL);
     // send reports periodically
@@ -255,15 +207,7 @@ callback_handler(__attribute__((unused)) struct onvm_nf_local_ctx *nf_local_ctx)
     output_flush(output);
 
     return 0;
-}
-
-void sig_handler(int sig) {
-    if (sig != SIGINT && sig != SIGTERM)
-        return;
-
-    /* Will stop the processing for all spawned threads in advanced rings mode */
-    rte_atomic16_set(&signal_exit_flag, 1);
-}
+}*/
 
 /*
  * Basic packet handler, just forwards all packets to destination
@@ -271,11 +215,11 @@ void sig_handler(int sig) {
 static int
 packet_handler_fwd(struct rte_mbuf *pkt, struct onvm_pkt_meta *meta,
                    __attribute__((unused)) struct onvm_nf_local_ctx *nf_local_ctx) {
-    (void)pkt;
-    meta->destination = destination;
-    meta->action = ONVM_NF_ACTION_TONF;
+        (void)pkt;
+        meta->destination = destination;
+        meta->action = ONVM_NF_ACTION_TONF;
 
-    return 0;
+        return 0;
 }
 
 void *
@@ -304,8 +248,61 @@ start_child(void *arg) {
     return NULL;
 }
 
+static inline void _pause( uint16_t cycles ){
+	rte_pause();
+	uint64_t t = rte_rdtsc() + cycles;
+
+	while (rte_rdtsc() < t)
+		rte_pause();
+}
+
 int
-thread_main_loop(struct onvm_nf_local_ctx *nf_local_ctx) {
+thread_main_loop(struct onvm_nf_local_ctx *nf_local_ctx){
+//  	dpi_context_t *dpi_context, output_t *output) {
+
+mmt_handler_t *dpi_handler;
+dpi_context_t *dpi_context;
+output_t *output;
+
+	    // initialize MMT handler
+	    char errbuf[1024];
+	    dpi_handler = mmt_init_handler(1, 0, errbuf);
+	    if(dpi_handler){
+		    printf("MMT handler init OK\n");
+	    }
+	    // also check HTTP/non-HTTP packets
+	    //register_packet_handler(dpi_handler, 1, http_packet_handler, NULL);
+
+	    probe_context_t *context = get_context();
+	    probe_conf_t *config = context->config;
+	    output = output_alloc_init(1,
+				&(config->outputs),
+				config->probe_id,
+				config->input->input_source,
+
+				//when enable security, we need to synchronize output as it can be called from
+				//- worker thread, or,
+				//- security threads
+	#ifdef SECURITY_MODULE
+				(config->reports.security->is_enable
+				&& config->reports.security->threads_size != 0)
+	#else
+				false
+	#endif
+		);
+	    if(output){
+		    printf("Output init OK\n");
+    		}
+
+	    dpi_context = dpi_alloc_init(config, dpi_handler, output, 0);
+	    if(dpi_context){
+		    printf("DPI context init OK\n");
+	    }
+
+	    //if(output) _send_version_information(output);
+
+
+
     void *pkts[PKT_READ_SIZE];
     struct onvm_pkt_meta *meta;
     uint16_t i, nb_pkts;
@@ -331,6 +328,15 @@ thread_main_loop(struct onvm_nf_local_ctx *nf_local_ctx) {
     if (onvm_threading_core_affinitize(nf->thread_info.core) < 0)
             rte_exit(EXIT_FAILURE, "Failed to affinitize to core %d\n", nf->thread_info.core);
 
+
+   time_t next_stat_ts = 0; // moment we need to do statistic
+   time_t next_output_ts = 0; // moment we need flush output to channels
+   time_t cur_time; // current timestamp
+
+    cur_time = time(NULL);
+    next_stat_ts = cur_time + stat_period;
+    next_output_ts = cur_time + 5;
+
     while (!rte_atomic16_read(&signal_exit_flag)) {
         /* Check for a stop message from the manager */
         if (unlikely(rte_ring_count(msg_q) > 0)) {
@@ -349,16 +355,47 @@ thread_main_loop(struct onvm_nf_local_ctx *nf_local_ctx) {
         nb_pkts = rte_ring_dequeue_burst(rx_ring, pkts, PKT_READ_SIZE, NULL);
 
         if (unlikely(nb_pkts == 0)) {
-            if (ONVM_NF_SHARE_CORES) {
+	//	_pause(5000);
+            /*if (ONVM_NF_SHARE_CORES) {
                 rte_atomic16_set(nf->shared_core.sleep_state, 1);
                 sem_wait(nf->shared_core.nf_mutex);
             }
-            continue;
-        }
+            continue;*/
+        } else {
         /* Process all the packets */
         for (i = 0; i < nb_pkts; i++) {
             meta = onvm_get_pkt_meta((struct rte_mbuf *)pkts[i]);
-            packet_handler_fwd((struct rte_mbuf *)pkts[i], meta, nf_local_ctx);
+            //packet_handler_fwd((struct rte_mbuf *)pkts[i], meta, nf_local_ctx);
+
+	    struct rte_mbuf *pkt = (struct rte_mbuf *)pkts[i];
+	    const u_char *pkt_data;
+	    struct timespec time_now __rte_cache_aligned;
+	    struct pkthdr pkt_header __rte_cache_aligned;
+
+	    total_packets++;
+	    pkt_header.len = pkt->pkt_len;
+	    pkt_header.caplen = pkt-> data_len;
+	    if (onvm_mode) {
+		clock_gettime(CLOCK_REALTIME_COARSE, &time_now);
+		pkt_header.ts.tv_sec = time_now.tv_sec;
+		pkt_header.ts.tv_usec = time_now.tv_nsec / 1000;
+		DEBUG("Time : %ld.%ld", time_now.tv_sec, time_now.tv_nsec / 1000);
+	    } else {
+		pkt_header.ts.tv_sec = pkt->timestamp / US_PER_S;
+		pkt_header.ts.tv_usec = pkt->timestamp % US_PER_S;
+		DEBUG("Time : %ld.%ld", pkt->timestamp / US_PER_S, pkt->timestamp % US_PER_S);
+	    }
+	    pkt_data = (pkt->buf_addr + pkt->data_off);
+	    packet_process(dpi_handler, &pkt_header, pkt_data);
+	    //if (!packet_process(dpi_handler, &pkt_header, pkt_data)) {
+		//nb_not_processed++;
+	    //    rte_exit(EXIT_FAILURE, "Packet process failed\n");
+	    //}
+
+	    meta->destination = destination;
+	    meta->action = ONVM_NF_ACTION_TONF;
+
+            //packet_handler_fwd((struct rte_mbuf *)pkts[i], meta, nf_local_ctx);
             pktsTX[tx_batch_size++] = pkts[i];
         }
         /* Process all packet actions */
@@ -366,8 +403,30 @@ thread_main_loop(struct onvm_nf_local_ctx *nf_local_ctx) {
         if (tx_batch_size < PACKET_READ_SIZE) {
             onvm_pkt_flush_all_nfs(nf->nf_tx_mgr, nf);
         }
+
+	    cur_time = time(NULL);
+	    // send reports periodically
+	    if(cur_time >= next_stat_ts){
+		next_stat_ts += stat_period;
+		dpi_callback_on_stat_period(dpi_context);
+	    }
+	    if(cur_time >= next_output_ts){
+		next_output_ts += 5;
+		output_flush(output);
+		}
+
+	}
+
     }
     return 0;
+}
+
+void sig_handler(int sig) {
+    if (sig != SIGINT && sig != SIGTERM)
+        return;
+
+    /* Will stop the processing for all spawned threads in advanced rings mode */
+    rte_atomic16_set(&signal_exit_flag, 1);
 }
 
 /*
@@ -375,12 +434,12 @@ thread_main_loop(struct onvm_nf_local_ctx *nf_local_ctx) {
  */
 struct onvm_nf_local_ctx*
 onvm_capture_init(probe_context_t *context) {
-    char *onvm_argv[100];
-	int onvm_argc = string_split(context->config->input->onvm_options, " ", &onvm_argv[1], 100-1);
-    int arg_offset, i;
 
+    pthread_t nf_thread[num_children];
+    struct onvm_configuration *onvm_config;
     struct onvm_nf_local_ctx *nf_local_ctx;
     struct onvm_nf_function_table *nf_function_table;
+    struct onvm_nf *nf;
 
     nf_local_ctx = onvm_nflib_init_nf_local_ctx();
     /* If we're using advanced rings also pass a custom cleanup function,
@@ -391,13 +450,19 @@ onvm_capture_init(probe_context_t *context) {
     /* No need to define a function table as adv rings won't run onvm_nflib_run */
     nf_function_table = NULL;
 
+    /*struct onvm_nf_local_ctx *nf_local_ctx;*/
+    /*struct onvm_nf_function_table *nf_function_table;*/
+    char *onvm_argv[100];
+    int onvm_argc = string_split(context->config->input->onvm_options, " ", &onvm_argv[1], 100-1);
+    int arg_offset, i;
+
     stat_period = context->config->stat_period;
     onvm_mode = context->config->input->onvm_mode;
     printf("stat_period: %d, onvm_mode: %d\n", stat_period, onvm_mode);
 
     // the first parameter is normally program name "mmt-probe"
-	onvm_argv[0] = LOG_IDENT;
-	onvm_argc   += 1;
+    onvm_argv[0] = LOG_IDENT;
+    onvm_argc   += 1;
     printf("onvm_argc: %d\n", onvm_argc);
     for(i = 0; i < onvm_argc; ++i) {
         printf("%s ", onvm_argv[i]);
@@ -408,7 +473,8 @@ onvm_capture_init(probe_context_t *context) {
 
     /*nf_function_table = onvm_nflib_init_nf_function_table();*/
     /*nf_function_table->pkt_handler = &packet_handler;*/
-    /*nf_function_table->user_actions = &callback_handler;*/
+    /*nf_function_table->pkt_handler = &packet_handler_with_scaling;*/
+     /*nf_function_table->user_actions = &callback_handler;*/
 
     if ((arg_offset = onvm_nflib_init(onvm_argc, onvm_argv, NF_TAG, nf_local_ctx, nf_function_table)) < 0) {
         onvm_nflib_stop(nf_local_ctx);
@@ -426,6 +492,58 @@ onvm_capture_init(probe_context_t *context) {
         onvm_nflib_stop(nf_local_ctx);
         rte_exit(EXIT_FAILURE, "Invalid command-line arguments\n");
     }
+
+    return nf_local_ctx;
+}
+
+/*
+ * Start capturing packets.
+ */
+void
+onvm_capture_start(probe_context_t *context, struct onvm_nf_local_ctx *nf_local_ctx) {
+    //cur_time = time(NULL);
+    //next_stat_ts = cur_time + stat_period;
+    //next_output_ts = cur_time + 5;
+
+    int i = 0;
+/*    for (i = 0; i < 2; ++i) {
+	    // initialize MMT handler
+	    char errbuf[1024];
+	    dpi_handler[i] = mmt_init_handler(1, 0, errbuf);
+	    if(dpi_handler[i]){
+		    printf("MMT handler init OK\n");
+	    }
+	    // also check HTTP/non-HTTP packets
+	    //register_packet_handler(dpi_handler, 1, http_packet_handler, NULL);
+
+	    probe_conf_t *config = context->config;
+	    output[i] = output_alloc_init(1,
+				&(config->outputs),
+				config->probe_id,
+				config->input->input_source,
+
+				//when enable security, we need to synchronize output as it can be called from
+				//- worker thread, or,
+				//- security threads
+	#ifdef SECURITY_MODULE
+				(config->reports.security->is_enable
+				&& config->reports.security->threads_size != 0)
+	#else
+				false
+	#endif
+		);
+	    if(output[i]){
+		    printf("Output init OK\n");
+    		}
+
+	    dpi_context[i] = dpi_alloc_init(config, dpi_handler[i], output[i], 0);
+	    if(dpi_context[i]){
+		    printf("DPI context init OK\n");
+	    }
+
+	    //if(output) _send_version_information(output);
+    }
+*/
 
     pthread_t nf_thread[num_children];
     struct onvm_configuration *onvm_config;
@@ -453,53 +571,6 @@ onvm_capture_init(probe_context_t *context) {
     for (i = 0; i < num_children; i++) {
         pthread_join(nf_thread[i], NULL);
     }
-    return nf_local_ctx;
-}
-
-/*
- * Start capturing packets.
- */
-void
-onvm_capture_start(probe_context_t *context, struct onvm_nf_local_ctx *nf_local_ctx) {
-    cur_time = time(NULL);
-    next_stat_ts = cur_time + stat_period;
-
-    // initialize MMT handler
-    char errbuf[1024];
-    dpi_handler = mmt_init_handler(1, 0, errbuf);
-    if(dpi_handler){
-        printf("MMT handler init OK\n");
-    }
-    // also check HTTP/non-HTTP packets
-    register_packet_handler(dpi_handler, 1, http_packet_handler, NULL);
-
-    probe_conf_t *config = context->config;
-    output = output_alloc_init(1,
-            &(config->outputs),
-            config->probe_id,
-            config->input->input_source,
-
-            //when enable security, we need to synchronize output as it can be called from
-            //- worker thread, or,
-            //- security threads
-#ifdef SECURITY_MODULE
-            (config->reports.security->is_enable
-            && config->reports.security->threads_size != 0)
-#else
-            false
-#endif
-    );
-    if(output){
-        printf("Output init OK\n");
-    }
-
-    dpi_context = dpi_alloc_init(config, dpi_handler, output, 0);
-    if(dpi_context){
-        printf("DPI context init OK\n");
-    }
-
-    if(output)
-        _send_version_information(output);
 
     /*onvm_nflib_run(nf_local_ctx);*/
 }
@@ -509,10 +580,10 @@ onvm_capture_start(probe_context_t *context, struct onvm_nf_local_ctx *nf_local_
  */
 void
 onvm_capture_stop(struct onvm_nf_local_ctx *nf_local_ctx) {
-    onvm_nflib_stop(nf_local_ctx);
+    //onvm_nflib_stop(nf_local_ctx);
 
-    mmt_close_handler(dpi_handler);
-    dpi_release(dpi_context);
+    //mmt_close_handler(dpi_handler);
+    //dpi_release(dpi_context);
 
     printf("Total packets received: %" PRIu64 " \n", total_packets);
     printf("Total HTTP packets received: %" PRIu64 " \n", nb_http_pkts);
