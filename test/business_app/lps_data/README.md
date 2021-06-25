@@ -32,7 +32,7 @@ to list all reports of the `ips_data` event-based report.
 
 ## 3.2 Security verification
 
-- See an example in [ips-data-rules.xml](./ips-data-rules.xml)
+- See an example in [lps-data-rules.xml](./lps-data-rules.xml)
 
 - Compile the example rule: `mkdir rules; /opt/mmt/security/bin/compile_rule rules/ips-data-rules.so test/business_app/ips_data/ips-data-rules.xml`
 
