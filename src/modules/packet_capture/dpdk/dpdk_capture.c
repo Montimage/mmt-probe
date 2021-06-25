@@ -383,7 +383,7 @@ static int _reader_thread( void *arg ){
 					packets,
 					READER_BURST_SIZE );
 
-			if( unlikely( nb_rx == 0 )){
+			if( unlikely( nb_rx == 0 && buffers[worker_id].packets_count == 0)){
 				continue;
 			} else {
 
