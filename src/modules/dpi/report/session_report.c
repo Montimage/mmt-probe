@@ -498,7 +498,8 @@ int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, sessi
 			val = get_attribute_extracted_data_at_index(ipacket, PROTO_TCP, TCP_TSVAL, proto_index);
 			if( val ) seq_number = *val;
 			val = get_attribute_extracted_data_at_index(ipacket, PROTO_TCP, TCP_TSECR, proto_index);
-			if( val ) ack_number = *val;
+			//increase 1 here to follow the same way of ACK = SEQ + LEN + 1
+			if( val ) ack_number = *val + 1;
 		}
 
 		if( rtt_base == CONF_RTT_BASE_CAPTOR || rtt_base == CONF_RTT_BASE_PREFER_SENDER ){

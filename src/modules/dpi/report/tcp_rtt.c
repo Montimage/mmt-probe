@@ -48,7 +48,8 @@ tcp_rtt_t *tcp_rtt_init(){
 }
 
 
-#define expected_ack_number( p ) (p->seq_number + p->data_len)
+//ack represent the expected next byte to receive
+#define expected_ack_number( p ) (p->seq_number + p->data_len + 1)
 
 /**
  * Add packet to the list. The packet is characterized by 4 numbers:
@@ -74,7 +75,7 @@ uint32_t tcp_rtt_add_packet( tcp_rtt_t *rtt, uint8_t direction, uint32_t ack_num
 		uint16_t data_len, struct timeval timestamp, uint64_t *usec ){
 
 	//1. add data for the current direction
-	uint32_t expected_ack_num = seq_num + data_len;
+	uint32_t expected_ack_num = seq_num + data_len + 1;
 	struct pkt_node *p = rtt->pkts[ direction ], *prev = NULL;
 
 	//the list is sorted by descending order
