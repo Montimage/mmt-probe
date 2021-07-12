@@ -85,7 +85,9 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 	int offset = 0;
 
-
+	//no data is available
+	if( attribute->data == NULL )
+		return;
 
 	//event id
 	offset += append_string( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, context->config->title );
