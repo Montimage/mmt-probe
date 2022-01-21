@@ -44,3 +44,4 @@ src/examples/proto_attributes_iterator
 /build_mmt_probe/
 /probe
 /.gdb_history
+/.settings
