@@ -3,5 +3,5 @@
 
 This repository contains source code of MMT-Probe that analyses online or offline network traffic.
 
-- [Compilation and Installation](./doc/installation.md)
-- [Configuration](./doc/configuration.md)
+- [Compilation and Installation](./docs/installation.md)
+- [Configuration](./docs/configuration.md)
