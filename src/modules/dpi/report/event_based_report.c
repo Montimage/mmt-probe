@@ -44,6 +44,9 @@ static inline bool _is_string( int data_type ){
 	case MMT_STRING_DATA:
 	case MMT_STRING_LONG_DATA:
 	case MMT_GENERIC_HEADER_LINE:
+	//surround the elements of an array by " and "
+	case MMT_U32_ARRAY:
+	case MMT_U64_ARRAY:
 		return true;
 	}
 	return false;
@@ -177,8 +180,8 @@ list_event_based_report_context_t* event_based_report_register( mmt_handler_t *d
 			if( dpi_register_attribute( config[i].event, 1, dpi_handler, _event_report_handle, &ret->event_reports[i]) == 0 ){
 				log_write( LOG_ERR, "Cannot register an event-based report [%s] for event [%s.%s]",
 						config[i].title,
-						config[i].attributes->proto_name,
-						config[i].attributes->attribute_name );
+						config[i].event->proto_name,
+						config[i].event->attribute_name );
 				continue;
 			}
 
