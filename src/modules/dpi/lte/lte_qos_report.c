@@ -9,7 +9,7 @@
 
 #include <mmt_core.h>
 #include <tcpip/mmt_tcpip.h>
-#include <lte/mmt_lte.h>
+#include <mobile/mmt_mobile.h>
 
 #include<pthread.h>
 #include <stdint.h>
