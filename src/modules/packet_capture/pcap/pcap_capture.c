@@ -23,6 +23,7 @@
 #define BREAK_PCAP_NUMBER 0
 
 #include "pcap_capture.h"
+#include <tcpip/mmt_tcpip.h>
 
 //for one thread
 struct pcap_worker_context_struct{
@@ -500,10 +501,15 @@ void pcap_capture_start( probe_context_t *context ){
 		//pcap_datalink() must not be called on a pcap  descriptor  created  by  pcap_create()
 		//  that has not yet been activated by pcap_activate().
 		ret = pcap_datalink( pcap );
-		ASSERT( ret == context->config->stack_type,
-			"Stack type of '%s is incorrect (being %d but expecting %d). Please recheck 'stack-type' in the .conf file.",
-			context->config->input->input_source,
-			ret, context->config->stack_type);
+		if( ret == 1 && (context->config->stack_type != 1 || context->config->stack_type != PROTO_ETHERNET))
+			log_write( LOG_INFO, "Detect LINKTYPE_ETHERNET on %s but you are using stack-type=%d. The classification might be incorrect.",
+					context->config->input->input_source,
+					context->config->stack_type);
+		else if( ret != context->config->stack_type )
+			log_write( LOG_INFO, "Stack type of '%s is %d (while you are using 'stack-type=%d'). The classification might be incorrect.",
+					context->config->input->input_source,
+					ret,
+					context->config->stack_type);
 	}
 
 	context->modules.pcap->handler = pcap;

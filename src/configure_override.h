@@ -126,6 +126,7 @@ DECLARE_CONF_ATT(
 	//general
 	(CONF_ATT__PROBE_ID,     "probe-id", &conf->probe_id, UINT32_T),
 	(CONF_ATT__STACK_TYPE,   "stack-type", &conf->stack_type, UINT32_T),
+	(CONF_ATT__STACK_OFFSET, "stack-offset", &conf->stack_offset, UINT32_T),
 #ifdef LICENSE_CHECK
 	(CONF_ATT__LICENSE,      "license",  &conf->license_file,  CHAR_STAR),
 #endif

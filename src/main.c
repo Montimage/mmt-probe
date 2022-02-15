@@ -331,6 +331,38 @@ static inline void _load_tcp_plugin(){
 }
 #endif
 
+static struct {
+	uint32_t type;
+	uint32_t offset;
+} stack = {1, 0}; //1: Ethernet, 0: no offset => protocol Ethernet is started immediately at the first byte
+
+static classified_proto_t _stack_classification(ipacket_t * ipacket) {
+	classified_proto_t retval;
+	retval.offset   = stack.offset;
+	retval.proto_id = stack.type;
+	retval.status   = Classified;
+	return retval;
+}
+
+bool _init_protocol_stack(uint32_t stack_type, uint32_t stack_offset ){
+	switch( stack_type ){
+	//these stack are already registered in DPI
+	case 1:   //Ethernet
+	case 624: //Linux cooked capture
+	case 800: //ieee802154
+		//Use the function that is registered in DPI
+		// => the function "_stack_classification" will no be called
+		return true;
+	default:
+		//for the other stack, we need to register it to DPI
+		//We use protocol ID as the stack number
+		stack.type   = stack_type;
+		stack.offset = stack_offset;
+		return register_protocol_stack( stack_type, "Dynamic-Stack", _stack_classification);
+	}
+}
+
+
 /**
  * This is the main processing process of MMT-Probe.
  * Every packets processing are done here.
@@ -389,6 +421,10 @@ static int _main_processing( int argc, char** argv ){
 	const uint16_t output_id = 0;
 	context->output = output_alloc_init( output_id, &context->config->outputs, context->config->probe_id, context->config->input->input_source, true );
 
+	if( !_init_protocol_stack( context->config->stack_type, context->config->stack_offset )  ){
+		log_write( LOG_ERR, "Cannot initialize stack-type=%d! Exiting!", context->config->stack_type );
+		return EXIT_FAILURE;
+	}
 
 	//other stubs, such as, system usage report
 	routine_t *routine = routine_create_and_start( context );

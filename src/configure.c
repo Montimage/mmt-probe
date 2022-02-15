@@ -312,6 +312,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_INT("thread-queue", 0, CFGF_NONE),
 			CFG_INT("probe-id", 0, CFGF_NONE),
 			CFG_INT("stack-type", DLT_EN10MB, CFGF_NONE),
+			CFG_INT("stack-offset", 0, CFGF_NONE),
 
 			CFG_STR("logfile", 0, CFGF_NONE),
 			CFG_STR("license", 0, CFGF_NONE),
@@ -843,6 +844,7 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 
 	conf->probe_id     = cfg_getint(cfg, "probe-id");
 	conf->stack_type   = cfg_getint(cfg, "stack-type");
+	conf->stack_offset = cfg_getint(cfg, "stack-offset");
 	conf->stat_period  = cfg_getint(cfg, "stats-period");
 	conf->license_file = _cfg_get_str(cfg, "license" );
 
