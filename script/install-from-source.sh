@@ -8,7 +8,7 @@ fi
 # the temp directory to contain sources to be installed
 TMP_DIR=$(mktemp -d -t mmt-probe-installation-XXXXXXXXXX)
 # do not forget to remove the temp dir when exit
-trap "rm $TMP_DIR" EXIT
+trap "rm -rf $TMP_DIR" EXIT
 
 cd $TMP_DIR
 
@@ -52,7 +52,7 @@ apt-get install -y pkg-config libssl-dev libsasl2-dev
 # use fixed version just to ensure the compability 
 curl -Lkv --output mongo-c.tar.gz https://github.com/mongodb/mongo-c-driver/releases/download/1.9.5/mongo-c-driver-1.9.5.tar.gz
 tar xzf mongo-c.tar.gz
-cd mongo-c
+cd mongo-c-driver-1.9.5 #this folder name is fixed inside the mongo-c.tar.gz
 ./configure --disable-automatic-init-and-cleanup
 make -j $CPU
 make install
@@ -85,3 +85,4 @@ MODULES="KAFKA_MODULE MONGODB_MODULE PCAP_DUMP_MODULE QOS_MODULE REDIS_MODULE SE
 make -j $CPU $MODULES compile
 make $MODULES deb
 make $MODULES install
+ls -lrat .
