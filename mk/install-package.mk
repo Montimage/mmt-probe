@@ -106,7 +106,7 @@ ifdef NEED_ROOT_PERMISSION
 	@#create service
 	$(QUIET) $(CP) mmt-probe.service  $(ETC_SERVICE_FILE_PATH)
 	$(QUIET) chmod +x                 $(ETC_SERVICE_FILE_PATH)
-	$(QUIET) command -v systemctl && systemctl daemon-reload
+	$(QUIET) ( command -v systemctl && systemctl daemon-reload ) || true
 endif
 
 	@echo ""
