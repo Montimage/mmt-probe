@@ -5,6 +5,9 @@ if [ "$EUID" -ne 0 ]
 	exit
 fi
 
+# exit immediately when having error
+set -e
+
 # the temp directory to contain sources to be installed
 TMP_DIR=$(mktemp -d -t mmt-probe-installation-XXXXXXXXXX)
 # do not forget to remove the temp dir when exit
@@ -16,11 +19,8 @@ cd $TMP_DIR
 CPU=$(getconf _NPROCESSORS_ONLN)
 
 # install libraries 
-apt-get install build-essential
-add-apt-repository ppa:ubuntu-toolchain-r/test
-apt-get update
-apt-get install -y \
-	git cmake gcc-4.9 g++-4.9 cpp-4.9\
+apt-get update && apt-get install -y \
+	git cmake gcc g++ cpp\
 	libconfuse-dev libpcap-dev libxml2-dev\
 	curl
 
@@ -66,6 +66,7 @@ cd mmt-dpi/sdk
 make -j $CPU
 make install
 ldconfig
+make deb
 
 # install mmt-security
 cd $TMP_DIR
@@ -75,6 +76,7 @@ cd mmt-security
 make -j $CPU
 make install
 ldconfig
+make deb
 
 
 # install mmt-probe
