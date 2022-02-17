@@ -2,7 +2,7 @@
 
 if [ "$EUID" -ne 0 ]
 	then echo "Please run this script under root user"
-	exit
+	#exit
 fi
 
 # the temp directory to contain sources to be installed
