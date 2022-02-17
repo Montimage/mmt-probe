@@ -34,8 +34,8 @@ endif
 
 #1. When use build using STATIC_LINK, we do not need mmt-dpi, mmt-security package
 ifndef STATIC_LINK
-  RPM_DEPENDING_PACKAGES += mmt-dpi >= 1.6.13  #for .rpm file
-  DEB_DEPENDING_PACKAGES += mmt-dpi (>= 1.6.13)#for .def file
+  RPM_DEPENDING_PACKAGES += mmt-dpi >= 1.7.1  #for .rpm file
+  DEB_DEPENDING_PACKAGES += mmt-dpi (>= 1.7.1)#for .def file
 
 #2. When security enable => we need mmt-security package
 ifdef SECURITY_MODULE
@@ -106,7 +106,7 @@ ifdef NEED_ROOT_PERMISSION
 	@#create service
 	$(QUIET) $(CP) mmt-probe.service  $(ETC_SERVICE_FILE_PATH)
 	$(QUIET) chmod +x                 $(ETC_SERVICE_FILE_PATH)
-	$(QUIET) systemctl daemon-reload
+	$(QUIET) command -v systemctl && systemctl daemon-reload
 endif
 
 	@echo ""
