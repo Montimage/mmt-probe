@@ -14,4 +14,4 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: build from source
-      run: ./script/install-from-source.sh
+      run: sudo ./script/install-from-source.sh
