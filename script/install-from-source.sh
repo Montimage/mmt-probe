@@ -20,8 +20,8 @@ apt-get install build-essential
 add-apt-repository ppa:ubuntu-toolchain-r/test
 apt-get update
 apt-get install -y \
-	git cmake gcc-4.9 g++-4.9 cpp-4.9\ #to compile code
-	libconfuse-dev libpcap-dev libxml2-dev\ #used by MMT
+	git cmake gcc-4.9 g++-4.9 cpp-4.9\
+	libconfuse-dev libpcap-dev libxml2-dev\
 	curl
 
 
@@ -50,7 +50,7 @@ ldconfig
 cd $TMP_DIR
 apt-get install -y pkg-config libssl-dev libsasl2-dev
 # use fixed version just to ensure the compability 
-curl --output mongo-c.tar.gz https://github.com/mongodb/mongo-c-driver/releases/download/1.9.5/mongo-c-driver-1.9.5.tar.gz
+curl -Lkv --output mongo-c.tar.gz https://github.com/mongodb/mongo-c-driver/releases/download/1.9.5/mongo-c-driver-1.9.5.tar.gz
 tar xzf mongo-c.tar.gz
 cd mongo-c
 ./configure --disable-automatic-init-and-cleanup
