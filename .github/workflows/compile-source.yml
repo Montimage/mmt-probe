@@ -16,4 +16,5 @@ jobs:
       run: |
          wget -O mmt-dpi.deb https://github.com/Montimage/5Greplay/blob/4510092d028e5513f54bc5a40e838aa1debce2ed/lib/mmt-dpi_1.7.0.0_a8ad3c2_Linux_x86_64.deb?raw=true
          sudo dpkg -i mmt-dpi.deb
+         sudo apt install -y git cmake gcc g++ cpp libconfuse-dev libpcap-dev libxml2-dev
          make -j2
