@@ -14,6 +14,6 @@ jobs:
     - name: build-from-source
       #we need to get the official packet of DPI (not ready yet, 2022-02-22)
       run: |
-         wget https://github.com/Montimage/5Greplay/blob/4510092d028e5513f54bc5a40e838aa1debce2ed/lib/mmt-dpi_1.7.0.0_a8ad3c2_Linux_x86_64.deb
-         sudo dpkg -i mmt-dpi*.deb
+         wget -0 mmt-dpi.deb https://github.com/Montimage/5Greplay/blob/4510092d028e5513f54bc5a40e838aa1debce2ed/lib/mmt-dpi_1.7.0.0_a8ad3c2_Linux_x86_64.deb?raw=true
+         sudo dpkg -i mmt-dpi.deb
          make -j2
