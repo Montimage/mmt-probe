@@ -202,6 +202,15 @@ typedef struct session_timeout_conf_struct{
 	uint32_t live_session_timeout;
 }session_timeout_conf_t;
 
+/**
+ * Report only the event and its associated attributes
+ * only when there is some change in the attributes' values
+ */
+typedef struct event_report_delta_condition_conf_struct{
+	uint16_t attributes_size;
+	dpi_protocol_attribute_t *attributes;
+}event_report_delta_condition_conf_t;
+
 typedef struct event_report_conf_struct{
 	bool is_enable;
 	char *title;
@@ -209,6 +218,7 @@ typedef struct event_report_conf_struct{
 	uint16_t attributes_size;
 	dpi_protocol_attribute_t *attributes;
 	output_channel_conf_t output_channels;
+	event_report_delta_condition_conf_t delta_condition;
 }event_report_conf_t;
 
 

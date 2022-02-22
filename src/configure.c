@@ -243,6 +243,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_STR("event", "", CFGF_NONE),
 			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
+			CFG_STR_LIST("delta-cond", "{}", CFGF_NONE),
 			CFG_END()
 	};
 
@@ -689,6 +690,9 @@ static inline void _parse_event_block( event_report_conf_t *ret, cfg_t *cfg ){
 	ret->attributes_size = _parse_attributes_helper( cfg, "attributes", &ret->attributes );
 
 	ret->output_channels = _parse_output_channel( cfg );
+
+	ret->delta_condition.attributes_size = _parse_attributes_helper( cfg,"delta-cond", &ret->delta_condition.attributes );
+
 }
 
 static inline micro_flow_conf_t *_parse_microflow_block( cfg_t *cfg ){
@@ -914,6 +918,13 @@ static inline void _free_event_report( event_report_conf_t *ret ){
 		mmt_probe_free( ret->attributes[i].proto_name );
 		mmt_probe_free( ret->attributes[i].attribute_name );
 	}
+
+	for( i=0; i<ret->delta_condition.attributes_size; i++ ){
+		mmt_probe_free( ret->delta_condition.attributes[i].proto_name );
+		mmt_probe_free( ret->delta_condition.attributes[i].attribute_name );
+	}
+	mmt_probe_free( ret->delta_condition.attributes );
+
 	mmt_probe_free( ret->attributes );
 	mmt_probe_free( ret->title );
 	mmt_probe_free( ret->event->proto_name );

@@ -10,12 +10,30 @@
 #include "../../../lib/malloc_ext.h"
 #include "event_based_report.h"
 
-typedef struct event_based_report_context_struct {
-		uint32_t *proto_ids;
-		uint32_t *att_ids;
+struct proto_att_ids{
+	uint32_t *proto_ids;
+	uint32_t *att_ids;
+};
 
-		const event_report_conf_t *config;
-		output_t *output;
+typedef struct event_based_report_context_struct {
+	/**
+	 * IDs of protocols and attributes to be reported.
+	 * They are extracted from config->attributes
+	 */
+	struct proto_att_ids ids_to_report;
+
+
+	/**
+	 * IDs of protocols and attributes to be checked: whether they are changed
+	 */
+	struct proto_att_ids ids_to_check_delta;
+	/**
+	 * the latest values of the protocols and attributes to be checked in the delta condition above
+	 */
+	char last_delta_atts_values[MAX_LENGTH_REPORT_MESSAGE];
+
+	const event_report_conf_t *config;
+	output_t *output;
 }event_based_report_context_t;
 
 
@@ -76,49 +94,36 @@ static int _process_ieee802154_src_dst( char *msg, int length, uint32_t proto_id
 	return len;
 }
 
+
 /**
- * This callback is called by DPI when it sees one of the attributes in a event report.
+ * Extract attributes' values and store the values in a string
  * @param packet
- * @param attribute
- * @param arg
+ * @param att_size
+ * @param att_ids
+ * @param message
+ * @param message_size
+ * @return
  */
-static void _event_report_handle( const ipacket_t *packet, attribute_t *attribute, void *arg ){
-	event_based_report_context_t *context = (event_based_report_context_t *)arg;
+static inline int _get_attributes_values(const ipacket_t *packet,
+		const struct proto_att_ids *att_ids, size_t atts_size,
+		char *message, size_t message_size){
 
-	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 	int offset = 0;
-
-
-
-	//event id
-	offset += append_string( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, context->config->title );
-	//separator
-	message[offset] = ',';
-	offset ++;
-
-	//event data
-	if( _is_string( attribute->data_type ) ){
-		//surround by quotes
-		message[ offset ++ ] = '"';
-		offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE, attribute );
-		message[ offset ++ ] = '"';
-	}else
-		offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE, attribute );
-
 	//attributes
 	attribute_t * attr_extract;
 	int i;
-	for( i=0; i<context->config->attributes_size; i++ ){
+	for( i=0; i<atts_size; i++ ){
+		//get value of an attribute from the packet
 		attr_extract = get_extracted_attribute( packet,
-				context->proto_ids[i],
-				context->att_ids[i] );
+				att_ids->proto_ids[i], att_ids->att_ids[i] );
 
 		//separator
-		message[offset ++] = ',';
+		if( i!=0 )
+			message[offset ++] = ',';
 
 		//special processing for IEEE_802154
-		int ret = _process_ieee802154_src_dst( message+offset, MAX_LENGTH_REPORT_MESSAGE - offset,
-				context->proto_ids[i], context->att_ids[i], attr_extract);
+		int ret = _process_ieee802154_src_dst( message+offset, message_size - offset,
+				att_ids->proto_ids[i], att_ids->att_ids[i], attr_extract);
 		offset += ret;
 
 		//one of attributes of IEEE_802154 has been processed?
@@ -130,18 +135,16 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 				//surround by quotes
 				message[ offset ++ ] = '"';
 				if( attr_extract != NULL )
-					offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, attr_extract );
+					offset += mmt_attr_sprintf( message + offset, message_size - offset, attr_extract );
 				message[ offset ++ ] = '"';
 			}
-
 			else
-				offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, attr_extract );
+				offset += mmt_attr_sprintf( message + offset, message_size - offset, attr_extract );
 		}else{
 			//no value, use default value:
 			// "" for string
 			// 0  for number
-			if( _is_string( get_attribute_data_type( context->proto_ids[i],
-				context->att_ids[i] ) )){
+			if( _is_string( get_attribute_data_type( att_ids->proto_ids[i], att_ids->att_ids[i] ) )){
 				message[ offset ++ ] = '"';
 				message[ offset ++ ] = '"';
 			}else
@@ -150,15 +153,83 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 	}
 
 	message[offset] = '\0';
+	return offset;
+}
+
+/**
+ * This callback is called by DPI when it sees one of the attributes in a event report.
+ * @param packet
+ * @param attribute
+ * @param arg
+ */
+static void _event_report_handle( const ipacket_t *packet, attribute_t *attribute, void *arg ){
+	event_based_report_context_t *context = (event_based_report_context_t *)arg;
+
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	int offset;
+
+	//if delta-cond is available
+	if( context->config->delta_condition.attributes_size ){
+		memset( message, 0, MAX_LENGTH_REPORT_MESSAGE );
+		_get_attributes_values(packet,
+				&context->ids_to_check_delta, context->config->delta_condition.attributes_size,
+				message, MAX_LENGTH_REPORT_MESSAGE);
+
+		//check whether there are something changed
+		if( memcmp(message, context->last_delta_atts_values, MAX_LENGTH_REPORT_MESSAGE ) == 0 )
+			//nothing change => skip this packet
+			return;
+
+		//remember the change
+		//TODO: maybe we need a hash function to store only the footprint of the message instead of store the message itself
+		memcpy( context->last_delta_atts_values, message, MAX_LENGTH_REPORT_MESSAGE  );
+	}
+
+	offset = 0;
+	//1. event id = title of the event
+	offset += append_string( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, context->config->title );
+
+	//separator
+	message[offset] = ',';
+	offset ++;
+
+	//2. event data
+	if( _is_string( attribute->data_type ) ){
+		//surround by quotes
+		message[ offset ++ ] = '"';
+		offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, attribute );
+		message[ offset ++ ] = '"';
+	}else
+		offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, attribute );
+
+	//separator
+	message[offset] = ',';
+	offset ++;
+
+	//3. attributes data
+	offset += _get_attributes_values( packet,
+			&context->ids_to_report, context->config->attributes_size,
+			&message[offset], MAX_LENGTH_REPORT_MESSAGE - offset );
+	message[offset] = '\0'; //superfluous?
 
 	output_write_report( context->output, context->config->output_channels,
 			EVENT_REPORT_TYPE,
 			&packet->p_hdr->ts, message );
 }
 
+static void _get_ids_of_attributes_from_name(const dpi_protocol_attribute_t *atts, size_t atts_size, struct proto_att_ids *p ){
+	int i;
+	p->att_ids   = mmt_alloc( sizeof( uint32_t ) * atts_size );
+	p->proto_ids = mmt_alloc( sizeof( uint32_t ) * atts_size );
+	for( i=0; i<atts_size; i++ )
+		dpi_get_proto_id_and_att_id( & atts[i], &p->proto_ids[i], &p->att_ids[i] );
+}
+
 //Public API
 list_event_based_report_context_t* event_based_report_register( mmt_handler_t *dpi_handler, const event_report_conf_t *config, size_t events_size, output_t *output ){
 	int i, j;
+	const event_report_conf_t *cfg;
+	event_based_report_context_t *rep;
 
 	//no event?
 	list_event_based_report_context_t *ret = mmt_alloc_and_init_zero( sizeof( list_event_based_report_context_t  ) );
@@ -166,28 +237,32 @@ list_event_based_report_context_t* event_based_report_register( mmt_handler_t *d
 	ret->event_reports = mmt_alloc_and_init_zero(  events_size * sizeof( event_based_report_context_t  ) );
 
 	for( i=0; i<events_size; i++ ){
-		ret->event_reports[i].output = output;
-		ret->event_reports[i].config = &config[i];
+		cfg = &config[i];
+		rep = &ret->event_reports[i];
+		rep->config = cfg;
 
-		ret->event_reports[i].att_ids = mmt_alloc( sizeof( uint32_t ) * config[i].attributes_size );
-		ret->event_reports[i].proto_ids = mmt_alloc( sizeof( uint32_t ) * config[i].attributes_size );
+		if( !cfg->is_enable )
+			continue;
 
-		for( j=0; j<config[i].attributes_size; j++ )
-			dpi_get_proto_id_and_att_id( & config[i].attributes[j], &ret->event_reports[i].proto_ids[j], &ret->event_reports[i].att_ids[j] );
+		rep->output = output;
 
-
-		if( config[i].is_enable ){
-			if( dpi_register_attribute( config[i].event, 1, dpi_handler, _event_report_handle, &ret->event_reports[i]) == 0 ){
-				log_write( LOG_ERR, "Cannot register an event-based report [%s] for event [%s.%s]",
-						config[i].title,
-						config[i].event->proto_name,
-						config[i].event->attribute_name );
-				continue;
-			}
-
-			//register attribute to extract data
-			dpi_register_attribute( config[i].attributes, config[i].attributes_size, dpi_handler, NULL, NULL );
+		if( dpi_register_attribute( cfg->event, 1, dpi_handler, _event_report_handle, rep) == 0 ){
+			log_write( LOG_ERR, "Cannot register an event-based report [%s] for event [%s.%s]",
+					cfg->title,
+					cfg->event->proto_name,
+					cfg->event->attribute_name );
+			continue;
 		}
+
+		//attributes to be reportes
+		_get_ids_of_attributes_from_name( cfg->attributes, cfg->attributes_size, &rep->ids_to_report);
+
+		//register attribute to extract data
+		dpi_register_attribute( cfg->attributes, cfg->attributes_size, dpi_handler, NULL, NULL );
+
+		_get_ids_of_attributes_from_name( cfg->delta_condition.attributes, cfg->delta_condition.attributes_size, &rep->ids_to_check_delta );
+		//register attribute to check condition
+		dpi_register_attribute( cfg->delta_condition.attributes, cfg->delta_condition.attributes_size, dpi_handler, NULL, NULL );
 	}
 	return ret;
 }
@@ -200,22 +275,28 @@ void event_based_report_unregister( mmt_handler_t *dpi_handler, list_event_based
 		return;
 
 	for( i=0; i<context->event_reports_size; i++ ){
-		mmt_probe_free( context->event_reports[i].att_ids );
-		mmt_probe_free( context->event_reports[i].proto_ids );
-
 		config = context->event_reports[i].config;
 		//jump over the disable ones
-		//This can create a leak when this event report is disable in runtime
+		//This can create a memory leak when this event report is disable in runtime
 		//(this is, it was enable at starting time but it has been disable after some time of running)
 		//So, when it has been disable, one must unregister the attributes using by this event report
 		if(! config->is_enable )
 			continue;
+
+		mmt_probe_free( context->event_reports[i].ids_to_report.att_ids );
+		mmt_probe_free( context->event_reports[i].ids_to_report.proto_ids );
+
+		mmt_probe_free( context->event_reports[i].ids_to_check_delta.att_ids );
+		mmt_probe_free( context->event_reports[i].ids_to_check_delta.proto_ids );
 
 		//unregister event
 		dpi_unregister_attribute( config->event, 1, dpi_handler, _event_report_handle );
 
 		//unregister attributes
 		dpi_unregister_attribute( config->attributes, config->attributes_size, dpi_handler, NULL );
+
+		//unregister attributes
+		dpi_unregister_attribute( config->delta_condition.attributes, config->delta_condition.attributes_size, dpi_handler, NULL );
 	}
 
 	mmt_probe_free( context->event_reports );
