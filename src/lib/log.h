@@ -64,8 +64,8 @@ static inline void log_close(){
  */
 #define ABORT( format, ... )                                                \
 	do{                                                                     \
-		log_write( LOG_ERR, format,## __VA_ARGS__ );                        \
-		fprintf( stderr, format"\n",## __VA_ARGS__ );                       \
+		log_write( LOG_ERR, format". Aborted",## __VA_ARGS__ );                        \
+		fprintf( stderr, format". Aborted\n",## __VA_ARGS__ );                       \
 		abort();                                                            \
 	}while( 0 )
 
@@ -74,7 +74,7 @@ static inline void log_close(){
  */
 #define ASSERT( exp, format, ... )                                                   \
 	while( !(exp) ){                                                                 \
-		log_write( LOG_ERR, "[%s:%d] "format,__FUNCTION__, __LINE__,## __VA_ARGS__ );\
+		log_write( LOG_ERR, "[%s:%d] "format". Aborted",__FUNCTION__, __LINE__,## __VA_ARGS__ );\
 		abort();                                                                     \
 	}
 
