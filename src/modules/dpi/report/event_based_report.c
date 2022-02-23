@@ -62,9 +62,11 @@ static inline bool _is_string( int data_type ){
 	case MMT_STRING_DATA:
 	case MMT_STRING_LONG_DATA:
 	case MMT_GENERIC_HEADER_LINE:
+#ifdef MMT_U32_ARRAY
 	//surround the elements of an array by " and "
 	case MMT_U32_ARRAY:
 	case MMT_U64_ARRAY:
+#endif
 		return true;
 	}
 	return false;
