@@ -173,6 +173,9 @@ typedef struct reconstruct_data_conf_struct{
 typedef struct dpi_protocol_attribute_struct{
 	char* proto_name;
 	char* attribute_name;
+	uint16_t proto_id;  //protocol id: being interpreted when registering
+	uint16_t attribute_id; //attribute_id: being interpreted when registering
+	uint16_t proto_index; //indicating `th` order of the protocol when there exist duplicated ones in the hierarchy
 }dpi_protocol_attribute_t;
 
 

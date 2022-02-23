@@ -642,20 +642,45 @@ static inline system_stats_conf_t *_parse_cpu_mem_block( cfg_t *cfg ){
 }
 
 static inline void _parse_dpi_protocol_attribute( dpi_protocol_attribute_t * out, const char* str ){
+	int i, dot_index_1, dot_index_2;
+	out->attribute_id   = 0;
+	out->proto_id       = 0;
+	out->proto_index    = 1; //by default: we refer to the first one we found in the hierarchy
 	out->attribute_name = NULL;
 	out->proto_name     = NULL;
 
-	//str = HTTP.METHOD
-	int index = 0;
-	while( str[index] != '.' )
-		index ++;
-	//not found '.' even goto the end of string
-	if( str[index] == '\0' )
-		ABORT("Attribute [%s] is not well-formatted (must be in form proto.att, e.g., HTTP.METHOD)", str );
+	dot_index_1 = dot_index_2 = -1;
+	//find dot characters in str
+	for( i=0; str[i] != '\0'; i++ ){
+		if( str[i] != '.' )
+			continue;
+		if( dot_index_1 == -1 )
+			dot_index_1 = i;
+		else if( dot_index_2 == -1 )
+			dot_index_2 = i;
+		else
+			//more than 2 dots
+			ABORT("Attribute [%s] is not well-formatted (must be in form proto.att, e.g., http.method, or http.1.method)", str );
+	}
+	if( dot_index_1 == 0 //starting by a dot
+		|| dot_index_2 == (dot_index_1 + 1) //two consecutive dots
+		|| str[dot_index_1+1] == '\0'  //dot at the end of str
+		|| str[dot_index_2+1] == '\0'
+	)
+		ABORT("Attribute [%s] is not well-formatted (must be in form proto.att, e.g., http.method, or http.1.method)", str );
 
-	out->proto_name     = mmt_strndup( str, index );
-	out->attribute_name = mmt_strdup( str+index+1 ); //+1 to jump over .
+	out->proto_name = mmt_strndup( str, dot_index_1 );
 
+	str += dot_index_1 + 1; //+1 to jump over .
+	if( dot_index_2 == -1 )
+		//only one dot => proto.att
+		out->attribute_name = mmt_strdup( str );
+	else {
+		//2 dots: proto.index.att
+		out->proto_index = atoi( str  );
+		str += (dot_index_2 - dot_index_1);
+		out->attribute_name = mmt_strdup( str );
+	}
 }
 
 static inline uint16_t _parse_attributes_helper( cfg_t *cfg, const char* name, dpi_protocol_attribute_t**atts ){
