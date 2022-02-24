@@ -553,7 +553,7 @@ static inline  output_channel_conf_t _parse_output_channel( cfg_t *cfg ){
 	int i;
 	const char *channel_name;
 
-	output_channel_conf_t out = CONF_OUTPUT_CHANNEL_FILE; //default is to output to file
+	output_channel_conf_t out = CONF_OUTPUT_CHANNEL_NONE;
 
 	for( i=0; i<nb_output_channel; i++) {
 		channel_name = cfg_getnstr(cfg, "output-channel", i);
@@ -570,6 +570,9 @@ static inline  output_channel_conf_t _parse_output_channel( cfg_t *cfg ){
 		else
 			log_write( LOG_WARNING, "Unexpected channel '%s'", channel_name );
 	}
+	//default is to output to file
+	if( out == CONF_OUTPUT_CHANNEL_NONE )
+		return CONF_OUTPUT_CHANNEL_FILE;
 	return out;
 }
 
