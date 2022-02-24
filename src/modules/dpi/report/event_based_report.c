@@ -95,8 +95,9 @@ static inline int _get_index_of_protocol_in_hierarchy( const ipacket_t *packet, 
 	uint32_t proto_index  = 0;
 	if( order < 1 )
 		order = 1;
-	const proto_hierarchy_t *proto_hierarchy = get_session_protocol_hierarchy( packet->session );
-
+	const proto_hierarchy_t *proto_hierarchy = packet->proto_hierarchy;
+	if( ! proto_hierarchy )
+		return -1;
 	while( proto_index < proto_hierarchy->len ){
 		if( proto_hierarchy->proto_path[ proto_index ] == proto_id ){
 			order --;
@@ -107,6 +108,30 @@ static inline int _get_index_of_protocol_in_hierarchy( const ipacket_t *packet, 
 	}
 
 	return -1;
+}
+
+static inline attribute_t * _extract_attribute( const ipacket_t *packet, const dpi_protocol_attribute_t *att){
+	uint32_t proto_index_in_herarchy;
+	attribute_t * attr_extract;
+	if( att->proto_index > 1 ){
+		//Example: given a packet having the protocol hierarchy as the following: ETHERNET/IP/UDP/GTP/IP/UDP/QUICK
+		//  and proto_name="UDP"
+		//
+		// - proto_index=2: refer to the second UDP (the one after GTP)
+		// - proto_index_in_herarchy will be 5 (starting from 0)
+		proto_index_in_herarchy = _get_index_of_protocol_in_hierarchy(packet, att->proto_id, att->proto_index );
+		//get value of an attribute from the packet
+		if( proto_index_in_herarchy != 1 ){
+			//DEBUG("index in hierarchy of %s.%d.%s: %d",
+			//		att->proto_name, att->proto_index, att->attribute_name, proto_index_in_herarchy);
+			attr_extract = get_extracted_attribute_at_index( packet, att->proto_id, att->attribute_id, proto_index_in_herarchy );
+		}
+		else
+			attr_extract = NULL;
+	} else {
+		attr_extract = get_extracted_attribute( packet, att->proto_id, att->attribute_id );
+	}
+	return attr_extract;
 }
 
 /**
@@ -132,21 +157,7 @@ static inline int _get_attributes_values(const ipacket_t *packet,
 	for( i=0; i<atts_size; i++ ){
 		att = & atts[i];
 
-		if( att->proto_index > 1 ){
-			//Example: given a packet having the protocol hierarchy as the following: ETHERNET/IP/UDP/GTP/IP/UDP/QUICK
-			//  and proto_name="UDP"
-			//
-			// - proto_index=2: refer to the second UDP (the one after GTP)
-			// - proto_index_in_herarchy will be 5 (starting from 0)
-			proto_index_in_herarchy = _get_index_of_protocol_in_hierarchy(packet, att->proto_id, att->proto_index );
-			//get value of an attribute from the packet
-			if( proto_index_in_herarchy != 1 )
-				attr_extract = get_extracted_attribute_at_index( packet, att->proto_id, att->attribute_id, proto_index_in_herarchy );
-			else
-				attr_extract = NULL;
-		} else {
-			attr_extract = get_extracted_attribute( packet, att->proto_id, att->attribute_id );
-		}
+		attr_extract = _extract_attribute(packet, att);
 
 		//separator
 		if( i!=0 )
@@ -202,14 +213,6 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 	int offset, ret;
-
-	//this function can be called when any proto.att is found in the packet
-	// => need to check the index
-	int proto_index_in_herarchy = _get_index_of_protocol_in_hierarchy(packet,
-			context->config->event->proto_id, context->config->event->proto_index );
-	//not the one we are looking for
-	if( proto_index_in_herarchy == -1 )
-		return;
 
 	//if delta-cond is available
 	if( context->config->delta_condition.attributes_size ){
@@ -267,6 +270,41 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 			&packet->p_hdr->ts, message );
 }
 
+/**
+ * This function is called only 1 time on each packet once the packet is classified by DPI
+ * @param context
+ * @param packet
+ */
+void event_based_report_callback_on_receiving_packet( const ipacket_t *packet, list_event_based_report_context_t *context ){
+	int i, j;
+	const event_report_conf_t *cfg;
+	event_based_report_context_t *rep;
+	attribute_t *attr_extract;
+	dpi_protocol_attribute_t *event_att;
+
+	//no context
+	if( unlikely( context == NULL ))
+		return;
+
+	for( i=0; i<context->event_reports_size; i++ ){
+		rep = &context->event_reports[i];
+		cfg = rep->config;;
+
+		if( !cfg->is_enable )
+			continue;
+		//the event we are looking for
+		event_att = cfg->event;
+		attr_extract = _extract_attribute(packet, event_att);
+
+		//the event is not available => skip this report
+		if( attr_extract == NULL )
+			continue;
+
+		//handle the report
+		_event_report_handle( packet, attr_extract, rep );
+	}
+}
+
 //Public API
 list_event_based_report_context_t* event_based_report_register( mmt_handler_t *dpi_handler, const event_report_conf_t *config, size_t events_size, output_t *output ){
 	int i, j;
@@ -288,7 +326,11 @@ list_event_based_report_context_t* event_based_report_register( mmt_handler_t *d
 
 		rep->output = output;
 
-		if( dpi_register_attribute( cfg->event, 1, dpi_handler, _event_report_handle, rep) == 0 ){
+		// The event-report needs to be checked when all protocols in a packet are classified.
+		// We so remove the handler function parameter to avoid be called by DPI each time it classifies the corresponding protocol
+		// (for example, if the event is ip.src, the DPI can issue 2 calls if a packet has 2 IPs protocol, eg, IP in IP,
+		//   consequently, the first call is inutile as there exist other protocols which does not classified)
+		if( dpi_register_attribute( cfg->event, 1, dpi_handler, NULL, NULL) == 0 ){
 			log_write( LOG_ERR, "Cannot register an event-based report [%s] for event [%s.%s]",
 					cfg->title,
 					cfg->event->proto_name,
