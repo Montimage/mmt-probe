@@ -36,13 +36,11 @@ static inline uint32_t dpi_get_proto_id_from_session( const mmt_session_t * dpi_
  * @param att_id
  * @return
  */
-static inline bool dpi_get_proto_id_and_att_id( const dpi_protocol_attribute_t *att, uint32_t *proto_id, uint32_t *att_id ){
-	*proto_id = get_protocol_id_by_name( att->proto_name );
-	if( *proto_id != 0 )
-		*att_id = get_attribute_id_by_protocol_id_and_attribute_name( *proto_id, att->attribute_name );
-	else
-		*att_id = 0;
-	return *proto_id != 0 && *att_id != 0;
+static inline bool dpi_load_proto_id_and_att_id( dpi_protocol_attribute_t *att ){
+	att->proto_id = get_protocol_id_by_name( att->proto_name );
+	if( att->proto_id != 0 )
+		att->attribute_id = get_attribute_id_by_protocol_id_and_attribute_name( att->proto_id, att->attribute_name );
+	return att->proto_id != 0 && att->attribute_id != 0;
 }
 
 /**
@@ -54,12 +52,11 @@ static inline bool dpi_get_proto_id_and_att_id( const dpi_protocol_attribute_t *
  * @param args
  * @return
  */
-static inline int dpi_register_attribute( const dpi_protocol_attribute_t *atts, size_t count,
+static inline int dpi_register_attribute( dpi_protocol_attribute_t *atts, size_t count,
 	mmt_handler_t *dpi_handler, attribute_handler_function handler_fct, void *args ){
 	int i, ret = 0;
-	uint32_t proto_id, att_id;
 	for( i=0; i<count; i++ ){
-		if( ! dpi_get_proto_id_and_att_id( &atts[i], &proto_id, &att_id ) ){
+		if( ! dpi_load_proto_id_and_att_id( &atts[i] ) ){
 			log_write( LOG_ERR, "Does not support protocol [%s] with its attribute [%s]",
 					atts[i].proto_name,
 					atts[i].attribute_name);
@@ -68,7 +65,7 @@ static inline int dpi_register_attribute( const dpi_protocol_attribute_t *atts, 
 
 		//register without handler function
 		if( handler_fct == NULL ){
-			if( ! register_extraction_attribute( dpi_handler, proto_id, att_id) )
+			if( ! register_extraction_attribute( dpi_handler, atts[i].proto_id, atts[i].attribute_id) )
 				log_write( LOG_WARNING, "Cannot register attribute [%s.%s]",
 						atts[i].proto_name,
 						atts[i].attribute_name
@@ -76,7 +73,7 @@ static inline int dpi_register_attribute( const dpi_protocol_attribute_t *atts, 
 			else
 				ret ++;
 		}else{
-			if( !register_attribute_handler( dpi_handler, proto_id, att_id, handler_fct, NULL, args ) ){
+			if( !register_attribute_handler( dpi_handler, atts[i].proto_id, atts[i].attribute_id, handler_fct, NULL, args ) ){
 				log_write( LOG_ERR, "Cannot register handler for [%s.%s]",
 						atts[i].proto_name,
 						atts[i].attribute_name );
@@ -101,12 +98,10 @@ static inline int dpi_unregister_attribute( const dpi_protocol_attribute_t *atts
 	int i, ret = 0;
 	uint32_t proto_id, att_id;
 	for( i=0; i<count; i++ ){
-		if( ! dpi_get_proto_id_and_att_id( &atts[i], &proto_id, &att_id ) ){
-			log_write( LOG_ERR, "Does not support protocol [%s] width its attribute [%s]",
-					atts[i].proto_name,
-					atts[i].attribute_name);
+		proto_id = atts[i].proto_id;
+		att_id   = atts[i].attribute_id;
+		if( proto_id == 0 || att_id == 0 )
 			continue;
-		}
 
 		//register without handler function
 		if( handler_fct == NULL ){

@@ -27,4 +27,11 @@ list_event_based_report_context_t* event_based_report_register( mmt_handler_t *d
  */
 void event_based_report_unregister( mmt_handler_t *dpi_handler, list_event_based_report_context_t *context  );
 
+
+/**
+ * This function needs to be called on each packet once it is classified
+ * @param context
+ * @param packet
+ */
+void event_based_report_callback_on_receiving_packet( const ipacket_t *packet, list_event_based_report_context_t *context);
 #endif /* SRC_MODULES_DPI_REPORT_EVENT_BASED_REPORT_H_ */

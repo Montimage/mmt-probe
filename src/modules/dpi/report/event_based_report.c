@@ -10,30 +10,13 @@
 #include "../../../lib/malloc_ext.h"
 #include "event_based_report.h"
 
-struct proto_att_ids{
-	uint32_t *proto_ids;
-	uint32_t *att_ids;
-};
-
 typedef struct event_based_report_context_struct {
-	/**
-	 * IDs of protocols and attributes to be reported.
-	 * They are extracted from config->attributes
-	 */
-	struct proto_att_ids ids_to_report;
-
-
-	/**
-	 * IDs of protocols and attributes to be checked: whether they are changed
-	 */
-	struct proto_att_ids ids_to_check_delta;
+	const event_report_conf_t *config;
+	output_t *output;
 	/**
 	 * the latest values of the protocols and attributes to be checked in the delta condition above
 	 */
 	char last_delta_atts_values[MAX_LENGTH_REPORT_MESSAGE];
-
-	const event_report_conf_t *config;
-	output_t *output;
 }event_based_report_context_t;
 
 
@@ -62,9 +45,11 @@ static inline bool _is_string( int data_type ){
 	case MMT_STRING_DATA:
 	case MMT_STRING_LONG_DATA:
 	case MMT_GENERIC_HEADER_LINE:
+#ifdef MMT_U32_ARRAY
 	//surround the elements of an array by " and "
 	case MMT_U32_ARRAY:
 	case MMT_U64_ARRAY:
+#endif
 		return true;
 	}
 	return false;
@@ -94,6 +79,60 @@ static int _process_ieee802154_src_dst( char *msg, int length, uint32_t proto_id
 	return len;
 }
 
+/**
+ * Example: given a packet having the protocol hierarchy as the following: ETHERNET/IP/UDP/GTP/IP/UDP/QUICK
+ *  and proto_name="UDP"
+ *
+ * - proto_index=2: refer to the second UDP (the one after GTP)
+ * - proto_index_in_herarchy will be 5 (starting from 0)
+ *
+ * @param packet
+ * @param proto_id
+ * @param order
+ * @return
+ */
+static inline int _get_index_of_protocol_in_hierarchy( const ipacket_t *packet, uint32_t proto_id, uint32_t order ){
+	uint32_t proto_index  = 0;
+	if( order < 1 )
+		order = 1;
+	const proto_hierarchy_t *proto_hierarchy = packet->proto_hierarchy;
+	if( ! proto_hierarchy )
+		return -1;
+	while( proto_index < proto_hierarchy->len ){
+		if( proto_hierarchy->proto_path[ proto_index ] == proto_id ){
+			order --;
+			if( order == 0)
+				return proto_index;
+		}
+		proto_index ++;
+	}
+
+	return -1;
+}
+
+static inline attribute_t * _extract_attribute( const ipacket_t *packet, const dpi_protocol_attribute_t *att){
+	uint32_t proto_index_in_herarchy;
+	attribute_t * attr_extract;
+	if( att->proto_index > 1 ){
+		//Example: given a packet having the protocol hierarchy as the following: ETHERNET/IP/UDP/GTP/IP/UDP/QUICK
+		//  and proto_name="UDP"
+		//
+		// - proto_index=2: refer to the second UDP (the one after GTP)
+		// - proto_index_in_herarchy will be 5 (starting from 0)
+		proto_index_in_herarchy = _get_index_of_protocol_in_hierarchy(packet, att->proto_id, att->proto_index );
+		//get value of an attribute from the packet
+		if( proto_index_in_herarchy != 1 ){
+			//DEBUG("index in hierarchy of %s.%d.%s: %d",
+			//		att->proto_name, att->proto_index, att->attribute_name, proto_index_in_herarchy);
+			attr_extract = get_extracted_attribute_at_index( packet, att->proto_id, att->attribute_id, proto_index_in_herarchy );
+		}
+		else
+			attr_extract = NULL;
+	} else {
+		attr_extract = get_extracted_attribute( packet, att->proto_id, att->attribute_id );
+	}
+	return attr_extract;
+}
 
 /**
  * Extract attributes' values and store the values in a string
@@ -105,17 +144,20 @@ static int _process_ieee802154_src_dst( char *msg, int length, uint32_t proto_id
  * @return
  */
 static inline int _get_attributes_values(const ipacket_t *packet,
-		const struct proto_att_ids *att_ids, size_t atts_size,
-		char *message, size_t message_size){
+		const dpi_protocol_attribute_t *atts, size_t atts_size,
+		char *message, size_t message_size, bool fail_if_all_empty){
 
 	int offset = 0;
 	//attributes
 	attribute_t * attr_extract;
+	const dpi_protocol_attribute_t *att;
 	int i;
+	uint32_t proto_index_in_herarchy;
+	int empty_counter = 0;
 	for( i=0; i<atts_size; i++ ){
-		//get value of an attribute from the packet
-		attr_extract = get_extracted_attribute( packet,
-				att_ids->proto_ids[i], att_ids->att_ids[i] );
+		att = & atts[i];
+
+		attr_extract = _extract_attribute(packet, att);
 
 		//separator
 		if( i!=0 )
@@ -123,7 +165,7 @@ static inline int _get_attributes_values(const ipacket_t *packet,
 
 		//special processing for IEEE_802154
 		int ret = _process_ieee802154_src_dst( message+offset, message_size - offset,
-				att_ids->proto_ids[i], att_ids->att_ids[i], attr_extract);
+				att->proto_id, att->attribute_id, attr_extract);
 		offset += ret;
 
 		//one of attributes of IEEE_802154 has been processed?
@@ -141,16 +183,20 @@ static inline int _get_attributes_values(const ipacket_t *packet,
 			else
 				offset += mmt_attr_sprintf( message + offset, message_size - offset, attr_extract );
 		}else{
+			empty_counter ++;
 			//no value, use default value:
 			// "" for string
 			// 0  for number
-			if( _is_string( get_attribute_data_type( att_ids->proto_ids[i], att_ids->att_ids[i] ) )){
+			if( _is_string( get_attribute_data_type( att->proto_id, att->attribute_id ) )){
 				message[ offset ++ ] = '"';
 				message[ offset ++ ] = '"';
 			}else
 				message[ offset ++ ] = '0';
 		}
 	}
+
+	if( fail_if_all_empty && empty_counter == atts_size )
+		offset = 0;
 
 	message[offset] = '\0';
 	return offset;
@@ -166,14 +212,20 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 	event_based_report_context_t *context = (event_based_report_context_t *)arg;
 
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
-	int offset;
+	int offset, ret;
 
 	//if delta-cond is available
 	if( context->config->delta_condition.attributes_size ){
 		memset( message, 0, MAX_LENGTH_REPORT_MESSAGE );
-		_get_attributes_values(packet,
-				&context->ids_to_check_delta, context->config->delta_condition.attributes_size,
-				message, MAX_LENGTH_REPORT_MESSAGE);
+		ret = _get_attributes_values(packet,
+				context->config->delta_condition.attributes,
+				context->config->delta_condition.attributes_size,
+				message, MAX_LENGTH_REPORT_MESSAGE,
+				true);
+
+		//not check the delta-cond because all the attributes are not available
+		if( ret == 0 )
+			return;
 
 		//check whether there are something changed
 		if( memcmp(message, context->last_delta_atts_values, MAX_LENGTH_REPORT_MESSAGE ) == 0 )
@@ -208,8 +260,9 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 
 	//3. attributes data
 	offset += _get_attributes_values( packet,
-			&context->ids_to_report, context->config->attributes_size,
-			&message[offset], MAX_LENGTH_REPORT_MESSAGE - offset );
+			context->config->attributes, context->config->attributes_size,
+			&message[offset], MAX_LENGTH_REPORT_MESSAGE - offset,
+			false);
 	message[offset] = '\0'; //superfluous?
 
 	output_write_report( context->output, context->config->output_channels,
@@ -217,12 +270,39 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 			&packet->p_hdr->ts, message );
 }
 
-static void _get_ids_of_attributes_from_name(const dpi_protocol_attribute_t *atts, size_t atts_size, struct proto_att_ids *p ){
-	int i;
-	p->att_ids   = mmt_alloc( sizeof( uint32_t ) * atts_size );
-	p->proto_ids = mmt_alloc( sizeof( uint32_t ) * atts_size );
-	for( i=0; i<atts_size; i++ )
-		dpi_get_proto_id_and_att_id( & atts[i], &p->proto_ids[i], &p->att_ids[i] );
+/**
+ * This function is called only 1 time on each packet once the packet is classified by DPI
+ * @param context
+ * @param packet
+ */
+void event_based_report_callback_on_receiving_packet( const ipacket_t *packet, list_event_based_report_context_t *context ){
+	int i, j;
+	const event_report_conf_t *cfg;
+	event_based_report_context_t *rep;
+	attribute_t *attr_extract;
+	dpi_protocol_attribute_t *event_att;
+
+	//no context
+	if( unlikely( context == NULL ))
+		return;
+
+	for( i=0; i<context->event_reports_size; i++ ){
+		rep = &context->event_reports[i];
+		cfg = rep->config;;
+
+		if( !cfg->is_enable )
+			continue;
+		//the event we are looking for
+		event_att = cfg->event;
+		attr_extract = _extract_attribute(packet, event_att);
+
+		//the event is not available => skip this report
+		if( attr_extract == NULL )
+			continue;
+
+		//handle the report
+		_event_report_handle( packet, attr_extract, rep );
+	}
 }
 
 //Public API
@@ -246,7 +326,11 @@ list_event_based_report_context_t* event_based_report_register( mmt_handler_t *d
 
 		rep->output = output;
 
-		if( dpi_register_attribute( cfg->event, 1, dpi_handler, _event_report_handle, rep) == 0 ){
+		// The event-report needs to be checked when all protocols in a packet are classified.
+		// We so remove the handler function parameter to avoid be called by DPI each time it classifies the corresponding protocol
+		// (for example, if the event is ip.src, the DPI can issue 2 calls if a packet has 2 IPs protocol, eg, IP in IP,
+		//   consequently, the first call is inutile as there exist other protocols which does not classified)
+		if( dpi_register_attribute( cfg->event, 1, dpi_handler, NULL, NULL) == 0 ){
 			log_write( LOG_ERR, "Cannot register an event-based report [%s] for event [%s.%s]",
 					cfg->title,
 					cfg->event->proto_name,
@@ -254,13 +338,9 @@ list_event_based_report_context_t* event_based_report_register( mmt_handler_t *d
 			continue;
 		}
 
-		//attributes to be reportes
-		_get_ids_of_attributes_from_name( cfg->attributes, cfg->attributes_size, &rep->ids_to_report);
-
 		//register attribute to extract data
 		dpi_register_attribute( cfg->attributes, cfg->attributes_size, dpi_handler, NULL, NULL );
 
-		_get_ids_of_attributes_from_name( cfg->delta_condition.attributes, cfg->delta_condition.attributes_size, &rep->ids_to_check_delta );
 		//register attribute to check condition
 		dpi_register_attribute( cfg->delta_condition.attributes, cfg->delta_condition.attributes_size, dpi_handler, NULL, NULL );
 	}
@@ -282,12 +362,6 @@ void event_based_report_unregister( mmt_handler_t *dpi_handler, list_event_based
 		//So, when it has been disable, one must unregister the attributes using by this event report
 		if(! config->is_enable )
 			continue;
-
-		mmt_probe_free( context->event_reports[i].ids_to_report.att_ids );
-		mmt_probe_free( context->event_reports[i].ids_to_report.proto_ids );
-
-		mmt_probe_free( context->event_reports[i].ids_to_check_delta.att_ids );
-		mmt_probe_free( context->event_reports[i].ids_to_check_delta.proto_ids );
 
 		//unregister event
 		dpi_unregister_attribute( config->event, 1, dpi_handler, _event_report_handle );

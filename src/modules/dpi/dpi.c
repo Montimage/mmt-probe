@@ -111,16 +111,19 @@ static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 		if( session == NULL )
 			session = _create_session (ipacket, context);
 
-		IF_ENABLE_PCAP_DUMP(
-			if( context->pcap_dump )
-				pcap_dump_callback_on_receiving_packet( ipacket, context->pcap_dump );
-		)
-
 		IF_ENABLE_STAT_REPORT(
 			if( context->probe_config->reports.session->is_enable )
 				session_report_callback_on_receiving_packet( ipacket, session->session_stat, context);
 		)
 	}
+	IF_ENABLE_PCAP_DUMP(
+		if( context->pcap_dump )
+			pcap_dump_callback_on_receiving_packet( ipacket, context->pcap_dump );
+	)
+
+	IF_ENABLE_STAT_REPORT(
+		event_based_report_callback_on_receiving_packet( ipacket, context->event_reports );
+	)
 	return 0;
 }
 
