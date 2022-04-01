@@ -14,6 +14,7 @@
 
 #ifdef STAT_REPORT
 #include "report/event_based_report.h"
+#include "report/query_based_report.h"
 #include "report/no_session_report.h"
 #include "report/session_report.h"
 #endif
@@ -123,6 +124,7 @@ static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 
 	IF_ENABLE_STAT_REPORT(
 		event_based_report_callback_on_receiving_packet( ipacket, context->event_reports );
+		query_based_report_callback_on_receiving_packet( ipacket, context->query_reports );
 	)
 	return 0;
 }
@@ -182,6 +184,7 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 	IF_ENABLE_STAT_REPORT_FULL(
 		ret->micro_reports = micro_flow_report_alloc_init(config->reports.microflow, output);
 		ret->event_reports = event_based_report_register(dpi_handler, config->reports.events, config->reports.events_size, output);
+		ret->query_reports = query_based_report_register(dpi_handler, config->reports.queries, config->reports.queries_size, output);
 		ret->no_session_report = no_session_report_alloc_init(dpi_handler, output, config->is_enable_ip_fragmentation_report,
 									config->is_enable_proto_no_session_report );
 		ret->radius_report = radius_report_register(dpi_handler, config->reports.radius, output);
@@ -253,6 +256,7 @@ void dpi_close( dpi_context_t *dpi_context ){
 	IF_ENABLE_STAT_REPORT_FULL(
 		session_report_unregister(     dpi_context->dpi_handler, dpi_context->probe_config->reports.session );
 		event_based_report_unregister( dpi_context->dpi_handler, dpi_context->event_reports );
+		query_based_report_unregister( dpi_context->dpi_handler, dpi_context->query_reports );
 		radius_report_unregister(      dpi_context->dpi_handler, dpi_context->radius_report );
 	)
 

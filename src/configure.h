@@ -256,6 +256,46 @@ typedef struct output_conf_struct{
 	enum {OUTPUT_FORMAT_CSV, OUTPUT_FORMAT_JSON} format;
 }output_conf_t;
 
+
+typedef enum {
+	QUERY_OP_SUM = 1, //total
+	QUERY_OP_COUNT,
+	QUERY_OP_AVG,     //average value
+	QUERY_OP_VAR,     //variance
+	QUERY_OP_DIFF,    //difference with the previous value
+	QUERY_OP_LAST,    //the latest value
+}query_op_type_t;
+
+#define CONF_MAX_QUERY_OPERATOR_DEEP 5
+typedef struct query_report_element_conf_struct{
+	struct{
+		uint16_t size;
+		query_op_type_t elements[CONF_MAX_QUERY_OPERATOR_DEEP];
+	} operators;
+	dpi_protocol_attribute_t attribute;
+}query_report_element_conf_t;
+
+typedef struct query_report_struct{
+	bool is_enable;
+	char *title;
+	uint16_t ms_period;
+	struct{
+		uint16_t size;
+		query_report_element_conf_t *elements;
+	} select;
+
+	struct {
+		uint16_t size;
+		dpi_protocol_attribute_t *elements;
+	} where;
+
+	struct {
+		uint16_t size;
+		dpi_protocol_attribute_t *elements;
+	} group_by;
+	output_channel_conf_t output_channels;
+}query_report_conf_t;
+
 /**
  * Configuration of MMT-Probe
  */
@@ -289,6 +329,9 @@ typedef struct probe_conf_struct{
 
 		pcap_dump_conf_t *pcap_dump;
 		radius_report_conf_t *radius;
+
+		uint16_t queries_size;
+		query_report_conf_t *queries;
 	}reports;
 
 	struct reconstruct_data_struct{

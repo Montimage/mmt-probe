@@ -325,4 +325,61 @@ static inline bool dpi_get_ip_string_from_packet( const ipacket_t *ipacket, char
 	}
 	return true;
 }
+
+
+/**
+ * Example: given a packet having the protocol hierarchy as the following: ETHERNET/IP/UDP/GTP/IP/UDP/QUICK
+ *  and proto_name="UDP"
+ *
+ * - proto_index=2: refer to the second UDP (the one after GTP)
+ * - proto_index_in_herarchy will be 5 (starting from 0)
+ *
+ * @param packet
+ * @param proto_id
+ * @param order
+ * @return
+ */
+static inline int dpi_get_index_of_protocol_in_hierarchy( const ipacket_t *packet, uint32_t proto_id, uint32_t order ){
+	uint32_t proto_index  = 0;
+	if( order < 1 )
+		order = 1;
+	const proto_hierarchy_t *proto_hierarchy = packet->proto_hierarchy;
+	if( ! proto_hierarchy )
+		return -1;
+	while( proto_index < proto_hierarchy->len ){
+		if( proto_hierarchy->proto_path[ proto_index ] == proto_id ){
+			order --;
+			if( order == 0)
+				return proto_index;
+		}
+		proto_index ++;
+	}
+
+	return -1;
+}
+
+static inline attribute_t * dpi_extract_attribute( const ipacket_t *packet, const dpi_protocol_attribute_t *att){
+	uint32_t proto_index_in_herarchy;
+	attribute_t * attr_extract;
+	if( att->proto_index > 1 ){
+		//Example: given a packet having the protocol hierarchy as the following: ETHERNET/IP/UDP/GTP/IP/UDP/QUICK
+		//  and proto_name="UDP"
+		//
+		// - proto_index=2: refer to the second UDP (the one after GTP)
+		// - proto_index_in_herarchy will be 5 (starting from 0)
+		proto_index_in_herarchy = dpi_get_index_of_protocol_in_hierarchy(packet, att->proto_id, att->proto_index );
+		//get value of an attribute from the packet
+		if( proto_index_in_herarchy != 1 ){
+			//DEBUG("index in hierarchy of %s.%d.%s: %d",
+			//		att->proto_name, att->proto_index, att->attribute_name, proto_index_in_herarchy);
+			attr_extract = get_extracted_attribute_at_index( packet, att->proto_id, att->attribute_id, proto_index_in_herarchy );
+		}
+		else
+			attr_extract = NULL;
+	} else {
+		attr_extract = get_extracted_attribute( packet, att->proto_id, att->attribute_id );
+	}
+	return attr_extract;
+}
+
 #endif /* SRC_MODULES_DPI_DPI_TOOL_H_ */

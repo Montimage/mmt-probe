@@ -247,6 +247,15 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_END()
 	};
 
+	cfg_opt_t query_report_opts[] = {
+			CFG_BOOL("enable", false, CFGF_NONE),
+			CFG_INT("ms-period", 65535, CFGF_NONE),
+			CFG_STR_LIST("select", "{}", CFGF_NONE),
+			CFG_STR_LIST("where", "{}", CFGF_NONE),
+			CFG_STR_LIST("group-by", "{}", CFGF_NONE),
+			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
+			CFG_END()
+	};
 	cfg_opt_t socket_opts[] = {
 			CFG_BOOL("enable", false, CFGF_NONE),
 			CFG_INT_CB("type", 0, CFGF_NONE, _conf_parse_socket_type),
@@ -320,6 +329,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_INT("loglevel", 2, CFGF_NONE),
 
 			CFG_SEC("event-report", event_report_opts, CFGF_TITLE | CFGF_MULTI),
+			CFG_SEC("query-report", query_report_opts, CFGF_TITLE | CFGF_MULTI),
 			CFG_SEC("session-report", session_report_opts, CFGF_NONE),
 			CFG_SEC("dynamic-config", dynamic_conf_opts, CFGF_NONE),
 			CFG_END()
@@ -665,6 +675,7 @@ static inline void _parse_dpi_protocol_attribute( dpi_protocol_attribute_t * out
 			//more than 2 dots
 			ABORT("Attribute [%s] is not well-formatted (must be in form proto.att, e.g., http.method, or http.1.method)", str );
 	}
+	ASSERT(dot_index_1 > 0, "Attribute [%s] is not well-formatted", str );
 	if( dot_index_1 == 0 //starting by a dot
 		|| dot_index_2 == (dot_index_1 + 1) //two consecutive dots
 		|| str[dot_index_1+1] == '\0'  //dot at the end of str
@@ -686,6 +697,99 @@ static inline void _parse_dpi_protocol_attribute( dpi_protocol_attribute_t * out
 	}
 }
 
+static inline void _parse_operator(  query_report_element_conf_t* out, const char* orig_str ){
+	int i, j, counter;
+	size_t str_len = strlen(orig_str);
+	char *str, *s;
+	const char *operator_names[] = {
+		"sum", "count", "avg", "var", "diff", "last"
+	};
+	const int operators[] = {
+			QUERY_OP_SUM, //total
+			QUERY_OP_COUNT,
+			QUERY_OP_AVG,     //average value
+			QUERY_OP_VAR,     //variance
+			QUERY_OP_DIFF,    //difference with the previous value
+			QUERY_OP_LAST,    //the latest value
+	};
+	const int nb_operators = 6;
+
+	out->operators.size = 0;
+
+	//check whether there exist parenthese
+	for( i=0; i<str_len; i++ )
+		if( orig_str[i] == '(' )
+			break;
+	//no operator
+	if( i == str_len ){
+		_parse_dpi_protocol_attribute( & out->attribute, orig_str );
+		return;
+	}
+
+	//check pair open-close parenthese
+	counter = 0;
+	for( i=0; i<str_len; i++ ){
+		if( orig_str[i] == '(' )
+			counter ++;
+		else if( orig_str[i] == ')')
+			counter --;
+	}
+	ASSERT( counter == 0, "Error when parsing \"%s\": incorrect parentheses", orig_str );
+
+	//remove space
+	str = mmt_alloc( str_len + 1 );
+	counter = 0;
+	for( i=0; i<str_len; i++ ){
+		if( isspace(orig_str[i]) )
+			continue;
+
+		str[counter] = orig_str[i];
+		counter ++;
+	}
+
+	str[counter] = '\0';
+	str_len = counter;
+
+	//parse operators
+	i = 0;
+	while( i<str_len ){
+		s = str+i;
+		//jump until (
+		counter = 0;
+		while( str[i+counter] != '(' )
+			counter ++;
+		//no open parentheses
+		if( i+counter >= str_len )
+			break;
+
+		ASSERT(counter > 0, "Error when parsing \"%s\": unexpected %s", orig_str, s );
+		//replace '(' by '\0'
+		s[counter] = '\0';
+
+		for( j=0; j<nb_operators; j++ )
+			if( strcmp( s, operator_names[j] ) == 0 ){
+				ASSERT( out->operators.size < CONF_MAX_QUERY_OPERATOR_DEEP,
+						"Error when parsing \"%s\": support max %d operators",
+						orig_str, CONF_MAX_QUERY_OPERATOR_DEEP );
+				out->operators.elements[ out->operators.size ] = operators[j];
+				out->operators.size ++;
+				i += counter;
+				break;
+			}
+		ASSERT( j<nb_operators, "Error when parsing \"%s\": unknown operator %s", orig_str, s );
+		//remove closed parenthese
+		str_len --;
+		ASSERT(str[str_len] == ')', "Error when parsing \"%s\": unexpected %s",
+				orig_str, &str[str_len] );
+		str[str_len] = '\0';
+
+		i ++;
+	}
+	ASSERT( i<str_len, "Error when parsing \"%s\"", orig_str );
+	_parse_dpi_protocol_attribute( & out->attribute, &str[i] );
+	mmt_probe_free( str );
+}
+
 static inline uint16_t _parse_attributes_helper( cfg_t *cfg, const char* name, dpi_protocol_attribute_t**atts ){
 	int i, j;
 	uint16_t size =  cfg_size( cfg, name );
@@ -705,6 +809,23 @@ static inline uint16_t _parse_attributes_helper( cfg_t *cfg, const char* name, d
 }
 
 
+static inline uint16_t _parse_operators_helper( cfg_t *cfg, const char* name, query_report_element_conf_t**atts ){
+	int i, j;
+	uint16_t size =  cfg_size( cfg, name );
+	char *string;
+	*atts = NULL;
+	if( size == 0 )
+		return size;
+
+	query_report_element_conf_t *ret = mmt_alloc_and_init_zero( sizeof( query_report_element_conf_t ) * size );
+	for( i=0; i<size; i++ ){
+		string = cfg_getnstr( cfg, name, i );
+		_parse_operator( &ret[i], string );
+	}
+
+	*atts = ret;
+	return size;
+}
 
 
 static inline void _parse_event_block( event_report_conf_t *ret, cfg_t *cfg ){
@@ -721,6 +842,20 @@ static inline void _parse_event_block( event_report_conf_t *ret, cfg_t *cfg ){
 
 	ret->delta_condition.attributes_size = _parse_attributes_helper( cfg,"delta-cond", &ret->delta_condition.attributes );
 
+}
+
+static inline void _parse_query_block( query_report_conf_t *ret, cfg_t *cfg ){
+	int i;
+	assert( cfg != NULL );
+	ret->is_enable = cfg_getbool( cfg, "enable" );
+	ret->title     = mmt_strdup( cfg_title(cfg) );
+	ret->output_channels = _parse_output_channel( cfg );
+	ret->ms_period = cfg_getint(cfg, "ms-period");
+
+	ret->where.size = _parse_attributes_helper( cfg, "where", &ret->where.elements );
+	ret->group_by.size = _parse_attributes_helper( cfg, "where", &ret->group_by.elements );
+
+	ret->select.size = _parse_operators_helper( cfg,"select", &ret->select.elements );
 }
 
 static inline micro_flow_conf_t *_parse_microflow_block( cfg_t *cfg ){
@@ -914,6 +1049,11 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 	for( i=0; i<conf->reports.events_size; i++ )
 		_parse_event_block( &conf->reports.events[i], cfg_getnsec( cfg, "event-report", i) );
 
+	conf->reports.queries_size = cfg_size( cfg, "query-report" );
+	conf->reports.queries  = mmt_alloc( sizeof( query_report_conf_t ) * conf->reports.queries_size );
+	for( i=0; i<conf->reports.queries_size; i++ )
+		_parse_query_block( &conf->reports.queries[i], cfg_getnsec( cfg, "query-report", i) );
+
 	//
 	conf->reports.microflow = _parse_microflow_block( cfg );
 
@@ -960,6 +1100,13 @@ static inline void _free_event_report( event_report_conf_t *ret ){
 	mmt_probe_free( ret->event );
 }
 
+static inline void _free_query_report( query_report_conf_t *ret ){
+	if( ret == NULL )
+		return;
+	int i;
+	//TODO need to free all attributes
+	mmt_probe_free( ret->title );
+}
 /**
  * Public API
  * Free all memory allocated by @load_configuration_from_file
@@ -977,6 +1124,10 @@ void conf_release( probe_conf_t *conf){
 	for( i=0; i<conf->reports.events_size; i++ )
 		_free_event_report( &conf->reports.events[i] );
 	mmt_probe_free( conf->reports.events );
+
+	for( i=0; i<conf->reports.queries_size; i++ )
+		_free_query_report( &conf->reports.queries[i] );
+	mmt_probe_free( conf->reports.queries );
 
 	if( conf->reports.behaviour ){
 		mmt_probe_free( conf->reports.behaviour->directory );
