@@ -40,6 +40,8 @@ static inline bool dpi_load_proto_id_and_att_id( dpi_protocol_attribute_t *att )
 	att->proto_id = get_protocol_id_by_name( att->proto_name );
 	if( att->proto_id != 0 )
 		att->attribute_id = get_attribute_id_by_protocol_id_and_attribute_name( att->proto_id, att->attribute_name );
+	if( att->dpi_datatype != 0 )
+		att->dpi_datatype = get_attribute_data_type( att->proto_id, att->attribute_id );
 	return att->proto_id != 0 && att->attribute_id != 0;
 }
 
@@ -382,4 +384,33 @@ static inline attribute_t * dpi_extract_attribute( const ipacket_t *packet, cons
 	return attr_extract;
 }
 
+/**
+ * Surround the quotes for the string data
+ * @param msg
+ * @param offset
+ * @param att
+ */
+static inline bool is_string_datatype( int data_type ){
+	switch( data_type ){
+	case MMT_BINARY_VAR_DATA:
+	case MMT_DATA_CHAR:
+	case MMT_DATA_DATE:
+	case MMT_DATA_IP6_ADDR:
+	case MMT_DATA_IP_ADDR:
+	case MMT_DATA_IP_NET:
+	case MMT_DATA_MAC_ADDR:
+	case MMT_DATA_PATH:
+	case MMT_HEADER_LINE:
+	case MMT_STRING_DATA:
+	case MMT_STRING_LONG_DATA:
+	case MMT_GENERIC_HEADER_LINE:
+#ifdef MMT_U32_ARRAY
+	//surround the elements of an array by " and "
+	case MMT_U32_ARRAY:
+	case MMT_U64_ARRAY:
+#endif
+		return true;
+	}
+	return false;
+}
 #endif /* SRC_MODULES_DPI_DPI_TOOL_H_ */

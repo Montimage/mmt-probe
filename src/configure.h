@@ -14,6 +14,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include "lib/limit.h"
+#include "modules/dpi/report/query/operator.h"
 
 #define MMT_USER_AGENT_THRESHOLD 0x20 //32KB
 
@@ -176,6 +177,7 @@ typedef struct dpi_protocol_attribute_struct{
 	uint16_t proto_id;  //protocol id: being interpreted when registering
 	uint16_t attribute_id; //attribute_id: being interpreted when registering
 	uint16_t proto_index; //indicating `th` order of the protocol when there exist duplicated ones in the hierarchy
+	int dpi_datatype;
 }dpi_protocol_attribute_t;
 
 
@@ -257,22 +259,13 @@ typedef struct output_conf_struct{
 }output_conf_t;
 
 
-typedef enum {
-	QUERY_OP_SUM = 1, //total
-	QUERY_OP_COUNT,
-	QUERY_OP_AVG,     //average value
-	QUERY_OP_VAR,     //variance
-	QUERY_OP_DIFF,    //difference with the previous value
-	QUERY_OP_LAST,    //the latest value
-}query_op_type_t;
-
-#define CONF_MAX_QUERY_OPERATOR_DEEP 5
+#define CONF_MAX_QUERY_OPERATOR_DEEP 10
 typedef struct query_report_element_conf_struct{
+	dpi_protocol_attribute_t attribute;
 	struct{
 		uint16_t size;
-		query_op_type_t elements[CONF_MAX_QUERY_OPERATOR_DEEP];
+		query_operator_t* elements[CONF_MAX_QUERY_OPERATOR_DEEP];
 	} operators;
-	dpi_protocol_attribute_t attribute;
 }query_report_element_conf_t;
 
 typedef struct query_report_struct{
@@ -282,17 +275,13 @@ typedef struct query_report_struct{
 	struct{
 		uint16_t size;
 		query_report_element_conf_t *elements;
-	} select;
+	} select, group_by;
 
 	struct {
 		uint16_t size;
 		dpi_protocol_attribute_t *elements;
 	} where;
 
-	struct {
-		uint16_t size;
-		dpi_protocol_attribute_t *elements;
-	} group_by;
 	output_channel_conf_t output_channels;
 }query_report_conf_t;
 

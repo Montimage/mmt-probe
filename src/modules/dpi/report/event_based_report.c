@@ -25,36 +25,6 @@ struct list_event_based_report_context_struct{
 	event_based_report_context_t* event_reports;
 };
 
-/**
- * Surround the quotes for the string data
- * @param msg
- * @param offset
- * @param att
- */
-static inline bool _is_string( int data_type ){
-	switch( data_type ){
-	case MMT_BINARY_VAR_DATA:
-	case MMT_DATA_CHAR:
-	case MMT_DATA_DATE:
-	case MMT_DATA_IP6_ADDR:
-	case MMT_DATA_IP_ADDR:
-	case MMT_DATA_IP_NET:
-	case MMT_DATA_MAC_ADDR:
-	case MMT_DATA_PATH:
-	case MMT_HEADER_LINE:
-	case MMT_STRING_DATA:
-	case MMT_STRING_LONG_DATA:
-	case MMT_GENERIC_HEADER_LINE:
-#ifdef MMT_U32_ARRAY
-	//surround the elements of an array by " and "
-	case MMT_U32_ARRAY:
-	case MMT_U64_ARRAY:
-#endif
-		return true;
-	}
-	return false;
-}
-
 //specical attribute format
 #define PROTO_IEEE802154 800
 #define IEEE802154_DST_ADDRESS_EXTENDED 10
@@ -118,7 +88,7 @@ static inline int _get_attributes_values(const ipacket_t *packet,
 			continue;
 
 		if( attr_extract != NULL ){
-			if( _is_string( attr_extract->data_type ) ){
+			if( is_string_datatype( attr_extract->data_type ) ){
 				//surround by quotes
 				message[ offset ++ ] = '"';
 				if( attr_extract != NULL )
@@ -132,7 +102,7 @@ static inline int _get_attributes_values(const ipacket_t *packet,
 			//no value, use default value:
 			// "" for string
 			// 0  for number
-			if( _is_string( get_attribute_data_type( att->proto_id, att->attribute_id ) )){
+			if( is_string_datatype( att->dpi_datatype )){
 				message[ offset ++ ] = '"';
 				message[ offset ++ ] = '"';
 			}else
@@ -191,7 +161,7 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 	offset ++;
 
 	//2. event data
-	if( _is_string( attribute->data_type ) ){
+	if( is_string_datatype( attribute->data_type ) ){
 		//surround by quotes
 		message[ offset ++ ] = '"';
 		offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, attribute );

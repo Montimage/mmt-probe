@@ -17,6 +17,8 @@
 	void        op_## OP ##_reset_value(void *);
 
 struct _query_operator{
+	query_op_type_t operator_type;
+	data_types_t data_type;
 	void *operator; //to store either
 	void *       (*fn_create)(int);
 	bool         (*fn_add_data)(void *, const void*);
@@ -74,28 +76,49 @@ data_types_t query_operator_get_data_type( query_op_type_t op, data_types_t data
 
 query_operator_t *query_operator_create( query_op_type_t op, data_types_t data_type ){
 	query_operator_t *result = mmt_alloc( sizeof( query_operator_t ));
+	result->operator_type = op;
+	result->data_type = data_type;
+
 	switch( op ){
 	case QUERY_OP_SUM:
+		if( ! op_sum_can_handle(data_type) )
+			goto _query_operator_create_fail;
 		ASSIGN_OP( result, sum );
 		break;
 	case QUERY_OP_COUNT:
+		if( ! op_count_can_handle(data_type) )
+			goto _query_operator_create_fail;
 		ASSIGN_OP( result, count );
 		break;
 	case QUERY_OP_AVG:
+		if( ! op_avg_can_handle(data_type) )
+			goto _query_operator_create_fail;
 		ASSIGN_OP( result, avg );
 		break;
 	case QUERY_OP_VAR:
+		if( ! op_var_can_handle(data_type) )
+			goto _query_operator_create_fail;
 		ASSIGN_OP( result, var );
 		break;
 	case QUERY_OP_DIFF:
+		if( ! op_diff_can_handle(data_type) )
+			goto _query_operator_create_fail;
 		ASSIGN_OP( result, diff );
 		break;
 	default:
-		mmt_probe_free( result );
-		return NULL;
+		goto _query_operator_create_fail;
 	}
 	result->operator = result->fn_create( data_type );
 	return result;
+
+	_query_operator_create_fail:
+	mmt_probe_free( result );
+	return NULL;
+}
+
+
+query_operator_t *query_operator_duplicate( const query_operator_t* op ){
+	return query_operator_create( op->operator_type, op->data_type );
 }
 
 bool query_operator_add_data( query_operator_t *q, const void *data ){

@@ -10,11 +10,13 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
+#include <mmt_core.h>
 #include "lib/log.h"
 #include "lib/malloc.h"
 #include "lib/memory.h"
 
 #include "configure.h"
+
 
 #define DLT_EN10MB 1/**< Ethernet (10Mb) *
 
@@ -695,6 +697,18 @@ static inline void _parse_dpi_protocol_attribute( dpi_protocol_attribute_t * out
 		str += (dot_index_2 - dot_index_1);
 		out->attribute_name = mmt_strdup( str );
 	}
+
+	//check whether proto.att is currently supported by MMT
+	out->proto_id = get_protocol_id_by_name( out->proto_name );
+	ASSERT( out->proto_id != ((uint32_t)-1), "Unsupported protocol [%s]", out->proto_name );
+
+	out->attribute_id = get_attribute_id_by_protocol_id_and_attribute_name( out->proto_id, out->attribute_name);
+	ASSERT( out->attribute_id != ((uint32_t)-1),
+			"Unsupported attribute [%s] of protocol [%s]",
+			out->attribute_name,
+			out->proto_name );
+
+	out->dpi_datatype = get_attribute_data_type( out->proto_id, out->attribute_id );
 }
 
 static inline void _parse_operator(  query_report_element_conf_t* out, const char* orig_str ){
@@ -704,7 +718,8 @@ static inline void _parse_operator(  query_report_element_conf_t* out, const cha
 	const char *operator_names[] = {
 		"sum", "count", "avg", "var", "diff", "last"
 	};
-	const int operators[] = {
+	//the elements in this table must be the same as the ones in operator_names
+	const int operator_ids[] = {
 			QUERY_OP_SUM, //total
 			QUERY_OP_COUNT,
 			QUERY_OP_AVG,     //average value
@@ -713,6 +728,9 @@ static inline void _parse_operator(  query_report_element_conf_t* out, const cha
 			QUERY_OP_LAST,    //the latest value
 	};
 	const int nb_operators = 6;
+	int op_indexes[CONF_MAX_QUERY_OPERATOR_DEEP];
+	int dpi_datatype;
+	query_operator_t *op;
 
 	out->operators.size = 0;
 
@@ -723,6 +741,12 @@ static inline void _parse_operator(  query_report_element_conf_t* out, const cha
 	//no operator
 	if( i == str_len ){
 		_parse_dpi_protocol_attribute( & out->attribute, orig_str );
+		//when no operator is given => use QUERY_OP_LAST by default
+		op = query_operator_create( QUERY_OP_LAST, out->attribute.dpi_datatype );
+		//shout be ok
+		ASSERT( op != NULL, "Unsupported data type by [last]");
+		out->operators.size = 1;
+		out->operators.elements[0] = op;
 		return;
 	}
 
@@ -769,9 +793,9 @@ static inline void _parse_operator(  query_report_element_conf_t* out, const cha
 		for( j=0; j<nb_operators; j++ )
 			if( strcmp( s, operator_names[j] ) == 0 ){
 				ASSERT( out->operators.size < CONF_MAX_QUERY_OPERATOR_DEEP,
-						"Error when parsing \"%s\": support max %d operators",
+						"Error when parsing \"%s\": support max consecutive %d operators",
 						orig_str, CONF_MAX_QUERY_OPERATOR_DEEP );
-				out->operators.elements[ out->operators.size ] = operators[j];
+				op_indexes[ out->operators.size ] = j;
 				out->operators.size ++;
 				i += counter;
 				break;
@@ -788,6 +812,32 @@ static inline void _parse_operator(  query_report_element_conf_t* out, const cha
 	ASSERT( i<str_len, "Error when parsing \"%s\"", orig_str );
 	_parse_dpi_protocol_attribute( & out->attribute, &str[i] );
 	mmt_probe_free( str );
+
+
+	//check data type is satisfied
+	j = op_indexes[ out->operators.size-1 ];
+	op = query_operator_create( operator_ids[j], out->attribute.dpi_datatype );
+	ASSERT( op != NULL,
+			"Error when parsing query-report: Operator [%s] is not compatible with %s.%s",
+			operator_names[j],
+			out->attribute.proto_name,
+			out->attribute.attribute_name
+	);
+
+	out->operators.elements[ out->operators.size - 1 ] = op;
+
+	dpi_datatype = query_operator_get_data_type( operator_ids[j], out->attribute.dpi_datatype);
+	for( i=out->operators.size-2; i>=0; i-- ){
+		j = op_indexes[i];
+		op = query_operator_create( operator_ids[j], dpi_datatype );
+		ASSERT( op != NULL,
+				"Error when parsing query-report: Operator [%s] is not compatible with result of operator [%s]",
+				operator_names[ op_indexes[i] ],
+				operator_names[ op_indexes[i+1] ]
+		);
+		dpi_datatype = query_operator_get_data_type( operator_ids[j], dpi_datatype);
+		out->operators.elements[i] = op;
+	}
 }
 
 static inline uint16_t _parse_attributes_helper( cfg_t *cfg, const char* name, dpi_protocol_attribute_t**atts ){
@@ -853,9 +903,9 @@ static inline void _parse_query_block( query_report_conf_t *ret, cfg_t *cfg ){
 	ret->ms_period = cfg_getint(cfg, "ms-period");
 
 	ret->where.size = _parse_attributes_helper( cfg, "where", &ret->where.elements );
-	ret->group_by.size = _parse_attributes_helper( cfg, "where", &ret->group_by.elements );
 
 	ret->select.size = _parse_operators_helper( cfg,"select", &ret->select.elements );
+	ret->group_by.size = _parse_operators_helper( cfg, "group-by", &ret->group_by.elements );
 }
 
 static inline micro_flow_conf_t *_parse_microflow_block( cfg_t *cfg ){
