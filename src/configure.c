@@ -10,7 +10,6 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
-#include <mmt_core.h>
 #include "lib/log.h"
 #include "lib/malloc.h"
 #include "lib/memory.h"
@@ -575,10 +574,12 @@ static inline  output_channel_conf_t _parse_output_channel( cfg_t *cfg ){
 			out |= CONF_OUTPUT_CHANNEL_KAFKA;
 		else if ( strncmp( channel_name, "redis", 5 ) == 0 )
 			out |= CONF_OUTPUT_CHANNEL_REDIS;
-		else if ( strncmp( channel_name, "mongodb", 5 ) == 0 )
+		else if ( strncmp( channel_name, "mongodb", 7 ) == 0 )
 			out |= CONF_OUTPUT_CHANNEL_MONGODB;
-		else if ( strncmp( channel_name, "socket", 5 ) == 0 )
+		else if ( strncmp( channel_name, "socket", 6 ) == 0 )
 			out |= CONF_OUTPUT_CHANNEL_SOCKET;
+		else if( strncmp( channel_name, "stdout", 6 ) == 0 )
+			out |= CONF_OUTPUT_CHANNEL_STDOUT;
 		else
 			log_write( LOG_WARNING, "Unexpected channel '%s'", channel_name );
 	}
@@ -698,6 +699,7 @@ static inline void _parse_dpi_protocol_attribute( dpi_protocol_attribute_t * out
 		out->attribute_name = mmt_strdup( str );
 	}
 
+	/*
 	//check whether proto.att is currently supported by MMT
 	out->proto_id = get_protocol_id_by_name( out->proto_name );
 	ASSERT( out->proto_id != ((uint32_t)-1), "Unsupported protocol [%s]", out->proto_name );
@@ -709,6 +711,7 @@ static inline void _parse_dpi_protocol_attribute( dpi_protocol_attribute_t * out
 			out->proto_name );
 
 	out->dpi_datatype = get_attribute_data_type( out->proto_id, out->attribute_id );
+	*/
 }
 
 static inline void _parse_operator(  query_report_element_conf_t* out, const char* orig_str ){
@@ -716,7 +719,7 @@ static inline void _parse_operator(  query_report_element_conf_t* out, const cha
 	size_t str_len = strlen(orig_str);
 	char *str, *s;
 	const char *operator_names[] = {
-		"sum", "count", "avg", "var", "diff", "last"
+		"sum", "count", "avg", "var", "diff", "last", "first"
 	};
 	//the elements in this table must be the same as the ones in operator_names
 	const int operator_ids[] = {
@@ -726,11 +729,11 @@ static inline void _parse_operator(  query_report_element_conf_t* out, const cha
 			QUERY_OP_VAR,     //variance
 			QUERY_OP_DIFF,    //difference with the previous value
 			QUERY_OP_LAST,    //the latest value
+			QUERY_OP_FIRST
 	};
-	const int nb_operators = 6;
-	int op_indexes[CONF_MAX_QUERY_OPERATOR_DEEP];
+	const int nb_operators = sizeof(operator_ids) / sizeof(operator_ids[0]);
 	int dpi_datatype;
-	query_operator_t *op;
+	bool b;
 
 	out->operators.size = 0;
 
@@ -742,11 +745,12 @@ static inline void _parse_operator(  query_report_element_conf_t* out, const cha
 	if( i == str_len ){
 		_parse_dpi_protocol_attribute( & out->attribute, orig_str );
 		//when no operator is given => use QUERY_OP_LAST by default
-		op = query_operator_create( QUERY_OP_LAST, out->attribute.dpi_datatype );
+		//b = query_operator_can_handle( QUERY_OP_LAST, out->attribute.dpi_datatype );
 		//shout be ok
-		ASSERT( op != NULL, "Unsupported data type by [last]");
+		//ASSERT( b == true, "Unsupported data type by [last]");
+
 		out->operators.size = 1;
-		out->operators.elements[0] = op;
+		out->operators.elements[0] = QUERY_OP_LAST;
 		return;
 	}
 
@@ -795,12 +799,12 @@ static inline void _parse_operator(  query_report_element_conf_t* out, const cha
 				ASSERT( out->operators.size < CONF_MAX_QUERY_OPERATOR_DEEP,
 						"Error when parsing \"%s\": support max consecutive %d operators",
 						orig_str, CONF_MAX_QUERY_OPERATOR_DEEP );
-				op_indexes[ out->operators.size ] = j;
+				out->operators.elements[ out->operators.size ] = operator_ids[j];
 				out->operators.size ++;
 				i += counter;
 				break;
 			}
-		ASSERT( j<nb_operators, "Error when parsing \"%s\": unknown operator %s", orig_str, s );
+		ASSERT( j<nb_operators, "Error when parsing \"%s\": unsupported operator [%s]", orig_str, s );
 		//remove closed parenthese
 		str_len --;
 		ASSERT(str[str_len] == ')', "Error when parsing \"%s\": unexpected %s",
@@ -814,30 +818,33 @@ static inline void _parse_operator(  query_report_element_conf_t* out, const cha
 	mmt_probe_free( str );
 
 
+	/*
 	//check data type is satisfied
 	j = op_indexes[ out->operators.size-1 ];
-	op = query_operator_create( operator_ids[j], out->attribute.dpi_datatype );
-	ASSERT( op != NULL,
+	b = query_operator_can_handle( operator_ids[j], out->attribute.dpi_datatype );
+	ASSERT( b == true,
 			"Error when parsing query-report: Operator [%s] is not compatible with %s.%s",
 			operator_names[j],
 			out->attribute.proto_name,
 			out->attribute.attribute_name
 	);
 
-	out->operators.elements[ out->operators.size - 1 ] = op;
+	out->operators.elements[ out->operators.size - 1 ] = operator_ids[j];
 
 	dpi_datatype = query_operator_get_data_type( operator_ids[j], out->attribute.dpi_datatype);
 	for( i=out->operators.size-2; i>=0; i-- ){
 		j = op_indexes[i];
-		op = query_operator_create( operator_ids[j], dpi_datatype );
-		ASSERT( op != NULL,
+		b = query_operator_can_handle( operator_ids[j], dpi_datatype );
+		ASSERT( b == true,
 				"Error when parsing query-report: Operator [%s] is not compatible with result of operator [%s]",
 				operator_names[ op_indexes[i] ],
 				operator_names[ op_indexes[i+1] ]
 		);
+		out->operators.elements[i] = operator_ids[j];
+		//output data type of the previous operator
 		dpi_datatype = query_operator_get_data_type( operator_ids[j], dpi_datatype);
-		out->operators.elements[i] = op;
 	}
+	*/
 }
 
 static inline uint16_t _parse_attributes_helper( cfg_t *cfg, const char* name, dpi_protocol_attribute_t**atts ){

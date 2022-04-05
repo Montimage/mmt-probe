@@ -81,9 +81,10 @@ typedef enum {
 	CONF_OUTPUT_CHANNEL_KAFKA   = 4,
 	CONF_OUTPUT_CHANNEL_MONGODB = 8,
 	CONF_OUTPUT_CHANNEL_SOCKET  = 16,
+	CONF_OUTPUT_CHANNEL_STDOUT  = 32,
 	CONF_OUTPUT_CHANNEL_ALL     = CONF_OUTPUT_CHANNEL_FILE  | CONF_OUTPUT_CHANNEL_REDIS
 								| CONF_OUTPUT_CHANNEL_KAFKA | CONF_OUTPUT_CHANNEL_MONGODB
-								| CONF_OUTPUT_CHANNEL_SOCKET
+								| CONF_OUTPUT_CHANNEL_SOCKET| CONF_OUTPUT_CHANNEL_STDOUT
 }output_channel_conf_t;
 
 #define IS_ENABLE_OUTPUT_TO( name, channels ) ( channels & CONF_OUTPUT_CHANNEL_ ##name )
@@ -264,7 +265,7 @@ typedef struct query_report_element_conf_struct{
 	dpi_protocol_attribute_t attribute;
 	struct{
 		uint16_t size;
-		query_operator_t* elements[CONF_MAX_QUERY_OPERATOR_DEEP];
+		query_op_type_t elements[CONF_MAX_QUERY_OPERATOR_DEEP];
 	} operators;
 }query_report_element_conf_t;
 

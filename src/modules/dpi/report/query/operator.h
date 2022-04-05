@@ -19,6 +19,7 @@ typedef enum {
 	QUERY_OP_VAR,     //variance
 	QUERY_OP_DIFF,    //difference with the previous value
 	QUERY_OP_LAST,    //the latest value
+	QUERY_OP_FIRST,   //the first value
 }query_op_type_t;
 
 typedef enum data_types data_types_t;

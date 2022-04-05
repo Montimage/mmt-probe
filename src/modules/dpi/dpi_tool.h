@@ -37,12 +37,16 @@ static inline uint32_t dpi_get_proto_id_from_session( const mmt_session_t * dpi_
  * @return
  */
 static inline bool dpi_load_proto_id_and_att_id( dpi_protocol_attribute_t *att ){
+	const uint32_t unknown = -1;
 	att->proto_id = get_protocol_id_by_name( att->proto_name );
-	if( att->proto_id != 0 )
-		att->attribute_id = get_attribute_id_by_protocol_id_and_attribute_name( att->proto_id, att->attribute_name );
-	if( att->dpi_datatype != 0 )
-		att->dpi_datatype = get_attribute_data_type( att->proto_id, att->attribute_id );
-	return att->proto_id != 0 && att->attribute_id != 0;
+	ASSERT(att->proto_id != unknown, "Unknown protocol name [%s]", att->proto_name );
+	att->attribute_id = get_attribute_id_by_protocol_id_and_attribute_name( att->proto_id, att->attribute_name );
+	ASSERT( att->attribute_id != unknown, "Unknown attribute [%s] of protocol [%s]",
+			att->attribute_name, att->proto_name );
+	att->dpi_datatype = get_attribute_data_type( att->proto_id, att->attribute_id );
+	ASSERT( att->dpi_datatype != unknown, "Unknown data type of [%s.%s]",
+			att->attribute_name, att->proto_name );
+	return true;
 }
 
 /**

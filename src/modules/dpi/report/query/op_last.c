@@ -9,22 +9,16 @@
 
 #include "operator.h"
 
-typedef struct _op_diff{
+typedef struct _op{
 	data_types_t data_type;
 	bool has_last_value;
 	void *result;
-	uint16_t count, index;
+	uint32_t data_size;
 }op_last_t;
 
 data_types_t op_last_get_data_type( data_types_t data_type ){
 	//the result should be the same
-	// but for now we support only IPv4
-	switch( data_type ){
-	case MMT_DATA_IP_ADDR:
-		return data_type;
-	default:
-		return MMT_UNDEFINED_TYPE;
-	}
+	return data_type;
 }
 
 bool op_last_can_handle( data_types_t data_type ){
@@ -37,22 +31,9 @@ void op_last_reset_value( op_last_t *op ){
 
 op_last_t *op_last_create( data_types_t data_type ){
 	op_last_t *op = mmt_alloc( sizeof( op_last_t ));
+	op->data_size = get_data_size_by_data_type( data_type );
 	op->data_type = data_type;
-	switch( data_type ){
-	case MMT_U8_DATA:
-		op->result = mmt_alloc( sizeof(uint8_t));
-		break;
-	case MMT_U16_DATA:
-		op->result = mmt_alloc( sizeof(uint16_t));
-		break;
-	case MMT_U32_DATA:
-	case MMT_DATA_IP_ADDR:
-		op->result = mmt_alloc( sizeof(uint32_t));
-		break;
-	default:
-		mmt_probe_free( op );
-		return NULL;
-	}
+	op->result = mmt_alloc( op->data_size );
 	op_last_reset_value( op );
 	return op;
 }
@@ -62,14 +43,9 @@ void op_last_release( op_last_t *op ){
 }
 
 bool op_last_add_data( op_last_t *op, const void* value ){
-	switch( op->data_type ){
-	//float
-	case MMT_DATA_IP_ADDR:
-		*(uint16_t *)op->result = *(uint16_t *) value;
-		return true;
-	default:
-		return false;
-	}
+	memcpy(op->result, value, op->data_size);
+	op->has_last_value = true;
+	return true;
 }
 
 const void* op_last_get_value( op_last_t *op ){

@@ -32,6 +32,8 @@ DECLARE_OP_HEADER( count )
 DECLARE_OP_HEADER( avg )
 DECLARE_OP_HEADER( var )
 DECLARE_OP_HEADER( diff )
+DECLARE_OP_HEADER( first )
+DECLARE_OP_HEADER( last )
 
 bool query_operator_can_handle( query_op_type_t op, data_types_t data_type ){
 	switch( op ){
@@ -45,6 +47,10 @@ bool query_operator_can_handle( query_op_type_t op, data_types_t data_type ){
 		return op_var_can_handle(data_type);
 	case QUERY_OP_DIFF:
 		return op_diff_can_handle(data_type);
+	case QUERY_OP_LAST:
+		return op_last_can_handle(data_type);
+	case QUERY_OP_FIRST:
+		return op_first_can_handle(data_type);
 	default:
 		return false;
 	}
@@ -62,6 +68,10 @@ data_types_t query_operator_get_data_type( query_op_type_t op, data_types_t data
 		return op_var_get_data_type(data_type);
 	case QUERY_OP_DIFF:
 		return op_diff_get_data_type(data_type);
+	case QUERY_OP_LAST:
+		return op_last_get_data_type(data_type);
+	case QUERY_OP_FIRST:
+		return op_first_get_data_type(data_type);
 	default:
 		return false;
 	}
@@ -75,45 +85,43 @@ data_types_t query_operator_get_data_type( query_op_type_t op, data_types_t data
 	result->fn_get_value   = op_## op ##_get_value;       \
 
 query_operator_t *query_operator_create( query_op_type_t op, data_types_t data_type ){
-	query_operator_t *result = mmt_alloc( sizeof( query_operator_t ));
+	query_operator_t *result;
+	if( ! query_operator_can_handle(op, data_type ) )
+		return NULL;
+	result = mmt_alloc( sizeof( query_operator_t ));
 	result->operator_type = op;
 	result->data_type = data_type;
 
 	switch( op ){
 	case QUERY_OP_SUM:
-		if( ! op_sum_can_handle(data_type) )
-			goto _query_operator_create_fail;
 		ASSIGN_OP( result, sum );
 		break;
 	case QUERY_OP_COUNT:
-		if( ! op_count_can_handle(data_type) )
-			goto _query_operator_create_fail;
 		ASSIGN_OP( result, count );
 		break;
 	case QUERY_OP_AVG:
-		if( ! op_avg_can_handle(data_type) )
-			goto _query_operator_create_fail;
 		ASSIGN_OP( result, avg );
 		break;
 	case QUERY_OP_VAR:
-		if( ! op_var_can_handle(data_type) )
-			goto _query_operator_create_fail;
 		ASSIGN_OP( result, var );
 		break;
 	case QUERY_OP_DIFF:
-		if( ! op_diff_can_handle(data_type) )
-			goto _query_operator_create_fail;
 		ASSIGN_OP( result, diff );
 		break;
+	case QUERY_OP_LAST:
+		ASSIGN_OP( result, last );
+		break;
+	case QUERY_OP_FIRST:
+		ASSIGN_OP( result, first );
+		break;
 	default:
-		goto _query_operator_create_fail;
+		mmt_probe_free( result );
+		return NULL;
 	}
 	result->operator = result->fn_create( data_type );
 	return result;
 
-	_query_operator_create_fail:
-	mmt_probe_free( result );
-	return NULL;
+
 }
 
 

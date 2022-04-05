@@ -10,12 +10,13 @@
 #include "../../../lib/malloc_ext.h"
 #include "../../../lib/hash.h"
 #include "query_based_report.h"
-#include "query/operator.h"
+#include "query/operator_stack.h"
 
 typedef struct query_based_report_context_struct {
 	const query_report_conf_t *config;
 	output_t *output;
 	hash_t *hash_table;
+	query_operator_stack_t **group_by_operators;
 }query_based_report_context_t;
 
 
@@ -24,33 +25,53 @@ struct list_query_based_report_context_struct{
 	query_based_report_context_t* reports;
 };
 
-static inline bool _update_attribute( const ipacket_t *packet, query_report_element_conf_t *cfg ){
-	attribute_t * attr_extract = dpi_extract_attribute(packet, & cfg->attribute);
-	const void *data = attr_extract->data;
-	query_operator_t *op;
+static inline query_operator_stack_t ** _create_operator_stack_arrays( size_t size, const query_report_element_conf_t *elements ){
 	int i;
-	bool b;
-	//normally do no need to check, as this size does not change in runtime
-	if( cfg->operators.size == 0 )
-		return false;
-
-	//back trace
-	for( i=cfg->operators.size-1; i>=0; i++ ){
-		op = cfg->operators.elements[i];
-		b = query_operator_add_data( op, data );
-		if( b == false )
-			return false;
-		data = query_operator_get_value( op );
+	const query_report_element_conf_t *el;
+	if( size == 0 )
+		return NULL;
+	//each stack is a pointer
+	query_operator_stack_t **stacks = mmt_alloc( size * sizeof( void *));
+	for( i=0; i<size; i++ ){
+		el = & elements[i];
+		stacks[i] = query_operator_stack_create( el->operators.size, el->operators.elements, el->attribute.dpi_datatype );
 	}
-	return true;
+	return stacks;
 }
 
-static inline bool _update_attributes( const ipacket_t *packet, query_report_element_conf_t *cfg, size_t size ){
+static inline bool _update_operator_stack_arrays( const ipacket_t *packet, size_t size, query_operator_stack_t **st_array,
+		const query_report_element_conf_t *cfg){
 	int i;
 	bool ret = true;
-	for( i=0; i<size; i++ )
-		ret = ret && _update_attribute( packet, &cfg[i] );
-	return false;
+	const dpi_protocol_attribute_t *att;
+	attribute_t *extracted_val;
+	query_operator_stack_t *st;
+	for( i=0; i<size; i++ ){
+		st  = st_array[i];
+		att = & cfg[i].attribute;
+		extracted_val = dpi_extract_attribute( packet, att);
+		if( extracted_val )
+			ret = ret && query_operator_stack_add_data(st, extracted_val->data );
+	}
+	return ret;
+}
+
+static inline void _reset_operator_stack_arrays( size_t size, query_operator_stack_t **st_array){
+	int i;
+	query_operator_stack_t *st;
+	for( i=0; i<size; i++ ){
+		st  = st_array[i];
+		query_operator_stack_reset_value(st);
+	}
+}
+
+static inline void _release_operator_stack_arrays( size_t size, query_operator_stack_t **st_array){
+	int i;
+	query_operator_stack_t *st;
+	for( i=0; i<size; i++ ){
+		st  = st_array[i];
+		query_operator_stack_release(st);
+	}
 }
 
 int _data_sprintf(char * buff, int len, int data_type, const void *data) {
@@ -61,34 +82,33 @@ int _data_sprintf(char * buff, int len, int data_type, const void *data) {
 }
 
 static size_t _get_string_values( size_t message_size, char *message,
-		query_report_element_conf_t *atts, size_t atts_size  ){
-	const query_report_element_conf_t *att;
+		size_t atts_size,  query_operator_stack_t **st_array ){
+	query_operator_stack_t *st;
 	const void *data;
 	int offset = 0;
 	//attributes
 	int i;
 	bool is_string;
-	int empty_counter = 0;
+	data_types_t data_type;
 	for( i=0; i<atts_size; i++ ){
-		att = & atts[i];
+		st = st_array[i];
 
-		data = query_operator_get_value( att->operators.elements[0] );
+		data_type = query_operator_stack_get_data_type(st);
+		data = query_operator_stack_get_value(st);
 
 		//separator
 		if( i!=0 )
 			message[offset ++] = ',';
 
-		is_string = is_string_datatype( att->attribute.dpi_datatype );
+		is_string = is_string_datatype( data_type );
 		if( data != NULL ){
 			if( is_string )
 				//surround by quotes
 				message[ offset ++ ] = '"';
-			offset += _data_sprintf( message + offset, message_size - offset,
-					att->attribute.dpi_datatype, data );
+			offset += _data_sprintf( message + offset, message_size - offset, data_type, data );
 			if( is_string )
 				message[ offset ++ ] = '"';
 		}else{
-			empty_counter ++;
 			//no value, use default value:
 			// "" for string
 			// 0  for number
@@ -103,46 +123,40 @@ static size_t _get_string_values( size_t message_size, char *message,
 	return offset;
 }
 
-static query_report_element_conf_t *_duplicate_attributes( size_t size, const query_report_element_conf_t *org ){
-	query_report_element_conf_t *ret = mmt_alloc( size * sizeof(query_report_element_conf_t) );
-	int i, j;
-	for( i=0; i<size; i++ ){
-		ret[i] = org[i];
-		for( j=0; j<ret[i].operators.size; j++ )
-			ret[i].operators.elements[j] = query_operator_duplicate( org[i].operators.elements[j] );
-	}
-	return ret;
-}
-
 static void _query_report_handle( const ipacket_t *packet,  query_based_report_context_t *context){
 	const query_report_conf_t *config = context->config;
 	char message[MAX_LENGTH_REPORT_MESSAGE], *key;
 	size_t key_len;
-	size_t atts_size = config->select.size;
-	query_report_element_conf_t *atts;
+	query_operator_stack_t **select_operators;
 
 	static int counter = 0;
 
-	//update values of each operator in "group-by" and "select" groupes
-	_update_attributes( packet, config->group_by.elements, config->group_by.size );
+	//update values of each operator in "group-by" group
+	_update_operator_stack_arrays( packet, config->group_by.size, context->group_by_operators, config->group_by.elements );
 
-	key_len = _get_string_values( MAX_LENGTH_REPORT_MESSAGE, message, config->group_by.elements, config->group_by.size );
-	atts = hash_search( context->hash_table, key_len, (uint8_t*)message );
+	key_len = _get_string_values( MAX_LENGTH_REPORT_MESSAGE, message, config->group_by.size, context->group_by_operators );
+	select_operators = hash_search( context->hash_table, key_len, (uint8_t*)message );
 
 	//not found
-	if( atts == NULL ){
-		atts = _duplicate_attributes( atts_size, config->select.elements );
+	if( select_operators == NULL ){
+		select_operators = _create_operator_stack_arrays( config->select.size, config->select.elements );
 		key = mmt_memdup( message, key_len );
-		hash_add( context->hash_table, key_len, (uint8_t*) key, atts);
+		hash_add( context->hash_table, key_len, (uint8_t*) key, select_operators);
 	}
 
-	_update_attributes( packet, atts, atts_size );
+	//update values of each operator in "select" group
+	_update_operator_stack_arrays( packet, config->select.size, select_operators, config->select.elements );
 
-	if( counter ++ == 10 ){
-		printf("%s,", message );
-		_get_string_values( MAX_LENGTH_REPORT_MESSAGE, message, atts, atts_size );
-		printf("%s\n", message );
+	if( counter ++ > 10000 )
+	{
+		_get_string_values( MAX_LENGTH_REPORT_MESSAGE, message, config->select.size, select_operators );
+		output_write_report( context->output, context->config->output_channels,
+				QUERY_REPORT_TYPE,
+				&packet->p_hdr->ts, message );
+		//reset
+		_reset_operator_stack_arrays( config->select.size, select_operators );
 	}
+
 
 }
 
@@ -271,12 +285,15 @@ list_query_based_report_context_t* query_based_report_register( mmt_handler_t *d
 			continue;
 
 		rep->output = output;
-		rep->hash_table = hash_create();
-
 		//register attribute to extract data
 		dpi_register_attribute( cfg->where.elements, cfg->where.size, dpi_handler, NULL, NULL );
 		_dpi_register_attribute( cfg->group_by.elements, cfg->group_by.size, dpi_handler, NULL, NULL );
 		_dpi_register_attribute( cfg->select.elements, cfg->select.size, dpi_handler, NULL, NULL );
+
+		rep->hash_table = hash_create();
+		rep->group_by_operators = _create_operator_stack_arrays( cfg->group_by.size, cfg->group_by.elements);
+
+
 	}
 	return ret;
 }
