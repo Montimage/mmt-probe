@@ -272,7 +272,7 @@ typedef struct query_report_element_conf_struct{
 typedef struct query_report_struct{
 	bool is_enable;
 	char *title;
-	uint16_t ms_period;
+	uint32_t ms_period;
 	struct{
 		uint16_t size;
 		query_report_element_conf_t *elements;

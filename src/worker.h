@@ -25,6 +25,7 @@
 #include "lib/malloc.h"
 #include "lib/memory.h"
 #include "lib/system_info.h"
+#include "lib/ms_timer.h"
 
 
 #include "modules/output/output.h"
@@ -69,6 +70,9 @@ struct worker_context_struct{
 	uint16_t index;    //thread index
 	uint16_t lcore_id; //id of logical core on which the thread is running
 	pid_t    pid;
+
+	//this timer is fired to flush reports to output channels, such as, file, socket, etc
+	ms_timer_t flush_report_timer;
 };
 
 /**
@@ -103,19 +107,11 @@ void worker_on_start( worker_context_t *worker_context );
 void worker_on_stop( worker_context_t *worker_context );
 
 /**
- * This must be called periodically each x seconds depending on config.stats_period
+ * Update timer in the worker
  * @param worker_context
+ * @param tv
  */
-void worker_on_timer_stat_period( worker_context_t *worker_context );
-
-/**
- * This must be called periodically each x seconds (= file-output.output-period) if
- * - file output is enable, and,
- * - file output is sampled
- * @param worker_context
- */
-void worker_on_timer_sample_file_period( worker_context_t *worker_context );
-
+void worker_update_timer( worker_context_t *worker_context, const struct timeval *tv );
 
 /**
  * Print common statistics for both DPDK and pcap captures, such as, number of packets being captured,

@@ -301,6 +301,7 @@ void output_flush( output_t *output ){
 void output_release( output_t * output){
 	if( !output ) return;
 
+	fflush(stdout);
 	file_output_release( output->modules.file );
 
 	IF_ENABLE_MONGODB( mongodb_output_release( output->modules.mongodb ); )

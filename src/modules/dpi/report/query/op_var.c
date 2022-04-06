@@ -50,7 +50,7 @@ op_var_t *op_var_create( data_types_t data_type ){
 	op->data_type     = data_type;
 	op->elements_size = ELEMENTS_SIZE;
 	op->data_size     = get_data_size_by_data_type(data_type);
-	op->elements      = mmt_alloc( op->elements_size * op->data_size );
+	op->elements      = mmt_alloc_and_init_zero( op->elements_size * op->data_size );
 
 	op_var_reset_value( op );
 	return op;

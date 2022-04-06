@@ -5,6 +5,7 @@
  *      Author: nhnghia
  */
 #include <mmt_core.h>
+#include <stdbool.h>
 #include "../dpi_tool.h"
 #include "../../output/output.h"
 #include "../../../lib/malloc_ext.h"
@@ -17,6 +18,7 @@ typedef struct query_based_report_context_struct {
 	output_t *output;
 	hash_t *hash_table;
 	query_operator_stack_t **group_by_operators;
+	size_t ms_counter;
 }query_based_report_context_t;
 
 
@@ -146,18 +148,6 @@ static void _query_report_handle( const ipacket_t *packet,  query_based_report_c
 
 	//update values of each operator in "select" group
 	_update_operator_stack_arrays( packet, config->select.size, select_operators, config->select.elements );
-
-	if( counter ++ > 10000 )
-	{
-		_get_string_values( MAX_LENGTH_REPORT_MESSAGE, message, config->select.size, select_operators );
-		output_write_report( context->output, context->config->output_channels,
-				QUERY_REPORT_TYPE,
-				&packet->p_hdr->ts, message );
-		//reset
-		_reset_operator_stack_arrays( config->select.size, select_operators );
-	}
-
-
 }
 
 static bool _is_where_condition_valid( const ipacket_t *packet, size_t nb_attributes, const dpi_protocol_attribute_t *atts){
@@ -305,12 +295,13 @@ static void _free_hash_table( hash_t *hash, size_t select_size ){
 	//free key and data of each item in the hash table
 	for( i=0; i<hash->size; i++){
 		it = &hash->items[i];
-		if( it->is_occupy ){
-			mmt_probe_free( it->key );
-			select_operators = (query_operator_stack_t **) it->data;
-			_release_operator_stack_arrays( select_size, select_operators );
-			mmt_probe_free( select_operators );
-		}
+		if( ! it->is_occupy )
+			continue;
+
+		mmt_probe_free( it->key );
+		select_operators = (query_operator_stack_t **) it->data;
+		_release_operator_stack_arrays( select_size, select_operators );
+		mmt_probe_free( select_operators );
 	}
 	hash_free( hash );
 }
@@ -343,4 +334,57 @@ void query_based_report_unregister( mmt_handler_t *dpi_handler, list_query_based
 
 	mmt_probe_free( context->reports );
 	mmt_probe_free( context );
+}
+
+static void _flush_reports_then_reset( query_based_report_context_t *rep, const struct timeval *tv ){
+	const query_report_conf_t *config = rep->config;
+	char message[MAX_LENGTH_REPORT_MESSAGE];
+	query_operator_stack_t **select_operators;
+	size_t i;
+	hash_item_t *it;
+	size_t select_size = config->select.size;
+	//do report
+	hash_t *hash = rep->hash_table;
+	for( i=0; i<hash->size; i++ ){
+		it = &hash->items[i];
+		if( ! it->is_occupy )
+			continue;
+		select_operators = (query_operator_stack_t **) it->data;
+		_get_string_values( MAX_LENGTH_REPORT_MESSAGE, message, select_size, select_operators );
+		output_write_report( rep->output, config->output_channels,
+				QUERY_REPORT_TYPE, tv, message );
+
+		//free key and data
+		mmt_probe_free( it->key );
+		_release_operator_stack_arrays( select_size, select_operators );
+		mmt_probe_free( select_operators );
+		it->is_occupy = false;
+	}
+}
+
+void query_based_report_do_report( list_query_based_report_context_t *context, bool flush_report, const struct timeval *tv ){
+	int i;
+	const query_report_conf_t *config;
+	query_based_report_context_t *rep;
+
+	if( context == NULL )
+		return;
+
+	for( i=0; i<context->size; i++ ){
+		rep = &context->reports[i];
+		config = context->reports[i].config;
+		//jump over the disable ones
+		//This can create a memory leak when this event report is disable in runtime
+		//(this is, it was enable at starting time but it has been disable after some time of running)
+		//So, when it has been disable, one must unregister the attributes using by this event report
+		if(! config->is_enable )
+			continue;
+
+		rep->ms_counter ++;
+		if( rep->ms_counter >= config->ms_period || flush_report ){
+			_flush_reports_then_reset( rep, tv );
+			//reset the counter
+			rep->ms_counter = 0;
+		}
+	}
 }

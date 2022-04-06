@@ -229,15 +229,8 @@ static int _worker_thread( void *arg ){
 	unsigned int worker_id = worker_context->index;
 
 
-	time_t next_stat_ts = 0; //moment we need to do statistic
-	time_t next_output_ts = 0; //moment we need flush output to channels
-	time_t now; //current timestamp that is either
-	//- real timestamp of system when running online
-	//- packet timestamp when running offline
-
-	now = time( NULL );
-	next_stat_ts   = now + config->stat_period;
-	next_output_ts = now + config->outputs.cache_period;
+	struct timeval now; //current timestamp that is
+	// real timestamp of system because this is running online
 
 	volatile bool is_continuous = true;
 	/* Run until the application is quit or killed. */
@@ -287,22 +280,8 @@ static int _worker_thread( void *arg ){
 				rte_pktmbuf_free( packets[i] );
 			}
 		}
-
-		now = time( NULL );
-
-		//statistic periodically
-		if( now >= next_stat_ts  ){
-			next_stat_ts += config->stat_period;
-			//call worker
-			worker_on_timer_stat_period( worker_context );
-		}
-
-		//if we need to sample output file
-		if( config->outputs.file->is_sampled && now >=  next_output_ts ){
-			next_output_ts += config->outputs.cache_period;
-			//call worker to flush statistic information to output channels (file, mongo, ..)
-			worker_on_timer_sample_file_period( worker_context );
-		}
+		gettimeofday( & now, NULL );
+		worker_update_timer( worker_context, now );
 	}
 
 	worker_on_stop( worker_context );

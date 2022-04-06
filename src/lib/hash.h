@@ -118,8 +118,9 @@ static inline void *hash_search( const hash_t *hash, size_t key_len, const uint8
  	uint64_t index   = key_number % hash->size;
 	uint64_t counter = 0;
 	//find an available slot
-	while( hash->items[ index ].data ){
-		if( hash->items[ index ].key_len == key_len && memcmp(key, hash->items[index].key, key_len) == 0 )
+	while( hash->items[ index ].is_occupy ){
+		if( hash->items[ index ].key_len == key_len
+		&& memcmp(key, hash->items[index].key, key_len) == 0 )
 			return hash->items[ index ].data;
 
 		//go to the next slot

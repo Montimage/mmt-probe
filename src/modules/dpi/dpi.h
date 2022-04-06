@@ -16,6 +16,7 @@
 
 #include <mmt_core.h>
 #include "../../lib/limit.h"
+#include "../../lib/ms_timer.h"
 #include "../../configure.h"
 #include "../output/output.h"
 #include "../output/file/file_output.h"
@@ -86,6 +87,11 @@ typedef struct dpi_context_struct{
 	// => this number will increase 1 for each 5 seconds
 	size_t stat_periods_index;
 
+	// this timer is fired to tell dpi to perform its session reports
+	ms_timer_t stat_timer;
+	// this timer is fired to tell dpi to perform query-reports
+	ms_timer_t query_report_timer;
+	struct timeval last_packet_timestamp;
 }dpi_context_t;
 
 //the instances of this structure are used on session scope: during session period
@@ -119,10 +125,10 @@ static inline packet_session_t *dpi_get_packet_session( const ipacket_t *ipacket
 dpi_context_t* dpi_alloc_init( const probe_conf_t *, mmt_handler_t *, output_t *, uint16_t worker_index );
 
 /**
- * This function must be called by worker periodically each x seconds( = config.stat_period )
+ * This function must be called by worker periodically to update the timers
  * @param
  */
-void dpi_callback_on_stat_period( dpi_context_t * );
+void dpi_update_timer( dpi_context_t *, const struct timeval * );
 
 /**
  * This must be called by worker when it is released

@@ -908,6 +908,8 @@ static inline void _parse_query_block( query_report_conf_t *ret, cfg_t *cfg ){
 	ret->title     = mmt_strdup( cfg_title(cfg) );
 	ret->output_channels = _parse_output_channel( cfg );
 	ret->ms_period = cfg_getint(cfg, "ms-period");
+	if( ret->ms_period == 0 )
+		ret->ms_period = -1; //max
 
 	ret->where.size = _parse_attributes_helper( cfg, "where", &ret->where.elements );
 
