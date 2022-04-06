@@ -39,6 +39,9 @@ op_first_t *op_first_create( data_types_t data_type ){
 }
 
 void op_first_release( op_first_t *op ){
+	if( op == NULL )
+			return;
+	mmt_probe_free( op->result );
 	mmt_probe_free( op );
 }
 

@@ -13,8 +13,9 @@
 typedef struct _op_var{
 	data_types_t data_type;
 	uint32_t counter;
-	uint32_t elements_size;
-	void *elements;
+	uint32_t elements_size; //number of elements
+	uint32_t data_size; //memory size of one element
+	uint8_t *elements;
 	float result;
 }op_var_t;
 
@@ -42,32 +43,14 @@ void op_var_reset_value( op_var_t *op ){
 }
 
 op_var_t *op_var_create( data_types_t data_type ){
-	op_var_t *op = mmt_alloc( sizeof( op_var_t ));
-	op->data_type = data_type;
+	op_var_t *op;
+	if( ! op_var_can_handle( data_type) )
+		return NULL;
+	op = mmt_alloc( sizeof( op_var_t ));
+	op->data_type     = data_type;
 	op->elements_size = ELEMENTS_SIZE;
-
-	switch( data_type ){
-	case MMT_DATA_FLOAT:
-		op->elements = mmt_alloc( op->elements_size * sizeof(float) );
-		break;
-	case MMT_U8_DATA:
-		op->elements = mmt_alloc( op->elements_size * sizeof( uint8_t) );
-		break;
-	case MMT_U16_DATA:
-		op->elements = mmt_alloc( op->elements_size * sizeof( uint16_t ) );
-		break;
-	case MMT_U32_DATA:
-		op->elements = mmt_alloc( op->elements_size * sizeof( uint32_t ) );
-		break;
-	case MMT_U64_DATA:
-		op->elements = mmt_alloc( op->elements_size * sizeof( uint64_t ) );
-		break;
-	default:
-		//this avoid adding data
-		op->elements_size = 0;
-		op->elements = NULL;
-		break;
-	}
+	op->data_size     = get_data_size_by_data_type(data_type);
+	op->elements      = mmt_alloc( op->elements_size * op->data_size );
 
 	op_var_reset_value( op );
 	return op;
@@ -79,37 +62,16 @@ void op_var_release( op_var_t *op ){
 	mmt_probe_free( op );
 }
 
+
 bool op_var_add_data( op_var_t *op, const void* value ){
+	size_t index;
 	//table is full
-	if( op->counter >= op->elements_size )
+	if( op->counter >= op->elements_size || value == NULL)
 		return false;
 
-	switch( op->data_type ){
-	//float
-	case MMT_DATA_FLOAT:
-		((float*) op->elements)[ op->counter ] = *(float *) value;
-		op->counter ++;
-		return true;
-	//integer
-	case MMT_U8_DATA:
-		((uint8_t*) op->elements)[ op->counter ] = *(uint8_t *) value;
-		op->counter ++;
-		return true;
-	case MMT_U16_DATA:
-		((uint16_t*) op->elements)[ op->counter ] = *(uint16_t *) value;
-		op->counter ++;
-		return true;
-	case MMT_U32_DATA:
-		((uint32_t*) op->elements)[ op->counter ] = *(uint32_t *) value;
-		op->counter ++;
-		return true;
-	case MMT_U64_DATA:
-		((uint64_t*) op->elements)[ op->counter ] = *(uint64_t *) value;
-		op->counter ++;
-		return true;
-	default:
-		return false;
-	}
+	index = op->counter * op->data_size;
+	memcpy( &op->elements[index], value, op->data_size );
+	op->counter ++;
 
 	return true;
 }

@@ -160,7 +160,7 @@ static void _query_report_handle( const ipacket_t *packet,  query_based_report_c
 
 }
 
-static bool _is_where_condition_ok( const ipacket_t *packet, size_t nb_attributes, const dpi_protocol_attribute_t *atts){
+static bool _is_where_condition_valid( const ipacket_t *packet, size_t nb_attributes, const dpi_protocol_attribute_t *atts){
 	int i;
 	for( i=0; i<nb_attributes; i++ )
 		if( dpi_extract_attribute(packet, &atts[i]) == NULL )
@@ -186,7 +186,7 @@ void query_based_report_callback_on_receiving_packet( const ipacket_t *packet, l
 			continue;
 
 		//the events in WHERE are not available => skip this report
-		if( packet && ! _is_where_condition_ok(packet, cfg->where.size, cfg->where.elements ) )
+		if( packet && ! _is_where_condition_valid(packet, cfg->where.size, cfg->where.elements ) )
 			continue;
 
 		//handle the report
@@ -298,6 +298,23 @@ list_query_based_report_context_t* query_based_report_register( mmt_handler_t *d
 	return ret;
 }
 
+static void _free_hash_table( hash_t *hash, size_t select_size ){
+	int i;
+	hash_item_t *it;
+	query_operator_stack_t **select_operators;
+	//free key and data of each item in the hash table
+	for( i=0; i<hash->size; i++){
+		it = &hash->items[i];
+		if( it->is_occupy ){
+			mmt_probe_free( it->key );
+			select_operators = (query_operator_stack_t **) it->data;
+			_release_operator_stack_arrays( select_size, select_operators );
+			mmt_probe_free( select_operators );
+		}
+	}
+	hash_free( hash );
+}
+
 //Public API
 void query_based_report_unregister( mmt_handler_t *dpi_handler, list_query_based_report_context_t *context  ){
 	int i;
@@ -316,7 +333,8 @@ void query_based_report_unregister( mmt_handler_t *dpi_handler, list_query_based
 		if(! config->is_enable )
 			continue;
 
-		hash_free( rep->hash_table );
+		_free_hash_table( rep->hash_table, config->select.size );
+		_release_operator_stack_arrays( config->group_by.size, rep->group_by_operators );
 		//unregister attributes
 		dpi_unregister_attribute( config->where.elements, config->where.size, dpi_handler, NULL );
 		_dpi_unregister_attribute( config->group_by.elements, config->group_by.size, dpi_handler, NULL );

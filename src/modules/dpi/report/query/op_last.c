@@ -39,6 +39,9 @@ op_last_t *op_last_create( data_types_t data_type ){
 }
 
 void op_last_release( op_last_t *op ){
+	if( op == NULL )
+		return;
+	mmt_probe_free( op->result );
 	mmt_probe_free( op );
 }
 

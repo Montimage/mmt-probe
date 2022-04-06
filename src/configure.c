@@ -776,7 +776,7 @@ static inline void _parse_operator(  query_report_element_conf_t* out, const cha
 	}
 
 	str[counter] = '\0';
-	str_len = counter;
+	str_len = counter; //new length of the new string
 
 	//parse operators
 	i = 0;
@@ -784,7 +784,7 @@ static inline void _parse_operator(  query_report_element_conf_t* out, const cha
 		s = str+i;
 		//jump until (
 		counter = 0;
-		while( str[i+counter] != '(' )
+		while( i+counter < str_len && str[i+counter] != '(' )
 			counter ++;
 		//no open parentheses
 		if( i+counter >= str_len )
@@ -1135,33 +1135,42 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 	return conf;
 }
 
+static inline void _free_att_array( size_t size, dpi_protocol_attribute_t *elements ){
+	int i;
+	for( i=0; i<size; i++ ){
+		mmt_probe_free( elements[i].proto_name );
+		mmt_probe_free( elements[i].attribute_name );
+	}
+	mmt_probe_free( elements );
+}
+
 static inline void _free_event_report( event_report_conf_t *ret ){
 	if( ret == NULL )
 		return;
-	int i;
-	for( i=0; i<ret->attributes_size; i++ ){
-		mmt_probe_free( ret->attributes[i].proto_name );
-		mmt_probe_free( ret->attributes[i].attribute_name );
-	}
+	_free_att_array( ret->attributes_size, ret->attributes );
+	_free_att_array( ret->delta_condition.attributes_size, ret->delta_condition.attributes );
 
-	for( i=0; i<ret->delta_condition.attributes_size; i++ ){
-		mmt_probe_free( ret->delta_condition.attributes[i].proto_name );
-		mmt_probe_free( ret->delta_condition.attributes[i].attribute_name );
-	}
-	mmt_probe_free( ret->delta_condition.attributes );
-
-	mmt_probe_free( ret->attributes );
 	mmt_probe_free( ret->title );
 	mmt_probe_free( ret->event->proto_name );
 	mmt_probe_free( ret->event->attribute_name );
 	mmt_probe_free( ret->event );
 }
 
+static inline void _free_query_att_array( size_t size, query_report_element_conf_t *elements ){
+	int i;
+	for( i=0; i<size; i++ ){
+		mmt_probe_free( elements[i].attribute.proto_name );
+		mmt_probe_free( elements[i].attribute.attribute_name );
+	}
+	mmt_probe_free( elements );
+}
+
 static inline void _free_query_report( query_report_conf_t *ret ){
 	if( ret == NULL )
 		return;
-	int i;
-	//TODO need to free all attributes
+	_free_att_array( ret->where.size, ret->where.elements );
+	_free_query_att_array( ret->select.size, ret->select.elements);
+	_free_query_att_array( ret->group_by.size, ret->group_by.elements);
 	mmt_probe_free( ret->title );
 }
 /**

@@ -20,8 +20,8 @@
  * @param str
  * @return
  */
-static inline uint64_t djb2_hash_string(size_t len, const uint8_t *str){
-	uint64_t hash = 5381;
+static inline size_t djb2_hash_string(size_t len, const uint8_t *str){
+	size_t hash = 5381;
 	uint8_t c;
 	size_t i;
 	for( i=0; i<len; i++ ){
@@ -37,6 +37,7 @@ static inline uint64_t djb2_hash_string(size_t len, const uint8_t *str){
  * An hash table item
  */
 typedef struct hash_item_struct{
+	bool is_occupy;
 	size_t key_len;
 	void *key;
 	void *data;
@@ -46,9 +47,9 @@ typedef struct hash_item_struct{
  * MMT Hash table
  */
 typedef struct hash_struct{
-	uint64_t size;
+	size_t size;
 	hash_item_t *items;
-	uint64_t (*fn_hash_key)( size_t, const uint8_t * );
+	size_t (*fn_hash_key)( size_t, const uint8_t * );
 }hash_t;
 
 
@@ -66,6 +67,7 @@ static inline hash_t* hash_create(){
 		ret->items[i].key  = NULL;
 		ret->items[i].key_len = 0;
 		ret->items[i].data = NULL;
+		ret->items[i].is_occupy = false;
 	}
 	return ret;
 }
@@ -89,7 +91,7 @@ static inline bool hash_add( hash_t *hash, size_t key_len, uint8_t *key, void *d
  	uint64_t index   = key_number % hash->size;
 	uint64_t counter = 0;
 	//find an available slot
-	while( hash->items[ index ].data != NULL ){
+	while( hash->items[ index ].is_occupy ){
 		//go to the next slot
 		counter ++;
 		index ++;
@@ -99,9 +101,10 @@ static inline bool hash_add( hash_t *hash, size_t key_len, uint8_t *key, void *d
 
 		index %= hash->size;
 	}
-	hash->items[ index ].key_len = key_len;
-	hash->items[ index ].key     = key;
-	hash->items[ index ].data    = data;
+	hash->items[ index ].key_len   = key_len;
+	hash->items[ index ].key       = key;
+	hash->items[ index ].data      = data;
+	hash->items[ index ].is_occupy = true;
 	return true;
 }
 
@@ -115,7 +118,7 @@ static inline void *hash_search( const hash_t *hash, size_t key_len, const uint8
  	uint64_t index   = key_number % hash->size;
 	uint64_t counter = 0;
 	//find an available slot
-	while( hash->items[ index ].data != NULL ){
+	while( hash->items[ index ].data ){
 		if( hash->items[ index ].key_len == key_len && memcmp(key, hash->items[index].key, key_len) == 0 )
 			return hash->items[ index ].data;
 
