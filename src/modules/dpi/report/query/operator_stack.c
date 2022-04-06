@@ -44,7 +44,10 @@ bool query_operator_stack_add_data( query_operator_stack_t *st, const void *data
 		b = query_operator_add_data( st->operators[i], data );
 		if( b == false )
 			return false;
-		data = query_operator_get_value( st->operators[i] );
+		//we do not need to get value of the last operator
+		// since it will not be used
+		if( i>0 )
+			data = query_operator_get_value( st->operators[i] );
 	}
 	return true;
 }

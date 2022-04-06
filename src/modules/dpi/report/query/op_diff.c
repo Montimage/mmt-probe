@@ -11,25 +11,21 @@
 
 typedef struct _op_diff{
 	data_types_t data_type;
-	union {
-		float          f;
-		uint64_t       i;
-	} last_value; //store the 2 latest 2 values
-	bool has_last_value;
-	union {
-		float    f;
-		uint64_t i;
-	} result;
-	uint16_t count, index;
+	float last_value;
+	float result;
+	size_t counter;
 }op_diff_t;
 
 data_types_t op_diff_get_data_type( data_types_t data_type ){
 	//the result should be the same
 	switch( data_type ){
 	case MMT_DATA_FLOAT:
-		return data_type;
+	case MMT_U8_DATA:
+	case MMT_U16_DATA:
+	case MMT_U32_DATA:
+	case MMT_U64_DATA:
 	case MMT_DATA_TIMEVAL:
-		return MMT_U64_DATA;
+		return MMT_DATA_FLOAT;
 	default:
 		return MMT_UNDEFINED_TYPE;
 	}
@@ -40,7 +36,9 @@ bool op_diff_can_handle( data_types_t data_type ){
 }
 
 void op_diff_reset_value( op_diff_t *op ){
-	op->has_last_value = false;
+	op->counter = 0;
+	op->result  = 0;
+	op->result  = 0;
 }
 
 op_diff_t *op_diff_create( data_types_t data_type ){
@@ -57,44 +55,42 @@ void op_diff_release( op_diff_t *op ){
 bool op_diff_add_data( op_diff_t *op, const void* value ){
 	float f;
 	struct timeval t;
-	uint64_t usec;
+
 	switch( op->data_type ){
 	//float
 	case MMT_DATA_FLOAT:
 		f = *(float *) value;
-		if( op->has_last_value )
-			op->result.f = f - op->last_value.f;
-		op->last_value.f = f;
-		op->has_last_value = true;
-		return true;
-
-	//integer
+		break;
+	case MMT_U8_DATA:
+		f = *(uint8_t *) value;
+		break;
+	case MMT_U16_DATA:
+		f = *(uint16_t *) value;
+		break;
+	case MMT_U32_DATA:
+		f = *(uint32_t *) value;
+		break;
+	case MMT_U64_DATA:
+		f = *(uint64_t *) value;
+		break;
 	case MMT_DATA_TIMEVAL:
 		t = *(struct timeval *) value;
 		//convert timeval to microsecond
-		usec = t.tv_sec * 1000000 + t.tv_usec;
-		if( op->has_last_value )
-			op->result.i = usec - op->last_value.i;
-
-		op->last_value.i = usec;
-		op->has_last_value = true;
-		return true;
+		f = t.tv_sec * 1000000 + t.tv_usec;
+		break;
 	default:
 		return false;
 	}
+	op->counter ++;
+
+	if( op->counter > 1 )
+		op->result = f - op->last_value;
+	op->last_value = f;
+	return true;
 }
 
 const void* op_diff_get_value( op_diff_t *op ){
-	if( ! op->has_last_value )
-		return NULL;
-
-	data_types_t type = op_diff_get_data_type( op->data_type );
-	switch( type ){
-	case MMT_U64_DATA:
-		return & op->result.f;
-	case MMT_DATA_FLOAT:
-		return & op->result.i;
-	default:
-		return NULL;
-	}
+	if( op->counter > 1)
+		return & op->result;
+	return NULL;
 }

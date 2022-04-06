@@ -93,11 +93,10 @@ bool op_var_add_data( op_var_t *op, const void* value ){
 
 const void* op_var_get_value( op_var_t *op ){
 	int i;
-	float total, avg;
+	double total, avg;
 	if( op->counter == 0 )
 		op->result = 0;
 	else {
-		float total = 0;
 		switch( op->data_type ){
 		//float
 		case MMT_DATA_FLOAT:

@@ -326,6 +326,7 @@ void query_based_report_unregister( mmt_handler_t *dpi_handler, list_query_based
 
 		_free_hash_table( rep->hash_table, config->select.size );
 		_release_operator_stack_arrays( config->group_by.size, rep->group_by_operators );
+		mmt_probe_free( rep->group_by_operators );
 		//unregister attributes
 		dpi_unregister_attribute( config->where.elements, config->where.size, dpi_handler, NULL );
 		_dpi_unregister_attribute( config->group_by.elements, config->group_by.size, dpi_handler, NULL );
