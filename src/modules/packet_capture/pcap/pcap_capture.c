@@ -151,8 +151,17 @@ static void *_worker_thread( void *arg){
 		//get number of packets being available
 		avail_pkt_count = data_spsc_ring_pop_bulk( fifo, &fifo_tail_index );
 
-		/* if no packet has arrived => sleep 100 micro-second */
+		/* if no packet has arrived  */
 		if ( avail_pkt_count <= 0 ) {
+
+			//we do not use packet timestamp for online analysis as
+			// there may be exist some moment having no packets => output will be blocked until a new packet comes
+			//get the current timestamp of system
+			if( config->input->input_mode == ONLINE_ANALYSIS )
+				gettimeofday( &now, NULL );
+			worker_update_timer( worker_context, &now );
+
+			//=> sleep 100 micro-second
 			nanosleep( (const struct timespec[]){{0, 100000L}}, NULL );
 		} else {  /* else remove number of packets from list and process it */
 
@@ -162,6 +171,8 @@ static void *_worker_thread( void *arg){
 				pkt_header = (pkthdr_t *) data_spsc_ring_get_data( fifo, i + fifo_tail_index);
 				pkt_data   = (u_char *)(pkt_header + 1);
 				worker_process_a_packet( worker_context, pkt_header, pkt_data );
+
+				worker_update_timer( worker_context, &pkt_header->ts );
 			}
 
 			//only the last packet in the queue may has NULL data
@@ -172,42 +183,13 @@ static void *_worker_thread( void *arg){
 				break;
 			else{
 				now = pkt_header->ts;
-
 				worker_process_a_packet( worker_context, pkt_header, (u_char *)(pkt_header + 1) );
+				worker_update_timer( worker_context, &pkt_header->ts );
 			}
 
 			//update new position of ring's tail => give place to a new packet
 			data_spsc_ring_update_tail( fifo, fifo_tail_index, avail_pkt_count + 1);
 		}
-
-		//we do not use packet timestamp for online analysis as
-		// there may be exist some moment having no packets => output will be blocked until a new packet comes
-		//get the current timestamp of system
-		if( config->input->input_mode == ONLINE_ANALYSIS )
-			gettimeofday( &now, NULL );
-
-		/*
-		//first times: we need to initialize the 2 milestones
-		if( next_output_ts == 0 && now != 0 ){
-			next_stat_ts = now + config->stat_period;
-			next_output_ts = now + config->outputs.cache_period;
-		}else{
-			//statistic periodically
-			if( now > next_stat_ts  ){
-				next_stat_ts += config->stat_period;
-				//call worker
-				worker_on_timer_stat_period( worker_context );
-			}
-
-			//if we need to sample output file
-			if( config->outputs.file->is_sampled && now >  next_output_ts ){
-				next_output_ts += config->outputs.cache_period;
-				//call worker
-				worker_on_timer_sample_file_period( worker_context );
-			}
-		}
-		*/
-		worker_update_timer( worker_context, &now );
 	}
 
 	worker_on_stop( worker_context );
@@ -301,6 +283,11 @@ static void _got_a_packet(u_char* user, const struct pcap_pkthdr *pcap_header, c
 		context->traffic_stat.mmt.packets.receive ++;
 	}
 
+	//call worker timer only in non-smp mode
+	//because in SMP mode, the timers will be updated inside _worker_thread
+	if( IS_SMP_MODE( context ))
+		return;
+
 	//we do not use packet timestamp for online analysis as
 	// there may be exist some moment having no packets => output will be blocked until a new packet comes
 	//get the current timestamp of system
@@ -310,29 +297,6 @@ static void _got_a_packet(u_char* user, const struct pcap_pkthdr *pcap_header, c
 
 	worker_context_t *worker_context = context->smp[0];
 	worker_update_timer( worker_context, &now );
-
-	/*
-	//statistic periodically
-	if( now > next_stat_ts  ){
-		next_stat_ts += config->stat_period;
-		//global statistic
-		_print_traffic_statistics( context );
-
-		//call worker timer only in non-smp mode
-		if( ! IS_SMP_MODE( context ))
-			worker_on_timer_stat_period( worker_context );
-
-	}
-
-	//if we need to sample output file
-	if( ! IS_SMP_MODE( context )){
-		if( config->outputs.file->is_sampled && now >  next_output_ts ){
-			next_output_ts += config->outputs.cache_period;
-			//call worker
-			worker_on_timer_sample_file_period( worker_context );
-		}
-	}
-	*/
 }
 
 //this function is called by main thread when user press Ctrl+C
