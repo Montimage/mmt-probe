@@ -53,6 +53,8 @@ void op_sum_release( op_sum_t *op ){
 }
 
 bool op_sum_add_data( op_sum_t *op, const void* value ){
+	if( value == NULL )
+		return false;
 	switch( op->data_type ){
 	//float
 	case MMT_DATA_FLOAT:

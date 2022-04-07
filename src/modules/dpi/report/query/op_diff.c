@@ -1,6 +1,9 @@
 /*
  * op_diff.c
  *
+ * Currently diff operator does not take into account the negative number:
+ * it requires that the next value must be greater than or equal to the current value
+ *
  *  Created on: Mar 30, 2022
  *      Author: nhnghia
  */
@@ -9,14 +12,23 @@
 
 #include "operator.h"
 
+typedef union{
+	float     f;
+	uint8_t   i8;
+	uint16_t i16;
+	uint32_t i32;
+	uint64_t i64;
+} value_t;
+
 typedef struct _op_diff{
 	data_types_t data_type;
-	float last_value;
-	float result;
+	value_t last_value, result;
 	size_t counter;
 }op_diff_t;
 
 data_types_t op_diff_get_data_type( data_types_t data_type ){
+	//Note: if new data type is supported
+	// => you may need to increase data size of last_value and result variables
 	//the result should be the same
 	switch( data_type ){
 	case MMT_DATA_FLOAT:
@@ -24,8 +36,9 @@ data_types_t op_diff_get_data_type( data_types_t data_type ){
 	case MMT_U16_DATA:
 	case MMT_U32_DATA:
 	case MMT_U64_DATA:
+		return data_type;
 	case MMT_DATA_TIMEVAL:
-		return MMT_DATA_FLOAT;
+		return MMT_U64_DATA;
 	default:
 		return MMT_UNDEFINED_TYPE;
 	}
@@ -37,8 +50,6 @@ bool op_diff_can_handle( data_types_t data_type ){
 
 void op_diff_reset_value( op_diff_t *op ){
 	op->counter = 0;
-	op->result  = 0;
-	op->result  = 0;
 }
 
 op_diff_t *op_diff_create( data_types_t data_type ){
@@ -52,40 +63,51 @@ void op_diff_release( op_diff_t *op ){
 	mmt_probe_free( op );
 }
 
+#define CALCUL_DIFF( type, i )\
+		v.i = *(type *) value;                          \
+		op->counter ++;                                 \
+		if( op->counter > 1 )                           \
+		    if( v.i > op->last_value.i)                 \
+		        op->result.i = v.i - op->last_value.i;
+
 bool op_diff_add_data( op_diff_t *op, const void* value ){
-	float f;
+	value_t v;
 	struct timeval t;
+
+	op->result.i64 = 0;
+
+	if( value == NULL )
+		return false;
 
 	switch( op->data_type ){
 	//float
 	case MMT_DATA_FLOAT:
-		f = *(float *) value;
+		CALCUL_DIFF( float, f);
 		break;
 	case MMT_U8_DATA:
-		f = *(uint8_t *) value;
+		CALCUL_DIFF( uint8_t, i8);
 		break;
 	case MMT_U16_DATA:
-		f = *(uint16_t *) value;
+		CALCUL_DIFF( uint16_t, i16);
 		break;
 	case MMT_U32_DATA:
-		f = *(uint32_t *) value;
+		CALCUL_DIFF( uint32_t, i32);
 		break;
 	case MMT_U64_DATA:
-		f = *(uint64_t *) value;
+		CALCUL_DIFF( uint64_t, i64);
 		break;
 	case MMT_DATA_TIMEVAL:
 		t = *(struct timeval *) value;
+		// a float cannot contain this value, we need an uint64_t
 		//convert timeval to microsecond
-		f = t.tv_sec * 1000000 + t.tv_usec;
+		v.i64 = t.tv_sec * 1000000 + t.tv_usec;
+		value = &v;
+		CALCUL_DIFF( uint64_t, i64);
 		break;
 	default:
 		return false;
 	}
-	op->counter ++;
-
-	if( op->counter > 1 )
-		op->result = f - op->last_value;
-	op->last_value = f;
+	op->last_value = v;
 	return true;
 }
 

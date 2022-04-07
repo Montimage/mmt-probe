@@ -44,7 +44,7 @@ static inline query_operator_stack_t ** _create_operator_stack_arrays( size_t si
 static inline bool _update_operator_stack_arrays( const ipacket_t *packet, size_t size, query_operator_stack_t **st_array,
 		const query_report_element_conf_t *cfg){
 	int i;
-	bool ret = true;
+	bool b, ret = true;
 	const dpi_protocol_attribute_t *att;
 	attribute_t *extracted_val;
 	query_operator_stack_t *st;
@@ -52,8 +52,10 @@ static inline bool _update_operator_stack_arrays( const ipacket_t *packet, size_
 		st  = st_array[i];
 		att = & cfg[i].attribute;
 		extracted_val = dpi_extract_attribute( packet, att);
-		if( extracted_val )
-			ret = ret && query_operator_stack_add_data(st, extracted_val->data );
+		if( extracted_val ){
+			b = query_operator_stack_add_data(st, extracted_val->data );
+			ret &= b;
+		}
 	}
 	return ret;
 }
@@ -78,7 +80,7 @@ static inline void _release_operator_stack_arrays( size_t size, query_operator_s
 
 int _data_sprintf(char * buff, int len, int data_type, const void *data) {
 	attribute_t att;
-	att.data = data;
+	att.data = (void*) data;
 	att.data_type = data_type;
 	return mmt_attr_sprintf(buff, len, &att);
 }

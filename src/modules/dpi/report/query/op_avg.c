@@ -61,30 +61,25 @@ bool op_avg_add_data( op_avg_t *op, const void* value ){
 	//float
 	case MMT_DATA_FLOAT:
 		op->total.f += *(float *) value;
-		op->counter ++;
-		return true;
+		break;
 	//integer
 	case MMT_U8_DATA:
 		op->total.i += *(uint8_t *) value;
-		op->counter ++;
-		return true;
+		break;
 	case MMT_U16_DATA:
 		op->total.i += *(uint16_t *) value;
-		op->counter ++;
-		return true;
+		break;
 	case MMT_U32_DATA:
 		op->total.i += *(uint32_t *) value;
-		op->counter ++;
-		return true;
+		break;
 	case MMT_U64_DATA:
 		op->total.i += *(uint64_t *) value;
-		op->counter ++;
-		return true;
+		break;
 	default:
 		return false;
 	}
-
-	return false;
+	op->counter ++;
+	return true;
 }
 
 const void* op_avg_get_value( op_avg_t *op ){
