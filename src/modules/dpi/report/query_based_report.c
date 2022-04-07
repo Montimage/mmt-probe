@@ -19,12 +19,15 @@ typedef struct query_based_report_context_struct {
 	hash_t *hash_table;
 	query_operator_stack_t **group_by_operators;
 	size_t ms_counter;
+	struct timeval last_reported_timeval;
+	size_t counter;
 }query_based_report_context_t;
 
 
 struct list_query_based_report_context_struct{
 	size_t size;
 	query_based_report_context_t* reports;
+	struct timeval last_timeval;
 };
 
 static inline query_operator_stack_t ** _create_operator_stack_arrays( size_t size, const query_report_element_conf_t *elements ){
@@ -341,19 +344,29 @@ void query_based_report_unregister( mmt_handler_t *dpi_handler, list_query_based
 
 static void _flush_reports_then_reset( query_based_report_context_t *rep, const struct timeval *tv ){
 	const query_report_conf_t *config = rep->config;
-	char message[MAX_LENGTH_REPORT_MESSAGE];
+	char message[MAX_LENGTH_REPORT_MESSAGE], *p;
 	query_operator_stack_t **select_operators;
 	size_t i;
 	hash_item_t *it;
 	size_t select_size = config->select.size;
 	//do report
 	hash_t *hash = rep->hash_table;
+	size_t message_size = MAX_LENGTH_REPORT_MESSAGE - 1;
+
+	rep->counter ++;
+
+	//the 2 first elements of reports: title, order
+	i = snprintf(message, message_size, "\"%s\",%zu,", config->title, rep->counter );
+	message_size -= i;
+	p = message + i;
 	for( i=0; i<hash->size; i++ ){
 		it = &hash->items[i];
 		if( ! it->is_occupy )
 			continue;
 		select_operators = (query_operator_stack_t **) it->data;
-		_get_string_values( MAX_LENGTH_REPORT_MESSAGE, message, select_size, select_operators );
+		//fill the rest to message
+		_get_string_values( message_size, p, select_size, select_operators );
+
 		output_write_report( rep->output, config->output_channels,
 				QUERY_REPORT_TYPE, tv, message );
 
@@ -363,9 +376,11 @@ static void _flush_reports_then_reset( query_based_report_context_t *rep, const 
 		mmt_probe_free( select_operators );
 		it->is_occupy = false;
 	}
+	rep->last_reported_timeval.tv_sec  = tv->tv_sec;
+	rep->last_reported_timeval.tv_usec = tv->tv_usec;
 }
 
-void query_based_report_do_report( list_query_based_report_context_t *context, bool flush_report, const struct timeval *tv ){
+void query_based_report_do_report( list_query_based_report_context_t *context ){
 	int i;
 	const query_report_conf_t *config;
 	query_based_report_context_t *rep;
@@ -383,11 +398,49 @@ void query_based_report_do_report( list_query_based_report_context_t *context, b
 		if(! config->is_enable )
 			continue;
 
-		rep->ms_counter ++;
-		if( rep->ms_counter >= config->ms_period || flush_report ){
-			_flush_reports_then_reset( rep, tv );
-			//reset the counter
-			rep->ms_counter = 0;
-		}
+		_flush_reports_then_reset( rep, &context->last_timeval );
+	}
+}
+
+//1 second = 1M microsecond
+#define S2US  1000000
+//1 millisecond = 1K microseconds
+#define MS2US    1000
+static size_t _ms_diff( const struct timeval *start, const struct timeval *end ){
+	size_t us1 = start->tv_sec * S2US + start->tv_usec;
+	size_t us2 = end->tv_sec * S2US + end->tv_usec;
+	if( us1 >= us2 )
+		return 0;
+	return (us2 - us1) / MS2US;
+}
+
+void query_based_report_update_timer( list_query_based_report_context_t *context, const struct timeval *tv ){
+	int i;
+	const query_report_conf_t *config;
+	query_based_report_context_t *rep;
+	size_t ms;
+
+	if( context == NULL )
+		return;
+
+	//remember the timestamp value that will be used to write the report before exiting MMT-Probe
+	context->last_timeval.tv_sec  = tv->tv_sec;
+	context->last_timeval.tv_usec = tv->tv_usec;
+
+	for( i=0; i<context->size; i++ ){
+		rep = &context->reports[i];
+		config = context->reports[i].config;
+		//jump over the disable ones
+		//This can create a memory leak when this event report is disable in runtime
+		//(this is, it was enable at starting time but it has been disable after some time of running)
+		//So, when it has been disable, one must unregister the attributes using by this event report
+		if(! config->is_enable )
+			continue;
+
+		ms = _ms_diff( &rep->last_reported_timeval, tv );
+		if( ms < config->ms_period )
+			continue;
+
+		_flush_reports_then_reset( rep, tv );
 	}
 }

@@ -22,10 +22,10 @@
 
 typedef struct _ms_timer ms_timer_t;
 
-typedef void (ms_timer_callback)( const struct timeval *tv, void *);
+typedef void (ms_timer_callback)( const ms_timer_t *, void *);
 
 struct _ms_timer{
-	size_t counter;
+	size_t ns_elapse_since_last_trigger;
 	size_t ms_interval;
 	struct timeval time;
 	ms_timer_callback *fn_callback;
@@ -34,7 +34,7 @@ struct _ms_timer{
 
 static inline void ms_timer_init( ms_timer_t *timer, size_t ms_interval,
 		ms_timer_callback *fn_callback, void *callback_args){
-	timer->counter       = 0;
+	timer->ns_elapse_since_last_trigger = 0;
 	timer->time.tv_sec   = 0;
 	timer->time.tv_usec  = 0;
 	timer->callback_args = callback_args;
@@ -45,11 +45,10 @@ static inline void ms_timer_init( ms_timer_t *timer, size_t ms_interval,
 static inline bool ms_timer_set_time( ms_timer_t *timer, const struct timeval *tv ){
 	size_t ns, new_ns;
 	//for the first time
-	if( timer->counter == 0 ){
+	if( timer->time.tv_sec == 0 && timer->time.tv_usec == 0){
 		//remember the timestamp
 		timer->time.tv_sec  = tv->tv_sec;
 		timer->time.tv_usec = tv->tv_usec;
-		timer->counter ++;
 		return false;
 	}
 	ns     = timer->time.tv_sec * S2US + timer->time.tv_usec;
@@ -58,14 +57,13 @@ static inline bool ms_timer_set_time( ms_timer_t *timer, const struct timeval *t
 	if( new_ns - ns < timer->ms_interval * MS2US )
 		return false;
 
+	timer->ns_elapse_since_last_trigger = new_ns - ns;
 	//remember the timestamp
 	timer->time.tv_sec  = tv->tv_sec;
 	timer->time.tv_usec = tv->tv_usec;
 
 	//fire the callback
-	timer->fn_callback( tv, timer->callback_args );
-
-	timer->counter ++;
+	timer->fn_callback( timer, timer->callback_args );
 	return true;
 }
 

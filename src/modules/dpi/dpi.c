@@ -104,8 +104,6 @@ static void _ending_session_handler(const mmt_session_t * dpi_session, void * us
 //this callback is called each time when a packet is coming
 static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 	dpi_context_t *context = (dpi_context_t *)user_args;
-	context->last_packet_timestamp = ipacket->p_hdr->ts;
-
 	//when packet is below to one session
 	if( ipacket->session != NULL ){
 		packet_session_t *session = dpi_get_packet_session(ipacket);
@@ -174,7 +172,7 @@ static inline void _set_default_session_timeout( const probe_conf_t *config, mmt
  * This function must be called by worker periodically each x seconds( = config.stat_period )
  * @param
  */
-static void _do_stat_reports( const struct timeval *tv, void *args ){
+static void _do_stat_reports( const  ms_timer_t *timer, void *args ){
 	dpi_context_t *dpi_context = args;
 	dpi_context->stat_periods_index ++;
 
@@ -186,12 +184,6 @@ static void _do_stat_reports( const struct timeval *tv, void *args ){
 	//push DPI to perform session callback: DPI will call `_period_session_report` for each session its has
 	if( dpi_context->probe_config->reports.session->is_enable )
 		process_session_timer_handler( dpi_context->dpi_handler );
-}
-
-static void _do_query_report( const struct timeval *tv, void *args){
-	dpi_context_t *dpi_context = args;
-	//call periodically each ms
-	query_based_report_do_report( dpi_context->query_reports, false, tv );
 }
 
 dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_handler, output_t *output, uint16_t worker_index ){
@@ -269,7 +261,6 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 
 	ms_timer_init( &ret->stat_timer, ret->stat_periods_index * S2MS,
 			_do_stat_reports, ret );
-	ms_timer_init( &ret->query_report_timer, 1, _do_query_report, ret );
 	return ret;
 }
 
@@ -278,7 +269,7 @@ void dpi_close( dpi_context_t *dpi_context ){
 	//do the last report
 	_do_stat_reports( NULL, dpi_context );
 	//flush the query-reports before exit
-	query_based_report_do_report( dpi_context->query_reports, true, &dpi_context->last_packet_timestamp );
+	query_based_report_do_report( dpi_context->query_reports );
 
 	unregister_attribute_handler(dpi_context->dpi_handler, PROTO_IP, PROTO_SESSION, _starting_session_handler );
 	unregister_attribute_handler(dpi_context->dpi_handler, PROTO_IPV6, PROTO_SESSION, _starting_session_handler );
@@ -340,5 +331,5 @@ void dpi_release( dpi_context_t *dpi_context ){
 
 void dpi_update_timer( dpi_context_t *dpi_context, const struct timeval * tv){
 	ms_timer_set_time( &dpi_context->stat_timer, tv);
-	ms_timer_set_time( &dpi_context->query_report_timer, tv );
+	query_based_report_update_timer( dpi_context->query_reports, tv );
 }

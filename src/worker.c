@@ -144,7 +144,7 @@ void _send_version_information( output_t *output ){
  * - file output is sampled
  * @param worker_context
  */
-static void worker_on_timer_sample_file_period( const struct timeval *tv, void *args ){
+static void worker_on_timer_sample_file_period( const ms_timer_t *timer, void *args ){
 	worker_context_t *worker_context = args;
 	CALL_DYNAMIC_CONF_CHECK_IF_NEED( worker_context );
 

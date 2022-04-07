@@ -89,9 +89,6 @@ typedef struct dpi_context_struct{
 
 	// this timer is fired to tell dpi to perform its session reports
 	ms_timer_t stat_timer;
-	// this timer is fired to tell dpi to perform query-reports
-	ms_timer_t query_report_timer;
-	struct timeval last_packet_timestamp;
 }dpi_context_t;
 
 //the instances of this structure are used on session scope: during session period
