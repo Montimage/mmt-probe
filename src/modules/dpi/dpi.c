@@ -108,12 +108,12 @@ static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 	if( ipacket->session != NULL ){
 		packet_session_t *session = dpi_get_packet_session(ipacket);
 
-		if( session == NULL )
-			session = _create_session (ipacket, context);
-
 		IF_ENABLE_STAT_REPORT(
-			if( context->probe_config->reports.session->is_enable )
+			if( context->probe_config->reports.session->is_enable ){
+				if( session == NULL )
+					session = _create_session (ipacket, context);
 				session_report_callback_on_receiving_packet( ipacket, session->session_stat, context);
+			}
 		)
 	}
 	IF_ENABLE_PCAP_DUMP(
@@ -237,21 +237,21 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 	)
 
 	//callback when starting a new IP session
-	if( config->stack_type == DLT_EN10MB){
-	if( ! register_attribute_handler(dpi_handler, PROTO_IP, PROTO_SESSION, _starting_session_handler, NULL, ret ) )
-		ABORT("Cannot register handler for processing a session at starting");
+	if( config->stack_type == DLT_EN10MB
+			&& config->reports.session->is_enable ){
+		if( ! register_attribute_handler(dpi_handler, PROTO_IP, PROTO_SESSION, _starting_session_handler, NULL, ret ) )
+			ABORT("Cannot register handler for processing a session at starting");
 
-	if( ! register_attribute_handler(dpi_handler, PROTO_IPV6, PROTO_SESSION, _starting_session_handler, NULL, ret ) )
-		ABORT("Cannot register handler for processing a session at starting");
+		if( ! register_attribute_handler(dpi_handler, PROTO_IPV6, PROTO_SESSION, _starting_session_handler, NULL, ret ) )
+			ABORT("Cannot register handler for processing a session at starting");
+
+		//callback when a session is expired
+		if( !register_session_timeout_handler( dpi_handler, _ending_session_handler, ret ))
+			ABORT( "Cannot register handler for processing a session at ending" );
+
+		if( ! register_session_timer_handler( dpi_handler, _period_session_report, ret, 1) )
+			ABORT( "Cannot register handler for periodically session reporting" );
 	}
-
-	//callback when a session is expired
-	if( !register_session_timeout_handler( dpi_handler, _ending_session_handler, ret ))
-		ABORT( "Cannot register handler for processing a session at ending" );
-
-	if( ! register_session_timer_handler( dpi_handler, _period_session_report, ret, 1) )
-		ABORT( "Cannot register handler for periodically session reporting" );
-
 	IF_ENABLE_FTP_RECONSTRUCT(
 		ret->data_reconstruct.ftp = ftp_reconstruct_init( config->reconstructions.ftp, dpi_handler );
 	)
