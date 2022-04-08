@@ -14,7 +14,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define HASH_TABLE_SIZE 500000
+#include "log.h"
+
+#define HASH_TABLE_SIZE 10000
 /**
  * djb2 hash http://www.cse.yorku.ca/~oz/hash.html
  * @param str
@@ -96,8 +98,11 @@ static inline bool hash_add( hash_t *hash, size_t key_len, uint8_t *key, void *d
 		counter ++;
 		index ++;
 		//fail if it goes over
-		if( counter >= hash->size )
+		if( counter >= hash->size ){
+			//TODO: increase table size
+			log_write(LOG_ERR, "Hash table is full (size: %zu", hash->size );
 			return false;
+		}
 
 		index %= hash->size;
 	}
