@@ -35,6 +35,27 @@ DECLARE_OP_HEADER( diff )
 DECLARE_OP_HEADER( first )
 DECLARE_OP_HEADER( last )
 
+const char* query_operator_get_name( query_op_type_t op ){
+	switch( op ){
+	case QUERY_OP_SUM:
+		return "sum";
+	case QUERY_OP_COUNT:
+		return "count";
+	case QUERY_OP_AVG:
+		return "avg";
+	case QUERY_OP_VAR:
+		return "var";
+	case QUERY_OP_DIFF:
+		return "diff";
+	case QUERY_OP_LAST:
+		return "last";
+	case QUERY_OP_FIRST:
+		return "first";
+	default:
+		return false;
+	}
+}
+
 bool query_operator_can_handle( query_op_type_t op, data_types_t data_type ){
 	switch( op ){
 	case QUERY_OP_SUM:

@@ -30,6 +30,47 @@ struct list_query_based_report_context_struct{
 	struct timeval last_timeval;
 };
 
+static inline void _ensure_compatibility_operator_stack_arrays( const query_report_element_conf_t *att ){
+	int i;
+	bool b;
+	const query_report_element_conf_t *el;
+	query_op_type_t op;
+	int datatype;
+	int nb_operators = att->operators.size;
+	if( nb_operators == 0 )
+		return;
+	//example:
+	// given the stack: last(sum(diff(meta.utime)))
+
+	//1. check data type is satisfied of the last operator that receives the proto.att
+	//  => checking diff(meta.utime)
+	op = att->operators.elements[ nb_operators-1 ];
+	datatype = att->attribute.dpi_datatype;
+	b = query_operator_can_handle( op, datatype );
+	ASSERT( b == true,
+			"Operator [%s] cannot handle value of %s.%s",
+			query_operator_get_name(op),
+			att->attribute.proto_name,
+			att->attribute.attribute_name
+	);
+
+	//returned data type of diff
+	datatype = query_operator_get_data_type(op, datatype);
+	//2. check the upper operators in inverse order:
+	// sum, last, ...
+	for( i=nb_operators-2; i>=0; i-- ){
+		op = att->operators.elements[ i ];
+		b = query_operator_can_handle( op, datatype );
+		ASSERT( b == true,
+				"Operator [%s] is not compatible with result of operator [%s]",
+				query_operator_get_name( op ),
+				query_operator_get_name( att->operators.elements[ i+1 ] )
+		);
+		//output data type of the previous operator
+		datatype = query_operator_get_data_type( op, datatype);
+	}
+}
+
 static inline query_operator_stack_t ** _create_operator_stack_arrays( size_t size, const query_report_element_conf_t *elements ){
 	int i;
 	const query_report_element_conf_t *el;
@@ -39,6 +80,7 @@ static inline query_operator_stack_t ** _create_operator_stack_arrays( size_t si
 	query_operator_stack_t **stacks = mmt_alloc( size * sizeof( void *));
 	for( i=0; i<size; i++ ){
 		el = & elements[i];
+		_ensure_compatibility_operator_stack_arrays( el );
 		stacks[i] = query_operator_stack_create( el->operators.size, el->operators.elements, el->attribute.dpi_datatype );
 	}
 	return stacks;

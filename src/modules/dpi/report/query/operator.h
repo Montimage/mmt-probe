@@ -26,6 +26,8 @@ typedef enum data_types data_types_t;
 
 typedef struct _query_operator query_operator_t;
 
+const char* query_operator_get_name( query_op_type_t op );
+
 bool query_operator_can_handle( query_op_type_t op, data_types_t data_type );
 
 data_types_t query_operator_get_data_type( query_op_type_t op, data_types_t data_type  );

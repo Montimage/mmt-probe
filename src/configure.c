@@ -698,20 +698,6 @@ static inline void _parse_dpi_protocol_attribute( dpi_protocol_attribute_t * out
 		str += (dot_index_2 - dot_index_1);
 		out->attribute_name = mmt_strdup( str );
 	}
-
-	/*
-	//check whether proto.att is currently supported by MMT
-	out->proto_id = get_protocol_id_by_name( out->proto_name );
-	ASSERT( out->proto_id != ((uint32_t)-1), "Unsupported protocol [%s]", out->proto_name );
-
-	out->attribute_id = get_attribute_id_by_protocol_id_and_attribute_name( out->proto_id, out->attribute_name);
-	ASSERT( out->attribute_id != ((uint32_t)-1),
-			"Unsupported attribute [%s] of protocol [%s]",
-			out->attribute_name,
-			out->proto_name );
-
-	out->dpi_datatype = get_attribute_data_type( out->proto_id, out->attribute_id );
-	*/
 }
 
 static inline void _parse_operator(  query_report_element_conf_t* out, const char* orig_str ){
@@ -816,35 +802,6 @@ static inline void _parse_operator(  query_report_element_conf_t* out, const cha
 	ASSERT( i<str_len, "Error when parsing \"%s\"", orig_str );
 	_parse_dpi_protocol_attribute( & out->attribute, &str[i] );
 	mmt_probe_free( str );
-
-
-	/*
-	//check data type is satisfied
-	j = op_indexes[ out->operators.size-1 ];
-	b = query_operator_can_handle( operator_ids[j], out->attribute.dpi_datatype );
-	ASSERT( b == true,
-			"Error when parsing query-report: Operator [%s] is not compatible with %s.%s",
-			operator_names[j],
-			out->attribute.proto_name,
-			out->attribute.attribute_name
-	);
-
-	out->operators.elements[ out->operators.size - 1 ] = operator_ids[j];
-
-	dpi_datatype = query_operator_get_data_type( operator_ids[j], out->attribute.dpi_datatype);
-	for( i=out->operators.size-2; i>=0; i-- ){
-		j = op_indexes[i];
-		b = query_operator_can_handle( operator_ids[j], dpi_datatype );
-		ASSERT( b == true,
-				"Error when parsing query-report: Operator [%s] is not compatible with result of operator [%s]",
-				operator_names[ op_indexes[i] ],
-				operator_names[ op_indexes[i+1] ]
-		);
-		out->operators.elements[i] = operator_ids[j];
-		//output data type of the previous operator
-		dpi_datatype = query_operator_get_data_type( operator_ids[j], dpi_datatype);
-	}
-	*/
 }
 
 static inline uint16_t _parse_attributes_helper( cfg_t *cfg, const char* name, dpi_protocol_attribute_t**atts ){

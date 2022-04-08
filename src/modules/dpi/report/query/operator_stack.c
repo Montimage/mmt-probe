@@ -21,7 +21,7 @@ query_operator_stack_t *query_operator_stack_create( size_t operator_nb, const q
 	int i;
 	if( operator_nb == 0 )
 		return NULL;
-	//TODO: need to check the compability of the operators in the stack:
+	//TODO: need to check the compatibility of the operators in the stack:
 	// whether the result of on operator can be taken as input of the next operator???
 	query_operator_stack_t *st = mmt_alloc_and_init_zero( sizeof(query_operator_stack_t));
 	st->size = operator_nb;
@@ -29,6 +29,13 @@ query_operator_stack_t *query_operator_stack_create( size_t operator_nb, const q
 	//back track
 	for( i = st->size - 1; i >= 0; i-- ){
 		st->operators[i] = query_operator_create(op_type[i], data_type);
+		//this operator cannot handle data_type
+		//==> free memory
+		if( st->operators[i] == NULL ){
+			st->size = i;
+			query_operator_stack_release( st );
+			return NULL;
+		}
 		data_type = query_operator_get_data_type(op_type[i], data_type);
 	}
 	//returned data type of the last operator is also the one of this stack
