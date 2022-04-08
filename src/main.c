@@ -444,7 +444,12 @@ static int _main_processing( int argc, char** argv ){
 	)
 
 	routine_stop_and_release( routine );
-	output_release( context->output );
+	//we free the output here only in SMP mode
+	// because in non-SMP mode, this output is used also by a worker
+	// the worker will free the output once MMT-Probe terminated
+	//=> avoid double free
+	if( IS_SMP_MODE(context) )
+		output_release( context->output );
 
 	//depending on signal received, exit using different value to notify the monitor process
 	switch( main_processing_signal ){

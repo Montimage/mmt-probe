@@ -168,7 +168,11 @@ void worker_on_start( worker_context_t *worker_context ){
 	DEBUG("Starting worker %d", worker_context->index );
 	probe_conf_t *config = worker_context->probe_context->config;
 
-	worker_context->output = output_alloc_init( worker_context->index + 1,
+	//init the output only when it has not been initialized
+	//  this output can be reused the same output in the main.c
+	//  when thread-nb=0
+	if( worker_context->output == NULL )
+		worker_context->output = output_alloc_init( worker_context->index + 1,
 			&(config->outputs),
 			config->probe_id,
 			config->input->input_source,

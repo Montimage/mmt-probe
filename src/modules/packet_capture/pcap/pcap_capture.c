@@ -389,6 +389,10 @@ void pcap_capture_start( probe_context_t *context ){
 	//allocate and initialize memory for each worker
 	for( i=0; i<workers_count; i++ ){
 		context->smp[i] = worker_alloc_init( context->config->stack_type );
+		//when there is only one thread (no SMP mode)
+		// => reuse the same output of the main program
+		if( !IS_SMP_MODE( context ))
+			context->smp[i]->output = context->output;
 
 		context->smp[i]->index = i;
 
