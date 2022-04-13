@@ -1,0 +1,31 @@
+# 1. deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mmt-probe
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mmt-probe
+  template:
+    metadata:
+      labels:
+        app: mmt-probe
+    spec:
+      containers:
+      - name: mmt-probe
+        image: ghcr.io/montimage/mmt-probe:v1.5.1
+        imagePullPolicy: IfNotPresent
+        args: 
+        - "-ieth0"
+        - "-Xkafka-output.enable=true"
+        - "-Xkafka-output.hostname=kafka"
+        - "-Xkafka-output.port=9092"
+        - "-Xkafka-output.topic=mmt-reports"
+        - "-Xsession-report.output-channel=kafka"
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"        
