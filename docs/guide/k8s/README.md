@@ -4,6 +4,10 @@ This tutorial shows how to quickly deploy MMT in a Kubernetes cluster.
 
 The following steps will deploy MMT together with nginx that is an example of the application to be monitored by MMT. To do so, MMT-Probe and nginx are deployed into the same pod so that MMT-Probe can capture all in/outgoin traffic of the pod.
 
+
+- MMT-Operator can be access from outside the cluster via port 30010.
+- Nginx can be access from outside the cluster via port 30011
+
 ```bash
 #0. create mmt namespace
 kubectl create namespace mmt
