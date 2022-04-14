@@ -41,6 +41,7 @@ kubectl apply -f http-mirroring/nginx.yml -n $NAMESPACE
 kubectl apply -f http-mirroring/mmt-probe.yml -n $NAMESPACE
 #4. deploy a simple http client that issue http requests to the Nginx
 kubectl apply -f http-mirroring/netshoot.yml -n $NAMESPACE
+```
 
 *Limit* A huge limitation of Istio traffic mirroring is only supporting HTTP traffic.
 
