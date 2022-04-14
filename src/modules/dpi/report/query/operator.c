@@ -35,6 +35,9 @@ DECLARE_OP_HEADER( diff )
 DECLARE_OP_HEADER( first )
 DECLARE_OP_HEADER( last )
 
+data_types_t operator_array_get_data_type( query_op_type_t op, data_types_t data_type );
+bool operator_array_can_handle( query_op_type_t op, data_types_t data_type );
+
 const char* query_operator_get_name( query_op_type_t op ){
 	switch( op ){
 	case QUERY_OP_SUM:
@@ -57,6 +60,13 @@ const char* query_operator_get_name( query_op_type_t op ){
 }
 
 bool query_operator_can_handle( query_op_type_t op, data_types_t data_type ){
+	//specific for array data type
+	switch( data_type ){
+	case MMT_U32_ARRAY:
+	case MMT_U64_ARRAY:
+		return operator_array_can_handle( op, data_type );
+	}
+
 	switch( op ){
 	case QUERY_OP_SUM:
 		return op_sum_can_handle(data_type);
@@ -78,6 +88,13 @@ bool query_operator_can_handle( query_op_type_t op, data_types_t data_type ){
 }
 
 data_types_t query_operator_get_data_type( query_op_type_t op, data_types_t data_type ){
+	//specific for array data type
+	switch( data_type ){
+	case MMT_U32_ARRAY:
+	case MMT_U64_ARRAY:
+		return operator_array_get_data_type( op, data_type );
+	}
+
 	switch( op ){
 	case QUERY_OP_SUM:
 		return op_sum_get_data_type(data_type);
