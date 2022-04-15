@@ -74,7 +74,7 @@ apt-get install libxml2-dev libpcap-dev libconfuse-dev
 git clone https://github.com/Montimage/mmt-security.git mmt-security
 cd mmt-security
 make clean-all
-make -j $CPU
+make -j1 #only one thread here to wait for the gneration of mmt-dpi.h
 make install
 ldconfig
 make deb
