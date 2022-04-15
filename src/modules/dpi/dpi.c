@@ -14,6 +14,7 @@
 
 #ifdef STAT_REPORT
 #include "report/event_based_report.h"
+#include "report/query_based_report.h"
 #include "report/no_session_report.h"
 #include "report/session_report.h"
 #endif
@@ -103,17 +104,16 @@ static void _ending_session_handler(const mmt_session_t * dpi_session, void * us
 //this callback is called each time when a packet is coming
 static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 	dpi_context_t *context = (dpi_context_t *)user_args;
-
 	//when packet is below to one session
 	if( ipacket->session != NULL ){
 		packet_session_t *session = dpi_get_packet_session(ipacket);
 
-		if( session == NULL )
-			session = _create_session (ipacket, context);
-
 		IF_ENABLE_STAT_REPORT(
-			if( context->probe_config->reports.session->is_enable )
+			if( context->probe_config->reports.session->is_enable ){
+				if( session == NULL )
+					session = _create_session (ipacket, context);
 				session_report_callback_on_receiving_packet( ipacket, session->session_stat, context);
+			}
 		)
 	}
 	IF_ENABLE_PCAP_DUMP(
@@ -123,6 +123,7 @@ static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 
 	IF_ENABLE_STAT_REPORT(
 		event_based_report_callback_on_receiving_packet( ipacket, context->event_reports );
+		query_based_report_callback_on_receiving_packet( ipacket, context->query_reports );
 	)
 	return 0;
 }
@@ -166,6 +167,25 @@ static inline void _set_default_session_timeout( const probe_conf_t *config, mmt
 	set_live_session_timed_out(    mmt_dpi, config->session_timeout->live_session_timeout  );
 }
 
+
+/**
+ * This function must be called by worker periodically each x seconds( = config.stat_period )
+ * @param
+ */
+static void _do_stat_reports( const  ms_timer_t *timer, void *args ){
+	dpi_context_t *dpi_context = args;
+	dpi_context->stat_periods_index ++;
+
+	IF_ENABLE_STAT_REPORT_FULL(
+		//do report for no-session protocols
+		no_session_report( dpi_context->no_session_report, dpi_context->stat_periods_index );
+	)
+
+	//push DPI to perform session callback: DPI will call `_period_session_report` for each session its has
+	if( dpi_context->probe_config->reports.session->is_enable )
+		process_session_timer_handler( dpi_context->dpi_handler );
+}
+
 dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_handler, output_t *output, uint16_t worker_index ){
 	_set_default_session_timeout(config, dpi_handler);
 
@@ -182,6 +202,7 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 	IF_ENABLE_STAT_REPORT_FULL(
 		ret->micro_reports = micro_flow_report_alloc_init(config->reports.microflow, output);
 		ret->event_reports = event_based_report_register(dpi_handler, config->reports.events, config->reports.events_size, output);
+		ret->query_reports = query_based_report_register(dpi_handler, config->reports.queries, config->reports.queries_size, output);
 		ret->no_session_report = no_session_report_alloc_init(dpi_handler, output, config->is_enable_ip_fragmentation_report,
 									config->is_enable_proto_no_session_report );
 		ret->radius_report = radius_report_register(dpi_handler, config->reports.radius, output);
@@ -216,34 +237,39 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 	)
 
 	//callback when starting a new IP session
-	if( config->stack_type == DLT_EN10MB){
-	if( ! register_attribute_handler(dpi_handler, PROTO_IP, PROTO_SESSION, _starting_session_handler, NULL, ret ) )
-		ABORT("Cannot register handler for processing a session at starting");
+	if( config->stack_type == DLT_EN10MB
+			&& config->reports.session->is_enable ){
+		if( ! register_attribute_handler(dpi_handler, PROTO_IP, PROTO_SESSION, _starting_session_handler, NULL, ret ) )
+			ABORT("Cannot register handler for processing a session at starting");
 
-	if( ! register_attribute_handler(dpi_handler, PROTO_IPV6, PROTO_SESSION, _starting_session_handler, NULL, ret ) )
-		ABORT("Cannot register handler for processing a session at starting");
+		if( ! register_attribute_handler(dpi_handler, PROTO_IPV6, PROTO_SESSION, _starting_session_handler, NULL, ret ) )
+			ABORT("Cannot register handler for processing a session at starting");
+
+		//callback when a session is expired
+		if( !register_session_timeout_handler( dpi_handler, _ending_session_handler, ret ))
+			ABORT( "Cannot register handler for processing a session at ending" );
+
+		if( ! register_session_timer_handler( dpi_handler, _period_session_report, ret, 1) )
+			ABORT( "Cannot register handler for periodically session reporting" );
 	}
-
-	//callback when a session is expired
-	if( !register_session_timeout_handler( dpi_handler, _ending_session_handler, ret ))
-		ABORT( "Cannot register handler for processing a session at ending" );
-
-	if( ! register_session_timer_handler( dpi_handler, _period_session_report, ret, 1) )
-		ABORT( "Cannot register handler for periodically session reporting" );
-
 	IF_ENABLE_FTP_RECONSTRUCT(
 		ret->data_reconstruct.ftp = ftp_reconstruct_init( config->reconstructions.ftp, dpi_handler );
 	)
 	IF_ENABLE_HTTP_RECONSTRUCT(
 			ret->data_reconstruct.http = http_reconstruct_init( config->reconstructions.http, dpi_handler, output );
 	)
+
+	ms_timer_init( &ret->stat_timer, ret->stat_periods_index * S2MS,
+			_do_stat_reports, ret );
 	return ret;
 }
 
 //this happens before closing dpi_context->dpi_handler
 void dpi_close( dpi_context_t *dpi_context ){
 	//do the last report
-	dpi_callback_on_stat_period( dpi_context );
+	_do_stat_reports( NULL, dpi_context );
+	//flush the query-reports before exit
+	query_based_report_do_report( dpi_context->query_reports );
 
 	unregister_attribute_handler(dpi_context->dpi_handler, PROTO_IP, PROTO_SESSION, _starting_session_handler );
 	unregister_attribute_handler(dpi_context->dpi_handler, PROTO_IPV6, PROTO_SESSION, _starting_session_handler );
@@ -253,6 +279,7 @@ void dpi_close( dpi_context_t *dpi_context ){
 	IF_ENABLE_STAT_REPORT_FULL(
 		session_report_unregister(     dpi_context->dpi_handler, dpi_context->probe_config->reports.session );
 		event_based_report_unregister( dpi_context->dpi_handler, dpi_context->event_reports );
+		query_based_report_unregister( dpi_context->dpi_handler, dpi_context->query_reports );
 		radius_report_unregister(      dpi_context->dpi_handler, dpi_context->radius_report );
 	)
 
@@ -302,20 +329,7 @@ void dpi_release( dpi_context_t *dpi_context ){
 	mmt_probe_free( dpi_context );
 }
 
-
-/**
- * This function must be called by worker periodically each x seconds( = config.stat_period )
- * @param
- */
-void dpi_callback_on_stat_period( dpi_context_t *dpi_context){
-	dpi_context->stat_periods_index ++;
-
-	IF_ENABLE_STAT_REPORT_FULL(
-		//do report for no-session protocols
-		no_session_report( dpi_context->no_session_report, dpi_context->stat_periods_index );
-	)
-
-	//push DPI to perform session callback: DPI will call `_period_session_report` for each session its has
-	if( dpi_context->probe_config->reports.session->is_enable )
-		process_session_timer_handler( dpi_context->dpi_handler );
+void dpi_update_timer( dpi_context_t *dpi_context, const struct timeval * tv){
+	ms_timer_set_time( &dpi_context->stat_timer, tv);
+	query_based_report_update_timer( dpi_context->query_reports, tv );
 }

@@ -1,3 +1,10 @@
+## v1.5.2
+- 14 April 2022
+- Support `query-report`:
+   + group attribute values to calculate new values such as, `avg` (average), `sum` (total), `var` (variance), `count` (counter)
+   + configurable report period that independs with `stats-period` parameter
+   + use millisecond as period unit of `query-report`
+
 ## v1.5.1
 - 24 Feb 2022
 - Support `proto.index.att` syntax in `event-report`

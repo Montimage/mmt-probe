@@ -125,6 +125,41 @@ void _send_version_information( output_t *output ){
 	);
 #endif
 }
+
+
+//#ifdef DYNAMIC_CONFIG_MODULE
+//static inline void CALL_DYNAMIC_CONF_CHECK_IF_NEED( worker_context_t *worker_context ){
+//	if( ->dynamic_conf->is_enable ){
+//		dynamic_conf_check();
+//	}
+//}
+//#else
+#define CALL_DYNAMIC_CONF_CHECK_IF_NEED( ... )
+//#endif
+
+
+/**
+ * This must be called periodically each x seconds (= file-output.output-period) if
+ * - file output is enable, and,
+ * - file output is sampled
+ * @param worker_context
+ */
+static void worker_on_timer_sample_file_period( const ms_timer_t *timer, void *args ){
+	worker_context_t *worker_context = args;
+	CALL_DYNAMIC_CONF_CHECK_IF_NEED( worker_context );
+
+	//the first worker
+	output_flush( worker_context->output );
+
+	//when user enables output for behaviour analysis:
+	IF_ENABLE_STAT_REPORT(
+		if( worker_context->dpi_context->behaviour_output != NULL )
+			file_output_flush( worker_context->dpi_context->behaviour_output );
+	);
+}
+
+
+
 /**
  * This callback must be called by a worker thread after starting the thread
  * @param worker_context
@@ -133,7 +168,11 @@ void worker_on_start( worker_context_t *worker_context ){
 	DEBUG("Starting worker %d", worker_context->index );
 	probe_conf_t *config = worker_context->probe_context->config;
 
-	worker_context->output = output_alloc_init( worker_context->index + 1,
+	//init the output only when it has not been initialized
+	//  this output can be reused the same output in the main.c
+	//  when thread-nb=0
+	if( worker_context->output == NULL )
+		worker_context->output = output_alloc_init( worker_context->index + 1,
 			&(config->outputs),
 			config->probe_id,
 			config->input->input_source,
@@ -174,6 +213,10 @@ void worker_on_start( worker_context_t *worker_context ){
 	if( worker_context->index == 0 && worker_context->output )
 		_send_version_information( worker_context->output );
 
+	//init timer
+	ms_timer_init( &worker_context->flush_report_timer, config->outputs.cache_period * S2MS,
+			worker_on_timer_sample_file_period, worker_context );
+
 //#ifdef DYNAMIC_CONFIG_MODULE
 //	if( IS_SMP_MODE( worker_context->probe_context ))
 //		if( ->dynamic_conf->is_enable ){
@@ -200,44 +243,10 @@ void worker_on_stop( worker_context_t *worker_context ){
 }
 
 
-//#ifdef DYNAMIC_CONFIG_MODULE
-//static inline void CALL_DYNAMIC_CONF_CHECK_IF_NEED( worker_context_t *worker_context ){
-//	if( ->dynamic_conf->is_enable ){
-//		dynamic_conf_check();
-//	}
-//}
-//#else
-#define CALL_DYNAMIC_CONF_CHECK_IF_NEED( ... )
-//#endif
 
-/**
- * This must be called periodically each x seconds depending on config.stats_period
- * @param worker_context
- */
-void worker_on_timer_stat_period( worker_context_t *worker_context ){
-
+void worker_update_timer( worker_context_t *worker_context, const struct timeval *tv ){
 	CALL_DYNAMIC_CONF_CHECK_IF_NEED( worker_context );
 
-	dpi_callback_on_stat_period( worker_context->dpi_context );
-	//TODO: testing restart_application only
-	//raise(SIGSEGV);
-}
-
-/**
- * This must be called periodically each x seconds (= file-output.output-period) if
- * - file output is enable, and,
- * - file output is sampled
- * @param worker_context
- */
-void worker_on_timer_sample_file_period( worker_context_t *worker_context ){
-	CALL_DYNAMIC_CONF_CHECK_IF_NEED( worker_context );
-
-	//the first worker
-	output_flush( worker_context->output );
-
-	//when user enables output for behaviour analysis:
-	IF_ENABLE_STAT_REPORT(
-		if( worker_context->dpi_context->behaviour_output != NULL )
-			file_output_flush( worker_context->dpi_context->behaviour_output );
-	);
+	ms_timer_set_time( &worker_context->flush_report_timer, tv );
+	dpi_update_timer( worker_context->dpi_context, tv );
 }

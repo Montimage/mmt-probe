@@ -34,6 +34,7 @@ typedef enum{
 	LTE_TOPOLOGY_REPORT_TYPE      =  400,
 	LTE_QOS_REPORT_TYPE           =  401,
 	EVENT_REPORT_TYPE             = 1000,//!< EVENT_REPORT_TYPE
+	QUERY_REPORT_TYPE             =  999,//!< QUERY_REPORT_TYPE
 }report_type_t;
 
 /**

@@ -1,0 +1,110 @@
+# all-in-one 
+
+# 1. MongoDB
+
+# 1.1 MongoDB storage class
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: mmt-database-storageclass
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+---
+# 1.2 MongoDB persitent volume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mmt-database-pv
+spec:
+  capacity:
+    storage: 2Gi
+  volumeMode: Filesystem
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: mmt-database-storageclass
+  hostPath:
+    path: /mnt/mmt-database
+---
+# 1.3 MongoDB persitent volume claim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mmt-database-pvc
+spec:
+  storageClassName: mmt-database-storageclass
+  accessModes:
+  - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# 1.4 MongoDB deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mmt-database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mmt-database
+  template:
+    metadata:
+      labels:
+        app: mmt-database
+    spec:
+      containers:
+      - name: mmt-database
+        image: mongo:xenial
+        args: ["--dbpath", "/data/db"]
+        livenessProbe:
+          exec:
+            command: [ "mongo", "--disableImplicitSessions", "--eval", "db.adminCommand('ping')" ]
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 6
+        readinessProbe:
+          exec:
+            command: [ "mongo", "--disableImplicitSessions", "--eval", "db.adminCommand('ping')" ]
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 6
+        volumeMounts:
+        - name: mmt-database-dir
+          mountPath: /data/db
+      volumes:
+      - name: mmt-database-dir
+        persistentVolumeClaim:
+          claimName: mmt-database-pvc
+---
+# 1.5 MongoDB service
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: mmt-database
+  name: mmt-database
+spec:
+  selector:
+    app: mmt-database
+  ports:
+    - name: mongo
+      port: 27017
+      targetPort: 27017
+      protocol: TCP
+  clusterIP: None
+
+# 2. Kafka
+
+# 3. MMT-Operator
+
+# 4. MMT-Probe
+

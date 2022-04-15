@@ -14,6 +14,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include "lib/limit.h"
+#include "modules/dpi/report/query/operator.h"
 
 #define MMT_USER_AGENT_THRESHOLD 0x20 //32KB
 
@@ -80,9 +81,10 @@ typedef enum {
 	CONF_OUTPUT_CHANNEL_KAFKA   = 4,
 	CONF_OUTPUT_CHANNEL_MONGODB = 8,
 	CONF_OUTPUT_CHANNEL_SOCKET  = 16,
+	CONF_OUTPUT_CHANNEL_STDOUT  = 32,
 	CONF_OUTPUT_CHANNEL_ALL     = CONF_OUTPUT_CHANNEL_FILE  | CONF_OUTPUT_CHANNEL_REDIS
 								| CONF_OUTPUT_CHANNEL_KAFKA | CONF_OUTPUT_CHANNEL_MONGODB
-								| CONF_OUTPUT_CHANNEL_SOCKET
+								| CONF_OUTPUT_CHANNEL_SOCKET| CONF_OUTPUT_CHANNEL_STDOUT
 }output_channel_conf_t;
 
 #define IS_ENABLE_OUTPUT_TO( name, channels ) ( channels & CONF_OUTPUT_CHANNEL_ ##name )
@@ -176,6 +178,7 @@ typedef struct dpi_protocol_attribute_struct{
 	uint16_t proto_id;  //protocol id: being interpreted when registering
 	uint16_t attribute_id; //attribute_id: being interpreted when registering
 	uint16_t proto_index; //indicating `th` order of the protocol when there exist duplicated ones in the hierarchy
+	int dpi_datatype;
 }dpi_protocol_attribute_t;
 
 
@@ -256,6 +259,33 @@ typedef struct output_conf_struct{
 	enum {OUTPUT_FORMAT_CSV, OUTPUT_FORMAT_JSON} format;
 }output_conf_t;
 
+
+#define CONF_MAX_QUERY_OPERATOR_DEEP 10
+typedef struct query_report_element_conf_struct{
+	dpi_protocol_attribute_t attribute;
+	struct{
+		uint16_t size;
+		query_op_type_t elements[CONF_MAX_QUERY_OPERATOR_DEEP];
+	} operators;
+}query_report_element_conf_t;
+
+typedef struct query_report_struct{
+	bool is_enable;
+	char *title;
+	uint32_t ms_period;
+	struct{
+		uint16_t size;
+		query_report_element_conf_t *elements;
+	} select, group_by;
+
+	struct {
+		uint16_t size;
+		dpi_protocol_attribute_t *elements;
+	} where;
+
+	output_channel_conf_t output_channels;
+}query_report_conf_t;
+
 /**
  * Configuration of MMT-Probe
  */
@@ -289,6 +319,9 @@ typedef struct probe_conf_struct{
 
 		pcap_dump_conf_t *pcap_dump;
 		radius_report_conf_t *radius;
+
+		uint16_t queries_size;
+		query_report_conf_t *queries;
 	}reports;
 
 	struct reconstruct_data_struct{

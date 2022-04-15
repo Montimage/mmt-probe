@@ -121,7 +121,11 @@ static inline int _write( output_t *output, output_channel_conf_t channels, cons
 		if( output->config->format == OUTPUT_FORMAT_JSON )
 			message = new_msg;
 	}
-
+	//output to stdout
+	if( IS_ENABLE_OUTPUT_TO( STDOUT, channels) ){
+		fprintf( stdout, "%s\n", message );
+		ret ++;
+	}
 	//output to file
 	if( IS_ENABLE_OUTPUT_TO( FILE, channels )){
 		file_output_write( output->modules.file, message );
@@ -282,6 +286,8 @@ void output_flush( output_t *output ){
 	if( output->modules.file )
 		file_output_flush( output->modules.file );
 
+	fflush(stdout);
+
 #ifdef MONGODB_MODULE
 	if( output->modules.mongodb
 			&& output->config->mongodb->is_enable )
@@ -295,6 +301,7 @@ void output_flush( output_t *output ){
 void output_release( output_t * output){
 	if( !output ) return;
 
+	fflush(stdout);
 	file_output_release( output->modules.file );
 
 	IF_ENABLE_MONGODB( mongodb_output_release( output->modules.mongodb ); )

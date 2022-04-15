@@ -25,36 +25,6 @@ struct list_event_based_report_context_struct{
 	event_based_report_context_t* event_reports;
 };
 
-/**
- * Surround the quotes for the string data
- * @param msg
- * @param offset
- * @param att
- */
-static inline bool _is_string( int data_type ){
-	switch( data_type ){
-	case MMT_BINARY_VAR_DATA:
-	case MMT_DATA_CHAR:
-	case MMT_DATA_DATE:
-	case MMT_DATA_IP6_ADDR:
-	case MMT_DATA_IP_ADDR:
-	case MMT_DATA_IP_NET:
-	case MMT_DATA_MAC_ADDR:
-	case MMT_DATA_PATH:
-	case MMT_HEADER_LINE:
-	case MMT_STRING_DATA:
-	case MMT_STRING_LONG_DATA:
-	case MMT_GENERIC_HEADER_LINE:
-#ifdef MMT_U32_ARRAY
-	//surround the elements of an array by " and "
-	case MMT_U32_ARRAY:
-	case MMT_U64_ARRAY:
-#endif
-		return true;
-	}
-	return false;
-}
-
 //specical attribute format
 #define PROTO_IEEE802154 800
 #define IEEE802154_DST_ADDRESS_EXTENDED 10
@@ -80,61 +50,6 @@ static int _process_ieee802154_src_dst( char *msg, int length, uint32_t proto_id
 }
 
 /**
- * Example: given a packet having the protocol hierarchy as the following: ETHERNET/IP/UDP/GTP/IP/UDP/QUICK
- *  and proto_name="UDP"
- *
- * - proto_index=2: refer to the second UDP (the one after GTP)
- * - proto_index_in_herarchy will be 5 (starting from 0)
- *
- * @param packet
- * @param proto_id
- * @param order
- * @return
- */
-static inline int _get_index_of_protocol_in_hierarchy( const ipacket_t *packet, uint32_t proto_id, uint32_t order ){
-	uint32_t proto_index  = 0;
-	if( order < 1 )
-		order = 1;
-	const proto_hierarchy_t *proto_hierarchy = packet->proto_hierarchy;
-	if( ! proto_hierarchy )
-		return -1;
-	while( proto_index < proto_hierarchy->len ){
-		if( proto_hierarchy->proto_path[ proto_index ] == proto_id ){
-			order --;
-			if( order == 0)
-				return proto_index;
-		}
-		proto_index ++;
-	}
-
-	return -1;
-}
-
-static inline attribute_t * _extract_attribute( const ipacket_t *packet, const dpi_protocol_attribute_t *att){
-	uint32_t proto_index_in_herarchy;
-	attribute_t * attr_extract;
-	if( att->proto_index > 1 ){
-		//Example: given a packet having the protocol hierarchy as the following: ETHERNET/IP/UDP/GTP/IP/UDP/QUICK
-		//  and proto_name="UDP"
-		//
-		// - proto_index=2: refer to the second UDP (the one after GTP)
-		// - proto_index_in_herarchy will be 5 (starting from 0)
-		proto_index_in_herarchy = _get_index_of_protocol_in_hierarchy(packet, att->proto_id, att->proto_index );
-		//get value of an attribute from the packet
-		if( proto_index_in_herarchy != 1 ){
-			//DEBUG("index in hierarchy of %s.%d.%s: %d",
-			//		att->proto_name, att->proto_index, att->attribute_name, proto_index_in_herarchy);
-			attr_extract = get_extracted_attribute_at_index( packet, att->proto_id, att->attribute_id, proto_index_in_herarchy );
-		}
-		else
-			attr_extract = NULL;
-	} else {
-		attr_extract = get_extracted_attribute( packet, att->proto_id, att->attribute_id );
-	}
-	return attr_extract;
-}
-
-/**
  * Extract attributes' values and store the values in a string
  * @param packet
  * @param att_size
@@ -157,7 +72,7 @@ static inline int _get_attributes_values(const ipacket_t *packet,
 	for( i=0; i<atts_size; i++ ){
 		att = & atts[i];
 
-		attr_extract = _extract_attribute(packet, att);
+		attr_extract = dpi_extract_attribute(packet, att);
 
 		//separator
 		if( i!=0 )
@@ -173,7 +88,7 @@ static inline int _get_attributes_values(const ipacket_t *packet,
 			continue;
 
 		if( attr_extract != NULL ){
-			if( _is_string( attr_extract->data_type ) ){
+			if( is_string_datatype( attr_extract->data_type ) ){
 				//surround by quotes
 				message[ offset ++ ] = '"';
 				if( attr_extract != NULL )
@@ -187,7 +102,7 @@ static inline int _get_attributes_values(const ipacket_t *packet,
 			//no value, use default value:
 			// "" for string
 			// 0  for number
-			if( _is_string( get_attribute_data_type( att->proto_id, att->attribute_id ) )){
+			if( is_string_datatype( att->dpi_datatype )){
 				message[ offset ++ ] = '"';
 				message[ offset ++ ] = '"';
 			}else
@@ -246,7 +161,7 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 	offset ++;
 
 	//2. event data
-	if( _is_string( attribute->data_type ) ){
+	if( is_string_datatype( attribute->data_type ) ){
 		//surround by quotes
 		message[ offset ++ ] = '"';
 		offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, attribute );
@@ -294,7 +209,7 @@ void event_based_report_callback_on_receiving_packet( const ipacket_t *packet, l
 			continue;
 		//the event we are looking for
 		event_att = cfg->event;
-		attr_extract = _extract_attribute(packet, event_att);
+		attr_extract = dpi_extract_attribute(packet, event_att);
 
 		//the event is not available => skip this report
 		if( attr_extract == NULL )

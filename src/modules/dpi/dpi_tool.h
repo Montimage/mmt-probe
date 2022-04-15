@@ -37,10 +37,16 @@ static inline uint32_t dpi_get_proto_id_from_session( const mmt_session_t * dpi_
  * @return
  */
 static inline bool dpi_load_proto_id_and_att_id( dpi_protocol_attribute_t *att ){
+	const uint32_t unknown = -1;
 	att->proto_id = get_protocol_id_by_name( att->proto_name );
-	if( att->proto_id != 0 )
-		att->attribute_id = get_attribute_id_by_protocol_id_and_attribute_name( att->proto_id, att->attribute_name );
-	return att->proto_id != 0 && att->attribute_id != 0;
+	ASSERT(att->proto_id != unknown, "Unknown protocol name [%s]", att->proto_name );
+	att->attribute_id = get_attribute_id_by_protocol_id_and_attribute_name( att->proto_id, att->attribute_name );
+	ASSERT( att->attribute_id != unknown, "Unknown attribute [%s] of protocol [%s]",
+			att->attribute_name, att->proto_name );
+	att->dpi_datatype = get_attribute_data_type( att->proto_id, att->attribute_id );
+	ASSERT( att->dpi_datatype != unknown, "Unknown data type of [%s.%s]",
+			att->attribute_name, att->proto_name );
+	return true;
 }
 
 /**
@@ -324,5 +330,91 @@ static inline bool dpi_get_ip_string_from_packet( const ipacket_t *ipacket, char
 		inet_ntop( AF_INET6, &ip_dst.ipv6, ip_dst_string, INET6_ADDRSTRLEN );
 	}
 	return true;
+}
+
+
+/**
+ * Example: given a packet having the protocol hierarchy as the following: ETHERNET/IP/UDP/GTP/IP/UDP/QUICK
+ *  and proto_name="UDP"
+ *
+ * - proto_index=2: refer to the second UDP (the one after GTP)
+ * - proto_index_in_herarchy will be 5 (starting from 0)
+ *
+ * @param packet
+ * @param proto_id
+ * @param order
+ * @return
+ */
+static inline int dpi_get_index_of_protocol_in_hierarchy( const ipacket_t *packet, uint32_t proto_id, uint32_t order ){
+	uint32_t proto_index  = 0;
+	if( order < 1 )
+		order = 1;
+	const proto_hierarchy_t *proto_hierarchy = packet->proto_hierarchy;
+	if( ! proto_hierarchy )
+		return -1;
+	while( proto_index < proto_hierarchy->len ){
+		if( proto_hierarchy->proto_path[ proto_index ] == proto_id ){
+			order --;
+			if( order == 0)
+				return proto_index;
+		}
+		proto_index ++;
+	}
+
+	return -1;
+}
+
+static inline attribute_t * dpi_extract_attribute( const ipacket_t *packet, const dpi_protocol_attribute_t *att){
+	uint32_t proto_index_in_herarchy;
+	attribute_t * attr_extract;
+	if( att->proto_index > 1 ){
+		//Example: given a packet having the protocol hierarchy as the following: ETHERNET/IP/UDP/GTP/IP/UDP/QUICK
+		//  and proto_name="UDP"
+		//
+		// - proto_index=2: refer to the second UDP (the one after GTP)
+		// - proto_index_in_herarchy will be 5 (starting from 0)
+		proto_index_in_herarchy = dpi_get_index_of_protocol_in_hierarchy(packet, att->proto_id, att->proto_index );
+		//get value of an attribute from the packet
+		if( proto_index_in_herarchy != 1 ){
+			//DEBUG("index in hierarchy of %s.%d.%s: %d",
+			//		att->proto_name, att->proto_index, att->attribute_name, proto_index_in_herarchy);
+			attr_extract = get_extracted_attribute_at_index( packet, att->proto_id, att->attribute_id, proto_index_in_herarchy );
+		}
+		else
+			attr_extract = NULL;
+	} else {
+		attr_extract = get_extracted_attribute( packet, att->proto_id, att->attribute_id );
+	}
+	return attr_extract;
+}
+
+/**
+ * Surround the quotes for the string data
+ * @param msg
+ * @param offset
+ * @param att
+ */
+static inline bool is_string_datatype( int data_type ){
+	switch( data_type ){
+	case MMT_BINARY_VAR_DATA:
+	case MMT_DATA_CHAR:
+	case MMT_DATA_DATE:
+	case MMT_DATA_IP6_ADDR:
+	case MMT_DATA_IP_ADDR:
+	case MMT_DATA_IP_NET:
+	case MMT_DATA_MAC_ADDR:
+	case MMT_DATA_PATH:
+	case MMT_HEADER_LINE:
+	case MMT_STRING_DATA:
+	case MMT_STRING_LONG_DATA:
+	case MMT_GENERIC_HEADER_LINE:
+#ifdef MMT_U32_ARRAY
+	//surround the elements of an array by " and "
+	case MMT_U32_ARRAY:
+	case MMT_U64_ARRAY:
+#endif
+		return true;
+	}
+	return false;
 }
 #endif /* SRC_MODULES_DPI_DPI_TOOL_H_ */

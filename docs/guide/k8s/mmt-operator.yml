@@ -1,0 +1,50 @@
+# 1. deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mmt-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mmt-operator
+  template:
+    metadata:
+      labels:
+        app: mmt-operator
+    spec:
+      containers:
+      - name: mmt-operator
+        image: ghcr.io/montimage/mmt-operator:v1.7.2
+        imagePullPolicy: IfNotPresent
+        args: 
+        - "-Xdatabase_server.host=mmt-database"
+        - "-Xinput_mode=kafka"
+        - "-Xkafka_input={}"
+        - "-Xkafka_input.host=kafka"
+        - "-Xkafka_input.port=9092"
+        - "-Xkafka_input.topic=mmt-reports"
+        - "-Xkafka_input.client_name=mmt-operator-consumer"
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+---
+# 2. service
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: mmt-operator
+  name: mmt-operator
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+    nodePort: 30010
+  selector:
+    app: mmt-operator
+  type: NodePort

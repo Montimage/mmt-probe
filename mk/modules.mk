@@ -240,6 +240,7 @@ ifndef DISABLE_REPORT
     MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/dpi/report/session_report.c)
   else
     MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/dpi/report/*.c)
+    MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/dpi/report/query/*.c)
   endif
 else
   $(info -> Disable reports)
