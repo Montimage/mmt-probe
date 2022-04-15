@@ -35,8 +35,33 @@ DECLARE_OP_HEADER( diff )
 DECLARE_OP_HEADER( first )
 DECLARE_OP_HEADER( last )
 
-data_types_t operator_array_get_data_type( query_op_type_t op, data_types_t data_type );
-bool operator_array_can_handle( query_op_type_t op, data_types_t data_type );
+//a specific processing for array of operators
+bool op_array_can_handle( query_op_type_t op, data_types_t data_type );
+data_types_t op_array_get_data_type( query_op_type_t op, data_types_t data_type );
+void op_array_reset_value( void* );
+void* op_array_create( query_op_type_t op_type, data_types_t data_type );
+void op_array_release( void* );
+bool op_array_add_data( void*, const void *);
+const void* op_array_get_value( void* );
+
+static inline bool _is_array_processing( query_op_type_t op, data_types_t data_type ){
+	//do not need an array of operators for "first" and "last" operators
+	switch( op ){
+	case QUERY_OP_FIRST:
+	case QUERY_OP_LAST:
+		return false;
+	default:
+		break;
+	}
+
+	switch( data_type ){
+	case MMT_U32_ARRAY:
+	case MMT_U64_ARRAY:
+		return true;
+	default:
+		return false;
+	}
+}
 
 const char* query_operator_get_name( query_op_type_t op ){
 	switch( op ){
@@ -61,11 +86,8 @@ const char* query_operator_get_name( query_op_type_t op ){
 
 bool query_operator_can_handle( query_op_type_t op, data_types_t data_type ){
 	//specific for array data type
-	switch( data_type ){
-	case MMT_U32_ARRAY:
-	case MMT_U64_ARRAY:
-		return operator_array_can_handle( op, data_type );
-	}
+	if( _is_array_processing( op, data_type ) )
+		return op_array_can_handle( op, data_type );
 
 	switch( op ){
 	case QUERY_OP_SUM:
@@ -89,11 +111,8 @@ bool query_operator_can_handle( query_op_type_t op, data_types_t data_type ){
 
 data_types_t query_operator_get_data_type( query_op_type_t op, data_types_t data_type ){
 	//specific for array data type
-	switch( data_type ){
-	case MMT_U32_ARRAY:
-	case MMT_U64_ARRAY:
-		return operator_array_get_data_type( op, data_type );
-	}
+	if( _is_array_processing( op, data_type ) )
+		return op_array_get_data_type( op, data_type );
 
 	switch( op ){
 	case QUERY_OP_SUM:
@@ -130,36 +149,42 @@ query_operator_t *query_operator_create( query_op_type_t op, data_types_t data_t
 	result->operator_type = op;
 	result->data_type = data_type;
 
-	switch( op ){
-	case QUERY_OP_SUM:
-		ASSIGN_OP( result, sum );
-		break;
-	case QUERY_OP_COUNT:
-		ASSIGN_OP( result, count );
-		break;
-	case QUERY_OP_AVG:
-		ASSIGN_OP( result, avg );
-		break;
-	case QUERY_OP_VAR:
-		ASSIGN_OP( result, var );
-		break;
-	case QUERY_OP_DIFF:
-		ASSIGN_OP( result, diff );
-		break;
-	case QUERY_OP_LAST:
-		ASSIGN_OP( result, last );
-		break;
-	case QUERY_OP_FIRST:
-		ASSIGN_OP( result, first );
-		break;
-	default:
-		mmt_probe_free( result );
-		return NULL;
+	if( _is_array_processing( op, data_type ) ){
+		result->operator       = op_array_create(op, data_type);
+		result->fn_release     = op_array_release;
+		result->fn_get_value   = op_array_get_value;
+		result->fn_reset_value = op_array_reset_value;
+		result->fn_add_data    = op_array_add_data;
+	} else {
+		switch( op ){
+		case QUERY_OP_SUM:
+			ASSIGN_OP( result, sum );
+			break;
+		case QUERY_OP_COUNT:
+			ASSIGN_OP( result, count );
+			break;
+		case QUERY_OP_AVG:
+			ASSIGN_OP( result, avg );
+			break;
+		case QUERY_OP_VAR:
+			ASSIGN_OP( result, var );
+			break;
+		case QUERY_OP_DIFF:
+			ASSIGN_OP( result, diff );
+			break;
+		case QUERY_OP_LAST:
+			ASSIGN_OP( result, last );
+			break;
+		case QUERY_OP_FIRST:
+			ASSIGN_OP( result, first );
+			break;
+		default:
+			mmt_probe_free( result );
+			return NULL;
+		}
+		result->operator = result->fn_create( data_type );
 	}
-	result->operator = result->fn_create( data_type );
 	return result;
-
-
 }
 
 
