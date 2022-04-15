@@ -73,6 +73,7 @@ cd $TMP_DIR
 apt-get install libxml2-dev libpcap-dev libconfuse-dev
 git clone https://github.com/Montimage/mmt-security.git mmt-security
 cd mmt-security
+make clean-all
 make -j $CPU
 make install
 ldconfig
