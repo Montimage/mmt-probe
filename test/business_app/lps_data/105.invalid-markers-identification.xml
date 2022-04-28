@@ -1,0 +1,39 @@
+<beginning>
+<!-- This series of properties are desgined to detect invalid markes in the VeriDevOps ABB camera marker case study-->
+<!-- These properties are tunned for the LpsDataLog_L006807_201012b.txt dataset-->
+
+<property property_id="110" type_property="ATTACK" value="THEN" 
+    description="Marker 1 is in a suspicious position">
+    <event event_id="1" description="M1 X coordinate is in a suspicious position" 
+           boolean_expression="( (( lps_data.m1_x > 52837 ) &amp;&amp; (lps_data.m1_x &lt; 74404) ) )"/>
+    <event event_id="2" description="M1 Y coordinate is in a suspicious position"
+           boolean_expression="( (( lps_data.m1_y > 127469 ) || (lps_data.m1_y &lt; 2936) ) )" />
+</property>
+
+<property property_id="111" type_property="ATTACK" value="THEN" 
+    description="Marker 2 is in a suspicious position">
+    <event event_id="1" description="M2 X coordinate is in a suspicious position" 
+           boolean_expression="( (( lps_data.m2_x > 68818 ) &amp;&amp; (lps_data.m2_x &lt; 75312) ) )"/>
+    <event event_id="2" description="M2 Y coordinate is in a suspicious position"
+           boolean_expression="( (( lps_data.m2_y > 127860 ) || (lps_data.m2_y &lt; 3378) ) )" />
+</property>
+
+
+<property property_id="112" type_property="ATTACK" value="THEN" 
+    description="Marker 3 is in a suspicious position">
+    <event event_id="1" description="M3 X coordinate is in a suspicious position" 
+           boolean_expression="( (( lps_data.m3_x > 64486 ) &amp;&amp; (lps_data.m3_x &lt; 74964) ) )"/>
+    <event event_id="2" description="M3 Y coordinate is in a suspicious position"
+           boolean_expression="( (( lps_data.m3_y > 128852 ) || (lps_data.m3_y &lt; 7934) ) )" />
+</property>
+
+<property property_id="113" type_property="ATTACK" value="THEN" 
+    description="Suspicious number of candidate markers">
+    <event event_id="1" description="Suspicious number of candidate markers" 
+           boolean_expression="( ( lps_data.no_of_marker &lt; 3 ) )"/>   
+    <event event_id="2" description="Suspicious number of candidate markers" 
+           boolean_expression="( ( lps_data.no_of_marker &lt; 3 ) )"/>
+</property>
+
+
+</beginning>
