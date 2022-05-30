@@ -14,7 +14,7 @@ jobs:
     - name: build-from-source
       #we need to get the official packet of DPI (not ready yet, 2022-02-22)
       run: |
-         wget -O mmt-dpi.deb https://github.com/Montimage/mmt-dpi/releases/download/v1.7.2/mmt-dpi_1.7.2.0_6bdca06_Linux_x86_64.deb
+         wget -O mmt-dpi.deb https://github.com/Montimage/mmt-dpi/releases/download/v1.7.3/mmt-dpi_1.7.2.0_6bdca06_Linux_x86_64.deb
          sudo dpkg -i mmt-dpi.deb
          sudo apt install -y git cmake gcc g++ cpp libconfuse-dev libpcap-dev libxml2-dev
          make -j2
