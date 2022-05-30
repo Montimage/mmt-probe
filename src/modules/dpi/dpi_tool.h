@@ -410,6 +410,7 @@ static inline bool is_string_datatype( int data_type ){
 	case MMT_GENERIC_HEADER_LINE:
 #ifdef MMT_U32_ARRAY
 	//surround the elements of an array by " and "
+	case MMT_U16_ARRAY:
 	case MMT_U32_ARRAY:
 	case MMT_U64_ARRAY:
 #endif

@@ -29,6 +29,8 @@ typedef struct op_array_ {
 
 static inline data_types_t _get_element_data_type( data_types_t data_type ){
 	switch( data_type ){
+	case MMT_U16_ARRAY:
+		return MMT_U16_DATA;
 	case MMT_U32_ARRAY:
 		return MMT_U32_DATA;
 	case MMT_U64_ARRAY:

@@ -55,6 +55,7 @@ static inline bool _is_array_processing( query_op_type_t op, data_types_t data_t
 	}
 
 	switch( data_type ){
+	case MMT_U16_ARRAY:
 	case MMT_U32_ARRAY:
 	case MMT_U64_ARRAY:
 		return true;
