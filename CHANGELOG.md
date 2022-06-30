@@ -2,6 +2,11 @@
 - 30 June 2022
 - Reactive statistic of number of packets dropped by NIC, by MMT
 
+## v1.5.4
+- 27 June 2022
+- fixed bug in dtls security rule (rule 79)
+- fixed bug in error message when capturing in incomptable ethernet NIC
+      
 ## v1.5.2
 - 14 April 2022
 - Support `query-report`:
