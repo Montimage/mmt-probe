@@ -10,8 +10,9 @@
 #ifndef SRC_LIB_MS_TIMER_H_
 #define SRC_LIB_MS_TIMER_H_
 
-#include "stdint.h"
-#include "stdlib.h"
+#include <stdint.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
 //1 second = 1M microsecond
 #define S2US  1000000

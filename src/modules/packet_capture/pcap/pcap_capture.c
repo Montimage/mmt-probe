@@ -17,6 +17,7 @@
 #include <signal.h>
 #include <sys/time.h>
 
+#include "../../../lib/ms_timer.h"
 #include "../../../worker.h"
 #include "data_spsc_ring.h"
 
@@ -237,10 +238,10 @@ static inline void _got_a_packet_smp( u_char* user, const struct pcap_pkthdr *pc
 	}
 }
 
-static inline void _print_traffic_statistics( probe_context_t *context ){
+static inline void _print_traffic_statistics( const ms_timer_t *timer, void *arg ){
 	struct pcap_stat pcs; //packet capture stats
-
 	struct timeval tv;
+	probe_context_t *context = arg;
 
 	if( context->config->input->input_mode != ONLINE_ANALYSIS )
 		return;
@@ -364,6 +365,8 @@ void pcap_capture_start( probe_context_t *context ){
 	int i, ret;
 	char errbuf[PCAP_ERRBUF_SIZE]; /* error buffer */
 	pcap_t *pcap;
+	ms_timer_t traffic_stat_report_timer;
+	struct timeval now_tv;
 
 	int workers_count;
 	if( IS_SMP_MODE( context )){
@@ -486,6 +489,10 @@ void pcap_capture_start( probe_context_t *context ){
 			ABORT("Cannot put pcap in non-blocking mode: %s", errbuf );
 	}
 
+	ms_timer_init( &traffic_stat_report_timer, context->config->stat_period * S2MS,
+			_print_traffic_statistics, context );
+
+
 	while( ! context->is_exiting ){
 		//-1: unlimited number of packets to capture.
 		ret = pcap_dispatch( pcap, -1, _got_a_packet, (u_char*) context );
@@ -514,6 +521,9 @@ void pcap_capture_start( probe_context_t *context ){
 			continue;
 		else
 			break;
+
+		gettimeofday( &now_tv, NULL );
+		ms_timer_set_time(&traffic_stat_report_timer, &now_tv);
 	}
 
 	switch( ret ){
