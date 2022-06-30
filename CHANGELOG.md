@@ -1,3 +1,7 @@
+## v1.5.5
+- 30 June 2022
+- Reactive statistic of number of packets dropped by NIC, by MMT
+
 ## v1.5.2
 - 14 April 2022
 - Support `query-report`:
