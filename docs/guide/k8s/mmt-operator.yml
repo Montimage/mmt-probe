@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
       - name: mmt-operator
-        image: ghcr.io/montimage/mmt-operator:v1.7.2
-        imagePullPolicy: IfNotPresent
+        image: ghcr.io/montimage/mmt-operator:latest
+        imagePullPolicy: Always
         args: 
         - "-Xdatabase_server.host=mmt-database"
         - "-Xinput_mode=kafka"

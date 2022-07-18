@@ -20,8 +20,8 @@ spec:
         - containerPort: 80
 
       - name: mmt-probe
-        image: ghcr.io/montimage/mmt-probe:v1.5.1
-        imagePullPolicy: IfNotPresent
+        image: ghcr.io/montimage/mmt-probe:latest
+        imagePullPolicy: Always
         args: 
         - "-ieth0"
         - "-Xkafka-output.enable=true"
