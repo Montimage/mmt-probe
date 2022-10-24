@@ -19,6 +19,7 @@ spec:
         imagePullPolicy: Always
         args: 
         - "-ieth0"
+        - "-Xprobe-id=5"
         - "-Xkafka-output.enable=true"
         - "-Xkafka-output.hostname=kafka" #you can replace "kafka" within its IP address
         - "-Xkafka-output.port=9092"
