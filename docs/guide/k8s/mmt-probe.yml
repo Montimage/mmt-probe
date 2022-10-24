@@ -20,10 +20,14 @@ spec:
         args: 
         - "-ieth0"
         - "-Xkafka-output.enable=true"
-        - "-Xkafka-output.hostname=kafka"
+        - "-Xkafka-output.hostname=kafka" #you can replace "kafka" within its IP address
         - "-Xkafka-output.port=9092"
         - "-Xkafka-output.topic=mmt-reports"
         - "-Xsession-report.output-channel=kafka"
+        - "-Xsecurity.enable=true"
+        - "-Xsecurity.ignore-remain-flow=false"
+        - "-Xsecurity.exclude-rules=0-89,100-1000"
+        - "-Xsecurity.output-channel=stdout,kafka"
 
         resources:
           requests:

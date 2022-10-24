@@ -76,8 +76,8 @@ void usage(const char * prg_name) {
 	fprintf(stderr, "Option:\n");
 	fprintf(stderr, "\t-t <trace file>: Gives the trace file to analyse.\n");
 	fprintf(stderr, "\t-i <interface> : Gives the interface name for live traffic analysis.\n");
-	fprintf(stderr, "\t-p             : Protocol ID to be extracted.\n");
-	fprintf(stderr, "\t-a             : Attribute ID to be extracted.\n");
+	fprintf(stderr, "\t-p             : ID or Name of protocol to be extracted.\n");
+	fprintf(stderr, "\t-a             : ID or Name of attribute to be extracted.\n");
 	fprintf(stderr, "\t-d             : Index of protocol to extract. For example: ETH.IP.UDP.GTP.IP, if d=3 (or ignored) IP after ETH, d=6 represent IP after GTP\n");
 	fprintf(stderr, "\t-r             : ID of protocol stack. Default = 1 (Ethernet)\n");
 	fprintf(stderr, "\t-l             : Print list of protocol and attribute, then exit.\n");
@@ -103,6 +103,7 @@ void protocols_iterator(uint32_t proto_id, void * args) {
  */
 void parseOptions(int argc, char ** argv, char * filename, int * type) {
 	int opt, optcount = 0;
+	int got_attr_id = 0;
 	while ((opt = getopt(argc, argv, "t:i:p:a:d:r:hl")) != EOF) {
 		switch (opt) {
 		case 't':
@@ -122,10 +123,33 @@ void parseOptions(int argc, char ** argv, char * filename, int * type) {
 			*type = LIVE_INTERFACE;
 			break;
 		case 'p':
-			proto_id = atol( optarg );
+			//protocol name
+			if( isalpha( optarg[0] )){
+				if( got_attr_id ){
+					fprintf(stderr, "-p must be set before -a parameters\n");
+					exit(1);
+				}
+				proto_id = get_protocol_id_by_name( optarg );
+				if( proto_id == -1){
+					fprintf(stderr, "No protocol %s\n", optarg);
+					exit(1);
+				}
+			} else
+				proto_id = atol( optarg );
 			break;
 		case 'a':
-			att_id = atol( optarg );
+			//attribute name
+			if( isalpha( optarg[0])) {
+				att_id = get_attribute_id_by_protocol_id_and_attribute_name(proto_id, optarg);
+				if( att_id == -1 ){
+					fprintf(stderr, "No attribute %s of protocol %s\n",
+							optarg, get_protocol_name_by_id(proto_id));
+					exit( 1 );
+				}
+				got_attr_id = 1;
+			}
+			else
+				att_id = atol( optarg );
 			break;
 		case 'd':
 			proto_index = atoi( optarg );
@@ -135,7 +159,6 @@ void parseOptions(int argc, char ** argv, char * filename, int * type) {
 			break;
 		case 'l':
 			//Initialize MMT
-			init_extraction();
 			iterate_through_protocols(protocols_iterator, NULL);
 			close_extraction();
 			exit( 0 );
@@ -188,10 +211,11 @@ int main(int argc, char ** argv){
 	struct pcap_pkthdr p_pkthdr;
 	char errbuf[1024];
 
-	parseOptions(argc, argv, filename, &type);
-
 	//Initialize MMT
 	init_extraction();
+
+	parseOptions(argc, argv, filename, &type);
+
 
 	//Initialize MMT handler
 	mmt_handler =mmt_init_handler( proto_stack,0,mmt_errbuf);
