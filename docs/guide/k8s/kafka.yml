@@ -75,7 +75,7 @@ spec:
         - name: KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE
           value: "true"
         - name: KAFKA_CFG_LISTENERS
-          value: "INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:9093"
+          value: "INTERNAL://:9092,EXTERNAL://:9093"
         - name: KAFKA_CFG_ADVERTISED_LISTENERS
           value: "INTERNAL://kafka:9092,EXTERNAL://kafka.mmt.svc.cluster.local:9093"
         - name: KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP
