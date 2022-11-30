@@ -13,14 +13,14 @@ The following steps will deploy MMT together with Nginx that is an example of th
 #0. create mmt namespace
 kubectl create namespace mmt
 #1. deploy Kafka and Zookeeper
-kuberctl apply -f ./kafka.yml -n mmt
+kubectl apply -f ./kafka.yml -n mmt
 #2. deploy MongoDB
-kuberctl apply -f ./mongo.yml -n mmt
+kubectl apply -f ./mongo.yml -n mmt
 # wait for the MongoDB Pod being available (~20 seconds)
 #3. deploy MMT-Operator
-kuberctl apply -f ./mmt-operator.yml -n mmt
+kubectl apply -f ./mmt-operator.yml -n mmt
 #4. deploy nginx server whose traffic will be monitored by MMT-Probe
-kuberctl apply -f ./nginx-probe.yml
+kubectl apply -f ./nginx-probe.yml
 ```
 
 ## Scenario 2: outside the monitored Pod

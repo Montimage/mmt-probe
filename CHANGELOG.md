@@ -1,5 +1,6 @@
 ## v1.5.7
 - update mmt-security to filter SCTP by port number
+- fix minor typo in k8s guide 
 ## v1.5.6
 - use new security rules to detect 5G corrupted packets
 - new DPI to fix the limit of 16 bit of `RAN_UE_ID`
