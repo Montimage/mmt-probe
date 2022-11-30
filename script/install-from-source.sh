@@ -50,7 +50,7 @@ ldconfig
 cd $TMP_DIR
 apt-get install -y pkg-config libssl-dev libsasl2-dev
 # use fixed version just to ensure the compability 
-curl -Lkv --output mongo-c.tar.gz https://github.com/mongodb/mongo-c-driver/releases/download/1.9.5/mongo-c-driver-1.9.5.tar.gz
+curl -Lk --output mongo-c.tar.gz https://github.com/mongodb/mongo-c-driver/releases/download/1.9.5/mongo-c-driver-1.9.5.tar.gz
 tar xzf mongo-c.tar.gz
 cd mongo-c-driver-1.9.5 #this folder name is fixed inside the mongo-c.tar.gz
 ./configure --disable-automatic-init-and-cleanup
