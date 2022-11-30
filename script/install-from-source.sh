@@ -19,15 +19,12 @@ cd $TMP_DIR
 CPU=$(getconf _NPROCESSORS_ONLN)
 
 # install libraries 
-#TODO: need to use the latest gcc
-apt-get install -y build-essential
-add-apt-repository -y ppa:ubuntu-toolchain-r/test
 apt-get update && apt-get install -y \
-	git cmake gcc-4.9 g++-4.9 cpp-4.9 \
+	git cmake gcc g++ cpp\
 	libconfuse-dev libpcap-dev libxml2-dev\
 	curl
 
-
+gcc -v
 
 # install hiredis library
 cd $TMP_DIR
