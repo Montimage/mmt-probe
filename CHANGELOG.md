@@ -1,3 +1,9 @@
+## v1.5.7
+- update mmt-security to filter SCTP by port number
+## v1.5.6
+- use new security rules to detect 5G corrupted packets
+- new DPI to fix the limit of 16 bit of `RAN_UE_ID`
+
 ## v1.5.5
 - 30 June 2022
 - Reactive statistic of number of packets dropped by NIC, by MMT
