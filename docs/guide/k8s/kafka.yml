@@ -1,7 +1,20 @@
-#1. Zookeeper
+# See: https://git.launchpad.net/~ubuntu-docker-images/ubuntu-docker-images/+git/kafka/plain/examples/kafka-deployment.yml
 
-kind: Deployment
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zookeeper
+  labels:
+    app: zookeeper
+spec:
+  ports:
+  - port: 2181
+  selector:
+    app: zookeeper
+---
 apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: zookeeper
 spec:
@@ -16,38 +29,25 @@ spec:
     spec:
       containers:
       - name: zookeeper
-        image: bitnami/zookeeper
-        imagePullPolicy: IfNotPresent
+        image: ubuntu/zookeeper:edge
         ports:
         - containerPort: 2181
-        env:
-        - name: ZOO_SERVER_ID
-          value: "1"
-        - name: ZOO_SERVERS
-          value: "zookeeper:2181:2181"
-        - name: ALLOW_ANONYMOUS_LOGIN
-          value: "true"
+          name: zookeeper
+          protocol: TCP
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: zookeeper-server
+  name: kafka
   labels:
-    app: zookeeper
+    app: kafka
 spec:
   ports:
-  - name: tcp-client
-    port: 2181
-    targetPort: 2181
-    protocol: TCP
+  - port: 9092
   selector:
-    app: zookeeper
-  clusterIP: None
-
+    app: kafka
 ---
-#2. Kafka
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -63,50 +63,36 @@ spec:
         app: kafka
     spec:
       containers:
-      - image: bitnami/kafka
-        imagePullPolicy: IfNotPresent
-        name: kafka
+      - name: kafka
+        image: ubuntu/kafka:edge
+        env:
+          - name: ZOOKEEPER_HOST
+            value: zookeeper
+          - name: ZOOKEEPER_PORT
+            value: "2181"
+        args: 
+        - "/etc/kafka/server.properties"
+        - "--override"
+        - "advertised.listeners=PLAINTEXT://kafka:9092"
+        # retain messages during 1 hour
+        - "--override"
+        - "log.retention.hours=1"
+        # limit to 128 MB
+        - "--override"
+        - "log.retention.bytes=134217728"
+        # check each 10 minutes
+        - "--override"
+        - "log.retention.check.interval.ms=10000"
+        
         ports:
         - containerPort: 9092
-        - containerPort: 9093
-        env:
-        - name: ALLOW_PLAINTEXT_LISTENER
-          value: "true"
-        - name: KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE
-          value: "true"
-        - name: KAFKA_CFG_LISTENERS
-          value: "INTERNAL://:9092,EXTERNAL://:9093"
-        - name: KAFKA_CFG_ADVERTISED_LISTENERS
-          value: "INTERNAL://kafka:9092,EXTERNAL://kafka.mmt.svc.cluster.local:9093"
-        - name: KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP
-          value: "INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT"
-        - name: KAFKA_CFG_INTER_BROKER_LISTENER_NAME
-          value: "EXTERNAL"
-        - name: KAFKA_CFG_ZOOKEEPER_CONNECT
-          value: "zookeeper-server:2181"
-        - name: KAFKA_BROKER_ID
-          value: "1"
-        - name: KAFKA_CREATE_TOPICS
-          value: "mmt-reports:1:1"
-
----
-
-apiVersion: v1
-kind: Service
-metadata:
-  name: kafka
-  labels:
-    app: kafka
-spec:
-  ports:
-  - name: tcp-kafka-internal
-    port: 9092
-    targetPort: 9092
-    protocol: TCP
-  - name: tcp-kafka-external
-    port: 9093
-    targetPort: 9093
-    protocol: TCP
-  selector:
-    app: kafka
-  type: NodePort
+          name: kafka
+          protocol: TCP
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+            ephemeral-storage: "1Gi"
