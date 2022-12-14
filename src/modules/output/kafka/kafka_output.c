@@ -5,6 +5,7 @@
  *          by: Huu Nghia Nguyen
  */
 #include <rdkafka.h>
+#include <time.h>
 
 #include "kafka_output.h"
 #include "../../../lib/log.h"
@@ -14,7 +15,101 @@ struct kafka_output_struct{
 	rd_kafka_topic_t *rd_topic;
 	rd_kafka_conf_t *rd_conf;
 	rd_kafka_t  *rd_producer;
+	const kafka_output_conf_t *config;
+	size_t nb_no_send_messages; //number of messages that cannot be sent
+	time_t last_error_timestamp;
 };
+
+
+static void _release_current_kafka_connection( kafka_output_t *context ){
+	if( context == NULL )
+		return;
+	if( context->rd_producer )
+		rd_kafka_destroy( context->rd_producer );
+	if( context->rd_conf )
+		rd_kafka_conf_destroy( context->rd_conf );
+	if( context->rd_topic )
+		rd_kafka_topic_destroy( context->rd_topic );
+	context->last_error_timestamp = 0;
+}
+
+static void _connect_to_kafka( kafka_output_t *context ){
+
+	rd_kafka_conf_res_t val;
+	char errstr[512];       /* librdkafka API error reporting buffer */
+	char brokers[256];    /* Argument: broker list */
+	/*
+	 * Create Kafka client configuration place-holder
+	 */
+
+	const kafka_output_conf_t *config = context->config;
+	context->rd_conf = rd_kafka_conf_new();
+
+	/* Set bootstrap broker(s) as a comma-separated list of
+	 * host or host:port (default port 9092).
+	 * librdkafka will use the bootstrap brokers to acquire the full
+	 * set of brokers from the cluster. */
+
+	rd_kafka_conf_set(context->rd_conf, "queue.buffering.max.messages", "10000000", errstr, sizeof(errstr));
+	rd_kafka_conf_set(context->rd_conf, "batch.num.messages", "10000", errstr, sizeof(errstr));
+	rd_kafka_conf_set(context->rd_conf, "queue.buffering.max.ms", "1000", errstr, sizeof(errstr));
+
+	snprintf( brokers, sizeof( brokers ), "%s:%u", config->host.host_name, config->host.port_number );
+	val = rd_kafka_conf_set(context->rd_conf, "bootstrap.servers", brokers, errstr, sizeof(errstr));
+
+	if( val != RD_KAFKA_CONF_OK ) {
+		log_write( LOG_ERR, "Failed to connect to kafka server: %s\n", errstr);
+		kafka_output_release( context );
+		contexturn NULL;
+	}
+
+	/* Set the delivery report callback.
+	 * This callback will be called once per message to inform
+	 * the application if delivery succeeded or failed.
+	 * See dr_msg_cb() above. */
+	rd_kafka_conf_set_dr_msg_cb( context->rd_conf, dr_msg_cb );
+
+	/*
+	 * Create producer instance.
+	 *
+	 * NOTE: rd_kafka_new() takes ownership of the conf object
+	 *       and the application must not reference it again after
+	 *       this call.
+	 */
+	context->rd_producer = rd_kafka_new(RD_KAFKA_PRODUCER, context->rd_conf, errstr, sizeof(errstr));
+	if( context->rd_producer == NULL ){
+		log_write( LOG_ERR, "Failed to create new kafka producer: %s", errstr);
+		kafka_output_release( context );
+		contexturn NULL;
+	}
+
+	/* Create topic object that will be reused for each message
+	 * produced.
+	 *
+	 * Both the producer instance (rd_kafka_t) and topic objects (topic_t)
+	 * are long-lived objects that should be reused as much as possible.
+	 */
+	context->rd_topic = rd_kafka_topic_new( context->rd_producer, config->topic_name, NULL);
+	if( context->rd_topic == NULL ){
+		log_write( LOG_ERR, "Failed to create new topic %s: %s", config->topic_name,
+				rd_kafka_err2str( rd_kafka_last_error() ));
+		kafka_output_release( context );
+		contexturn NULL;
+	}
+	log_write( LOG_INFO, "Connected to the Kafka %s", brokers );
+}
+
+/**
+ * Stop the current connection and create a new connection to the kafka bus
+ * @param context
+ */
+static void _reconnect_to_kafka( kafka_output_t *context ){
+	log_write( LOG_INFO, "Reconnect to the Kafka bus" );
+	//first: need to release the current resource
+	_release_current_kafka_connection( context );
+	//then: connect again
+	_connect_to_kafka( context );
+}
 
 /**
  * @brief Message delivery report callback.
@@ -28,9 +123,27 @@ struct kafka_output_struct{
  * the application's thread.
  */
 static void dr_msg_cb (rd_kafka_t *rk, const rd_kafka_message_t *rkmessage, void *opaque) {
-	if (rkmessage->err)
+	kafka_output_t *context = (kafka_output_t *) opaque;
+	//if we cannot send successfully the message
+	if (rkmessage->err != RD_KAFKA_RESP_ERR_NO_ERROR){
 		log_write( LOG_ERR, "Message delivery failed: %s",
 				rd_kafka_err2str(rkmessage->err));
+
+		time_t now = time(NULL); //seconds since the Epoch
+
+		//remember the number of failed messages
+		context->nb_no_send_messages ++;
+
+		//reconnect after a few seconds of fail
+		if( context->last_error_timestamp == 0 )
+			context->last_error_timestamp = now;
+		else if( now - context->last_error_timestamp > 10 ){
+			_reconnect_to_kafka( context );
+		}
+	} else {
+		//we sent successfully the message
+		context->last_error_timestamp = 0;
+	}
 	//	else
 	//fprintf(stderr,
 	//		"%% Message delivered (%zd bytes, "
@@ -45,70 +158,11 @@ kafka_output_t *kafka_output_init( const kafka_output_conf_t * config){
 	if( config->is_enable == false )
 		return NULL;
 
-	rd_kafka_conf_res_t val;
-	char errstr[512];       /* librdkafka API error reporting buffer */
-	char brokers[256];    /* Argument: broker list */
-
-	/* Temporary configuration object */
 	kafka_output_t *ret = mmt_alloc_and_init_zero( sizeof( kafka_output_t ));
+	ret->config = config;
 
-	/*
-	 * Create Kafka client configuration place-holder
-	 */
-
-	ret->rd_conf = rd_kafka_conf_new();
-
-	/* Set bootstrap broker(s) as a comma-separated list of
-	 * host or host:port (default port 9092).
-	 * librdkafka will use the bootstrap brokers to acquire the full
-	 * set of brokers from the cluster. */
-
-	rd_kafka_conf_set(ret->rd_conf, "queue.buffering.max.messages", "10000000", errstr, sizeof(errstr));
-	rd_kafka_conf_set(ret->rd_conf, "batch.num.messages", "10000", errstr, sizeof(errstr));
-	rd_kafka_conf_set(ret->rd_conf, "queue.buffering.max.ms", "1000", errstr, sizeof(errstr));
-
-	snprintf( brokers, sizeof( brokers ), "%s:%u", config->host.host_name, config->host.port_number );
-	val = rd_kafka_conf_set(ret->rd_conf, "bootstrap.servers", brokers, errstr, sizeof(errstr));
-
-	if( val != RD_KAFKA_CONF_OK ) {
-		log_write( LOG_ERR, "Failed to connect to kafka server: %s\n", errstr);
-		kafka_output_release( ret );
-		return NULL;
-	}
-
-	/* Set the delivery report callback.
-	 * This callback will be called once per message to inform
-	 * the application if delivery succeeded or failed.
-	 * See dr_msg_cb() above. */
-	rd_kafka_conf_set_dr_msg_cb( ret->rd_conf, dr_msg_cb );
-
-	/*
-	 * Create producer instance.
-	 *
-	 * NOTE: rd_kafka_new() takes ownership of the conf object
-	 *       and the application must not reference it again after
-	 *       this call.
-	 */
-	ret->rd_producer = rd_kafka_new(RD_KAFKA_PRODUCER, ret->rd_conf, errstr, sizeof(errstr));
-	if( ret->rd_producer == NULL ){
-		log_write( LOG_ERR, "Failed to create new kafka producer: %s", errstr);
-		kafka_output_release( ret );
-		return NULL;
-	}
-
-	/* Create topic object that will be reused for each message
-	 * produced.
-	 *
-	 * Both the producer instance (rd_kafka_t) and topic objects (topic_t)
-	 * are long-lived objects that should be reused as much as possible.
-	 */
-	ret->rd_topic = rd_kafka_topic_new( ret->rd_producer, config->topic_name, NULL);
-	if( ret->rd_topic == NULL ){
-		log_write( LOG_ERR, "Failed to create new topic %s: %s", config->topic_name,
-				rd_kafka_err2str( rd_kafka_last_error() ));
-		kafka_output_release( ret );
-		return NULL;
-	}
+	//trigger the connection
+	_connect_to_kafka( ret );
 
 	return ret;
 }
@@ -145,7 +199,7 @@ bool kafka_output_send( kafka_output_t *context, const char *msg ){
 			/* Message opaque, provided in
 			 * delivery report callback as
 			 * msg_opaque. */
-			NULL) == -1) {
+			context) == -1) {
 
 		//Failed to *enqueue* message for producing.
 		log_write( LOG_ERR, "Failed to produce to topic %s: %s",
@@ -164,7 +218,7 @@ bool kafka_output_send( kafka_output_t *context, const char *msg ){
 			 * The internal queue is limited by the
 			 * configuration property
 			 * queue.buffering.max.messages */
-			rd_kafka_poll( context->rd_producer, 10/*block for max 1000ms*/);
+			rd_kafka_poll( context->rd_producer, 10/*block for max 10ms*/);
 			goto retry;
 		}
 		return false;
@@ -187,13 +241,8 @@ bool kafka_output_send( kafka_output_t *context, const char *msg ){
 
 
 void kafka_output_release(  kafka_output_t *context ){
-	if( context == NULL )
-		return;
-	if( context->rd_producer )
-		rd_kafka_destroy( context->rd_producer );
-	if( context->rd_conf )
-		rd_kafka_conf_destroy( context->rd_conf );
-	if( context->rd_topic )
-		rd_kafka_topic_destroy( context->rd_topic );
+	log_write( LOG_INFO, "Number of messages which cannot be sent successfully to the Kafka bus: %zu", context->nb_no_send_messages );
+
+	_release_current_kafka_connection( context );
 	mmt_probe_free( context );
 }
