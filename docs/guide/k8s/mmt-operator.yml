@@ -24,7 +24,6 @@ spec:
         - "-Xkafka_input.host=kafka"
         - "-Xkafka_input.port=9092"
         - "-Xkafka_input.topic=mmt-reports"
-        - "-Xkafka_input.client_name=mmt-operator-consumer"
         ports:
         - containerPort: 8080
         resources:
