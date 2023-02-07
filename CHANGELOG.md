@@ -1,3 +1,6 @@
+## v1.5.9 (07 Feb 2023)
+- update mmt-security which introduces 2 rules to detect DoS attacks in 5G control plane
+
 ## v1.5.8 (14 Dec 2022)
 - auto reconnect to Kafka bus when timeout or failled
 

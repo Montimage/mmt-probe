@@ -9,7 +9,7 @@ APP = probe
 
 #get git version abbrev
 GIT_VERSION := $(shell git log --format="%h" -n 1)
-VERSION     := 1.5.7
+VERSION     := 1.5.8
 
 ifndef TOP_DIR
   #current directory
