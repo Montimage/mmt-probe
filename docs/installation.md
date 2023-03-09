@@ -1,8 +1,8 @@
 # Installation
 
-Before installing MMT-probe, we need to install MMT-SDK. 
+Before installing MMT-probe, we need to install MMT-DPI. 
 
-To compile and install  MMT-SDK follow the instructions in MMT-SDK section [here](https://bitbucket.org/montimage/mmt-sdk/wiki/Compilation%20and%20Installation%20Instructions).
+To compile and install  MMT-DPI follow the instructions in MMT-DPI section [here](https://github.com/montimage/mmt-dpi/).
 
 ## Prerequisites
 
