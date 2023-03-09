@@ -164,7 +164,7 @@ make MONGODB_MODULE compile
     
 ##### `SECURITY_MODULE`
 
-These compile options require `MMT-Security` to be installed respectively (see https://bitbucket.org/montimage/mmt-security).
+These compile options require `MMT-Security` to be installed respectively (see https://github.com/montimage/mmt-security).
 
 ```bash
 #support mmt-security
