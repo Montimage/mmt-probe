@@ -69,8 +69,8 @@ static float mh_speed_i, ga_speed_i, tr_speed_i;
 
 static bool em_coor(double tr_pos, double hst_pos, double m1_x, double m1_y, double m2_x, double m2_y, double m3_x, double m3_y, double ga_spd, double mh_spd, double tr_spd, int no_markers, const void* timestamp ){
 	struct timeval initial_tm;
-	initial_tm.tv_sec = =0;
-	
+	initial_tm.tv_sec = 0;
+	initial_tm.tv_usec = 0;
 	if(first_row_counter==0){
 		first_row_counter++;
 		printf("scrivo le intestazioni\n");
