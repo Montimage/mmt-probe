@@ -4,13 +4,104 @@
 //any numeric values in mmt-security are "double" 
 // (even integer ou float, they are stored in a double)
 
+
+static FILE *output=NULL;
+void on_load(){
+	output = fopen("output.csv", "w+");
+	if(output == NULL)
+		printf("==================error when open file to write");
+	else
+		printf("===================everything is ok");
+}
 static inline bool _in_coor( double x ){
 	return (x >= 0) && (x <= 131072);
 }
-static bool em_coor( double m1_x, double m1_y, double m2_x, double m2_y, double m3_x, double m3_y ){
-	return _in_coor(m1_x) && _in_coor(m1_y) 
-		 && _in_coor(m2_x) && _in_coor(m2_y)
-		 && _in_coor(m3_x) && _in_coor(m3_y);
+
+static float avg(float *storage, size_t *counter, float input){
+		float ret = 0;
+		
+		*storage += input;
+		(*counter) ++;
+		
+		//printf("input = %.2f, counter = %zu\n", input, *counter);
+		
+		if( *counter >= 100 ){
+			ret = (*storage)/(*counter);
+			//printf("Printing = %.2f",ret);			
+			(*counter) = 0;
+			(*storage) = 0;
+		}
+		return ret;
+}
+
+
+static float avg_acceleration(float *storage, size_t *counter, struct timeval *ts_i, struct timeval *ts_f, float speed_i, float speed_f){
+		float ret = 0;
+		printf("------------------ ENTRATO IN AVGACCELERATION ---------------------\n");
+		if (counter>0){
+			float delta_time = ((ts_i->tv_sec - ts_f->tv_sec) * 1000000 )+ (ts_i->tv_usec - ts_f->tv_usec);
+			printf("------------delta_time = %.2f",delta_time);
+			float acceleration = (speed_f-speed_i)/(delta_time);
+			printf("-------------acceleration = %.2f",acceleration);
+
+			*storage += acceleration;
+			(*counter) ++;
+		
+		
+			if( *counter >= 100 ){
+				ret = (*storage)/(*counter);
+				printf("Printing = %.2f",ret);			
+				(*counter) = 0;
+				(*storage) = 0;
+			}
+		}
+
+		return ret;
+	
+}
+
+
+
+static float storage_m1_x=0, storage_m1_y=0, storage_tr_pos=0, storage_hoist_pos=0, storage_mh_spd=0, storage_ga_spd=0, storage_tr_spd=0, storage_no_markers=0, storage_acceleration=0;
+static size_t counter_m1_x=0, counter_m1_y=0, counter_tr_pos=0, counter_hoist_pos=0, counter_mh_spd=0, counter_ga_spd=0, counter_tr_spd=0, counter_no_markers=0, counter_acceleration=0,first_row_counter=0;
+static struct timeval *timestamp_i;
+static float mh_speed_i, ga_speed_i, tr_speed_i;
+
+static bool em_coor(double tr_pos, double hst_pos, double m1_x, double m1_y, double m2_x, double m2_y, double m3_x, double m3_y, double ga_spd, double mh_spd, double tr_spd, int no_markers, const void* timestamp ){
+	struct timeval initial_tm;
+	initial_tm.tv_sec = =0;
+	
+	if(first_row_counter==0){
+		first_row_counter++;
+		printf("scrivo le intestazioni\n");
+		timestamp_i->tv_sec = 0;
+		timestamp_i->tv_usec = 0;
+		fprintf(output,"%s,%s,%s,%s,%s,%s,%s,%s\n", "AvgTrolleyPos", "AvgHoistPos", "AvgMhSpeed", "AvgGaSpeed", "AvgTrSpeed", "AvgMark1X", "AvgMark1Y", "AvgNumberOfMarkers");
+	}
+	printf("------------------ STAMPO IL TSI %d ---------------------\n", timestamp_i->tv_sec);
+
+	float trolley_pos   = avg(&storage_tr_pos, &counter_tr_pos, tr_pos),
+		  hoist_pos = avg(&storage_hoist_pos, &counter_hoist_pos, hst_pos),
+		  mh_speed = avg(&storage_mh_spd, &counter_mh_spd, mh_spd),
+		  ga_speed = avg(&storage_ga_spd, &counter_ga_spd, ga_spd),
+		  tr_speed = avg(&storage_tr_spd, &counter_tr_spd, tr_spd),
+		  a1_x   = avg(&storage_m1_x, &counter_m1_x, m1_x),
+		  a1_y = avg(&storage_m1_y, &counter_m1_y, m1_y),
+		  no_of_markers = avg(&storage_no_markers, &counter_no_markers, (float)no_markers),
+		  mh_acceleration = avg_acceleration(&storage_acceleration, &counter_acceleration, timestamp_i, (struct timeval *)timestamp, mh_speed_i, mh_speed),
+		  ga_acceleration = avg_acceleration(&storage_acceleration, &counter_acceleration, timestamp_i, (struct timeval *)timestamp, ga_speed_i, ga_speed),
+		  tr_acceleration = avg_acceleration(&storage_acceleration, &counter_acceleration, timestamp_i, (struct timeval *)timestamp, tr_speed_i, tr_speed);
+	timestamp_i = (struct timeval *)timestamp;
+	mh_speed_i = mh_speed;
+	ga_speed_i = ga_speed;
+	tr_speed_i = tr_speed;
+
+	if( counter_m1_x == 0 && counter_m1_y == 0 && counter_tr_pos == 0 && counter_hoist_pos == 0 && counter_mh_spd == 0 && counter_ga_spd == 0 && counter_tr_spd == 0){
+		printf("avg TrPos = %.2f, avg HoistPos = %.2f, avg MhSpeed = %.2f, avg GaSpeed = %.2f, \navg TrSpeed = %.2f, avg m1x = %.2f, avg m1y = %.2f, avg nOfMarkers = %.2f, TIMESTAMP ================= %d\n",
+		 		trolley_pos, hoist_pos, mh_speed, ga_speed, tr_speed, a1_x, a1_y, no_of_markers, timestamp_i->tv_sec);
+		fprintf(output,"%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",trolley_pos, hoist_pos, mh_speed, ga_speed, tr_speed, a1_x, a1_y, no_of_markers);
+	}
+	return 1;
 }
 
 
@@ -22,17 +113,9 @@ double em_threshold(){
 <property property_id="110" type_property="SECURITY" value="THEN"
     description="Marker's coordinates must be in range 0-131072">
     <event event_id="1" description="3 first markers"
-           boolean_expression="(lps_data.no_of_marker >= 3)"/>
+           boolean_expression="( true )"/>
     <event event_id="2" description="3 first markers"
-           boolean_expression="( #em_coor( lps_data.m1_x, lps_data.m1_y, lps_data.m2_x, lps_data.m2_y, lps_data.m3_x, lps_data.m3_y ) )"/>
-</property>
-
-<property property_id="111" type_property="ATTACK" value="THEN" 
-    description="Marker 1 is in forbidden position">
-    <event event_id="1" description="Position of Hoistpos" 
-           boolean_expression="( lps_data.hoist_pos >= 40 )"/>
-    <event event_id="2" description="Position of Markers 1 and 2"
-           boolean_expression="( (( lps_data.order > 40 ) &amp;&amp; (lps_data.m1_y &lt; 50000) ) )" />
+           boolean_expression="( #em_coor(lps_data.trolley_pos, lps_data.hoist_pos, lps_data.m1_x, lps_data.m1_y, lps_data.m2_x, lps_data.m2_y, lps_data.m3_x, lps_data.m3_y, lps_data.ga_speed, lps_data.mh_speed, lps_data.tr_speed, lps_data.no_of_marker, lps_data.timestamp ) )"/>
 </property>
 
 </beginning>
