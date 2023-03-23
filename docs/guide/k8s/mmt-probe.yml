@@ -19,7 +19,7 @@ spec:
         imagePullPolicy: Always
         env:
         - name: 5G_DOS_NGAP_INITIALUEMESSAGE_MS_LIMIT
-          value: 100 #allow max 100 InitialUEMessage during 1 millisecond
+          value: "100" #allow max 100 InitialUEMessage during 1 millisecond
         args: 
         - "-ieth0"
         - "-Xprobe-id=5"
