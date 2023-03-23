@@ -18,7 +18,7 @@ spec:
         image: ghcr.io/montimage/mmt-probe:latest
         imagePullPolicy: Always
         env:
-        - name: 5G_DOS_NGAP_INITIALUEMESSAGE_MS_LIMIT
+        - name: MMT_SEC_5G_DOS_NGAP_INITIALUEMESSAGE_MS_LIMIT
           value: "100" #allow max 100 InitialUEMessage during 1 millisecond
         args: 
         - "-ieth0"
