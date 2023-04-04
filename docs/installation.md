@@ -50,11 +50,17 @@ They will be detaillede just below.
 Download MMT-Probe from bitbucket
 
 ```
-git clone https://bitbucket.org/montimage/mmt-probe.git
+git clone https://github.com/montimage/mmt-probe.git
 ```
 
 
 #### Compile the probe
+
+```
+cd mmt-probe
+make
+sudo make install
+```
 
 Using GNU Make to compile probe: `make <options> action`. User can press `<tab>` key, `make <tab>`, to obtain the list of _options_ and _actions_ as the following:
 
