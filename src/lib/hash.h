@@ -16,7 +16,7 @@
 
 #include "log.h"
 
-#define HASH_TABLE_SIZE 10000
+#define HASH_TABLE_INITIAL_CAPABILITY 1024
 /**
  * djb2 hash http://www.cse.yorku.ca/~oz/hash.html
  * @param str
@@ -43,29 +43,29 @@ typedef struct hash_item_struct{
 	size_t key_len;
 	void *key;
 	void *data;
-}hash_item_t;
+} hash_item_t;
 
 /**
  * MMT Hash table
  */
 typedef struct hash_struct{
-	size_t size;
-	hash_item_t *items;
+	size_t capability;   //current capability of the hash
+	hash_item_t *items; //list of item
 	size_t (*fn_hash_key)( size_t, const uint8_t * );
-}hash_t;
+} hash_t;
+
 
 
 /**
  * Create a new hash table
- * @param size
  */
 static inline hash_t* hash_create(){
 	size_t i;
 	hash_t *ret = malloc( sizeof( hash_t ));
-	ret->size  = HASH_TABLE_SIZE;
+	ret->capability  = HASH_TABLE_INITIAL_CAPABILITY;
 	ret->fn_hash_key = djb2_hash_string;
-	ret->items = malloc( sizeof( hash_item_t ) * ret->size );
-	for( i=0; i<ret->size; i++ ){
+	ret->items = malloc( sizeof( hash_item_t ) * ret->capability );
+	for( i=0; i<ret->capability; i++ ){
 		ret->items[i].key  = NULL;
 		ret->items[i].key_len = 0;
 		ret->items[i].data = NULL;
@@ -73,6 +73,7 @@ static inline hash_t* hash_create(){
 	}
 	return ret;
 }
+
 
 static inline void hash_free( hash_t *hash ){
 	if( hash ){
@@ -82,6 +83,44 @@ static inline void hash_free( hash_t *hash ){
 }
 
 /**
+ * Create a new hash table within a new capability
+ * @param hash
+ * @param new_capability
+ * @return a new hash table containing all data from the old table
+ */
+static inline void hash_increase_capability( hash_t *hash ){
+	size_t i;
+	const hash_item_t *old_items, *item;
+	size_t old_capability = hash->capability;
+	old_items = hash->items;
+
+	//double the capability
+	hash->capability *= 2;
+
+	//init new array of items
+	hash->items = malloc( sizeof( hash_item_t ) * hash->capability );
+	for( i=0; i<hash->capability; i++ ){
+		hash->items[i].key  = NULL;
+		hash->items[i].key_len = 0;
+		hash->items[i].data = NULL;
+		hash->items[i].is_occupy = false;
+	}
+
+	//copy the items from the old table to the new one
+	for( i=0; i<old_capability; i++ ){
+		item = old_items[i];
+		//this item is empty
+		if( ! item->is_occupy )
+			continue;
+
+		//add the item into new hash
+		hash_add( hash, item->key_len, item->key );
+	}
+
+	//free the old table
+	free( old_items);
+}
+/**
  * Add a new element to the hash table
  * @param hash
  * @param key
@@ -89,23 +128,31 @@ static inline void hash_free( hash_t *hash ){
  * @return
  */
 static inline bool hash_add( hash_t *hash, size_t key_len, uint8_t *key, void *data ){
-	const uint64_t key_number = hash->fn_hash_key(key_len, key );
- 	uint64_t index   = key_number % hash->size;
-	uint64_t counter = 0;
+	const size_t key_number = hash->fn_hash_key(key_len, key );
+ 	size_t index   = key_number % hash->capability;
+	size_t counter = 0;
 	//find an available slot
 	while( hash->items[ index ].is_occupy ){
 		//go to the next slot
 		counter ++;
 		index ++;
-		//fail if it goes over
-		if( counter >= hash->size ){
-			//TODO: increase table size
-			log_write(LOG_ERR, "Hash table is full (size: %zu", hash->size );
-			return false;
+
+		// if we visited all items of the table, but none of them is available
+		// => we need to increase the table capability
+		if( counter >= hash->capability ){
+			log_write(LOG_WARNING, "Hash table is full (capability: %zu)", hash->capability );
+			hash_increase_capability( hash );
+
+			//recalculate index as the hash's capability changed
+			index = key_number % hash->capability;
+			counter = 0;
 		}
 
-		index %= hash->size;
+		//repeat
+		if( index >= hash->capability )
+			index = 0;
 	}
+
 	hash->items[ index ].key_len   = key_len;
 	hash->items[ index ].key       = key;
 	hash->items[ index ].data      = data;
@@ -119,9 +166,9 @@ static inline bool hash_add( hash_t *hash, size_t key_len, uint8_t *key, void *d
  * @param key
  */
 static inline void *hash_search( const hash_t *hash, size_t key_len, const uint8_t *key ){
-	const uint64_t key_number = hash->fn_hash_key(key_len, key );
- 	uint64_t index   = key_number % hash->size;
-	uint64_t counter = 0;
+	const size_t key_number = hash->fn_hash_key(key_len, key );
+ 	size_t index   = key_number % hash->capability;
+	size_t counter = 0;
 	//find an available slot
 	while( hash->items[ index ].is_occupy ){
 		if( hash->items[ index ].key_len == key_len
@@ -133,11 +180,11 @@ static inline void *hash_search( const hash_t *hash, size_t key_len, const uint8
 		index ++;
 
 		//find all table but not found
-		if( counter >= hash->size )
+		if( counter >= hash->capability )
 			return NULL;
 
 		//return to zero if it goes over
-		index %= hash->size;
+		index %= hash->capability;
 	}
 	return NULL;
 }
