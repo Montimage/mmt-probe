@@ -122,15 +122,16 @@ typedef enum{
 	CONF_RTT_BASE_PREFER_SENDER = 3
 }conf_rtt_base_t;
 
+typedef enum{
+	CONF_SECURITY_IGNORE_REMAIN_FLOW_FROM_NOTHING  = 0, //do not ignore the rest of traffic
+	CONF_SECURITY_IGNORE_REMAIN_FLOW_FROM_SECURITY = 1, //exclude flow from the security engine. That is, the traffic of the rest of the flow will not be validated against the security rules
+	CONF_SECURITY_IGNORE_REMAIN_FLOW_FROM_DPI      = 2, //exclude flow from DPI, thus from the security engine also. That is, the rest of traffic of the flow will not be passed through the DPI analysis, hence the traffic will not be also verified against the security rules. We counted only number of packets and bytes of the flow.
+}conf_security_ignore_remain_flow_t;
+
 typedef struct security_conf_struct{
 	bool is_enable;
 	bool is_report_rule_description;
-//	enum{
-//		SEC_IGNORE_FLOW_NONE,     //do not ignore any packets
-//		SEC_IGNORE_FLOW_SAME_RULE,//ignore the verification of a rule on the rest of a flow if the rule has been satisfied by the flow
-//		SEC_IGNORE_FLOW_ALL_RULE  //ignore the verification of all rules on the rest of a flow if a rule has been satisfied by the flow
-//	}
-	bool ignore_remain_flow;
+	conf_security_ignore_remain_flow_t ignore_remain_flow;
 	uint16_t threads_size;
 	char *excluded_rules;
 	char *rules_mask;
@@ -377,5 +378,6 @@ int conf_validate( probe_conf_t *conf );
 
 bool conf_parse_input_mode( int *result, const char *string );
 bool conf_parse_rtt_base(int *result, const char *value);
+bool conf_parse_security_ignore_mode(int *result, const char *value);
 //bool conf_parse_security_ignore_mode( int *result, const char *string );
 #endif /* SRC_LIB_CONFIGURE_H_ */

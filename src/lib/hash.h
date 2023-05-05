@@ -184,7 +184,8 @@ static inline void *hash_search( const hash_t *hash, size_t key_len, const uint8
 			return NULL;
 
 		//return to zero if it goes over
-		index %= hash->capability;
+		if( index >= hash->capability )
+			index = 0;
 	}
 	return NULL;
 }

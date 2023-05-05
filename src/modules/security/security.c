@@ -366,7 +366,7 @@ security_context_t* security_worker_alloc_init( const security_conf_t *config,
 	//init mmt-sec to verify the rules
 	ret->sec_handler = mmt_sec_register( threads_count, cores_id, config->rules_mask, verbose, _print_security_verdict, ret );
 
-	if( config->ignore_remain_flow )
+	if( config->ignore_remain_flow == CONF_SECURITY_IGNORE_REMAIN_FLOW_FROM_SECURITY )
 		mmt_sec_set_ignore_remain_flow( ret->sec_handler, true, 5000000 ); //5M flows
 
 	rule_info_t const*const*rules_array;

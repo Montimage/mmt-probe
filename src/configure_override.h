@@ -235,7 +235,7 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__SECURITY__RULES_MASK,    "security.rules-mask",      &conf->reports.security->rules_mask,     CHAR_STAR),
 	(CONF_ATT__SECURITY__OUTPUT_CHANNEL, "security.output-channel", &conf->reports.security->output_channels, LIST),
 	(CONF_ATT__SECURITY__REPORT_RULE_DESCRIPTION, "security.report-rule-description", &conf->reports.security->is_report_rule_description, BOOL),
-	(CONF_ATT__SECURITY__INGORE_REMAIN_FLOW,      "security.ignore-remain-flow",      &conf->reports.security->ignore_remain_flow, BOOL ),
+	(CONF_ATT__SECURITY__INGORE_REMAIN_FLOW,      "security.ignore-remain-flow",      &conf->reports.security->ignore_remain_flow, CHAR_STAR ),
 #endif
 
 #ifdef FTP_RECONSTRUCT_MODULE
