@@ -4,14 +4,28 @@
 //any numeric values in mmt-security are "double" 
 // (even integer ou float, they are stored in a double)
 
+#define NUMBER_OF_LINES 50
+#define NUMBER_OF_SECONDS 600
+#define THRESHOLD_SPEED 0.5
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 static FILE *output=NULL;
+static FILE *output_error=NULL;
+
 void on_load(){
-	output = fopen("output.csv", "w+");
+	output = fopen("outputProblem1/output.csv", "w+");
 	if(output == NULL)
-		printf("==================error when open file to write");
+		printf("error when open file to write");
 	else
-		printf("===================everything is ok");
+		printf("File opened without errors\n");
+	output_error = fopen("outputProblem1/output_error.csv", "w+");
+	if(output_error == NULL)
+		printf("error when open file to write");
+	else
+		printf("File opened without errors\n");
 }
 static inline bool _in_coor( double x ){
 	return (x >= 0) && (x <= 131072);
@@ -21,86 +35,668 @@ static float avg(float *storage, size_t *counter, float input){
 		float ret = 0;
 		
 		*storage += input;
-		(*counter) ++;
 		
 		//printf("input = %.2f, counter = %zu\n", input, *counter);
 		
-		if( *counter >= 100 ){
+		if( *counter == NUMBER_OF_LINES){
 			ret = (*storage)/(*counter);
-			//printf("Printing = %.2f",ret);			
-			(*counter) = 0;
 			(*storage) = 0;
 		}
 		return ret;
 }
 
 
-static float avg_acceleration(float *storage, size_t *counter, struct timeval *ts_i, struct timeval *ts_f, float speed_i, float speed_f){
-		float ret = 0;
-		printf("------------------ ENTRATO IN AVGACCELERATION ---------------------\n");
-		if (counter>0){
-			float delta_time = ((ts_i->tv_sec - ts_f->tv_sec) * 1000000 )+ (ts_i->tv_usec - ts_f->tv_usec);
-			printf("------------delta_time = %.2f",delta_time);
-			float acceleration = (speed_f-speed_i)/(delta_time);
-			printf("-------------acceleration = %.2f",acceleration);
 
-			*storage += acceleration;
-			(*counter) ++;
-		
-		
-			if( *counter >= 100 ){
-				ret = (*storage)/(*counter);
-				printf("Printing = %.2f",ret);			
-				(*counter) = 0;
-				(*storage) = 0;
-			}
-		}
+/*
+*	computation of the acceleration of hoist and trolley that then is averaged on the number of lines
+*/
 
+static float avg_acceleration(float *storage, size_t *counter,  time_t ts_i_sec, long int ts_i_usec, time_t ts_f_sec, long int ts_f_usec, float speed_i, float speed_f){
+
+	float ret = 0;
+	float delta_time = ((ts_f_sec - ts_i_sec)*1000000) + ((ts_f_usec - ts_i_usec) ); 	//computing delta time -> tFinal - tInitial
+	delta_time/=1000000;	
+	if (delta_time == 0){															 	//for the first row is normal, if happens again it's a problem
+		printf("There is a problem with the timestamps, delta time cannot be equal 0!\n");
 		return ret;
+	}
+	float acceleration = ((speed_f)-(speed_i))/(delta_time);
+	*storage += acceleration;
+	ret = *storage;
+	if( *counter == NUMBER_OF_LINES){
+		ret = (*storage)/(*counter);
+		(*storage) = 0;
+	}
+	return ret;
+}
+
+static void computeAvgAngle(size_t *counterNotAligned, float mAx, float mAy, float mBx, float mBy, float mCx, float mCy) {
 	
+    float a = sqrt(pow((mBx - mCx), 2) + pow((mBy - mCy), 2));							//computation of distance between 3 points
+    float b = sqrt(pow((mAx - mCx), 2) + pow((mAy - mCy), 2));							//computation of distance between 3 points
+    float c = sqrt(pow((mAx - mBx), 2) + pow((mAy - mBy), 2));							//computation of distance between 3 points
+	if (a == 0 || b == 0 || c == 0){
+	} else {
+		float m1 = (acos((pow(b, 2) + pow(c, 2) - pow(a, 2)) / (2 * b * c))* 180 / M_PI);
+		while (m1>360){
+			m1-=360;
+		}
+		float m2 = (acos((pow(a, 2) + pow(c, 2) - pow(b, 2)) / (2 * a * c))* 180 / M_PI);
+		while (m2>360){
+			m2-=360;
+		}
+		float m3 = (acos((pow(a, 2) + pow(b, 2) - pow(c, 2)) / (2 * a * b))* 180 / M_PI);
+		while (m3>360){
+			m3-=360;
+		}
+		if(m1<170 && m2<17 && m3<170){
+			(*counterNotAligned)++;
+		}
+	}
+}
+
+
+/*static float avg_distance(float *storage, size_t *counter, float m_initial_x, float m_initial_y, float m_final_x, float m_final_y){
+	float ret=0;
+	float distance = sqrt(pow(m_final_x - m_initial_x, 2) + pow(m_final_y - m_initial_y, 2));		
+	*storage += distance;
+	if( *counter == NUMBER_OF_LINES){
+		ret = (*storage)/(*counter);
+		(*storage) = 0;
+	}
+	return ret;
+}*/
+
+
+
+/*
+*	computation of the total distance of a single marker
+*/
+
+static float distance(float *storage, size_t *counter, float m_initial_x, float m_initial_y, float m_final_x, float m_final_y){
+	float ret=0;
+	float distance = sqrt(pow(m_final_x - m_initial_x, 2) + pow(m_final_y - m_initial_y, 2));		//computation of the distance between 2 points
+	*storage += distance;
+	if( *counter == NUMBER_OF_LINES){
+		ret = (*storage);
+		(*storage) = 0;
+	}
+	return ret;
 }
 
 
 
-static float storage_m1_x=0, storage_m1_y=0, storage_tr_pos=0, storage_hoist_pos=0, storage_mh_spd=0, storage_ga_spd=0, storage_tr_spd=0, storage_no_markers=0, storage_acceleration=0;
-static size_t counter_m1_x=0, counter_m1_y=0, counter_tr_pos=0, counter_hoist_pos=0, counter_mh_spd=0, counter_ga_spd=0, counter_tr_spd=0, counter_no_markers=0, counter_acceleration=0,first_row_counter=0;
-static struct timeval *timestamp_i;
-static float mh_speed_i, ga_speed_i, tr_speed_i;
+/*
+*	check if a marker is frozen or not --- timestamps are needed if we need to compute a delta time
+*/
 
-static bool em_coor(double tr_pos, double hst_pos, double m1_x, double m1_y, double m2_x, double m2_y, double m3_x, double m3_y, double ga_spd, double mh_spd, double tr_spd, int no_markers, const void* timestamp ){
-	struct timeval initial_tm;
-	initial_tm.tv_sec = 0;
-	initial_tm.tv_usec = 0;
-	if(first_row_counter==0){
+static bool check_movement(struct timeval *ts_i, struct timeval *ts_f, struct timeval ts_actual, float *m_check_initial_x, float *m_check_initial_y, float m_final_x, float m_final_y, bool *stopped){
+
+	if(((*m_check_initial_x)==0 && (*m_check_initial_y)==0) && (m_final_x == 0 && m_final_y == 0))
+		return false;
+	float distance = sqrt(pow(m_final_x - (*m_check_initial_x), 2) + pow(m_final_y - (*m_check_initial_y), 2));
+
+	if (distance == 0){
+		*stopped = true;
+		return true;
+	} else {
+		return false;		
+	}
+}
+
+
+
+/*
+*	if a marker is frozen and it has been decided a threshold, this function is suitable, since it computes also the duration of freezing
+*/
+
+static float print_error(bool check, bool *stopped, struct timeval *timestamp_final, struct timeval *timestamp_initial, struct timeval timestamp_actual, float *m_check_initial_x, float *m_check_initial_y, float m_final_x, float m_final_y){
+	float delta_time = 0;
+	if(!check){
+		if(*stopped){
+			*stopped=false;
+			delta_time = ((timestamp_final->tv_sec - timestamp_initial->tv_sec)*1000000) + ((timestamp_final->tv_usec - timestamp_initial->tv_usec) ); 	//computing delta time from tFinal - tInitial
+			if(delta_time < 0){
+				printf("\n\nDelta time < 0, ts_i->tv_sec = %ld, -- ts_i->tv_usec = %ld -- ts_f->tv_sec = %ld, -- ts_f->tv_usec = %ld\n", timestamp_initial->tv_sec, timestamp_initial->tv_usec, timestamp_final->tv_sec, timestamp_final->tv_usec);
+			}
+			*timestamp_initial = timestamp_actual;
+			delta_time/=1000000;
+
+			printf("DELTA TIME = %.2f\n\n", delta_time);
+			if (delta_time > NUMBER_OF_SECONDS){
+				printf("\nDid not move for more than 5 seconds\n");
+			} else {
+				delta_time = 0;
+				(*m_check_initial_x) = m_final_x;
+				(*m_check_initial_y) = m_final_y;				
+			}	
+		}
+	}
+	return delta_time;
+}
+
+
+
+/*
+*	it checks whether a marker is stuck in the same position
+*/
+
+static void print_stuck(bool check, bool *stopped, int *counter_stuck, float *m_check_initial_x, float *m_check_initial_y, float m_final_x, float m_final_y){
+	if(!check){
+		if(*stopped){
+			*stopped=false;
+			(*counter_stuck)++;					
+		}
+		(*m_check_initial_x) = m_final_x;
+		(*m_check_initial_y) = m_final_y;	
+	}
+}
+
+
+
+/*
+*	it checks whether the markers are in the reset position
+*/
+/*
+static bool is_reset(float m_x, float m_y){
+	if(m_x==0 && m_y==0){
+		return true;
+	}
+	return false;
+}
+*/
+
+
+/*
+*	it computes all the distances among markers, returning the minimal ones
+*/
+
+static void compute_distance(float m1x, float m1y, float m2x, float m2y, float m3x, float m3y, float m4x, float m4y, float m5x, float m5y, float m6x, float m6y, float *d1_2, float *d1_3, float *d1_4, float *d1_5, float *d1_6, float *d2_3, float *d2_4, float *d2_5, float *d2_6, float *d3_4, float *d3_5, float *d3_6, float *d4_5, float *d4_6, float *d5_6, float *storage){
+
+	float distance1_2 = 100000;
+	float distance1_3 = 100000;
+	float distance1_4 = 100000;
+	float distance1_5 = 100000;
+	float distance1_6 = 100000;
+	float distance2_3 = 100000;
+	float distance2_4 = 100000;
+	float distance2_5 = 100000;
+	float distance2_6 = 100000;
+	float distance3_4 = 100000;
+	float distance3_5 = 100000;
+	float distance3_6 = 100000;
+	float distance4_5 = 100000;
+	float distance4_6 = 100000;
+	float distance5_6 = 100000;
+	if(m1x!=0 || m1y!=0){
+		distance1_2 = sqrt(pow(m2x - m1x, 2) + pow(m2y - m1y, 2));
+		distance1_3 = sqrt(pow(m3x - m1x, 2) + pow(m3y - m1y, 2));
+		distance1_4 = sqrt(pow(m4x - m1x, 2) + pow(m4y - m1y, 2));
+		distance1_5 = sqrt(pow(m5x - m1x, 2) + pow(m5y - m1y, 2));
+		distance1_6 = sqrt(pow(m6x - m1x, 2) + pow(m6y - m1y, 2));
+		(*storage)+=distance1_2;
+		(*storage)+=distance1_3;
+		(*storage)+=distance1_4;
+		(*storage)+=distance1_5;
+		(*storage)+=distance1_6;
+	}
+	if(m2x!=0 || m2y!=0){
+		distance2_3 = sqrt(pow(m3x - m2x, 2) + pow(m3y - m2y, 2));
+		distance2_4 = sqrt(pow(m4x - m2x, 2) + pow(m4y - m2y, 2));
+		distance2_5 = sqrt(pow(m5x - m2x, 2) + pow(m5y - m2y, 2));
+		distance2_6 = sqrt(pow(m6x - m2x, 2) + pow(m6y - m2y, 2));
+		(*storage)+=distance2_3;
+		(*storage)+=distance2_4;
+		(*storage)+=distance2_5;
+		(*storage)+=distance2_6;
+	}
+	if(m3x!=0 || m3y!=0){
+		distance3_4 = sqrt(pow(m4x - m3x, 2) + pow(m4y - m3y, 2));
+		distance3_5 = sqrt(pow(m5x - m3x, 2) + pow(m5y - m3y, 2));
+		distance3_6 = sqrt(pow(m6x - m3x, 2) + pow(m6y - m3y, 2));
+		(*storage)+=distance3_4;
+		(*storage)+=distance3_5;
+		(*storage)+=distance3_6;
+	}
+	if(m4x!=0 || m4y!=0){
+		distance4_5 = sqrt(pow(m5x - m4x, 2) + pow(m5y - m4y, 2));
+		distance4_6 = sqrt(pow(m6x - m4x, 2) + pow(m6y - m4y, 2));
+		(*storage)+=distance4_5;
+		(*storage)+=distance4_6;
+	}
+	if(m5x!=0 || m5y!=0){
+		distance5_6 = sqrt(pow(m6x - m5x, 2) + pow(m6y - m5y, 2));
+		(*storage)+=distance5_6;
+	}
+	if(distance1_2 < (*d1_2))
+		(*d1_2) = distance1_2;
+	if(distance1_3 < (*d1_3))
+		(*d1_3) = distance1_3;
+	if(distance1_4 < (*d1_4))
+		(*d1_4) = distance1_4;
+	if(distance1_5 < (*d1_5))
+		(*d1_5) = distance1_5;
+	if(distance1_6 < (*d1_6))
+		(*d1_6) = distance1_6;
+	if(distance2_3 < (*d2_3))
+		(*d2_3) = distance2_3;
+	if(distance2_4 < (*d2_4))
+		(*d2_4) = distance2_4;
+	if(distance2_5 < (*d2_5))
+		(*d2_5) = distance2_5;
+	if(distance2_6 < (*d2_6))
+		(*d2_6) = distance2_6;
+	if(distance3_4 < (*d3_4))
+		(*d3_4) = distance3_4;
+	if(distance3_5 < (*d3_5))
+		(*d3_5) = distance3_5;
+	if(distance3_6 < (*d3_6))
+		(*d3_6) = distance3_6;
+	if(distance4_5 < (*d4_5))
+		(*d4_5) = distance4_5;
+	if(distance4_6 < (*d4_6))
+		(*d4_6) = distance4_6;
+	if(distance5_6 < (*d5_6))
+		(*d5_6) = distance5_6;
+}
+
+
+
+/*
+*	it checks whether the trolley or hoist are stuck in a position but with a speed lower than -threshold or higher than threshold
+*/
+
+static bool check_speed_movement(float pos, float speed, float pos_i){
+	if(fabs(pos - pos_i)<=0.5){
+		if(speed>THRESHOLD_SPEED || speed<-THRESHOLD_SPEED)
+			return true;
+	}
+	return false;
+}
+
+
+/*
+*	#######################
+*	DEFINE GLOBAL VARIABLES
+*	#######################
+*/
+
+static int _id=0;
+static struct timeval timestamp_group;
+
+/*
+*	variables and metrics related to avg speed, avg position and avg acceleration
+*/
+static float storage_m1_x=0, storage_m1_y=0, storage_m2_x=0, storage_m2_y=0, storage_m3_x=0, storage_m3_y=0, storage_m4_x=0, storage_m4_y=0, 
+			 storage_m5_x=0, storage_m5_y=0, storage_m6_x=0, storage_m6_y=0,storage_tr_pos=0, storage_hoist_pos=0, storage_mh_spd=0, storage_ga_spd=0, 
+			 storage_tr_spd=0, storage_no_markers=0, storage_mh_acceleration=0, storage_ga_acceleration=0, storage_tr_acceleration=0,
+			 storage_m1_distance=0,  storage_m2_distance=0, storage_m3_distance=0, storage_m4_distance=0, storage_m5_distance=0, storage_m6_distance=0;
+static size_t counter=0, first_row_counter=0;
+static float mh_speed_i, ga_speed_i, tr_speed_i, m1_initial_x, m1_initial_y, m2_initial_x, m2_initial_y, m3_initial_x, m3_initial_y,
+			 m4_initial_x, m4_initial_y, m5_initial_x, m5_initial_y, m6_initial_x, m6_initial_y;
+
+
+/*
+*	timestamps needed for computation of delta time
+*/
+static struct timeval *timestamp_actual, *timestamp_i;
+static struct timeval timestamp_initial;
+static struct timeval timestamp_initial_m1, timestamp_initial_m2, timestamp_initial_m3, timestamp_initial_m4, timestamp_initial_m5, timestamp_initial_m6,
+					  timestamp_final_m1, timestamp_final_m2, timestamp_final_m3, timestamp_final_m4, timestamp_final_m5, timestamp_final_m6;
+
+
+/*
+*	variables and metrics related to frozen markers, distance between markers
+*/
+static float m1_check_x, m1_check_y, m2_check_x, m2_check_y, m3_check_x, m3_check_y, m4_check_x, m4_check_y, m5_check_x, m5_check_y, m6_check_x, m6_check_y;
+static bool m1_was_stopped=false, m2_was_stopped=false, m3_was_stopped=false, m4_was_stopped=false, m5_was_stopped=false, m6_was_stopped=false;
+static int m1_stuck=0, m2_stuck=0, m3_stuck=0, m4_stuck=0, m5_stuck=0, m6_stuck=0, m1_stuck_times=0, m2_stuck_times=0, m3_stuck_times=0, m4_stuck_times=0, m5_stuck_times=0, m6_stuck_times=0;
+static float storage_distance_markers=0, distance1_2=100000, distance1_3=100000, distance1_4=100000, distance1_5=100000, distance1_6=100000, distance2_3=100000, distance2_4=100000, distance2_5=100000, distance2_6=100000, distance3_4=100000, distance3_5=100000, distance3_6=100000, distance4_5=100000, distance4_6=100000, distance5_6=100000;
+
+
+/*
+*	variables and metrics related to position not moving while speed not zero
+*/
+static struct timeval timestamp_initial_trolley, timestamp_final_trolley, timestamp_initial_hoist, timestamp_final_hoist, timestamp_initial_reset, timestamp_final_reset;
+static bool trolley_moving_no_speed=false, hoist_moving_no_speed=false, has_reset=false;
+static float trolley_pos_i=0, hoist_pos_i=0, time_trolley_not_moving=0, time_hoist_not_moving=0, time_reset=0;
+static int counter_trolley_moving_no_speed=0, counter_hoist_moving_no_speed=0, counter_reset=0;
+
+
+/*
+*	variables used to compute avg angles between markers
+*/
+static size_t notAligned=0;
+
+
+static bool em_coor(double tr_pos, double hst_pos, double m1_x, double m1_y, double m2_x, double m2_y, double m3_x, double m3_y, double m4_x, double m4_y, double m5_x, double m5_y, double m6_x, double m6_y, double ga_spd, double mh_spd, double tr_spd, int no_markers, const void* timestamp ){
+
+	if(first_row_counter==0){										//needed to print on file column intestations and setting the initial values for first row
 		first_row_counter++;
-		printf("scrivo le intestazioni\n");
-		timestamp_i->tv_sec = 0;
-		timestamp_i->tv_usec = 0;
-		fprintf(output,"%s,%s,%s,%s,%s,%s,%s,%s\n", "AvgTrolleyPos", "AvgHoistPos", "AvgMhSpeed", "AvgGaSpeed", "AvgTrSpeed", "AvgMark1X", "AvgMark1Y", "AvgNumberOfMarkers");
-	}
-	printf("------------------ STAMPO IL TSI %d ---------------------\n", timestamp_i->tv_sec);
+		printf("Writing column names\n");
+		
+		timestamp_i = (struct timeval *)timestamp;
+		timestamp_initial = *timestamp_i;
+		//timestamp_init_group = timestamp_initial;
+		mh_speed_i = mh_spd;
+		ga_speed_i = ga_spd;
+		tr_speed_i = tr_spd;
+		m1_initial_x = m1_x;
+		m2_initial_x = m2_x;
+		m3_initial_x = m3_x;
+		m4_initial_x = m4_x;
+		m5_initial_x = m5_x;
+		m6_initial_x = m6_x;
+		m1_initial_y = m1_y;
+		m2_initial_y = m2_y;
+		m3_initial_y = m3_y;
+		m4_initial_y = m4_y;
+		m5_initial_y = m5_y;
+		m6_initial_y = m6_y;
 
-	float trolley_pos   = avg(&storage_tr_pos, &counter_tr_pos, tr_pos),
-		  hoist_pos = avg(&storage_hoist_pos, &counter_hoist_pos, hst_pos),
-		  mh_speed = avg(&storage_mh_spd, &counter_mh_spd, mh_spd),
-		  ga_speed = avg(&storage_ga_spd, &counter_ga_spd, ga_spd),
-		  tr_speed = avg(&storage_tr_spd, &counter_tr_spd, tr_spd),
-		  a1_x   = avg(&storage_m1_x, &counter_m1_x, m1_x),
-		  a1_y = avg(&storage_m1_y, &counter_m1_y, m1_y),
-		  no_of_markers = avg(&storage_no_markers, &counter_no_markers, (float)no_markers),
-		  mh_acceleration = avg_acceleration(&storage_acceleration, &counter_acceleration, timestamp_i, (struct timeval *)timestamp, mh_speed_i, mh_speed),
-		  ga_acceleration = avg_acceleration(&storage_acceleration, &counter_acceleration, timestamp_i, (struct timeval *)timestamp, ga_speed_i, ga_speed),
-		  tr_acceleration = avg_acceleration(&storage_acceleration, &counter_acceleration, timestamp_i, (struct timeval *)timestamp, tr_speed_i, tr_speed);
+		fprintf(output,"%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n", 
+					"_id","AvgTrolleyPos", "AvgHoistPos", "AvgMhSpeed", "AvgGaSpeed", "AvgTrSpeed",
+					"AvgMark1X", "AvgMark1Y", "AvgMark2X", "AvgMark2Y", "AvgMark3X", "AvgMark3Y", "AvgMark4X", "AvgMark4Y", "AvgMark5X", "AvgMark5Y","AvgMark6X", "AvgMark6Y",
+					"TotalDistanceMark1", "TotalDistanceMark2", "TotalDistanceMark3", "TotalDistanceMark4", "TotalDistanceMark5", "TotalDistanceMark6",
+					"AvgNumberOfMarkers", "AvgMhAcceleration", "AvgGaAcceleration", "AvgTrAcceleration", "NotAligned", "FinalTimestamp");
+		printf("Column names written\n");
+	}
+
+
+	/*
+	*	computing all the metrics
+	*/
+	counter++;
+	float trolley_pos   = avg(&storage_tr_pos, &counter, tr_pos),
+			hoist_pos = avg(&storage_hoist_pos, &counter, hst_pos),
+			mh_speed = avg(&storage_mh_spd, &counter, mh_spd),
+			ga_speed = avg(&storage_ga_spd, &counter, ga_spd),
+			tr_speed = avg(&storage_tr_spd, &counter, tr_spd),
+			a1_x   = avg(&storage_m1_x, &counter, m1_x),
+			a1_y = avg(&storage_m1_y, &counter, m1_y),
+			a2_x   = avg(&storage_m2_x, &counter, m2_x),
+			a2_y = avg(&storage_m2_y, &counter, m2_y),
+			a3_x   = avg(&storage_m3_x, &counter, m3_x),
+			a3_y = avg(&storage_m3_y, &counter, m3_y),	
+			a4_x   = avg(&storage_m4_x, &counter, m4_x),
+			a4_y = avg(&storage_m4_y, &counter, m4_y),	
+			a5_x   = avg(&storage_m5_x, &counter, m5_x),
+			a5_y = avg(&storage_m5_y, &counter, m5_y),	
+			a6_x   = avg(&storage_m6_x, &counter, m6_x),
+			a6_y = avg(&storage_m6_y, &counter, m6_y),		  		  
+			no_of_markers = avg(&storage_no_markers, &counter, (float)no_markers),
+			distance_m1 = distance(&storage_m1_distance, &counter, m1_initial_x, m1_initial_y, m1_x, m1_y),
+			distance_m2 = distance(&storage_m2_distance, &counter, m2_initial_x, m2_initial_y, m2_x, m2_y),
+			distance_m3 = distance(&storage_m3_distance, &counter, m3_initial_x, m3_initial_y, m3_x, m3_y),
+			distance_m4 = distance(&storage_m4_distance, &counter, m4_initial_x, m4_initial_y, m4_x, m4_y),
+			distance_m5 = distance(&storage_m5_distance, &counter, m5_initial_x, m5_initial_y, m5_x, m5_y),
+			distance_m6 = distance(&storage_m6_distance, &counter, m6_initial_x, m6_initial_y, m6_x, m6_y),		  
+			mh_acceleration = avg_acceleration(&storage_mh_acceleration, &counter, timestamp_initial.tv_sec, timestamp_initial.tv_usec, ((struct timeval *)timestamp)->tv_sec, ((struct timeval *)timestamp)->tv_usec, mh_speed_i, mh_spd),
+			ga_acceleration = avg_acceleration(&storage_ga_acceleration, &counter, timestamp_initial.tv_sec, timestamp_initial.tv_usec, ((struct timeval *)timestamp)->tv_sec, ((struct timeval *)timestamp)->tv_usec, ga_speed_i, ga_spd),
+			tr_acceleration = avg_acceleration(&storage_tr_acceleration, &counter, timestamp_initial.tv_sec, timestamp_initial.tv_usec, ((struct timeval *)timestamp)->tv_sec, ((struct timeval *)timestamp)->tv_usec, tr_speed_i, tr_spd);
+	computeAvgAngle(&notAligned, m1_x, m1_y, m2_x, m2_y, m3_x, m3_y);
+
+	/*
+	*	setting initial values for next row of the log
+	*/
+	
 	timestamp_i = (struct timeval *)timestamp;
-	mh_speed_i = mh_speed;
-	ga_speed_i = ga_speed;
-	tr_speed_i = tr_speed;
+	timestamp_initial = *timestamp_i;
+	mh_speed_i = mh_spd;
+	ga_speed_i = ga_spd;
+	tr_speed_i = tr_spd;
+	m1_initial_x = m1_x;
+	m2_initial_x = m2_x;
+	m3_initial_x = m3_x;
+	m4_initial_x = m4_x;
+	m5_initial_x = m5_x;
+	m6_initial_x = m6_x;
+	m1_initial_y = m1_y;
+	m2_initial_y = m2_y;
+	m3_initial_y = m3_y;
+	m4_initial_y = m4_y;
+	m5_initial_y = m5_y;
+	m6_initial_y = m6_y;	
 
-	if( counter_m1_x == 0 && counter_m1_y == 0 && counter_tr_pos == 0 && counter_hoist_pos == 0 && counter_mh_spd == 0 && counter_ga_spd == 0 && counter_tr_spd == 0){
-		printf("avg TrPos = %.2f, avg HoistPos = %.2f, avg MhSpeed = %.2f, avg GaSpeed = %.2f, \navg TrSpeed = %.2f, avg m1x = %.2f, avg m1y = %.2f, avg nOfMarkers = %.2f, TIMESTAMP ================= %d\n",
-		 		trolley_pos, hoist_pos, mh_speed, ga_speed, tr_speed, a1_x, a1_y, no_of_markers, timestamp_i->tv_sec);
-		fprintf(output,"%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",trolley_pos, hoist_pos, mh_speed, ga_speed, tr_speed, a1_x, a1_y, no_of_markers);
+
+	/*
+	*	print on file when NUMBER_OF_LINES rows have been computed
+	*/
+
+	if( counter == NUMBER_OF_LINES){
+		_id++;
+		timestamp_group = *timestamp_i;
+		time_t sec = timestamp_group.tv_sec;
+		struct tm* timeinfo = localtime(&sec);
+		printf("\navg TrPos = %.2f, avg HoistPos = %.2f, avg MhSpeed = %.2f, avg GaSpeed = %.2f, avg TrSpeed = %.2f, \navg m1x = %.2f, avg m1y = %.2f, avg m2x = %.2f, avg m2y = %.2f, avg m3x = %.2f, avg m3y = %.2f,\navg m4x = %.2f, avg m4y = %.2f, avg m5x = %.2f, avg m5y = %.2f, avg m6x = %.2f, avg m6y = %.2f\ndistance m1 = %.2f, distance m2 = %.2f, distance m3 = %.2f, distance m4 = %.2f, distance m5 = %.2f, distance m6 = %.2f,\navg nOfMarkers = %.2f, Avg Mh_acceleration = %.2f, avg Ga_acceleration = %.2f, avg Tr_acceleration = %.2f, how many times not aligned? %lu, Date: %02d-%02d-%04d, Hour: %02d:%02d:%02d\n\n==================================================\n",
+				trolley_pos, hoist_pos, mh_speed, ga_speed, tr_speed, a1_x, a1_y, a2_x, a2_y, a3_x, a3_y, a4_x, a4_y, a5_x, a5_y, a6_x, a6_y, 
+				distance_m1, distance_m2, distance_m3, distance_m4, distance_m5, distance_m6, no_of_markers, mh_acceleration, ga_acceleration, tr_acceleration,
+				notAligned, timeinfo->tm_mday, timeinfo->tm_mon + 1, (timeinfo->tm_year + 1900), timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+		fprintf(output,"%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%lu, %02d-%02d-%04d %02d:%02d:%02d\n",
+				_id,trolley_pos, hoist_pos, mh_speed, ga_speed, tr_speed, a1_x, a1_y, a2_x, a2_y, a3_x, a3_y, a4_x, a4_y, a5_x, a5_y, a6_x, a6_y, 
+				distance_m1, distance_m2, distance_m3, distance_m4, distance_m5, distance_m6, no_of_markers, mh_acceleration, ga_acceleration, tr_acceleration,
+				notAligned, timeinfo->tm_mday, timeinfo->tm_mon + 1, (timeinfo->tm_year + 1900), timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+		notAligned = 0;
+		counter = 0;
 	}
+	return 1;
+}
+
+static bool em_check_error(double m1_x, double m1_y, double m2_x, double m2_y, double m3_x, double m3_y, double m4_x, double m4_y, double m5_x, double m5_y, double m6_x, double m6_y, const void* timestamp, float trolley_pos, float trolley_speed, float hoist_pos, float hoist_speed){
+
+	/*
+	*	if any marker was freezed in the last rows of the previous problem and it continues to be freezed in the same position I must increment the related "stuck" counter
+	*/
+	if(counter==0){
+		if(m1_was_stopped)
+			m1_stuck_times++;
+		if(m2_was_stopped)
+			m2_stuck_times++;
+		if(m3_was_stopped)
+			m3_stuck_times++;
+		if(m4_was_stopped)
+			m4_stuck_times++;
+		if(m5_was_stopped)
+			m5_stuck_times++;
+		if(m6_was_stopped)
+			m6_stuck_times++;
+	}
+	timestamp_actual = (struct timeval *)timestamp;
+	//timestamp_initial = *timestamp_i;
+	//struct timeval *timestamp_actual = (struct timeval *)timestamp;
+
+	if(first_row_counter==0){										//needed to print on file column intestations and setting the initial values for first row
+		first_row_counter++;
+		printf("Writing column names\n");
+		timestamp_initial = *timestamp_actual;
+		timestamp_initial_trolley = timestamp_initial;
+		timestamp_final_trolley = timestamp_initial;
+		timestamp_initial_hoist = timestamp_initial;
+		timestamp_final_hoist = timestamp_initial;
+		m1_check_x = m1_x;
+		m2_check_x = m2_x;
+		m3_check_x = m3_x;
+		m4_check_x = m4_x;
+		m5_check_x = m5_x;
+		m6_check_x = m6_x;
+		m1_check_y = m1_y;
+		m2_check_y = m2_y;
+		m3_check_y = m3_y;
+		m4_check_y = m4_y;
+		m5_check_y = m5_y;
+		m6_check_y = m6_y;
+
+		fprintf(output_error,"%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n", 
+					"NSE_M1", "NSE_M2", "NSE_M3", "NSE_M4", "NSE_M5", "NSE_M6", 
+					"NST_M1", "NST_M2", "NST_M3", "NST_M4", "NST_M5", "NST_M6", "MDAM","ADAM","MarkersWithMinDist",
+					"ADT_TNM", "TTNM", "ADT_HNM", "THNM", "_id");
+		printf("Column names written\n");		
+	}
+
+	bool check_m1 = check_movement(&timestamp_initial_m1, &timestamp_final_m1, timestamp_initial, &m1_check_x, &m1_check_y, m1_x, m1_y, &m1_was_stopped);
+	bool check_m2 = check_movement(&timestamp_initial_m2, &timestamp_final_m2, timestamp_initial, &m2_check_x, &m2_check_y, m2_x, m2_y, &m2_was_stopped);
+	bool check_m3 = check_movement(&timestamp_initial_m3, &timestamp_final_m3, timestamp_initial, &m3_check_x, &m3_check_y, m3_x, m3_y, &m3_was_stopped);
+	bool check_m4 = check_movement(&timestamp_initial_m4, &timestamp_final_m4, timestamp_initial, &m4_check_x, &m4_check_y, m4_x, m4_y, &m4_was_stopped);
+	bool check_m5 = check_movement(&timestamp_initial_m5, &timestamp_final_m5, timestamp_initial, &m5_check_x, &m5_check_y, m5_x, m5_y, &m5_was_stopped);
+	bool check_m6 = check_movement(&timestamp_initial_m6, &timestamp_final_m6, timestamp_initial, &m6_check_x, &m6_check_y, m6_x, m6_y, &m6_was_stopped);
+
+	print_stuck(check_m1, &m1_was_stopped, &m1_stuck_times, &m1_check_x, &m1_check_y, m1_x, m1_y);
+	print_stuck(check_m2, &m2_was_stopped, &m2_stuck_times, &m2_check_x, &m2_check_y, m2_x, m2_y);
+	print_stuck(check_m3, &m3_was_stopped, &m3_stuck_times, &m3_check_x, &m3_check_y, m3_x, m3_y);
+	print_stuck(check_m4, &m4_was_stopped, &m4_stuck_times, &m4_check_x, &m4_check_y, m4_x, m4_y);
+	print_stuck(check_m5, &m5_was_stopped, &m5_stuck_times, &m5_check_x, &m5_check_y, m5_x, m5_y);
+	print_stuck(check_m6, &m6_was_stopped, &m6_stuck_times, &m6_check_x, &m6_check_y, m6_x, m6_y);
+
+	bool check_speed_trolley = check_speed_movement(trolley_pos, trolley_speed, trolley_pos_i);
+	bool check_speed_hoist = check_speed_movement(hoist_pos, hoist_speed, hoist_pos_i);
+
+	/*
+	*	computation of the delta time (if the function returns false, it means that there is a movement with regular speed, so I check whether before this row
+	*									it was moving with unregular speed)
+	*/
+
+	if(check_speed_trolley){
+		trolley_moving_no_speed=true;
+		timestamp_final_trolley = *timestamp_actual;
+	} else{
+		if(trolley_moving_no_speed){	//cambiare i nomi delle variabili
+			trolley_moving_no_speed=false;
+			time_trolley_not_moving += ((((timestamp_final_trolley.tv_sec - timestamp_initial_trolley.tv_sec)*1000000) + ((timestamp_final_trolley.tv_usec - timestamp_initial_trolley.tv_usec) ))/1000000); 	//computing delta time from tFinal - tInitial
+			counter_trolley_moving_no_speed++;
+		}
+		trolley_pos_i = trolley_pos;
+		timestamp_initial_trolley = *timestamp_actual;
+		//moved with speed != 0
+	}
+	if(check_speed_hoist){
+		hoist_moving_no_speed=true;
+		timestamp_final_hoist = *timestamp_actual;
+	} else{
+		if(hoist_moving_no_speed){	//cambiare i nomi delle variabili
+			hoist_moving_no_speed=false;
+			time_hoist_not_moving += ((((timestamp_final_hoist.tv_sec - timestamp_initial_hoist.tv_sec)*1000000) + ((timestamp_final_hoist.tv_usec - timestamp_initial_hoist.tv_usec) ))/1000000); 	//computing delta time from tFinal - tInitial
+			counter_hoist_moving_no_speed++;
+		}
+		hoist_pos_i = hoist_pos;
+		timestamp_initial_hoist = *timestamp_actual;
+		//moved with speed != 0
+	}
+
+	compute_distance(m1_x, m1_y, m2_x, m2_y, m3_x, m3_y, m4_x, m4_y, m5_x, m5_y, m6_x, m6_y, &distance1_2, &distance1_3, &distance1_4, &distance1_5, &distance1_6, &distance2_3, &distance2_4, &distance2_5, &distance2_6, &distance3_4, &distance3_5, &distance3_6, &distance4_5, &distance4_6, &distance5_6, &storage_distance_markers);
+
+	if(check_m1){
+		m1_stuck+=1;
+	}
+	if(check_m2){
+		m2_stuck+=1;
+	}
+	if(check_m3){
+		m3_stuck+=1;
+	}
+	if(check_m4){
+		m4_stuck+=1;
+	}
+	if(check_m5){
+		m5_stuck+=1;
+	}
+	if(check_m6){
+		m6_stuck+=1;
+	}
+
+	counter+=1;
+
+	/*
+	*	printing all the metrics inside the csv
+	*/
+	if (counter==NUMBER_OF_LINES){
+		_id++;
+		float minimalDistance = distance1_2;
+		char whichMarker[] = "1-2";
+		if(distance1_3<minimalDistance){
+			minimalDistance=distance1_3;
+			strcpy(whichMarker,"1-3");
+		}
+		if(distance1_4<minimalDistance){
+			minimalDistance=distance1_4;
+			strcpy(whichMarker,"1-4");
+		}
+		if(distance1_5<minimalDistance){
+			minimalDistance=distance1_5;
+			strcpy(whichMarker,"1-5");
+		}
+		if(distance1_6<minimalDistance){
+			minimalDistance=distance1_6;
+			strcpy(whichMarker,"1-6");
+		}
+		if(distance2_3<minimalDistance){
+			minimalDistance=distance2_3;
+			strcpy(whichMarker,"2-3");
+		}
+		if(distance2_4<minimalDistance){
+			minimalDistance=distance2_4;
+			strcpy(whichMarker,"2-4");
+		}
+		if(distance2_5<minimalDistance){
+			minimalDistance=distance2_5;
+			strcpy(whichMarker,"2-5");
+		}
+		if(distance2_6<minimalDistance){
+			minimalDistance=distance2_6;
+			strcpy(whichMarker,"2-6");
+		}		
+		if(distance3_4<minimalDistance){
+			minimalDistance=distance3_4;
+			strcpy(whichMarker,"3-4");
+		}
+		if(distance3_5<minimalDistance){
+			minimalDistance=distance3_5;
+			strcpy(whichMarker,"3-5");
+		}
+		if(distance3_6<minimalDistance){
+			minimalDistance=distance3_6;
+			strcpy(whichMarker,"3-6");
+		}	
+		if(distance4_5<minimalDistance){
+			minimalDistance=distance4_5;
+			strcpy(whichMarker,"4-5");
+		}
+		if(distance4_6<minimalDistance){
+			minimalDistance=distance4_6;
+			strcpy(whichMarker,"4-6");
+		}	
+		if(distance5_6<minimalDistance){
+			minimalDistance=distance5_6;
+			strcpy(whichMarker,"5-6");
+		}
+		storage_distance_markers/=counter;
+		fprintf(output_error, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.2f,%.2f,%s,%.2f,%d,%.2f,%d,%d\n", m1_stuck, m2_stuck, m3_stuck, m4_stuck, m5_stuck, m6_stuck, m1_stuck_times, m2_stuck_times, m3_stuck_times, m4_stuck_times, m5_stuck_times, m6_stuck_times,
+								minimalDistance, storage_distance_markers, whichMarker, time_trolley_not_moving, counter_trolley_moving_no_speed, time_hoist_not_moving, counter_hoist_moving_no_speed, _id);
+		
+		/*
+		*	reset all the metrics
+		*/
+		m1_stuck=0;
+		m2_stuck=0;
+		m3_stuck=0;
+		m4_stuck=0;
+		m5_stuck=0;
+		m6_stuck=0;
+		counter=0;
+		m1_stuck_times=0;
+		m2_stuck_times=0;
+		m3_stuck_times=0;
+		m4_stuck_times=0;
+		m5_stuck_times=0;
+		m6_stuck_times=0;
+		time_trolley_not_moving=0;
+		counter_trolley_moving_no_speed=0;
+		time_hoist_not_moving=0;
+		counter_hoist_moving_no_speed=0;
+		time_reset=0;
+		counter_reset=0;
+		storage_distance_markers=0;
+	}
+
 	return 1;
 }
 
@@ -115,7 +711,9 @@ double em_threshold(){
     <event event_id="1" description="3 first markers"
            boolean_expression="( true )"/>
     <event event_id="2" description="3 first markers"
-           boolean_expression="( #em_coor(lps_data.trolley_pos, lps_data.hoist_pos, lps_data.m1_x, lps_data.m1_y, lps_data.m2_x, lps_data.m2_y, lps_data.m3_x, lps_data.m3_y, lps_data.ga_speed, lps_data.mh_speed, lps_data.tr_speed, lps_data.no_of_marker, lps_data.timestamp ) )"/>
+           boolean_expression="( #em_coor(lps_data.trolley_pos, lps_data.hoist_pos, lps_data.m1_x, lps_data.m1_y, lps_data.m2_x, lps_data.m2_y, lps_data.m3_x, lps_data.m3_y, lps_data.m4_x, lps_data.m4_y,lps_data.m5_x, lps_data.m5_y,lps_data.m6_x, lps_data.m6_y,lps_data.ga_speed, lps_data.mh_speed, lps_data.tr_speed, lps_data.no_of_marker, lps_data.timestamp ) )"/>
+    <event event_id="2" description="3 first markers"
+           boolean_expression="( #em_check_error(lps_data.m1_x, lps_data.m1_y, lps_data.m2_x, lps_data.m2_y, lps_data.m3_x, lps_data.m3_y, lps_data.m4_x, lps_data.m4_y,lps_data.m5_x, lps_data.m5_y,lps_data.m6_x, lps_data.m6_y, lps_data.timestamp, lps_data.trolley_pos, lps_data.tr_speed, lps_data.hoist_pos, lps_data.mh_speed ) )"/>
 </property>
 
 </beginning>
