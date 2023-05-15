@@ -30,7 +30,7 @@
 
 #include "modules/output/output.h"
 #include "modules/dpi/dpi.h"
-#include "modules/dpi/ignore_dpi_packet.h"
+#include "modules/lpi/lpi.h"
 
 struct security_context_struct;
 
@@ -67,7 +67,10 @@ struct worker_context_struct{
 	IF_ENABLE_SECURITY(
 			struct security_context_struct *security);
 
-	ignore_dpi_packet_t *ignore_dpi_packet;
+	//light-packet-inspection: contrary to DPI, we do LPI to get few stats of packets which are in DDoS attack
+	// LPI processes quickly packets to avoid consuming resources
+	// ==> MMT-Probe can live in DDoS attacks which usually cause DPI to consume a lot of resources and then to generate a lot of reports
+	lpi_t *lpi;
 
 	uint16_t index;    //thread index
 	uint16_t lcore_id; //id of logical core on which the thread is running

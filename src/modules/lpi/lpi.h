@@ -1,8 +1,10 @@
 /*
- * ignore_dpi_packet.h
+ * lpi.h
  *
  *  Created on: May 5, 2023
  *      Author: nhnghia
+ *
+ *  This file implements "light packet inspection" - lpi.
  *
  *  This file processes packets that must be excluded from the normal processing chain.
  *
@@ -16,34 +18,34 @@
  *  TODO: need to support IPv6
  */
 
-#ifndef SRC_MODULES_SECURITY_IGNORE_DPI_PACKET_H_
-#define SRC_MODULES_SECURITY_IGNORE_DPI_PACKET_H_
+#ifndef SRC_MODULES_SECURITY_LPI_H_
+#define SRC_MODULES_SECURITY_LPI_H_
 
 #include <stdint.h>
 #include <stdbool.h>
 #include <mmt_core.h>
-#include "modules/output/output.h"
+#include "../output/output.h"
 
-typedef struct ignore_dpi_packet_struct ignore_dpi_packet_t;
+typedef struct lpi_struct lpi_t;
 
 /**
  * Initialize the structure
  * @return
  */
-ignore_dpi_packet_t* ignore_dpi_packet_init(  );
+lpi_t* lpi_init( output_t *output, output_channel_conf_t output_channels, size_t stat_ms_period );
 
 /**
  * Relase the structure
  * @param
  */
-void ignore_dpi_packet_release( ignore_dpi_packet_t* );
+void lpi_release( lpi_t* );
 
 /**
- * Set exclude all traffic from an IP source
+ * Mark an IP source: LPI will process all packets coming from this IP
  * @param
  * @param ipv4
  */
-void ignore_dpi_packet_exclude_ip( ignore_dpi_packet_t* , uint32_t ipv4_source );
+void lpi_include_ip( lpi_t* , uint32_t ipv4_source );
 
 /**
  * Process an icoming packet
@@ -54,13 +56,15 @@ void ignore_dpi_packet_exclude_ip( ignore_dpi_packet_t* , uint32_t ipv4_source )
  * - true: if the packet need to be excluded from the DPI engine
  * - false: otherwsie
  */
-bool ignore_dpi_packet_process_packet( ignore_dpi_packet_t*, struct pkthdr *pkt_header, const u_char *pkt_data );
+bool lpi_process_packet( lpi_t*, struct pkthdr *pkt_header, const u_char *pkt_data );
 
 /**
  * Generate reports about the number of packets/data of each IP source
  * @param
  * @param output
  */
-void ignore_dpi_packet_generate_reports( ignore_dpi_packet_t*, output_t *output );
+void lpi_generate_reports( lpi_t* );
 
-#endif /* SRC_MODULES_SECURITY_IGNORE_DPI_PACKET_H_ */
+void lpi_update_timer( lpi_t *lpi, const struct timeval * tv);
+
+#endif /* SRC_MODULES_SECURITY_LPI_H_ */

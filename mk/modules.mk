@@ -91,6 +91,7 @@ endef
 MODULE_SRCS := $(wildcard $(SRC_DIR)/modules/output/*.c)
 MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/output/file/*.c)
 MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/dpi/*.c)
+MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/lpi/*.c)
 MODULE_SRCS += $(wildcard $(SRC_DIR)/modules/routine/*.c)
 #list of modules' libraries
 MODULE_LIBS  += -L/usr/local/lib/ -ldl

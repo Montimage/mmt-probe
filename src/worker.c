@@ -39,7 +39,7 @@ worker_context_t * worker_alloc_init(uint32_t stack_type){
  * @param worker_context
  */
 void worker_release( worker_context_t *worker_context ){
-	ignore_dpi_packet_release( worker_context->ignore_dpi_packet );
+	lpi_release( worker_context->lpi );
 	//log_debug("Releasing worker %d", worker_context->index );
 	mmt_close_handler( worker_context->dpi_handler );
 
@@ -217,15 +217,21 @@ void worker_on_start( worker_context_t *worker_context ){
 	ms_timer_init( &worker_context->flush_report_timer, config->outputs.cache_period * S2MS,
 			worker_on_timer_sample_file_period, worker_context );
 
-	if( worker_context->ignore_dpi_packet ){
-		ignore_dpi_packet_release( worker_context->ignore_dpi_packet );
-		//important to set worker_context->ignore_dpi_packet=NULL
+	if( worker_context->lpi ){
+		lpi_release( worker_context->lpi );
+		//important to set worker_context->lpi=NULL
 		// to say that this feature is disable
-		worker_context->ignore_dpi_packet = NULL;
+		worker_context->lpi = NULL;
 	}
 
-	if( config->reports.security->is_enable && config->reports.security->ignore_remain_flow == CONF_SECURITY_IGNORE_REMAIN_FLOW_FROM_DPI )
-		worker_context->ignore_dpi_packet = ignore_dpi_packet_init( );
+	if( config->reports.security->is_enable && config->reports.security->ignore_remain_flow == CONF_SECURITY_IGNORE_REMAIN_FLOW_FROM_DPI ){
+		worker_context->lpi = lpi_init( worker_context->output,
+				config->reports.session->output_channels,
+				config->stat_period * S2MS );
+		IF_ENABLE_SECURITY( worker_context->security->lpi = worker_context->lpi );
+	}
+
+
 //#ifdef DYNAMIC_CONFIG_MODULE
 //	if( IS_SMP_MODE( worker_context->probe_context ))
 //		if( ->dynamic_conf->is_enable ){
@@ -246,11 +252,11 @@ void worker_on_stop( worker_context_t *worker_context ){
 	)
 	dpi_close( worker_context->dpi_context );
 
-	if( worker_context->ignore_dpi_packet ){
-		ignore_dpi_packet_release( worker_context->ignore_dpi_packet );
-		//important to set worker_context->ignore_dpi_packet=NULL
+	if( worker_context->lpi ){
+		lpi_release( worker_context->lpi );
+		//important to set worker_context->lpi=NULL
 		// to say that this feature is disable
-		worker_context->ignore_dpi_packet = NULL;
+		worker_context->lpi = NULL;
 	}
 
 //#ifdef DYNAMIC_CONFIG_MODULE
@@ -265,14 +271,15 @@ void worker_update_timer( worker_context_t *worker_context, const struct timeval
 
 	ms_timer_set_time( &worker_context->flush_report_timer, tv );
 	dpi_update_timer( worker_context->dpi_context, tv );
+	lpi_update_timer( worker_context->lpi, tv );
 }
 
 
 void worker_process_a_packet( worker_context_t *worker_context, struct pkthdr *pkt_header, const u_char *pkt_data ){
 	//printf("%d %5d %5d\n", worker_context->index, header->caplen, header->len );
 	//fflush( stdout );
-	// the packet goes through the DPI engine only if it is not ignored
-	if( !ignore_dpi_packet_process_packet(worker_context->ignore_dpi_packet, pkt_header, pkt_data))
+	// the packet goes through the DPI engine only if LPI does not process it
+	if( !lpi_process_packet( worker_context->lpi, pkt_header, pkt_data ) )
 		packet_process(worker_context->dpi_handler, pkt_header, pkt_data);
 
 	worker_context->stat.pkt_processed ++;
