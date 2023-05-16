@@ -8,7 +8,6 @@
  */
 
 #include <stdint.h>
-#include <string.h>
 #include <stdlib.h>
 
 #include "hash.h"
@@ -56,7 +55,7 @@ void hash_clean( hash_t *hash ){
 hash_t* hash_create_with_init_capability( size_t init_capab){
 	size_t i;
 	hash_t *ret = malloc( sizeof( hash_t ));
-	ret->capability  = HASH_TABLE_INITIAL_CAPABILITY;
+	ret->capability  = init_capab;
 	ret->fn_hash_key = _djb2_hash_string;
 	ret->items = malloc( sizeof( hash_item_t ) * ret->capability );
 	hash_clean( ret );
@@ -132,6 +131,7 @@ bool hash_add( hash_t *hash, size_t key_len, uint8_t *key, void *data ){
 	const size_t key_number = hash->fn_hash_key(key_len, key );
  	size_t index   = key_number % hash->capability;
 	size_t counter = 0;
+
 	//find an available slot
 	while( hash->items[ index ].is_occupy ){
 		//go to the next slot
@@ -170,6 +170,7 @@ void *hash_search( const hash_t *hash, size_t key_len, const uint8_t *key ){
 	const size_t key_number = hash->fn_hash_key(key_len, key );
  	size_t index   = key_number % hash->capability;
 	size_t counter = 0;
+
 	//find an available slot
 	while( hash->items[ index ].is_occupy ){
 		if( hash->items[ index ].key_len == key_len

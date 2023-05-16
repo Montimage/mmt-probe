@@ -9,8 +9,14 @@
 #include "lpi.h"
 #include <mmt_core.h>
 #include <tcpip/mmt_tcpip.h>
+#include <pthread.h>
 
 struct lpi_struct{
+	// if is_multi_threading == true
+	//  - lpi_process_packet is called from a thread
+	//  - lpi_include_ip is called from a different thread
+	bool is_multi_threading;
+	pthread_mutex_t mutex;
 	output_t *output;
 	output_channel_conf_t output_channels;
 	// this timer is fired to tell dpi to perform its session reports
@@ -69,8 +75,8 @@ static void _report_one_item( size_t key_len, void *_key, void *_data, void *arg
 	int valid = 0;
 	STRING_BUILDER_WITH_SEPARATOR( valid, message, MAX_LENGTH_REPORT_MESSAGE, ",",
 		__INT( 0 ), //index of this output (main thread)
-		__INT( proto_id ), //IPv4
-		__STR( "99.178" ), //Ethernet.IPv4
+		__INT( 0 ), //unknown protocol
+		__STR( "99.178.0" ), //Ethernet.IPv4
 		__STR( "" ),
 		__INT( lpi->total_active_sessions),
 		__INT( data->nb_volume_bytes ),
@@ -121,18 +127,21 @@ static void _do_stat_reports( const  ms_timer_t *timer, void *args ){
 	lpi->total_active_sessions = 0;
 }
 
-lpi_t* lpi_init( output_t *output, output_channel_conf_t output_channels, size_t stat_ms_period ){
+lpi_t* lpi_init( output_t *output, output_channel_conf_t output_channels, size_t stat_ms_period,  bool multithreading ){
 	lpi_t *lpi = mmt_alloc_and_init_zero( sizeof( lpi_t));
 	lpi->output = output;
 	lpi->output_channels = output_channels;
-	lpi->ip_src_filter = bit_create( 0xFFFFFFFF + 1 ); //a table containing 2^32 bit which is enough for IPv4 space
+	lpi->ip_src_filter = bit_create( 0x100000000 ); //a table containing 2^32 + 1 bit which is enough for IPv4 space
 	// init a table which can contain 2^16 elements
 	// if more element will be inserted in the table, the table will be reseted automatically to increase its capability
 	//   to be able to contain more element
 	// ==> the reset process takes time as it need to rehash the whole table
 	lpi->table = hash_create( 0xFFFF );
-	ms_timer_init( &lpi->stat_timer, stat_ms_period * S2MS,
+	ms_timer_init( &lpi->stat_timer, stat_ms_period,
 			_do_stat_reports, lpi );
+
+	lpi->is_multi_threading = multithreading;
+	pthread_mutex_init( &lpi->mutex, NULL );
 
 	return lpi;
 }
@@ -143,6 +152,8 @@ void lpi_release( lpi_t *lpi ){
 	_do_stat_reports( NULL, lpi );
 	hash_free( lpi->table );
 	bit_free( lpi->ip_src_filter );
+	pthread_mutex_destroy( &lpi->mutex );
+	mmt_probe_free( lpi );
 }
 
 void lpi_update_timer( lpi_t *lpi, const struct timeval * tv){
@@ -154,8 +165,30 @@ void lpi_update_timer( lpi_t *lpi, const struct timeval * tv){
 void lpi_include_ip( lpi_t *lpi, uint32_t ipv4_source ){
 	if( lpi == NULL )
 		return;
-	// mark this IP whose packets will be processed by LPI
-	bit_set( lpi->ip_src_filter, ipv4_source );
+
+	bool is_set = false;
+
+	//lock only when we are in multi-threading mode
+	if( lpi->is_multi_threading )
+		pthread_mutex_lock( &lpi->mutex );
+
+	if( bit_get( lpi->ip_src_filter, ipv4_source ) == 0 ){
+		// mark this IP whose packets will be processed by LPI
+		bit_set( lpi->ip_src_filter, ipv4_source );
+		is_set = true;
+	}
+
+	//unlock only when we are in multi-threading mode
+	if( lpi->is_multi_threading )
+		pthread_mutex_unlock( &lpi->mutex );
+
+	if( is_set ){
+		uint8_t *u8_ptr;
+
+		u8_ptr = (uint8_t *) &ipv4_source;
+		log_write(LOG_WARNING, "Redirect to LPI packets whose IPv4 src = %d.%d.%d.%d",
+				u8_ptr[0], u8_ptr[1], u8_ptr[2], u8_ptr[3] );
+	}
 }
 
 bool lpi_process_packet( lpi_t *lpi, struct pkthdr *pkt_header, const u_char *packet ){
@@ -180,6 +213,7 @@ bool lpi_process_packet( lpi_t *lpi, struct pkthdr *pkt_header, const u_char *pa
 	if ( unlikely( pkt_len < 38))
 		return false;
 
+	//TODO: this may ignore some cases in which the protocol stack is not Ethernet, but Linux Cooked Capture for example
 	eth = (struct __ethernet_struct *) packet;
 
 
@@ -201,8 +235,18 @@ bool lpi_process_packet( lpi_t *lpi, struct pkthdr *pkt_header, const u_char *pa
 	ip_src = *((uint32_t *) &packet[ ip_offset     ]);
 	ip_dst = *((uint32_t *) &packet[ ip_offset + 4 ]);
 
+	bool is_in_list = true;
+
+	if( lpi->is_multi_threading ){
+		pthread_mutex_lock( &lpi->mutex );
+		is_in_list = bit_get( lpi->ip_src_filter, ip_src);
+		pthread_mutex_unlock( &lpi->mutex );
+	}
+	else
+		is_in_list = bit_get( lpi->ip_src_filter, ip_src);
+
 	// the IP is not in the list
-	if( bit_get( lpi->ip_src_filter, ip_src) == false )
+	if( !is_in_list )
 		return false;
 
 	size_t key_len = sizeof( hash_key_t );

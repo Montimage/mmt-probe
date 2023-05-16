@@ -32,7 +32,7 @@ typedef struct lpi_struct lpi_t;
  * Initialize the structure
  * @return
  */
-lpi_t* lpi_init( output_t *output, output_channel_conf_t output_channels, size_t stat_ms_period );
+lpi_t* lpi_init( output_t *output, output_channel_conf_t output_channels, size_t stat_ms_period, bool multithreading );
 
 /**
  * Relase the structure

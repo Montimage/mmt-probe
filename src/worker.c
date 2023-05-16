@@ -225,9 +225,19 @@ void worker_on_start( worker_context_t *worker_context ){
 	}
 
 	if( config->reports.security->is_enable && config->reports.security->ignore_remain_flow == CONF_SECURITY_IGNORE_REMAIN_FLOW_FROM_DPI ){
+		//if security engine does not use multi-threading ==> it uses the same process as worker (this thread/process)
+		// ==> we do not need to use mutex to synchronize read/write of "ip_src_filter"
+		//
+		//If security engine uses multi-threading:
+		//  - lpi_process_packet is called from this worker's thread (this thread/process)
+		//  - lpi_include_ip is called from a different thread than this one
+		// ==> need to use mutex to synchronize read/write data from/to "ip_src_filter"
+		bool need_to_support_multithreading = (config->reports.security->threads_size == 0);
+
 		worker_context->lpi = lpi_init( worker_context->output,
 				config->reports.session->output_channels,
-				config->stat_period * S2MS );
+				config->stat_period * S2MS,
+				need_to_support_multithreading );
 		IF_ENABLE_SECURITY( worker_context->security->lpi = worker_context->lpi );
 	}
 

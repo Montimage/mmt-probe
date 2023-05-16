@@ -120,7 +120,7 @@ bool conf_parse_security_ignore_mode(int *result, const char *value) {
 	return true;
 }
 static int _conf_parse_security_ignore_remain_flow(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
-	if ( conf_parse_security_ignore_mode( result, value ) ){
+	if ( ! conf_parse_security_ignore_mode( result, value ) ){
 		cfg_error(cfg, "invalid value for option '%s': %s. Expect either NONE, SECURITY, or, DPI.", cfg_opt_name(opt), value);
 		return -1;
 	}
