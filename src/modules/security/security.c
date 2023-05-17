@@ -232,6 +232,23 @@ void security_close(){
 	mmt_sec_close();
 }
 
+static inline const uint32_t _get_ip_src_from_trace(int event_id, const mmt_array_t *const trace) {
+	const message_t *msg;
+	const message_element_t *me;
+	uint64_t value = 0;
+	int j;
+	if( event_id >= trace->elements_count )
+		return 0;
+	msg = trace->data[event_id];
+	if( !msg )
+		return 0;
+	for (j = 0; j < msg->elements_count; j++) {
+		me = &msg->elements[j];
+		if (me && me->proto_id == PROTO_IP && me->att_id == IP_SRC)
+			return *(uint32_t *) me->data;
+	}
+	return 0;
+}
 
 /**
  * A function to be called when a rule is validated
@@ -272,6 +289,20 @@ static void _print_security_verdict(
 				SECURITY_REPORT_TYPE,
 				&ts,
 				message);
+
+	uint32_t ip_src;
+	//when security detect an anomaly ==> redirect all traffic coming from an IP source to lpi
+	if( context->lpi ){
+		for( i=0; i<rule->events_count; i++ ){
+			ip_src = _get_ip_src_from_trace( i, trace );
+
+			//block all trafic ?
+			if( ip_src == 0 )
+				continue;
+			//rember IP in LPI process
+			lpi_include_ip( context->lpi, ip_src );
+		}
+	}
 }
 
 static inline bool _register_additional_attributes_if_need( mmt_handler_t *dpi_handler, uint32_t proto_id, uint32_t att_id, uint32_t *add_att_id ){
@@ -366,7 +397,7 @@ security_context_t* security_worker_alloc_init( const security_conf_t *config,
 	//init mmt-sec to verify the rules
 	ret->sec_handler = mmt_sec_register( threads_count, cores_id, config->rules_mask, verbose, _print_security_verdict, ret );
 
-	if( config->ignore_remain_flow )
+	if( config->ignore_remain_flow == CONF_SECURITY_IGNORE_REMAIN_FLOW_FROM_SECURITY )
 		mmt_sec_set_ignore_remain_flow( ret->sec_handler, true, 5000000 ); //5M flows
 
 	rule_info_t const*const*rules_array;

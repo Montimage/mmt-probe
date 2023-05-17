@@ -20,6 +20,8 @@ spec:
         env:
         - name: "MMT_SEC_5G_DOS_NGAP_INITIALUEMESSAGE_MS_LIMIT"
           value: "100" #allow max 100 InitialUEMessage during 1 millisecond
+        - name: "MMT_SEC_5G_DOS_HTTP2_MS_LIMIT"
+          value: "80"  #allow max 80 http2 requests having method == 131 or 130, or type == 8
         args: 
         - "-ieth0"
         - "-Xprobe-id=5"
@@ -29,7 +31,7 @@ spec:
         - "-Xkafka-output.topic=mmt-reports"
         - "-Xsession-report.output-channel=kafka"
         - "-Xsecurity.enable=true"
-        - "-Xsecurity.ignore-remain-flow=false"
+        - "-Xsecurity.ignore-remain-flow=DPI"
         - "-Xsecurity.exclude-rules=0-89,100-1000"
         - "-Xsecurity.output-channel=stdout,kafka"
 

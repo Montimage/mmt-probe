@@ -19,26 +19,6 @@
 
 #define DLT_EN10MB 1/**< Ethernet (10Mb) *
 
-//bool conf_parse_security_ignore_mode( int *result, const char *string ){
-//	if (IS_EQUAL_STRINGS(string, "NONE") )
-//		*result = SEC_IGNORE_FLOW_NONE;
-//	else if (IS_EQUAL_STRINGS(string, "SAME-RULE") )
-//		*result = SEC_IGNORE_FLOW_SAME_RULE;
-//	else if (IS_EQUAL_STRINGS(string, "ALL-RULE") )
-//			*result = SEC_IGNORE_FLOW_ALL_RULE;
-//	else {
-//		return false;
-//	}
-//	return true;
-//}
-//
-//static int _conf_parse_security_ignore_mode(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
-//	if( conf_parse_security_ignore_mode(result, value) )
-//		return 0;
-//	cfg_error(cfg, "invalid value for option '%s': %s", cfg_opt_name(opt), value);
-//	return -1;
-//}
-
 
 /* parse values for the input-mode option */
 bool conf_parse_input_mode(int *result, const char *value) {
@@ -100,7 +80,7 @@ static int _conf_parse_socket_type(cfg_t *cfg, cfg_opt_t *opt, const char *value
 	else if (IS_EQUAL_STRINGS(value, "BOTH") )
 		*(int *) result = SOCKET_TYPE_ANY;
 	else{
-		cfg_error(cfg, "invalid value for option '%s': %s", cfg_opt_name(opt), value);
+		cfg_error(cfg, "invalid value for option '%s': %s. Expect UNIX, INTERNET, or, BOTH.", cfg_opt_name(opt), value);
 		return -1;
 	}
 	return 0;
@@ -120,11 +100,31 @@ static int _conf_parse_ip_encapsulation_index(cfg_t *cfg, cfg_opt_t *opt, const 
 			else
 				*(int *) result = CONF_IP_ENCAPSULATION_INDEX_LAST;
 		}else{
-			cfg_error(cfg, "invalid value for option '%s': %s", cfg_opt_name(opt), value);
+			cfg_error(cfg, "invalid value for option '%s': %s. Expect FIRST, LAST, or a number", cfg_opt_name(opt), value);
 			return -1;
 		}
 	}
 	DEBUG( "security.ip-encapsulation-index = %d", *(int *) result );
+	return 0;
+}
+
+bool conf_parse_security_ignore_mode(int *result, const char *value) {
+	if (IS_EQUAL_STRINGS(value, "NONE") || IS_EQUAL_STRINGS(value, "false") )
+		*(int *) result = CONF_SECURITY_IGNORE_REMAIN_FLOW_FROM_NOTHING;
+	else if (IS_EQUAL_STRINGS(value, "SECURITY") || IS_EQUAL_STRINGS(value, "true") )
+		*(int *) result = CONF_SECURITY_IGNORE_REMAIN_FLOW_FROM_SECURITY;
+	else if (IS_EQUAL_STRINGS(value, "DPI") )
+		*(int *) result = CONF_SECURITY_IGNORE_REMAIN_FLOW_FROM_DPI;
+	else
+		return false;
+	return true;
+}
+static int _conf_parse_security_ignore_remain_flow(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
+	if ( ! conf_parse_security_ignore_mode( result, value ) ){
+		cfg_error(cfg, "invalid value for option '%s': %s. Expect either NONE, SECURITY, or, DPI.", cfg_opt_name(opt), value);
+		return -1;
+	}
+	DEBUG( "security.ignore-remain-flow = %d", *(int *) result );
 	return 0;
 }
 
@@ -208,7 +208,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_INT("input.max-message-size",    0, CFGF_NONE),
 			CFG_INT("security.max-instances",    0, CFGF_NONE),
 			CFG_INT("security.smp.ring-size",    0, CFGF_NONE),
-			CFG_BOOL("ignore-remain-flow",     0, CFGF_NONE ),
+			CFG_INT_CB("ignore-remain-flow",     0, CFGF_NONE, _conf_parse_security_ignore_remain_flow ),
 			CFG_INT_CB("ip-encapsulation-index", 0, CFGF_NONE, _conf_parse_ip_encapsulation_index),
 			CFG_END()
 	};
@@ -905,7 +905,7 @@ static inline security_conf_t *_parse_security_block( cfg_t *cfg ){
 	ret->lib.security_max_instances = cfg_getint( cfg, "security.max-instances" );
 	ret->lib.security_smp_ring_size = cfg_getint( cfg, "security.smp.ring-size" );
 	ret->lib.input_max_message_size = cfg_getint( cfg, "input.max-message-size" );
-	ret->ignore_remain_flow         = cfg_getbool( cfg, "ignore-remain-flow");
+	ret->ignore_remain_flow         = cfg_getint( cfg, "ignore-remain-flow" );
 	ret->ip_encapsulation_index     = cfg_getint(  cfg, "ip-encapsulation-index" );
 
 	return ret;

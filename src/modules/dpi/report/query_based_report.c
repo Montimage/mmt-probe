@@ -335,21 +335,17 @@ list_query_based_report_context_t* query_based_report_register( mmt_handler_t *d
 	return ret;
 }
 
-static void _free_hash_table( hash_t *hash, size_t select_size ){
-	int i;
-	hash_item_t *it;
-	query_operator_stack_t **select_operators;
-	//free key and data of each item in the hash table
-	for( i=0; i<hash->size; i++){
-		it = &hash->items[i];
-		if( ! it->is_occupy )
-			continue;
 
-		mmt_probe_free( it->key );
-		select_operators = (query_operator_stack_t **) it->data;
-		_release_operator_stack_arrays( select_size, select_operators );
-		mmt_probe_free( select_operators );
-	}
+static void _free_hash_key_and_data(size_t key_len, void *key, void *data, void *args){
+	size_t select_size = *(size_t*)args;
+	mmt_probe_free( key );
+	query_operator_stack_t **select_operators = (query_operator_stack_t **)data;
+	_release_operator_stack_arrays( select_size, select_operators );
+	mmt_probe_free( select_operators );
+}
+
+static void _free_hash_table( hash_t *hash, size_t select_size ){
+	hash_visit( hash, _free_hash_key_and_data, &select_size );
 	hash_free( hash );
 }
 
@@ -401,7 +397,7 @@ static void _flush_reports_then_reset( query_based_report_context_t *rep, const 
 	i = snprintf(message, message_size, "\"%s\",%zu,", config->title, rep->counter );
 	message_size -= i;
 	p = message + i;
-	for( i=0; i<hash->size; i++ ){
+	for( i=0; i<hash->capability; i++ ){
 		it = &hash->items[i];
 		if( ! it->is_occupy )
 			continue;

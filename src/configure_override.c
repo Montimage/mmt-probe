@@ -94,7 +94,7 @@ const char* conf_validate_data_value( const identity_t *ident, const char *data_
 static inline bool _override_element_by_ident( probe_conf_t *conf, const identity_t *ident, const char *value_str ){
 	uint32_t int_val = 0;
 	int i;
-	DEBUG("Update %s to %s", ident->ident, value_str );
+	DEBUG("Updating %s to %s", ident->ident, value_str );
 	void *field_ptr = conf_get_ident_attribute_field(conf, ident->val );
 	int enum_val = 0;
 
@@ -124,16 +124,16 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 			return false;
 		}
 		return true;
-//#ifdef SECURITY_MODULE
-//	case CONF_ATT__SECURITY__INGORE_REMAIN_FLOW:
-//		if( conf_parse_security_ignore_mode( &enum_val, value_str ) )
-//			*((int *)field_ptr) = enum_val;
-//		else{
-//			log_write( LOG_WARNING, "Unexpected value [%s] for [%s]", value_str, ident->ident );
-//			return false;
-//		}
-//		return true;
-//#endif
+#ifdef SECURITY_MODULE
+	case CONF_ATT__SECURITY__INGORE_REMAIN_FLOW:
+		if( conf_parse_security_ignore_mode( &enum_val, value_str ) )
+			*((int *)field_ptr) = enum_val;
+		else{
+			log_write( LOG_WARNING, "Unexpected value [%s] for [%s]", value_str, ident->ident );
+			return false;
+		}
+		return true;
+#endif
 
 	default:
 		break;

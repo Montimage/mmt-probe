@@ -13,6 +13,7 @@
 #include <mmt_security.h>
 #include "../../configure.h"
 #include "../output/output.h"
+#include "../lpi/lpi.h"
 
 typedef struct security_context_struct{
 	mmt_handler_t *dpi_handler;
@@ -27,6 +28,7 @@ typedef struct security_context_struct{
 	const security_conf_t *config;
 
 	output_t *output;
+	lpi_t *lpi;
 } security_context_t;
 
 /**

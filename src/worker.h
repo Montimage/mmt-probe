@@ -30,7 +30,7 @@
 
 #include "modules/output/output.h"
 #include "modules/dpi/dpi.h"
-
+#include "modules/lpi/lpi.h"
 
 struct security_context_struct;
 
@@ -65,7 +65,12 @@ struct worker_context_struct{
 
 
 	IF_ENABLE_SECURITY(
-			struct security_context_struct *security );
+			struct security_context_struct *security);
+
+	//light-packet-inspection: contrary to DPI, we do LPI to get few stats of packets which are in DDoS attack
+	// LPI processes quickly packets to avoid consuming resources
+	// ==> MMT-Probe can live in DDoS attacks which usually cause DPI to consume a lot of resources and then to generate a lot of reports
+	lpi_t *lpi;
 
 	uint16_t index;    //thread index
 	uint16_t lcore_id; //id of logical core on which the thread is running
@@ -83,12 +88,7 @@ struct worker_context_struct{
  * @param pkt_header
  * @param pkt_data
  */
-static inline void worker_process_a_packet( worker_context_t *worker_context, struct pkthdr *pkt_header, const u_char *pkt_data ){
-	//printf("%d %5d %5d\n", worker_context->index, header->caplen, header->len );
-	//fflush( stdout );
-	packet_process(worker_context->dpi_handler, pkt_header, pkt_data);
-	worker_context->stat.pkt_processed ++;
-}
+void worker_process_a_packet( worker_context_t *worker_context, struct pkthdr *pkt_header, const u_char *pkt_data );
 
 worker_context_t * worker_alloc_init(uint32_t stack_type);
 
