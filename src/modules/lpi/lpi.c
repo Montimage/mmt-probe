@@ -104,6 +104,9 @@ static void _report_one_item( size_t key_len, void *_key, void *_data, void *arg
 		__INT( get_application_class_by_protocol_id( proto_id )),
 		__INT( 0 ) //MMT_CONTENT_FAMILY_UNSPECIFIED
 	);
+
+	DEBUG("Malicious traffic: %s", message);
+
 	output_write_report( lpi->output,
 			lpi->output_channels,
 			SESSION_REPORT_TYPE,
@@ -249,9 +252,10 @@ bool lpi_process_packet( lpi_t *lpi, struct pkthdr *pkt_header, const u_char *pa
 	if( !is_in_list )
 		return false;
 
-	size_t key_len = sizeof( hash_key_t );
+	const size_t key_len = sizeof( hash_key_t );
 	hash_key_t key;
-	key.ip_dst = ip_src;
+
+	key.ip_src = ip_src;
 	key.ip_dst = ip_dst;
 
 	// search whether the packet is already tracked

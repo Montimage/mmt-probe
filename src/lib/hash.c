@@ -19,12 +19,13 @@
  * @param str
  * @return
  */
-static size_t _djb2_hash_string(size_t len, const uint8_t *str){
+static size_t _djb2_hash_string(size_t len, const void *str){
 	size_t hash = 5381;
 	uint8_t c;
 	size_t i;
+	const uint8_t *s = str;
 	for( i=0; i<len; i++ ){
-		c = str[i];
+		c = s[i];
 		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
 	}
 
@@ -57,7 +58,7 @@ hash_t* hash_create_with_init_capability( size_t init_capab){
 	hash_t *ret = malloc( sizeof( hash_t ));
 	ret->capability  = init_capab;
 	ret->fn_hash_key = _djb2_hash_string;
-	ret->items = malloc( sizeof( hash_item_t ) * ret->capability );
+	ret->items = calloc( ret->capability, sizeof( hash_item_t ) );
 	hash_clean( ret );
 	return ret;
 }
@@ -91,7 +92,7 @@ static void _hash_increase_capability( hash_t *hash ){
 	hash->capability *= 2;
 
 	//init new array of items
-	hash->items = malloc( sizeof( hash_item_t ) * hash->capability );
+	hash->items = calloc( hash->capability, sizeof( hash_item_t ) );
 	hash_clean( hash );
 
 	//copy the items from the old table to the new one
@@ -127,7 +128,7 @@ void hash_visit( hash_t *hash, void (*callback)(size_t key_len, void *key, void 
  * @param data
  * @return
  */
-bool hash_add( hash_t *hash, size_t key_len, uint8_t *key, void *data ){
+bool hash_add( hash_t *hash, size_t key_len, void *key, void *data ){
 	const size_t key_number = hash->fn_hash_key(key_len, key );
  	size_t index   = key_number % hash->capability;
 	size_t counter = 0;
@@ -166,7 +167,7 @@ bool hash_add( hash_t *hash, size_t key_len, uint8_t *key, void *data ){
  * @param hash
  * @param key
  */
-void *hash_search( const hash_t *hash, size_t key_len, const uint8_t *key ){
+void *hash_search( const hash_t *hash, size_t key_len, const void *key ){
 	const size_t key_number = hash->fn_hash_key(key_len, key );
  	size_t index   = key_number % hash->capability;
 	size_t counter = 0;

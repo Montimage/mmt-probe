@@ -16,11 +16,6 @@
 #include <stdbool.h>
 
 /**
- * MMT Hash table
- */
-typedef struct hash_struct hash_t;
-
-/**
  * An hash table item
  */
 typedef struct hash_item_struct{
@@ -33,11 +28,11 @@ typedef struct hash_item_struct{
 /**
  * MMT Hash table
  */
-struct hash_struct{
+typedef struct hash_struct{
 	size_t capability;   //current capability of the hash
 	hash_item_t *items; //list of item
-	size_t (*fn_hash_key)( size_t, const uint8_t * );
-};
+	size_t (*fn_hash_key)( size_t, const void* );
+} hash_t;
 
 /**
  * Clean all items in the hash table.
@@ -68,14 +63,14 @@ void hash_visit( hash_t *hash, void (*callback)(size_t key_len, void *key, void 
  * @param data
  * @return
  */
-bool hash_add( hash_t *hash, size_t key_len, uint8_t *key, void *data );
+bool hash_add( hash_t *hash, size_t key_len, void *key, void *data );
 
 /**
  * Search data by giving a key
  * @param hash
  * @param key
  */
-void *hash_search( const hash_t *hash, size_t key_len, const uint8_t *key );
+void *hash_search( const hash_t *hash, size_t key_len, const void *key );
 
 
 #endif /* SRC_LIB_HASH_H_ */

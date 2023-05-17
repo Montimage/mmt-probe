@@ -37,10 +37,8 @@ bit_t* bit_create( size_t nb_bit ){
 	if( nb_bytes * 8 < nb_bit )
 		nb_bytes += 1;
 
-	ret->data = malloc( nb_bytes );
-
-	//all are zero at the beginning
-	memset(ret->data, 0, nb_bytes );
+	//allocate, then initialize zero
+	ret->data = calloc( nb_bytes, sizeof(uint8_t) );
 	return ret;
 }
 
