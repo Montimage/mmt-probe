@@ -239,6 +239,12 @@ void worker_on_start( worker_context_t *worker_context ){
 				config->stat_period * S2MS,
 				need_to_support_multithreading );
 		IF_ENABLE_SECURITY( worker_context->security->lpi = worker_context->lpi );
+
+		if( (config->stack_type != 1 && config->stack_type != 99) || config->stack_offset != 0 )
+			//TODO: need to improve this
+			//in "lpi_process_packet" function: we use Ethernet/IPv4 to extract info
+			// ==> if stack root is not Ethernet, then this function will work incorrectly
+			log_write(LOG_WARNING, "LPI might not work correctly");
 	}
 
 
