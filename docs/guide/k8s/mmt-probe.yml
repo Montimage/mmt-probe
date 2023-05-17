@@ -29,7 +29,7 @@ spec:
         - "-Xkafka-output.topic=mmt-reports"
         - "-Xsession-report.output-channel=kafka"
         - "-Xsecurity.enable=true"
-        - "-Xsecurity.ignore-remain-flow=false"
+        - "-Xsecurity.ignore-remain-flow=DPI"
         - "-Xsecurity.exclude-rules=0-89,100-1000"
         - "-Xsecurity.output-channel=stdout,kafka"
 
