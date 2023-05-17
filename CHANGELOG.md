@@ -1,3 +1,7 @@
+## v1.5.10 (17 May 2023)
+- add Light-Packet-Inspection to analyse quickly packets which come from malicious actors, such as DDoS attacks, which cause high resource consumption on Deep-Packet-Inspection
+- bump new version of MMT-DPI which supports HTTP2 and MMT-Security which includes 2 rules to detect HTTP2 attacks
+
 ## v1.5.9 (23 Mar 2023)
 - update mmt-security which introduces 2 rules to detect DoS attacks in 5G control plane
 
