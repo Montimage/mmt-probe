@@ -407,11 +407,6 @@ static int _main_processing( int argc, char** argv ){
 			getpid() );
 	log_write( LOG_INFO, "Modules: " MODULES_LIST );
 
-	//DPI initialization
-	if( !init_extraction() ) { // general ixE initialization
-		log_write( LOG_ERR, "MMT Extraction engine initialization error! Exiting!");
-		return EXIT_FAILURE;
-	}
 	//when libmmt_tcpip is statically linked into mmt-probe,
 	// we need to fire its bootstrap function to initialize its protocol list
 	//(the function is fired automatically when the lib is dynamically loaded)
@@ -438,9 +433,6 @@ static int _main_processing( int argc, char** argv ){
 #else
 	pcap_capture_start( context );
 #endif
-
-	//end
-	close_extraction();
 
 	IF_ENABLE_SECURITY(
 		if( context->config->reports.security != NULL && context->config->reports.security->is_enable )
@@ -604,6 +596,12 @@ int main( int argc, char** argv ){
 		log_write( LOG_WARNING, "Must not run debug mode in production environment" );
 	)
 
+	//DPI initialization
+	if( !init_extraction() ) { // general ixE initialization
+		log_write( LOG_ERR, "MMT Extraction engine initialization error! Exiting!");
+		return EXIT_FAILURE;
+	}
+
 	//read configuration from file and execution parameters
 	probe_context_t *context = get_context();
 	//initialize: fill zero
@@ -627,6 +625,9 @@ int main( int argc, char** argv ){
 		_create_sub_processes( argc, argv );
 	}
 #endif
+
+	//end
+	close_extraction();
 
 	log_write(LOG_INFO, "Exit normally MMT-Probe");
 	_clean_resource();

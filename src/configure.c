@@ -261,6 +261,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_STR_LIST("attributes", "{}", CFGF_NONE),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 			CFG_STR_LIST("delta-cond", "{}", CFGF_NONE),
+			CFG_STR("output-format", "", CFGF_NONE ),
 			CFG_END()
 	};
 
@@ -371,7 +372,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 
 static inline char * _cfg_get_str( cfg_t *cfg, const char *header ){
 	const char *str = cfg_getstr( cfg, header );
-	if (str == NULL)
+	if (str == NULL || strlen(str) == 0)
 		return NULL;
 	return mmt_strdup( str );
 }
@@ -858,6 +859,106 @@ static inline uint16_t _parse_operators_helper( cfg_t *cfg, const char* name, qu
 }
 
 
+
+/**
+ * Given a string, such as, '{"source": "ip.src", "destination": "ip.dst"}'
+ * @param output_format
+ * @param atts
+ * @return
+ */
+size_t _parse_attributes_from_output_format( const char *string, dpi_protocol_attribute_t**atts ){
+	size_t i, j, k;
+	size_t size = strlen( string );
+	char proto_name[MAX_PROTO_NAME_SIZE], att_name[MAX_PROTO_NAME_SIZE];
+	uint32_t proto_id, att_id;
+	uint32_t proto_index;
+
+	const size_t MAX_ATT = 1024;
+	dpi_protocol_attribute_t *ret =  mmt_alloc_and_init_zero( sizeof( dpi_protocol_attribute_t ) * MAX_ATT );
+
+	*atts = NULL;
+	if( size == 0 )
+		return 0;
+	size_t counter = 0;
+	size_t last_index = 0, pre_last_index = 0;
+	for( i=0; i<size; i++ ){
+		j = i;
+		//we are searching proto.name, or proto.index.name
+
+		//1. proto
+		while( isalnum(string[j]) || string[j] == '_')
+			j++;
+		//we need a dot to separate protocol name and attribute
+		if( string[j] != '.' )
+			continue;
+
+		//try to get protocol name
+		snprintf(proto_name, j-i+1, "%s", & string[i] ); //+1: null char
+		proto_id = get_protocol_id_by_name( proto_name );
+		// not found a protocol name
+		if( proto_id == 0 )
+			continue;
+
+		//jump over dot
+		j++;
+
+		//2. index if it is avail
+		if( isdigit(string[j]) ){
+			proto_index = atoi( &string[j] );
+			//jump over the index
+			while( isdigit(string[j]) )
+				j++;
+
+			//the next char must be the second dot
+			if(string[j] != '.' )
+				continue;
+		}
+		k=j;
+		//3. attribute
+		while( isalnum(string[j]) || string[j] == '_')
+			j++;
+		snprintf( att_name, j-k+1, "%s", &string[k] );//+1: null char
+
+		att_id = get_attribute_id_by_protocol_id_and_attribute_name(proto_id, att_name);
+
+		//not found any attribute having that name of the given protocol
+		if( att_id == 0 )
+			continue;
+
+		ret[counter].attribute_id = att_id;
+		ret[counter].attribute_name = mmt_strdup( att_name );
+		ret[counter].proto_index = proto_index;
+		ret[counter].proto_id = proto_id;
+		ret[counter].proto_name = mmt_strdup( proto_name );
+
+		if( i>last_index )
+				ret[counter].prefix = mmt_strndup( &string[last_index], i-last_index );
+
+		counter ++;
+		if( counter >= MAX_ATT ){
+			log_write(LOG_WARNING, "Number of of proto.att is bigger than %zu. Retain only %zu proto.att", MAX_ATT, MAX_ATT);
+			break;
+		}
+
+		//jump over the detected proto.[index.]name
+		last_index = i = j;
+	}
+
+	if( i > last_index && counter > 0)
+		ret[counter-1].suffix = mmt_strndup( &string[last_index], i-last_index );
+
+	for( i=0; i<counter; i++ ){
+		if( ret[i].prefix == NULL )
+			ret[i].prefix = mmt_strndup("", 0); //empty string
+		if( ret[i].suffix == NULL )
+			ret[i].suffix = mmt_strndup("", 0); //empty string
+	}
+
+
+	*atts = ret;
+	return counter;
+}
+
 static inline void _parse_event_block( event_report_conf_t *ret, cfg_t *cfg ){
 	int i;
 	assert( cfg != NULL );
@@ -872,6 +973,22 @@ static inline void _parse_event_block( event_report_conf_t *ret, cfg_t *cfg ){
 
 	ret->delta_condition.attributes_size = _parse_attributes_helper( cfg,"delta-cond", &ret->delta_condition.attributes );
 
+	ret->output_format = _cfg_get_str(cfg, "output-format");
+
+	if( ! ret->is_enable )
+		return;
+
+	//either output_format or attributes can be set, not both
+	if( ret->output_format != NULL && ret->attributes_size > 0){
+		ABORT(
+			"Either [output-format] or [attributes] parameters can be present, not both, in event-report [%s]",
+			ret->title );
+	}
+
+	if( ret->output_format  == NULL )
+		return;
+
+	ret->attributes_size = _parse_attributes_from_output_format( ret->output_format, &ret->attributes );
 }
 
 static inline void _parse_query_block( query_report_conf_t *ret, cfg_t *cfg ){
@@ -1115,6 +1232,8 @@ static inline void _free_att_array( size_t size, dpi_protocol_attribute_t *eleme
 	for( i=0; i<size; i++ ){
 		mmt_probe_free( elements[i].proto_name );
 		mmt_probe_free( elements[i].attribute_name );
+		mmt_probe_free( elements[i].prefix );
+		mmt_probe_free( elements[i].suffix );
 	}
 	mmt_probe_free( elements );
 }
@@ -1128,6 +1247,7 @@ static inline void _free_event_report( event_report_conf_t *ret ){
 	mmt_probe_free( ret->title );
 	mmt_probe_free( ret->event->proto_name );
 	mmt_probe_free( ret->event->attribute_name );
+	mmt_probe_free( ret->output_format );
 	mmt_probe_free( ret->event );
 }
 

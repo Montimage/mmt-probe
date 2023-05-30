@@ -22,3 +22,21 @@ new from v1.5.11:
 - `UDP`
 - `UNIX`
 - `BOTH` = `TCP` + `UNIX`
+
+
+## `event-report`
+
+- `output-format`: Define the format of the output reports. If this parameter is present, then attribute `attributes` must not be present.
+For example, if you want to output source and destination of IP addresses in a JSON format, then, you can use the following `event-report`:
+
+```
+event-report ip {
+	enable = true
+	event  = "ip.src"
+	output-format = '{"source": "ip.src", "destination": "ip.dst"}'
+	output-channel = {socket, stdout}
+}
+```
+MMT-Probe will replace `ip.src` and `ip.dst` by the values of `src` and `dst` attributes of `ip` protocol. The other characters in the `output-format` will be keep as-i in the output message of the reports.
+
+Note: If `output-format` is present, then the format of the output messages do not respect any more to the general structure of the reports, that is, the first field is report ID, the second is probe ID, etc.

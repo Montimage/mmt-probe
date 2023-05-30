@@ -180,6 +180,9 @@ typedef struct dpi_protocol_attribute_struct{
 	uint16_t attribute_id; //attribute_id: being interpreted when registering
 	uint16_t proto_index; //indicating `th` order of the protocol when there exist duplicated ones in the hierarchy
 	int dpi_datatype;
+
+	//prefix and suffix that will be inserted before or after value when outputting to reports
+	char *prefix, *suffix;
 }dpi_protocol_attribute_t;
 
 
@@ -229,6 +232,7 @@ typedef struct event_report_conf_struct{
 	dpi_protocol_attribute_t *attributes;
 	output_channel_conf_t output_channels;
 	event_report_delta_condition_conf_t delta_condition;
+	char *output_format;
 }event_report_conf_t;
 
 

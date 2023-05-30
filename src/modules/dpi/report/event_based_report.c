@@ -126,15 +126,17 @@ static inline int _get_attributes_values(const ipacket_t *packet,
 static void _event_report_handle( const ipacket_t *packet, attribute_t *attribute, void *arg ){
 	event_based_report_context_t *context = (event_based_report_context_t *)arg;
 
+	size_t i;
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 	int offset, ret;
+	const event_report_conf_t *config = context->config;
 
 	//if delta-cond is available
-	if( context->config->delta_condition.attributes_size ){
+	if( config->delta_condition.attributes_size ){
 		memset( message, 0, MAX_LENGTH_REPORT_MESSAGE );
 		ret = _get_attributes_values(packet,
-				context->config->delta_condition.attributes,
-				context->config->delta_condition.attributes_size,
+				config->delta_condition.attributes,
+				config->delta_condition.attributes_size,
 				message, MAX_LENGTH_REPORT_MESSAGE,
 				true);
 
@@ -153,8 +155,30 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 	}
 
 	offset = 0;
+	//use the special output format that is given by user via the "output-format" parameter in .conf file
+	if( config->output_format ){
+
+		message[0] = '\0';
+
+		for( i=0; i<config->attributes_size; i++ ){
+			const dpi_protocol_attribute_t * att = & config->attributes[i];
+			//prefix
+			offset += append_string_without_quote( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, att->prefix );
+			//value
+			attribute_t * attr_extract = dpi_extract_attribute(packet, att); //get value of the attribute from the packet
+			offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, attr_extract ); //append to the message
+			//suffix
+			offset += append_string_without_quote( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, att->suffix );
+			message[offset] = '\0';
+		}
+		//write the message as-is (without any modification) to the output channels
+		output_write( context->output, config->output_channels, message );
+		return;
+	}
+
+	//use the legacy output format
 	//1. event id = title of the event
-	offset += append_string( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, context->config->title );
+	offset += append_string( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, config->title );
 
 	//separator
 	message[offset] = ',';
@@ -175,12 +199,12 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 
 	//3. attributes data
 	offset += _get_attributes_values( packet,
-			context->config->attributes, context->config->attributes_size,
+			config->attributes, config->attributes_size,
 			&message[offset], MAX_LENGTH_REPORT_MESSAGE - offset,
 			false);
 	message[offset] = '\0'; //superfluous?
 
-	output_write_report( context->output, context->config->output_channels,
+	output_write_report( context->output, config->output_channels,
 			EVENT_REPORT_TYPE,
 			&packet->p_hdr->ts, message );
 }

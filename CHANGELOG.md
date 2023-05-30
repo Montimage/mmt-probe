@@ -1,3 +1,7 @@
+## v1.5.11
+- support output the reports to an UDP socket
+- support customized output format of the event-based reports.
+ 
 ## v1.5.10 (17 May 2023)
 - add Light-Packet-Inspection to analyse quickly packets which come from malicious actors, such as DDoS attacks, which cause high resource consumption on Deep-Packet-Inspection
 - bump new version of MMT-DPI which supports HTTP2 and MMT-Security which includes 2 rules to detect HTTP2 attacks

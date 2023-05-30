@@ -96,7 +96,7 @@ output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct
  * @param message
  * @return
  */
-static inline int _write( output_t *output, output_channel_conf_t channels, const char *message ){
+static inline int _write( output_t *output, output_channel_conf_t channels, const char *message, bool raw ){
 	int ret = 0;
 	char new_msg[ MAX_LENGTH_REPORT_MESSAGE ];
 
@@ -104,7 +104,7 @@ static inline int _write( output_t *output, output_channel_conf_t channels, cons
 	//this needs to be done when:
 	//- output format is JSON,
 	//- or when we need to output to MongoDB
-	if( output->config->format == OUTPUT_FORMAT_JSON
+	if( (output->config->format == OUTPUT_FORMAT_JSON && !raw)
 #ifdef MONGODB_MODULE
 			|| (output->modules.mongodb && IS_ENABLE_OUTPUT_TO( MONGODB, channels ) )
 #endif
@@ -216,7 +216,7 @@ int output_write_report( output_t *output, output_channel_conf_t channels,
 		message[ offset + len ] = '\0';
 	}
 
-	int ret = _write( output, channels, message );
+	int ret = _write( output, channels, message, false );
 	output->last_report_ts.tv_sec  = ts->tv_sec;
 	output->last_report_ts.tv_usec = ts->tv_usec;
 
@@ -270,7 +270,7 @@ int output_write( output_t *output, output_channel_conf_t channels, const char *
 	if( ! output || ! output->config->is_enable || IS_DISABLE_OUTPUT(channels ))
 		ret = 0;
 	else
-		ret = _write( output, channels, message );
+		ret = _write( output, channels, message, true );
 
 	__UNLOCK_IF_NEED( output );
 	return ret;
