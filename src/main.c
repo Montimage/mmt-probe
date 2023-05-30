@@ -216,7 +216,11 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 			case 0:
 				log_write( LOG_INFO, "Overridden value of configuration parameter '%s' by '%s'", string_att, string_val );
 				break;
-			case -1:
+			case 1: //value is incorrect
+				fprintf(stderr, "Unexpected parameter value %s\n", string_val );
+				exit( 1 );
+				break;
+			case -1:  //ident is incorrect
 				fprintf(stderr, "Unknown parameter identity %s\n", string_att );
 				exit( 1 );
 				break;

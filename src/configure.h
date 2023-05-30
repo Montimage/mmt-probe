@@ -185,7 +185,10 @@ typedef struct dpi_protocol_attribute_struct{
 
 typedef struct socket_output_conf_struct{
 	bool is_enable;
-	enum{ SOCKET_TYPE_ANY = 0, SOCKET_TYPE_UNIX, SOCKET_TYPE_INTERNET } socket_type;
+	enum{ SOCKET_TYPE_ANY = 0,
+		SOCKET_TYPE_UNIX  = 0b00000001,
+		SOCKET_TYPE_TCP   = 0b00000010,
+		SOCKET_TYPE_UDP   = 0b00000100} socket_type;
 	//descriptor of UNIX socket if used
 	char *unix_socket_descriptor;
 
@@ -379,5 +382,6 @@ int conf_validate( probe_conf_t *conf );
 bool conf_parse_input_mode( int *result, const char *string );
 bool conf_parse_rtt_base(int *result, const char *value);
 bool conf_parse_security_ignore_mode(int *result, const char *value);
-//bool conf_parse_security_ignore_mode( int *result, const char *string );
+bool conf_parse_output_socket_type(int *result, const char *value);
+bool conf_parse_output_format(int *result, const char *value);
 #endif /* SRC_LIB_CONFIGURE_H_ */

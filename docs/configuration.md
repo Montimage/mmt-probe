@@ -13,3 +13,12 @@ If no configuration file is found, MMT-Probe will stop its execution.
 - `nb-thread` : 0 to disable multi-threading. There exists only one worker. The worker will be executed on the main thread.
 
    otherwise, `n` workers will be executed on `n` separate threads. The main thread will read packets then dispatch the packets to workers.  
+   
+   
+## `socket-output.type`
+new from v1.5.11:
+
+- `TCP`
+- `UDP`
+- `UNIX`
+- `BOTH` = `TCP` + `UNIX`

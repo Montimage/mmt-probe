@@ -17,7 +17,7 @@
 #include "configure.h"
 
 
-#define DLT_EN10MB 1/**< Ethernet (10Mb) *
+#define DLT_EN10MB 1/**< Ethernet (10Mb) */
 
 
 /* parse values for the input-mode option */
@@ -60,30 +60,46 @@ static int _conf_parse_rtt_base(cfg_t *cfg, cfg_opt_t *opt, const char *value, v
 }
 
 /* parse values for the output format option */
-int conf_parse_output_format(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
+bool conf_parse_output_format(int *result, const char *value) {
 	if( value == NULL || value[0] == '\0' || strcasecmp(value, "CSV") == 0)
 		*(int *) result = OUTPUT_FORMAT_CSV;
 	else if (strcasecmp(value, "JSON") == 0)
 		*(int *) result = OUTPUT_FORMAT_JSON;
 	else {
-		cfg_error(cfg, "Invalid '%s' for option '%s'. Use either CSV or JSON.", value, cfg_opt_name(opt));
-		return -1;
+		return false;
 	}
-	return 0;
+	return true;
 }
 
-static int _conf_parse_socket_type(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
+static inline int _parse_output_format(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
+	if( conf_parse_output_format( result, value ))
+		return 0;
+
+	cfg_error(cfg, "Invalid '%s' for option '%s'. Use either CSV or JSON.", value, cfg_opt_name(opt));
+	return -1;
+}
+
+
+bool conf_parse_output_socket_type(int *result, const char *value) {
 	if (IS_EQUAL_STRINGS(value, "UNIX") )
 		*(int *) result = SOCKET_TYPE_UNIX;
-	else if (IS_EQUAL_STRINGS(value, "INTERNET") )
-		*(int *) result = SOCKET_TYPE_INTERNET;
+	else if (IS_EQUAL_STRINGS(value, "INTERNET") || IS_EQUAL_STRINGS(value, "TCP"))
+		*(int *) result = SOCKET_TYPE_TCP;
+	else if ( IS_EQUAL_STRINGS(value, "UDP"))
+		*(int *) result = SOCKET_TYPE_UDP;
 	else if (IS_EQUAL_STRINGS(value, "BOTH") )
 		*(int *) result = SOCKET_TYPE_ANY;
 	else{
-		cfg_error(cfg, "invalid value for option '%s': %s. Expect UNIX, INTERNET, or, BOTH.", cfg_opt_name(opt), value);
-		return -1;
+		return false;
 	}
-	return 0;
+	return true;
+}
+
+static int _conf_parse_socket_type(cfg_t *cfg, cfg_opt_t *opt, const char *value, void *result) {
+	if( conf_parse_output_socket_type( result, value ))
+		return 0;
+	cfg_error(cfg, "invalid value for option '%s': %s. Expect UNIX, TCP, UDP, or, BOTH.", cfg_opt_name(opt), value);
+	return -1;
 }
 
 
@@ -286,7 +302,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 	};
 
 	cfg_opt_t output_opts[] = {
-			CFG_INT_CB("format", OUTPUT_FORMAT_CSV, CFGF_NONE, conf_parse_output_format),
+			CFG_INT_CB("format", OUTPUT_FORMAT_CSV, CFGF_NONE, _parse_output_format),
 			CFG_INT("cache-max", 1000, CFGF_NONE),
 			CFG_INT("cache-period", 5, CFGF_NONE),
 			CFG_END()

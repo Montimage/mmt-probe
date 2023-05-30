@@ -25,13 +25,13 @@ struct socket_output_struct{
 
 #define NO_SOCKET_FD -1
 
-static inline int _create_internet_client_socket( const char *host_name, uint16_t port ){
+static inline int _create_internet_client_socket( const char *host_name, uint16_t port, bool is_tcp_socket ){
 	int fd;
 	struct sockaddr_in server;
 	struct hostent *hostp;
 	char ip[16];
 
-	fd = socket(AF_INET, SOCK_STREAM, 0);
+	fd = socket(AF_INET, is_tcp_socket? SOCK_STREAM : SOCK_DGRAM, 0);
 	if ( fd < 0) {
 		log_write(LOG_ERR, "Cannot open Internet domain socket: %s", strerror(errno));
 		return NO_SOCKET_FD;
@@ -104,8 +104,8 @@ socket_output_t* socket_output_init( const socket_output_conf_t *config ){
 	else
 		ret->unix_socket_fd = NO_SOCKET_FD;
 
-	if( config->socket_type == SOCKET_TYPE_ANY || config->socket_type == SOCKET_TYPE_INTERNET )
-		ret->internet_socket_fd = _create_internet_client_socket( config->internet_socket.host_name, config->internet_socket.port_number );
+	if( config->socket_type == SOCKET_TYPE_ANY || config->socket_type == SOCKET_TYPE_TCP || config->socket_type == SOCKET_TYPE_UDP)
+		ret->internet_socket_fd = _create_internet_client_socket( config->internet_socket.host_name, config->internet_socket.port_number, config->socket_type != SOCKET_TYPE_UDP );
 	else
 		ret->internet_socket_fd = NO_SOCKET_FD;
 	return ret;

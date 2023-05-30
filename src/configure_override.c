@@ -124,6 +124,25 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 			return false;
 		}
 		return true;
+	case CONF_ATT__OUTPUT__FORMAT:
+		if( conf_parse_output_format(&enum_val, value_str ) )
+			*((int *)field_ptr) = enum_val;
+		else{
+			log_write( LOG_WARNING, "Unexpected value [%s] for [%s]", value_str, ident->ident );
+			return false;
+		}
+		return true;
+#ifdef SOCKET_MODULE
+	case CONF_ATT__SOCKET_OUTPUT__TYPE:
+		if( conf_parse_output_socket_type(&enum_val, value_str ) )
+			*((int *)field_ptr) = enum_val;
+		else{
+			log_write( LOG_WARNING, "Unexpected value [%s] for [%s]", value_str, ident->ident );
+			return false;
+		}
+		return true;
+#endif
+
 #ifdef SECURITY_MODULE
 	case CONF_ATT__SECURITY__INGORE_REMAIN_FLOW:
 		if( conf_parse_security_ignore_mode( &enum_val, value_str ) )
