@@ -871,7 +871,7 @@ size_t _parse_attributes_from_output_format( const char *string, dpi_protocol_at
 	size_t size = strlen( string );
 	char proto_name[MAX_PROTO_NAME_SIZE], att_name[MAX_PROTO_NAME_SIZE];
 	uint32_t proto_id, att_id;
-	uint32_t proto_index;
+	uint32_t proto_index = 1;//by default: we refer to the first one we found in the hierarchy;
 
 	const size_t MAX_ATT = 1024;
 	dpi_protocol_attribute_t *ret =  mmt_alloc_and_init_zero( sizeof( dpi_protocol_attribute_t ) * MAX_ATT );

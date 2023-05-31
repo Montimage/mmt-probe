@@ -258,8 +258,13 @@ bool kafka_output_send( kafka_output_t *context, const char *msg ){
 void kafka_output_release(  kafka_output_t *context ){
 	if( context == NULL )
 		return;
+
+	if( context->nb_messages_to_send > context->nb_sent_messages)
+		//flush all pending messages in the queue to the kafka bus
+		rd_kafka_flush( context->rd_producer, 10 * 1000 /* wait for max 10 seconds */);
+
 	log_write( LOG_WARNING, "Total number of messages which cannot be sent successfully to the Kafka bus: %zu",
-			context->nb_messages_to_send - context->nb_sent_messages );
+		context->nb_messages_to_send - context->nb_sent_messages );
 
 	_release_current_kafka_connection( context );
 	mmt_probe_free( context );
