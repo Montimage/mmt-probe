@@ -166,7 +166,7 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 	case CHAR_STAR:
 		string_ptr = (char **) field_ptr;
 		//value does not change ==> do nothing
-		if( IS_EQUAL_STRINGS( *string_ptr, value_str ) )
+		if( *string_ptr && IS_EQUAL_STRINGS( *string_ptr, value_str ) )
 			return false;
 		mmt_probe_free( *string_ptr );
 		*string_ptr = mmt_strdup( value_str );
