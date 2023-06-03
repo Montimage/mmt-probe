@@ -79,11 +79,11 @@ static void _report_one_item( size_t key_len, void *_key, void *_data, void *arg
 		__STR( "99.178.0" ), //Ethernet.IPv4
 		__STR( "" ),
 		__INT( lpi->total_active_sessions),
+		//total:
 		__INT( data->nb_volume_bytes ),
 		__INT( data->nb_payload_bytes),
 		__INT( data->nb_packets ),
-		//same values for upload direction
-		__INT( lpi->total_active_sessions),
+		//upload direction: same value as total (no download)
 		__INT( data->nb_volume_bytes ),
 		__INT( data->nb_payload_bytes),
 		__INT( data->nb_packets ),
