@@ -3,6 +3,7 @@
 - support customized output format of the event-based reports.
 - fixed issue in Kafka output which cache messages in the output queue
 - fixed issue when using `-Xsecurity.exclude-rules` parameter which is not intialized beforehand
+- fixed format of LPI output messages
  
 ## v1.5.10 (17 May 2023)
 - add Light-Packet-Inspection to analyse quickly packets which come from malicious actors, such as DDoS attacks, which cause high resource consumption on Deep-Packet-Inspection
