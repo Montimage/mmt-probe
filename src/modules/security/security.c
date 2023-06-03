@@ -181,6 +181,15 @@ static int _security_packet_handler( const ipacket_t *ipacket, void *args ) {
 	 */
 	message_t *msg = create_message_t( context->proto_atts_count );
 
+	//add other information to the message, such as, timestamp, packet_id, session_id
+	msg->timestamp = mmt_sec_encode_timeval( &ipacket->p_hdr->ts );
+	msg->counter   = ipacket->packet_id;
+
+	//when parameter ignore_remain_flow is active,
+	// we need to remember the session_id of the packet
+	if( IS_CFG_INOGRE( context ))
+		msg->flow_id = session_id;
+
 	//get a list of proto/attributes being used by mmt-security
 	for( i=0; i<context->proto_atts_count; i++ ){
 
@@ -200,16 +209,6 @@ static int _security_packet_handler( const ipacket_t *ipacket, void *args ) {
 		free_message_t( msg );
 		return 0;
 	}
-
-	//add other information to the message, such as, timestamp, packet_id, session_id
-	msg->timestamp = mmt_sec_encode_timeval( &ipacket->p_hdr->ts );
-	msg->counter   = ipacket->packet_id;
-
-	//when parameter ignore_remain_flow is active,
-	// we need to remember the session_id of the packet
-	if( IS_CFG_INOGRE( context ))
-		msg->flow_id = session_id;
-
 
 	//give the message to MMT-Security
 	mmt_sec_process( context->sec_handler, msg );
