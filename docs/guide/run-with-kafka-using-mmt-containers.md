@@ -8,7 +8,7 @@ The following command will start MMT-Probe to analyse network traffic:
 - `30031`: is port of kafka server
 
 ```bash 
-docker run --name mmt-probe ghcr.io/montimage/mmt-probe:latest -i eth0 -Xkafka-output.enable=true -Xkafka-output.hostname=10.0.37.5 -Xkafka-output.port=30031
+docker run --name mmt-probe --network=host ghcr.io/montimage/mmt-probe:latest -i eth0 -Xkafka-output.enable=true -Xkafka-output.hostname=10.0.37.5 -Xkafka-output.port=30031
 ```
 
 By default, the reports will be written on `mi-reports` topic. This can be change via `kafka-output.topic`, e.g., add this parameter `-Xkafka-output.topic=network-reports` to set topic's name `network-reports`
@@ -28,3 +28,32 @@ docker run -p8080:8080 --name mmt-operator ghcr.io/montimage/mmt-operator:latest
 ```
 
 For any further configuration, please see [docs](https://github.com/Montimage/mmt-operator/tree/main/doc) or [MMT-Manual](https://github.com/Montimage/mmt-manual)
+
+
+# All in one
+
+```bash
+# ensure that no process is listening on port 9092, 27017, 8080
+# e.g., sudo lsof -i :9092
+
+# start zookeeper
+docker run --rm -d --name mmt-zookeeper ubuntu/zookeeper:edge
+docker run --rm -d --name mmt-kafka --link mmt-zookeeper -p9092:9092 -e ZOOKEEPER_HOST=mmt-zookeeper ubuntu/kafka:edge /etc/kafka/server.properties --override advertised.listeners=PLAINTEXT://127.0.0.1:9092
+
+# start mongodb
+docker run --rm -d --name mmt-mongo -p27017:27017 mongo:4.0
+
+# start mmt-operator
+docker run --rm -d --network=host --name mmt-operator ghcr.io/montimage/mmt-operator:latest -Xinput_mode=kafka -Xkafka_input.host=127.0.0.1 -Xkafka_input.port=9092 -Xkafka_input.topic=mi-reports -Xport_number=8080
+
+# start mmt-probe to monitor "lo" interface of the host machine
+docker run --rm -d --network=host --name mmt-probe ghcr.io/montimage/mmt-probe:latest -i lo -Xkafka-output.enable=true -Xkafka-output.hostname=127.0.0.1 -Xkafka-output.topic=mi-reports -Xsession-report.output-channel=kafka -Xsecurity.enable=true -Xsecurity.output-channel=kafka -Xsecurity.exclude-rules=0-90
+
+
+# inject traffic using 5Greplay
+# start HTTP2 server
+sudo apt install -y nghttp2-server
+nghttpd --no-tls -a 127.0.0.7  -v 8081 &
+
+docker run --rm -it --network=host ghcr.io/montimage/5greplay:v0.0.7 replay -t pcap/sa.pcap -Xforward.nb-copies=30 -Xforward.default=DROP -Xengine.exclude-rules=1-16,18-100 -Xforward.target-hosts=127.0.0.7 -Xforward.target-ports=8081 -Xforward.target-protocols=HTTP2
+```
