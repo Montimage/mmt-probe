@@ -167,7 +167,7 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 		string_ptr = (char **) field_ptr;
 		//value does not change ==> do nothing
 		if( *string_ptr && IS_EQUAL_STRINGS( *string_ptr, value_str ) )
-			return false;
+			return true;
 		mmt_probe_free( *string_ptr );
 		*string_ptr = mmt_strdup( value_str );
 		return true;
@@ -182,7 +182,7 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 		case CONF_ATT__RADIUS_REPORT__OUTPUT_CHANNEL:
 			int_val = conf_parse_output_channel( value_str );
 			if( int_val == *(output_channel_conf_t *) field_ptr )
-				return false;
+				return true;
 			(*(output_channel_conf_t *) field_ptr) = int_val;
 			return true;
 
@@ -208,7 +208,7 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 		int_val = _parse_bool( value_str );
 		//value does not change => do nothing
 		if( int_val == *((bool *)field_ptr) )
-			return false;
+			return true;
 		//update value
 		*((bool *)field_ptr) = int_val;
 		return true;
@@ -218,7 +218,7 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 		int_val = atoi( value_str );
 		//value does not change ==> do nothing
 		if( int_val == *((uint16_t *)field_ptr) )
-			return false;
+			return true;
 		*((uint16_t *)field_ptr) = int_val;
 		return true;
 
@@ -226,14 +226,14 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 		int_val = atol( value_str );
 		//value does not change ==> do nothing
 		if( int_val == *((uint32_t *)field_ptr) )
-			return false;
+			return true;
 		*((uint32_t *)field_ptr) = int_val;
 		return true;
 	default:
 		break;
 	}
 
-	log_write( LOG_INFO, "Unknown identifier '%s'", ident->ident );
+	log_write( LOG_ERR, "Unknown identifier '%s'", ident->ident );
 	return false;
 }
 
