@@ -17,12 +17,16 @@ cd $TMP_DIR
 
 # number of CPU cores
 CPU=$(getconf _NPROCESSORS_ONLN)
+if (( $CPU > 1 )); then
+	CPU=$((CPU-1))
+fi
 
 # install libraries 
 apt-get update && apt-get install -y \
 	git cmake gcc g++ cpp\
 	libconfuse-dev libpcap-dev libxml2-dev\
-	curl
+	curl\
+	libnghttp2-dev
 
 gcc -v
 
@@ -62,7 +66,11 @@ ldconfig
 # install mmt-dpi
 cd $TMP_DIR
 git clone https://github.com/montimage/mmt-dpi mmt-dpi
-cd mmt-dpi/sdk
+cd mmt-dpi
+if [[ "$MMT_DPI_VERSION" != "" ]]; then
+	git checkout "$MMT_DPI_VERSION"
+fi
+cd sdk
 make -j $CPU
 make install
 ldconfig
@@ -73,6 +81,9 @@ cd $TMP_DIR
 apt-get install libxml2-dev libpcap-dev libconfuse-dev
 git clone https://github.com/Montimage/mmt-security.git mmt-security
 cd mmt-security
+if [[ "$MMT_SECURITY_VERSION" != "" ]]; then
+	git checkout "$MMT_SECURITY_VERSION"
+fi
 make clean-all
 make -j1 #only one thread here to wait for the gneration of mmt-dpi.h
 make install
@@ -84,6 +95,9 @@ make deb
 cd $TMP_DIR
 git clone https://github.com/montimage/mmt-probe mmt-probe
 cd mmt-probe
+if [[ "$MMT_PROBE_VERSION" != "" ]]; then
+	git checkout "$MMT_PROBE_VERSION"
+fi
 MODULES="KAFKA_MODULE MONGODB_MODULE PCAP_DUMP_MODULE QOS_MODULE REDIS_MODULE SECURITY_MODULE SOCKET_MODULE LTE_MODULE"
 make -j $CPU $MODULES compile
 make $MODULES deb
