@@ -2,7 +2,7 @@ name: C/C++ CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, project-sancus ]
   pull_request:
     branches: [ master ]
 
@@ -14,4 +14,4 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: build-from-source
-      run: sudo ./script/install-from-source.sh
+      run: sudo MMT_DPI_VERSION=project-sancus MMT_PROBE_VERSION=project-sancus ./script/install-from-source.sh
