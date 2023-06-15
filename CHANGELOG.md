@@ -1,3 +1,6 @@
+## v1.5.12
+- fixed bug rejecting -X param having same value
+
 ## v1.5.11
 - support output the reports to an UDP socket
 - support customized output format of the event-based reports.
