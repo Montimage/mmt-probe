@@ -7,6 +7,12 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdarg.h>
+#include <errno.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <stdlib.h>
+#include <time.h>
 
 #include "../dpi_tool.h"
 #include "../../../lib/malloc_ext.h"
@@ -15,6 +21,7 @@
 typedef struct pcap_dump_context_struct{
 	FILE *file;
 	const pcap_dump_conf_t *config;
+	size_t retain_count;
 	uint32_t next_ts_to_dump_to_new_file;
 	uint32_t *proto_ids_lst;
 	uint16_t worker_index;
@@ -84,7 +91,7 @@ FILE * _create_pcap_file(const char * path, int linktype, int thiszone, uint16_t
     hdr.linktype = linktype;
 
     fwrite( &hdr, sizeof( hdr ), 1, file );
-
+    log_write( LOG_INFO, "created file %s to dump packets into it", path );
     return file;
 }
 
@@ -95,6 +102,65 @@ void _close_pcap_file( FILE *file ) {
 
 // =======================> end of pcap file <=================================
 
+static int _load_filter( const struct dirent *entry ){
+	char *ext = strstr( entry->d_name, ".pcap" );
+	if( ext == NULL ) return 0;
+	return (strlen( ext ) == (sizeof( ".pcap" ) - 1) );
+}
+//* Remove old sampled files in #folder
+static inline int _remove_old_sampled_files(const char *folder, size_t retains){
+	struct dirent **entries, *entry;
+	char file_name[ MAX_LENGTH_FULL_PATH_FILE_NAME ];
+	int i, n, ret, to_remove, len, offset;
+
+	n = scandir( folder, &entries, _load_filter, alphasort );
+	if( n < 0 ) {
+		log_write( LOG_ERR, "Cannot scan output_dir (%s): %s", folder, strerror( errno ) );
+		return 0;
+	}
+
+	to_remove = n - retains - 1;
+	//printf("total file %d, retains: %zu, to remove %d\n", n, retains, to_remove );
+	if( to_remove < 0 )
+		to_remove = 0;
+
+	//preserve folder in file_name
+	offset = strlen( folder );
+	memcpy( file_name, folder, offset );
+
+	//ensure folder is end by /
+	if( file_name[ offset - 1 ] != '/' )
+		file_name[ offset ++ ] = '/';
+
+	//list of semaphore file
+	for( i = 0 ; i < to_remove ; ++i ) {
+		entry = entries[i];
+
+		len = strlen( entry->d_name );
+
+		//not enough room to contain file name
+		if( len + offset >= sizeof( file_name ) ){
+			log_write( LOG_WARNING, "Filename is too big: %s%s", file_name, entry->d_name );
+			continue;
+		}
+
+		//get full path file
+		memcpy(file_name + offset, entry->d_name, len + 1 ); //+1 to copy also '\0' character
+
+		//delete file
+		ret = unlink( file_name );
+		if( ret )
+			log_write( LOG_ERR, "Cannot delete file '%s': %s", file_name, strerror( errno ));
+		else
+			log_write( LOG_INFO, "Deleted old file '%s'", file_name );
+	}
+
+	for( i = 0; i < n; i++ )
+		free( entries[ i ] );
+	free( entries );
+
+	return to_remove;
+}
 
 /**
  * This function must be called on each comming packet
@@ -137,7 +203,15 @@ int pcap_dump_callback_on_receiving_packet(const ipacket_t * ipacket, pcap_dump_
 							strerror( errno )
 					);
 					return 0;
-				}
+
+				} else
+					//if we created successfully new file
+					// => we will check if number of created files is bigger than the given number
+					//    then we remove the oldest files to maintain this number
+					if ( context->worker_index == 0 && context->retain_count > 0 ){
+						_remove_old_sampled_files( context->config->directory,  context->retain_count );
+					}
+
 				context->next_ts_to_dump_to_new_file = ipacket->p_hdr->ts.tv_sec + context->config->frequency;
 			}
 
@@ -158,19 +232,34 @@ pcap_dump_context_t* pcap_dump_start( uint16_t worker_index, const probe_conf_t 
 	pcap_dump_conf_t *config = probe_config->reports.pcap_dump;
 	if( ! config->is_enable )
 		return NULL;
+	char msg[MAX_LENGTH_REPORT_MESSAGE];
+	size_t index=0;
 
 	pcap_dump_context_t *context = mmt_alloc_and_init_zero(sizeof( pcap_dump_context_t ));
 	context->file = NULL;
 	context->config = config;
 	context->worker_index = worker_index;
 	context->stack_type = probe_config->stack_type;
+	context->retain_count = config->retained_files_count;
+	if(context->retain_count > 0 && context->retain_count < probe_config->thread->thread_count ){
+		context->retain_count = probe_config->thread->thread_count ;
+		log_write( LOG_INFO, "Increased number of pcap files to keep to %zu (instead of %d) to equal to number of threads",
+				context->retain_count,
+				config->retained_files_count);
+	}
 
 	//protocol ids
 	context->proto_ids_lst = mmt_alloc( sizeof( uint32_t ) * context->config->protocols_size );
 	int i;
-	for( i=0; i<context->config->protocols_size; i++ )
+	for( i=0; i<context->config->protocols_size; i++ ){
 		context->proto_ids_lst[i] = get_protocol_id_by_name( context->config->protocols[i] );
+		index += snprintf(msg, MAX_LENGTH_REPORT_MESSAGE - index, ",%s", context->config->protocols[i] );
+	}
 
+	log_write(LOG_INFO, "Dump any packets containing protocol in the following list to '%s': %s",
+			config->directory,
+			&msg[1] //ignore the first comma ,
+	);
 	return context;
 }
 

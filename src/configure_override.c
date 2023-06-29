@@ -187,7 +187,7 @@ static inline bool _override_element_by_ident( probe_conf_t *conf, const identit
 			return true;
 
 #ifdef PCAP_DUMP_MODULE
-		case CONF_ATT__DUMP_PCAP__ENABLE:
+		case CONF_ATT__DUMP_PCAP__PROTOCOLS:
 			//free old memory
 			if( conf->reports.pcap_dump ){
 				if( conf->reports.pcap_dump->protocols != NULL ){
