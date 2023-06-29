@@ -1,0 +1,98 @@
+# See: https://git.launchpad.net/~ubuntu-docker-images/ubuntu-docker-images/+git/kafka/plain/examples/kafka-deployment.yml
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zookeeper
+  labels:
+    app: zookeeper
+spec:
+  ports:
+  - port: 2181
+  selector:
+    app: zookeeper
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zookeeper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zookeeper
+  template:
+    metadata:
+      labels:
+        app: zookeeper
+    spec:
+      containers:
+      - name: zookeeper
+        image: ubuntu/zookeeper:edge
+        ports:
+        - containerPort: 2181
+          name: zookeeper
+          protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  labels:
+    app: kafka
+spec:
+  ports:
+  - port: 9092
+  selector:
+    app: kafka
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      containers:
+      - name: kafka
+        image: ubuntu/kafka:edge
+        env:
+          - name: ZOOKEEPER_HOST
+            value: zookeeper
+          - name: ZOOKEEPER_PORT
+            value: "2181"
+        args: 
+        - "/etc/kafka/server.properties"
+        - "--override"
+        - "advertised.listeners=PLAINTEXT://kafka:9092"
+        # retain messages during 1 hour
+        - "--override"
+        - "log.retention.hours=1"
+        # limit to 128 MB
+        - "--override"
+        - "log.retention.bytes=134217728"
+        # check each 10 minutes
+        - "--override"
+        - "log.retention.check.interval.ms=10000"
+        
+        ports:
+        - containerPort: 9092
+          name: kafka
+          protocol: TCP
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+            ephemeral-storage: "1Gi"
