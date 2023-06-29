@@ -48,7 +48,7 @@ spec:
             memory: "512Mi"
             cpu: "500m"
         volumeMounts:
-        - mountPath: /opt/mmt/probe/pcap/
+        - mountPath: /opt/mmt/probe/pcaps/
           name: share-disk
 
       #CERT IDS
@@ -56,7 +56,7 @@ spec:
         image: certhsancus/idslight:latest
         imagePullPolicy: Always
         args:
-        - "/opt/mmt/probe/pcap/"
+        - "Pcap_Folder"
         - "kafka:9092"   #hostname:port of kafkabus
         - "sid-reports"  #topic to send out reports
 
@@ -65,5 +65,5 @@ spec:
             memory: "512Mi"
             cpu: "500m"
         volumeMounts:
-        - mountPath: /opt/mmt/probe/pcap/
+        - mountPath: /app/Pcap_Folder
           name: share-disk
