@@ -20,12 +20,14 @@
 
 typedef struct pcap_dump_context_struct{
 	FILE *file;
+	char file_name[MAX_LENGTH_FULL_PATH_FILE_NAME ];
 	const pcap_dump_conf_t *config;
 	size_t retain_count;
 	uint32_t next_ts_to_dump_to_new_file;
 	uint32_t *proto_ids_lst;
 	uint16_t worker_index;
 	uint32_t stack_type;
+	size_t nb_dumped_packets;
 } pcap_dump_context_t;
 
 
@@ -91,13 +93,37 @@ FILE * _create_pcap_file(const char * path, int linktype, int thiszone, uint16_t
     hdr.linktype = linktype;
 
     fwrite( &hdr, sizeof( hdr ), 1, file );
-    log_write( LOG_INFO, "created file %s to dump packets into it", path );
     return file;
 }
 
-void _close_pcap_file( FILE *file ) {
-	if( file )
-		fclose( file );
+void _close_pcap_file( pcap_dump_context_t *context ) {
+	char new_file_name[MAX_LENGTH_FULL_PATH_FILE_NAME ];
+	int err;
+	size_t len;
+	if( context->file == NULL)
+		return;
+
+	fclose( context->file );
+	//rename to .pcap to make it available to other processes
+	len = strlen( context->file_name );
+	//context->file_name must be ._tmp
+	if( len < 5 )
+		return;
+
+	if( len > MAX_LENGTH_FULL_PATH_FILE_NAME )
+		len = MAX_LENGTH_FULL_PATH_FILE_NAME;
+	memcpy( new_file_name, context->file_name, len );
+	//manually change .tmp to .pcap
+	new_file_name[len] = '\0';
+	new_file_name[len-1] = 'p';
+	new_file_name[len-2] = 'a';
+	new_file_name[len-3] = 'c';
+	new_file_name[len-4] = 'p';
+	err = rename( context->file_name, new_file_name );
+	if( err != 0 )
+		log_write( LOG_ERR, "Cannot rename to %s: %s", new_file_name, strerror( errno ) );
+	else
+		log_write( LOG_INFO, "dumped %zu packets to %s", context->nb_dumped_packets, new_file_name );
 }
 
 // =======================> end of pcap file <=================================
@@ -166,10 +192,10 @@ static inline int _remove_old_sampled_files(const char *folder, size_t retains){
  * This function must be called on each comming packet
  */
 int pcap_dump_callback_on_receiving_packet(const ipacket_t * ipacket, pcap_dump_context_t *context) {
-	char file_name[MAX_LENGTH_FULL_PATH_FILE_NAME ];
 
 	//uint64_t last_proto = ipacket->proto_hierarchy->proto_path[ipacket->proto_hierarchy->len-1];
 	int i, j;
+	bool ret;
 
 	//for each protocol need to be dump
 	//=> need to check if it exists inside protocol hierarchy of packet
@@ -187,23 +213,24 @@ int pcap_dump_callback_on_receiving_packet(const ipacket_t * ipacket, pcap_dump_
 
 				//close old file
 				if( context->file != NULL )
-					_close_pcap_file( context->file );
+					_close_pcap_file( context );
 
+				//reset counter
+				context->nb_dumped_packets = 0;
 				//set new file name
-				(void)snprintf(file_name, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s%lu_thread_%d.pcap",
+				(void)snprintf(context->file_name, MAX_LENGTH_FULL_PATH_FILE_NAME, "%s%lu_thread_%d.tmp_",
 						context->config->directory,
 						ipacket->p_hdr->ts.tv_sec,
 						context->worker_index);
 
 				//open new file
-				context->file = _create_pcap_file( file_name, context->stack_type, 0, context->config->snap_len );
+				context->file = _create_pcap_file( context->file_name, context->stack_type, 0, context->config->snap_len );
 				if( context->file == NULL){
 					log_write( LOG_ERR, "Cannot open file %s for dumping pcap: %s",
-							file_name,
+							context->file_name,
 							strerror( errno )
 					);
 					return 0;
-
 				} else
 					//if we created successfully new file
 					// => we will check if number of created files is bigger than the given number
@@ -215,12 +242,13 @@ int pcap_dump_callback_on_receiving_packet(const ipacket_t * ipacket, pcap_dump_
 				context->next_ts_to_dump_to_new_file = ipacket->p_hdr->ts.tv_sec + context->config->frequency;
 			}
 
-			_write_packet( context->file, (char*)ipacket->data,
+			ret = _write_packet( context->file, (char*)ipacket->data,
 					ipacket->p_hdr->len,
 					//real length of packet to write to file
 					MIN( ipacket->p_hdr->caplen, context->config->snap_len ),
 					&(ipacket->p_hdr->ts));
-
+			if( ret )
+				context->nb_dumped_packets ++;
 			return 0;
 		}
 	}
@@ -266,7 +294,7 @@ pcap_dump_context_t* pcap_dump_start( uint16_t worker_index, const probe_conf_t 
 void pcap_dump_stop( pcap_dump_context_t *context ){
 	if( context == NULL )
 		return;
-	_close_pcap_file( context->file );
+	_close_pcap_file( context );
 	context->file = NULL;
 	mmt_probe_free( context->proto_ids_lst );
 	mmt_probe_free( context );
