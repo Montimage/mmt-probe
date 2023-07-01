@@ -42,6 +42,8 @@ spec:
         - "-Xdump-pcap.enable=true" #dump pcap to files
         - "-Xdump-pcap.protocols=ip" #dump any IP packets
         - "-Xdump-pcap.period=5"
+        - "-Xdump-pcap.retain-files=10"
+        - "-Xdump-pcap.output-dir=/opt/mmt/probe/pcaps/"
 
         resources:
           requests:
