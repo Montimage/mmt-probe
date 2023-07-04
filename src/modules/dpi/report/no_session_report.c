@@ -83,7 +83,7 @@ static void _protocols_stats_iterator(uint32_t proto_id, void * args) {
 
 		//report the stats instance
 		offset = 0;
-		STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
+		STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_REPORT_MESSAGE, ",",
 				__INT( context->report_number ),
 				__INT( proto_id ),
 				__STR( proto_path_str ),
