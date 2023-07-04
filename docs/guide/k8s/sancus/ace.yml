@@ -1,0 +1,31 @@
+# 1. deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: attack-configuration-engine
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ace
+  template:
+    metadata:
+      labels:
+        app: ace
+    spec:
+      containers:
+      # MI 5Greplay
+      - name: mmt-5greplay
+        image: ghcr.io/montimage/5greplay:latest
+        imagePullPolicy: Always
+        command: ["/bin/sh" ]
+        args:
+        - "-c"
+        - "while true; do sleep 60;done" #sleep forever, user needs to access to its console to execute different attacks 
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+
+      #other partners' components
