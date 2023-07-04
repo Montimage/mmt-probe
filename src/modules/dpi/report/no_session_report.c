@@ -124,7 +124,7 @@ static inline void _report_ip_frag_stat( no_session_report_context_t *context ){
 
 		if ( proto_stats->ip_frag_packets_count + proto_stats->ip_df_packets_count > 0){
 			offset = 0;
-			STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
+			STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_REPORT_MESSAGE, ",",
 					__STR( proto_path_str ),
 					__INT( proto_stats->ip_frag_data_volume ),
 					__INT( proto_stats->ip_frag_packets_count ),
