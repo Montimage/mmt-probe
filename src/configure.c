@@ -357,13 +357,13 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 	cfg_t *cfg = cfg_init(opts, CFGF_NONE);
 	switch (cfg_parse(cfg, filename)) {
 	case CFG_FILE_ERROR:
-		log_write(LOG_ERR, "Error: configuration file '%s' could not be read: %s\n", filename, strerror(errno));
+		log_write(LOG_ERR, "Configuration file '%s' could not be read: %s\n", filename, strerror(errno));
 		cfg_free( cfg );
 		return NULL;
 	case CFG_SUCCESS:
 		break;
 	case CFG_PARSE_ERROR:
-		log_write(LOG_ERR, "Error: configuration file '%s' could not be parsed.\n", filename );
+		log_write(LOG_ERR, "Configuration file '%s' could not be parsed.\n", filename );
 		cfg_free( cfg );
 		return NULL;
 	}

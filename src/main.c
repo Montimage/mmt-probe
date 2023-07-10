@@ -30,6 +30,8 @@
 #include <tcpip/mmt_tcpip.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>   // stat
+#include <stdbool.h>    // bool type
 
 #include "lib/log.h"
 #include "lib/version.h"
@@ -102,6 +104,10 @@ static inline void _override_string_conf( char **conf, const char*new_val ){
 	*conf = strdup( new_val );
 }
 
+bool _is_file_exists (const char *filename) {
+	struct stat buffer;
+	return (stat (filename, &buffer) == 0);
+}
 
 /**
  * 1) Parse options from execution command line to get location of configuration file.
@@ -119,7 +125,7 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 #else
 	const char *options = "c:t:i:vhxX:";
 #endif
-	const char *config_file = DEFAULT_CONFIG_FILE;
+	const char *config_file = NULL;
 	probe_conf_t *conf = NULL;
 
 	extern char *optarg;
@@ -127,14 +133,11 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 
 	char *string_att, *string_val;
 
-	bool is_user_gives_conf_file = false;
-
 	//first parser round to get configuration file
 	while ((opt = getopt(argc, argv, options )) != EOF) {
 		switch (opt) {
 		case 'c':
 			config_file = optarg;
-			is_user_gives_conf_file = true;
 			break;
 		case 'v':
 			printf("Version:\n");
@@ -155,13 +158,19 @@ static inline probe_conf_t* _parse_options( int argc, char ** argv ) {
 		}
 	}
 
-	conf = conf_load_from_file( config_file );
-	if( conf == NULL ){
-		//config_file is indicated by user by -c parameter
-		if( is_user_gives_conf_file ){
-			fprintf(stderr, "Cannot read configuration file from %s\n", config_file );
+	//user given
+	if( config_file ){
+		conf = conf_load_from_file( config_file );
+		if( conf == NULL )
 			abort();
-		}else{
+	}else{
+		// load ./mmt-probe.conf if it is existing
+		if( _is_file_exists( DEFAULT_CONFIG_FILE) ){
+			config_file = DEFAULT_CONFIG_FILE;
+			conf = conf_load_from_file( config_file );
+			if( conf == NULL )
+				abort();
+		} else {
 			//try again to read config from /opt/mmt/probe/mmt-probe.conf
 			config_file = DEFAULT_CONFIG_FILE_OPT;
 			conf = conf_load_from_file( config_file );
