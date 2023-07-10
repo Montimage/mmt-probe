@@ -83,12 +83,14 @@ static inline void context_print_traffic_stat( const probe_context_t *context, c
 			__INT( context->traffic_stat.mmt.bytes.drop )
 			);
 
-	//output to all channels
-	output_write_report(context->output, CONF_OUTPUT_CHANNEL_ALL, DUMMY_REPORT_TYPE,
+	if( context->config->reports.cpu_mem->is_enable ){
+		//output to all channels
+		output_write_report(context->output, context->config->reports.cpu_mem->output_channels, DUMMY_REPORT_TYPE,
 			now, message );
 
-	//flush immediately ???
-	output_flush( context->output );
+		//flush immediately ???
+		output_flush( context->output );
+	}
 
 
 	log_write_dual( LOG_INFO, "%s%% dropped by NIC %.4f, by MMT %.4f", message,
