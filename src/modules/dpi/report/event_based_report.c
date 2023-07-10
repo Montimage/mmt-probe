@@ -166,7 +166,17 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 			offset += append_string_without_quote( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, att->prefix );
 			//value
 			attribute_t * attr_extract = dpi_extract_attribute(packet, att); //get value of the attribute from the packet
-			offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, attr_extract ); //append to the message
+			if( attr_extract != NULL )
+				offset += mmt_attr_sprintf( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, attr_extract ); //append to the message
+			else {
+				//no value, use default value:
+				// empty for string
+				// 0  for number
+				if( is_string_datatype( att->dpi_datatype )){
+					//nothing here
+				}else
+					message[ offset ++ ] = '0';
+			}
 			//suffix
 			offset += append_string_without_quote( message + offset, MAX_LENGTH_REPORT_MESSAGE - offset, att->suffix );
 			message[offset] = '\0';
