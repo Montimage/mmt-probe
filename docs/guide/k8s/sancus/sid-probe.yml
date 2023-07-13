@@ -36,7 +36,7 @@ spec:
         - "-Xkafka-output.topic=sid-reports"
         - "-Xsession-report.output-channel=kafka"
         - "-Xsecurity.enable=true"
-        - "-Xsecurity.ignore-remain-flow=DPI"
+        - "-Xsecurity.ignore-remain-flow=false"
         - "-Xsecurity.exclude-rules=0-99,108"
         - "-Xsecurity.output-channel=stdout,kafka"
         - "-Xdump-pcap.enable=true" #dump pcap to files
