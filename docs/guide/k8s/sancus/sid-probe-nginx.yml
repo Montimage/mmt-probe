@@ -37,7 +37,7 @@ spec:
         - "-Xsession-report.output-channel=kafka"
         - "-Xsecurity.enable=true"
         - "-Xsecurity.ignore-remain-flow=DPI"
-        - "-Xsecurity.exclude-rules=0-99,106"
+        - "-Xsecurity.exclude-rules=0-99,108"
         - "-Xsecurity.output-channel=stdout,kafka"
         - "-Xdump-pcap.enable=true" #dump pcap to files
         - "-Xdump-pcap.protocols=ip" #dump any IP packets
