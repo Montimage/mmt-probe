@@ -17,7 +17,6 @@ spec:
       - name: mmt-operator
         image: ghcr.io/montimage/mmt-operator:latest
         imagePullPolicy: Always
-        command: ["" ]
         args: 
         - "-Xprobe_analysis_mode=online"
         - "-Xdatabase_server.host=mmt-database"
