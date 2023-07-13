@@ -5,6 +5,10 @@ if [ "$EUID" -ne 0 ]
 	exit
 fi
 
+MMT_DPI_VERSION=project-sancus
+MMT_SECURITY_VERSION=project-sancus
+MMT_PROBE_VERSION=project-sancus
+
 # exit immediately when having error
 set -e
 
