@@ -17,11 +17,11 @@ spec:
       - name: mmt-operator
         image: ghcr.io/montimage/mmt-operator:latest
         imagePullPolicy: Always
+        command: ["" ]
         args: 
         - "-Xprobe_analysis_mode=online"
         - "-Xdatabase_server.host=mmt-database"
         - "-Xinput_mode=kafka"
-        - "-Xkafka_input={}"
         - "-Xkafka_input.host=kafka"
         - "-Xkafka_input.port=9092"
         - "-Xkafka_input.topic=sid-reports"
