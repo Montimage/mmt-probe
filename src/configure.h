@@ -69,7 +69,10 @@ typedef struct input_source_conf_struct{
 
 	//input source for PCAP online mode (interface name) and for offline mode (pcap name), however for DPDK its interface port number
 	char *input_source;
-	uint16_t snap_len;
+	uint16_t snap_len;    //pcap param
+	uint32_t buffer_size; //pcap param
+	uint32_t timeout;     //pcap param
+
 	IF_ENABLE_DPDK( char *dpdk_options; )
 }input_source_conf_t;
 
