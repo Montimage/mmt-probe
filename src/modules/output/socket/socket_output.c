@@ -116,11 +116,11 @@ bool socket_output_send( socket_output_t *context, const char *msg ){
 	bool ret = false;
 	if( context->unix_socket_fd != NO_SOCKET_FD ){
 		ret |= send( context->unix_socket_fd, msg, len, MSG_DONTWAIT ) != -1;
-		send( context->unix_socket_fd, "\n", 1, MSG_DONTWAIT );
+		//send( context->unix_socket_fd, "\n", 1, MSG_DONTWAIT );
 	}
 	if( context->internet_socket_fd != NO_SOCKET_FD ){
 		ret |= send( context->internet_socket_fd, msg, len, MSG_DONTWAIT ) != -1;
-		send( context->internet_socket_fd, "\n", 1, MSG_DONTWAIT );
+		//send( context->internet_socket_fd, "\n", 1, MSG_DONTWAIT );
 	}
 	return ret;
 }
