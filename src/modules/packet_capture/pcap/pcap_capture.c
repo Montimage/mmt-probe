@@ -443,20 +443,29 @@ void pcap_capture_start( probe_context_t *context ){
 					errbuf);
 
 		//set IP packet size
-		ret = pcap_set_snaplen( pcap, context->config->input->snap_len );
-		ASSERT( ret == 0,
+		if( context->config->input->snap_len ){
+			log_write( LOG_DEBUG, "Set snap-len for pcap capture: %"PRIu16, context->config->input->snap_len);
+			ret = pcap_set_snaplen( pcap, context->config->input->snap_len );
+			ASSERT( ret == 0,
 				"Cannot set snaplen for pcap capture: %d", context->config->input->snap_len );
+		}
 		//put NIC to promiscuous mode to capture any packets
 		ret = pcap_set_promisc( pcap, 1);
 		ASSERT( ret == 0 ,
 				"Cannot put '%s' NIC to promiscuous mode",
 					context->config->input->input_source );
-		ret = pcap_set_timeout( pcap, 0 );
-		ASSERT( ret == 0, "Cannot set zero timeout for pcap capture");
+		if( context->config->input->timeout ){
+			log_write( LOG_DEBUG, "Set timeout for pcap capture: %"PRIu32, context->config->input->timeout);
+			ret = pcap_set_timeout( pcap, context->config->input->timeout);
+			ASSERT( ret == 0, "Cannot set zero timeout for pcap capture: %"PRIu32, context->config->input->timeout);
+		}
 
 		//buffer size
-		ret = pcap_set_buffer_size(pcap, 500*1000*1000);
-		ASSERT( ret == 0, "Cannot set buffer for pcap capture");
+		if( context->config->input->buffer_size ){
+			log_write( LOG_DEBUG, "Set buffer-size for pcap capture: %"PRIu32, context->config->input->buffer_size);
+			ret = pcap_set_buffer_size(pcap, context->config->input->buffer_size);
+			ASSERT( ret == 0, "Cannot set buffer for pcap capture: %"PRIu32, context->config->input->buffer_size);
+		}
 
 		ret = pcap_activate(pcap);
 		ASSERT( ret == 0,

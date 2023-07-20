@@ -298,6 +298,8 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_INT_CB("mode", 0, CFGF_NONE, _conf_parse_input_mode),
 			CFG_STR("source", "", CFGF_NONE),
 			CFG_INT("snap-len", 65535, CFGF_NONE),
+			CFG_INT("buffer-size", 0, CFGF_NONE),
+			CFG_INT("timeout", 0, CFGF_NONE),
 			CFG_STR("dpdk-option", "", CFGF_NONE ),
 			CFG_END()
 	};
@@ -446,10 +448,9 @@ static inline input_source_conf_t * _parse_input_source( cfg_t *cfg ){
 	ret->capture_mode = PCAP_CAPTURE;
 #endif
 
-	ret->snap_len = cfg_getint( cfg, "snap-len" );
-
-	if( ret->snap_len == 0 )
-		ret->snap_len = UINT16_MAX;
+	ret->snap_len    = cfg_getint( cfg, "snap-len" );
+	ret->buffer_size = cfg_getint( cfg, "buffer-size" );
+	ret->timeout     = cfg_getint( cfg, "timeout" );
 
 	return ret;
 }
