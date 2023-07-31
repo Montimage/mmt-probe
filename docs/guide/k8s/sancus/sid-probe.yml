@@ -20,7 +20,7 @@ spec:
       containers:
       # MI probe
       - name: mmt-probe
-        image: ghcr.io/montimage/mmt-probe:v1.5.12-ncu-05
+        image: ghcr.io/montimage/mmt-probe:latest
         imagePullPolicy: Always
         env:
         - name: "MMT_SEC_5G_DOS_NGAP_INITIALUEMESSAGE_MS_LIMIT"
@@ -38,7 +38,7 @@ spec:
         - "-Xsecurity.enable=true"
         - "-Xsecurity.ignore-remain-flow=false"
         - "-Xsecurity.exclude-rules=0-99,108"
-        - "-Xsecurity.output-channel=kafka"
+        - "-Xsecurity.output-channel=stdout,kafka"
         - "-Xdump-pcap.enable=true" #dump pcap to files
         - "-Xdump-pcap.protocols=ip" #dump any IP packets
         - "-Xdump-pcap.period=5"
