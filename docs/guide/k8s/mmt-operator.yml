@@ -24,7 +24,7 @@ spec:
         - "-Xkafka_input={}"
         - "-Xkafka_input.host=kafka"
         - "-Xkafka_input.port=9092"
-        - "-Xkafka_input.topic=mmt-reports"
+        - "-Xkafka_input.topic=sid-reports"
         ports:
         - containerPort: 8080
         resources:
