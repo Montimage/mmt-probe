@@ -38,7 +38,7 @@ spec:
         - "-Xsecurity.enable=true"
         - "-Xsecurity.ignore-remain-flow=false"
         - "-Xsecurity.exclude-rules=0-99,108"
-        - "-Xsecurity.output-channel=stdout,kafka"
+        - "-Xsecurity.output-channel=kafka"
         - "-Xdump-pcap.enable=true" #dump pcap to files
         - "-Xdump-pcap.protocols=ip" #dump any IP packets
         - "-Xdump-pcap.period=5"
