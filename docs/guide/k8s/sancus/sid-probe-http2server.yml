@@ -38,7 +38,7 @@ spec:
         - "-Xsecurity.enable=true"
         - "-Xsecurity.ignore-remain-flow=false"
         - "-Xsecurity.exclude-rules=0-99,108"
-        - "-Xsecurity.output-channel=kafka"
+        - "-Xsecurity.output-channel=stdout,kafka"
         - "-Xdump-pcap.enable=true" #dump pcap to files
         - "-Xdump-pcap.protocols=ip" #dump any IP packets
         - "-Xdump-pcap.period=5"
@@ -69,3 +69,8 @@ spec:
         volumeMounts:
         - mountPath: /app/Pcap_Folder
           name: share-disk
+      
+      - name: http2
+        image: franckccv/http2_server:latest
+        ports:
+        - containerPort: 8000 

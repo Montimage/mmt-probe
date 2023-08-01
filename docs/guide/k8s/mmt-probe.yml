@@ -28,7 +28,7 @@ spec:
         - "-Xkafka-output.enable=true"
         - "-Xkafka-output.hostname=kafka" #you can replace "kafka" within its IP address
         - "-Xkafka-output.port=9092"
-        - "-Xkafka-output.topic=mmt-reports"
+        - "-Xkafka-output.topic=sid-reports"
         - "-Xsession-report.output-channel=kafka"
         - "-Xsecurity.enable=true"
         - "-Xsecurity.ignore-remain-flow=DPI"

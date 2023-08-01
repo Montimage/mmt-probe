@@ -78,7 +78,7 @@ static void _radius_code_handle(const ipacket_t *ipacket, attribute_t *attribute
 	int offset = 0;
 		//format id, timestamp, msg code, IP address, MSISDN, Acct_session_id, Acct_status_type, IMSI, IMEI, GGSN IP, SGSN IP, SGSN-MCC-MNC, RAT type, Charging class, LAC id, Cell id
 //			"%i,\"%s\",\"%s\",%i,\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",%i,\"%s\",%i,%i",
-	STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
+	STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_REPORT_MESSAGE, ",",
 			__INT( *radius_code ),
 			__STR( (framed_ip_address != NULL)   ? f_ipv4                 : "" ),
 			__STR( (calling_station_id != NULL)  ? &calling_station_id[4] : "" ),

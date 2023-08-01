@@ -303,6 +303,7 @@ typedef struct probe_conf_struct{
 	bool is_enable_proto_no_session_report; //report informations about fragmentation
 	bool is_enable_ip_defragmentation;      //perform de-fragmentation
 	bool is_enable_tcp_reassembly;
+	bool is_enable_report_version_info;
 
 	uint32_t stack_type; //dpi stack type
 	uint32_t stack_offset;

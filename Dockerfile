@@ -9,7 +9,7 @@ ARG MMT_SECURITY_VERSION=main
 ENV DEBIAN_FRONTEND=noninteractive
 
 COPY ./script/install-from-source.sh .
-RUN ./install-from-source.sh
+RUN  ./install-from-source.sh
 
 ENTRYPOINT ["mmt-probe"]
 #default parameter

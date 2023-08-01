@@ -335,6 +335,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_BOOL("enable-ip-fragmentation-report", false, CFGF_NONE),
 			CFG_BOOL("enable-ip-defragmentation", false, CFGF_NONE),
 			CFG_BOOL("enable-tcp-reassembly", false, CFGF_NONE),
+			CFG_BOOL("enable-report-version-info", true, CFGF_NONE),
 
 			CFG_INT("thread-nb", 1, CFGF_NONE),
 			CFG_INT("thread-queue", 0, CFGF_NONE),
@@ -356,13 +357,13 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 	cfg_t *cfg = cfg_init(opts, CFGF_NONE);
 	switch (cfg_parse(cfg, filename)) {
 	case CFG_FILE_ERROR:
-		log_write(LOG_ERR, "Error: configuration file '%s' could not be read: %s\n", filename, strerror(errno));
+		log_write(LOG_ERR, "Configuration file '%s' could not be read: %s\n", filename, strerror(errno));
 		cfg_free( cfg );
 		return NULL;
 	case CFG_SUCCESS:
 		break;
 	case CFG_PARSE_ERROR:
-		log_write(LOG_ERR, "Error: configuration file '%s' could not be parsed.\n", filename );
+		log_write(LOG_ERR, "Configuration file '%s' could not be parsed.\n", filename );
 		cfg_free( cfg );
 		return NULL;
 	}
@@ -1168,6 +1169,7 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 	conf->is_enable_ip_fragmentation_report  = cfg_getbool(cfg, "enable-ip-fragmentation-report");
 	conf->is_enable_ip_defragmentation       = cfg_getbool(cfg, "enable-ip-defragmentation");
 	conf->is_enable_tcp_reassembly           = cfg_getbool(cfg, "enable-tcp-reassembly");
+	conf->is_enable_report_version_info      = cfg_getbool(cfg, "enable-report-version-info");
 
 	conf->input = _parse_input_source( cfg );
 

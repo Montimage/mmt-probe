@@ -136,7 +136,8 @@ DECLARE_CONF_ATT(
 			&conf->is_enable_proto_no_session_report, BOOL),
 	(CONF_ATT__ENABLE_IP_FRAGEMENTATION_REPORT,     "enable-ip-fragmentation-report",
 			&conf->is_enable_ip_fragmentation_report, BOOL ),
-
+	(CONF_ATT__ENABLE_REPORT_VERSION_INFO, "enable-report-version-info",
+				&conf->is_enable_report_version_info, BOOL ),
 	(CONF_ATT__ENABLE_IP_DEFRAGEMENTATION, "enable-ip-defragmentation", &conf->is_enable_ip_defragmentation, BOOL ),
 
 #ifdef TCP_REASSEMBLY_MODULE

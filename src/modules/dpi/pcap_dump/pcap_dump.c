@@ -93,6 +93,8 @@ FILE * _create_pcap_file(const char * path, int linktype, int thiszone, uint16_t
     hdr.linktype = linktype;
 
     fwrite( &hdr, sizeof( hdr ), 1, file );
+
+    log_write( LOG_INFO, "created file %s to dump packets into it", path );
     return file;
 }
 
@@ -231,6 +233,7 @@ int pcap_dump_callback_on_receiving_packet(const ipacket_t * ipacket, pcap_dump_
 							strerror( errno )
 					);
 					return 0;
+
 				} else
 					//if we created successfully new file
 					// => we will check if number of created files is bigger than the given number

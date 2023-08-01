@@ -200,7 +200,7 @@ int output_write_report( output_t *output, output_channel_conf_t channels,
 
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 	int offset = 0;
-	STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
+	STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_REPORT_MESSAGE, ",",
 			__INT( report_type ),
 			__INT( output->probe_id ),
 			__STR( output->input_src ),

@@ -34,12 +34,17 @@ static inline void log_open(){
 /**
  * Write log to both syslog and screen
  */
+
+//as we use LOG_PERROR which allows syslog to write to stderr also
+// => we do not need to use fprintf any more
+#define log_write_dual log_write
+/*
 #define log_write_dual( type, format, ... )                                 \
 	do{                                                                     \
 		log_write( type, format,## __VA_ARGS__ );                           \
 		fprintf( stderr, format"\n",## __VA_ARGS__ );                       \
 	}while( 0 )
-
+*/
 
 /**
  * A macro for outputting message only when debugging
