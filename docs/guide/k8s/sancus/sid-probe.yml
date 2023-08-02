@@ -69,11 +69,3 @@ spec:
         volumeMounts:
         - mountPath: /app/Pcap_Folder
           name: share-disk
----
-# 2. service
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app: sid-probe
-  name: sid-probe
