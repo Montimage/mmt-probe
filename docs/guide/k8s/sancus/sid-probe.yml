@@ -28,7 +28,7 @@ spec:
         - name: "MMT_SEC_5G_DOS_HTTP2_MS_LIMIT"
           value: "80"  #allow max 80 http2 requests having method == 131 or 130, or type == 8
         args: 
-        - "-ieth0"
+        - "-iveth0"
         - "-Xprobe-id=5"
         - "-Xkafka-output.enable=true"
         - "-Xkafka-output.hostname=kafka" #you can replace "kafka" within its IP address
