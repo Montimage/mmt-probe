@@ -16,7 +16,6 @@ spec:
       volumes:
       - name: share-disk
         emptyDir: {}
-      hostNetwork: true
       containers:
       # MI probe
       - name: mmt-probe
