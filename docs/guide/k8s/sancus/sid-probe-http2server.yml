@@ -54,8 +54,8 @@ spec:
           name: share-disk
 
       #CERT IDS
-      - name: cert-ids-light
-        image: certhsancus/idslight:latest
+      - name: cert-ids
+        image: certhsancus/ids:latest
         imagePullPolicy: Always
         args:
         - "Pcap_Folder"
