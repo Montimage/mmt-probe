@@ -43,6 +43,8 @@ spec:
         - "-Xdump-pcap.period=5"
         - "-Xdump-pcap.retain-files=10"
         - "-Xdump-pcap.output-dir=/opt/mmt/probe/pcaps/"
+         - "-Xoutput.format=json"
+
         securityContext:
           privileged: true
         resources:
