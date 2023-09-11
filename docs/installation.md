@@ -200,7 +200,7 @@ This option enables reconstruction of tcp payload
 Add all modules in probe. 
 
 ```bash
-make ALL_MODULE compile
+make ALL_MODULES compile
 ```
 
 #### Compile actions
