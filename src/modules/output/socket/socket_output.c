@@ -112,15 +112,14 @@ socket_output_t* socket_output_init( const socket_output_conf_t *config ){
 }
 
 bool socket_output_send( socket_output_t *context, const char *msg ){
-	size_t len = strlen( msg );
+	char m[MAX_LENGTH_REPORT_MESSAGE];
+	size_t len = snprintf(m, MAX_LENGTH_REPORT_MESSAGE, "%s\n", msg);
 	bool ret = false;
 	if( context->unix_socket_fd != NO_SOCKET_FD ){
-		ret |= send( context->unix_socket_fd, msg, len, MSG_DONTWAIT ) != -1;
-		//send( context->unix_socket_fd, "\n", 1, MSG_DONTWAIT );
+		ret |= send( context->unix_socket_fd, m, len, MSG_WAITALL ) != -1;
 	}
 	if( context->internet_socket_fd != NO_SOCKET_FD ){
-		ret |= send( context->internet_socket_fd, msg, len, MSG_DONTWAIT ) != -1;
-		//send( context->internet_socket_fd, "\n", 1, MSG_DONTWAIT );
+		ret |= send( context->internet_socket_fd, m, len, MSG_DONTWAIT ) != -1;
 	}
 	return ret;
 }
