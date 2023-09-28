@@ -116,10 +116,12 @@ bool socket_output_send( socket_output_t *context, const char *msg ){
 	size_t len = snprintf(m, MAX_LENGTH_REPORT_MESSAGE, "%s\n", msg);
 	bool ret = false;
 	if( context->unix_socket_fd != NO_SOCKET_FD ){
-		ret |= send( context->unix_socket_fd, m, len, MSG_WAITALL ) != -1;
+		//ret |= send( context->unix_socket_fd, m, len, MSG_WAITALL ) != -1;
+		ret |= write( context->unix_socket_fd, m, len ) != -1;
 	}
 	if( context->internet_socket_fd != NO_SOCKET_FD ){
-		ret |= send( context->internet_socket_fd, m, len, MSG_DONTWAIT ) != -1;
+		//ret |= send( context->internet_socket_fd, m, len, MSG_DONTWAIT ) != -1;
+		ret |= write( context->internet_socket_fd, m, len ) != -1;
 	}
 	return ret;
 }
