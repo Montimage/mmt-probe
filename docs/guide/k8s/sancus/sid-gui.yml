@@ -24,10 +24,7 @@ spec:
         - "-Xkafka_input.host=kafka"
         - "-Xkafka_input.port=9092"
         - "-Xkafka_input.topic=sid-reports"
-        - "-Xmaster_node.host=localhost"
-        - "-Xmaster_node.password=123"
-        - "-Xmaster_node.port=22"
-        - "-Xmaster_node.username=trial"
+
         ports:
         - containerPort: 8080
         resources:
