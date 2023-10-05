@@ -71,3 +71,20 @@ spec:
         volumeMounts:
         - mountPath: /app/Pcap_Folder
           name: share-disk
+        #K3Y IDS
+      - name: k3y-ids
+        image: registry.gitlab.com/k3y/pfcp-ids:latest
+        imagePullPolicy: Always
+        args:
+        - "PFCP_TCP_IDS_Sensor.py"
+        - "sid-reports" #topic
+        - "kafka:9092"   #hostname:port of kafkabus
+        - "/app/bin/pcaps"  #ABSOLUTE path for the watchdog directory
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - mountPath: /app/bin/pcaps
+          name: share-disk
