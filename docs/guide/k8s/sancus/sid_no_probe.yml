@@ -1,0 +1,54 @@
+# 1. deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sid-probe
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sid-probe
+  template:
+    metadata:
+      labels:
+        app: sid-probe
+    spec:
+      volumes:
+      - name: share-disk
+        emptyDir: {}
+      containers:
+
+
+      #CERT IDS
+      - name: cert-ids
+        image: certhsancus/ids:latest
+        imagePullPolicy: Always
+        args:
+        - "Pcap_Folder"
+        - "kafka:9092"   #hostname:port of kafkabus
+        - "sid-reports"  #topic to send out reports
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - mountPath: /app/Pcap_Folder
+          name: share-disk
+        #K3Y IDS
+      - name: k3y-ids
+        image: registry.gitlab.com/k3y/pfcp-ids:latest
+        imagePullPolicy: Always
+        args:
+        - "PFCP_TCP_IDS_Sensor.py"
+        - "sid-reports" #topic
+        - "kafka:9092"   #hostname:port of kafkabus
+        - "/app/bin/pcaps"  #ABSOLUTE path for the watchdog directory
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - mountPath: /app/bin/pcaps
+          name: share-disk
