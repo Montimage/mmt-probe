@@ -1,3 +1,4 @@
+# 1. deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -13,88 +14,77 @@ spec:
         app: sid-probe
     spec:
       volumes:
-        - name: share-disk
-          emptyDir: {}
+      - name: share-disk
+        emptyDir: {}
       containers:
-        - name: mmt-probe
-          image: "ghcr.io/montimage/mmt-probe:v1.5.12-ncu-05"
-          imagePullPolicy: Always
-          env:
-            - name: MMT_SEC_5G_DOS_NGAP_INITIALUEMESSAGE_MS_LIMIT
-              value: "100"
-            - name: MMT_SEC_5G_DOS_HTTP2_MS_LIMIT
-              value: "80"
-          args:
-            - "-ieth0"
-            - "-Xprobe-id=5"
-            - "-Xkafka-output.enable=true"
-            - "-Xkafka-output.hostname=kafka"
-            - "-Xkafka-output.port=9092"
-            - "-Xkafka-output.topic=sid-reports"
-            - "-Xsession-report.output-channel=kafka"
-            - "-Xsecurity.enable=true"
-            - "-Xsecurity.ignore-remain-flow=false"
-            - "-Xsecurity.exclude-rules=0-99,108"
-            - "-Xsecurity.output-channel=kafka"
-            - "-Xdump-pcap.enable=true"
-            - "-Xdump-pcap.protocols=ip"
-            - "-Xdump-pcap.period=5"
-            - "-Xdump-pcap.retain-files=10"
-            - "-Xdump-pcap.output-dir=/opt/mmt/probe/pcaps/"
-            - "-Xoutput.format=json"
-          securityContext:
-            privileged: true
-          resources:
-            requests:
-              memory: 512Mi
-              cpu: 500m
-          volumeMounts:
-            - mountPath: /opt/mmt/probe/pcaps/
-              name: share-disk
-        - name: filter
-          image: "franckccv/filter_sid:1.0"
-          imagePullPolicy: Always
-          env:
-            - name: reduction_factor
-              value: "10"
-            - name: kafka_ip
-              value: "kafka"
-            - name: kafka_port
-              value: "9092"
-            - name: input_topic
-              value: "sid-reports"
-            - name: output_topic
-          value: "filter-reports"
-          resources:
-            requests:
-              memory: "512Mi"
-              cpu: "500m"
-        - name: cert-ids
-          image: "certhsancus/ids:latest"
-          imagePullPolicy: Always
-          args:
-            - "Pcap_Folder"
-            - "kafka:9092"
-            - "sid-reports"
-          resources:
-            requests:
-              memory: "512Mi"
-              cpu: "500m"
-          volumeMounts:
-            - mountPath: /app/Pcap_Folder
-              name: share-disk
-        - name: k3y-ids
-          image: "registry.gitlab.com/k3y/pfcp-ids:latest"
-          imagePullPolicy: Always
-          args:
-            - "PFCP_TCP_IDS_Sensor.py"
-            - "sid-reports"
-            - "kafka:9092"
-            - "/app/bin/pcaps"
-          resources:
-            requests:
-              memory: 512Mi
-              cpu: 500m
-          volumeMounts:
-            - mountPath: /app/bin/pcaps
-              name: share-disk
+      # MI probe
+      - name: mmt-probe
+        image: ghcr.io/montimage/mmt-probe:v1.5.12-ncu-05
+        imagePullPolicy: Always
+        env:
+        - name: "MMT_SEC_5G_DOS_NGAP_INITIALUEMESSAGE_MS_LIMIT"
+          value: "100" #allow max 100 InitialUEMessage during 1 millisecond
+        - name: "MMT_SEC_5G_DOS_HTTP2_MS_LIMIT"
+          value: "80"  #allow max 80 http2 requests having method == 131 or 130, or type == 8
+        args: 
+        - "-ieth0"
+        - "-Xprobe-id=5"
+        - "-Xkafka-output.enable=true"
+        - "-Xkafka-output.hostname=kafka" #you can replace "kafka" within its IP address
+        - "-Xkafka-output.port=9092"
+        - "-Xkafka-output.topic=sid-reports"
+        - "-Xsession-report.output-channel=kafka"
+        - "-Xsecurity.enable=true"
+        - "-Xsecurity.ignore-remain-flow=false"
+        - "-Xsecurity.exclude-rules=0-99,108"
+        - "-Xsecurity.output-channel=kafka"
+        - "-Xdump-pcap.enable=true" #dump pcap to files
+        - "-Xdump-pcap.protocols=ip" #dump any IP packets
+        - "-Xdump-pcap.period=5"
+        - "-Xdump-pcap.retain-files=10"
+        - "-Xdump-pcap.output-dir=/opt/mmt/probe/pcaps/"
+        - "-Xoutput.format=json"
+
+        securityContext:
+          privileged: true
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - mountPath: /opt/mmt/probe/pcaps/
+          name: share-disk
+
+      #CERT IDS
+      - name: cert-ids
+        image: certhsancus/ids:latest
+        imagePullPolicy: Always
+        args:
+        - "Pcap_Folder"
+        - "kafka:9092"   #hostname:port of kafkabus
+        - "sid-reports"  #topic to send out reports
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - mountPath: /app/Pcap_Folder
+          name: share-disk
+        #K3Y IDS
+      - name: k3y-ids
+        image: registry.gitlab.com/k3y/pfcp-ids:latest
+        imagePullPolicy: Always
+        args:
+        - "PFCP_TCP_IDS_Sensor.py"
+        - "sid-reports" #topic
+        - "kafka:9092"   #hostname:port of kafkabus
+        - "/app/bin/pcaps"  #ABSOLUTE path for the watchdog directory
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - mountPath: /app/bin/pcaps
+          name: share-disk
