@@ -73,13 +73,13 @@ spec:
           image: "certhsancus/ids:latest"
           imagePullPolicy: Always
           args:
-            - Pcap_Folder
+            - "Pcap_Folder"
             - "kafka:9092"
-            - sid-reports
+            - "sid-reports"
           resources:
             requests:
-              memory: 512Mi
-              cpu: 500m
+              memory: "512Mi"
+              cpu: "500m"
           volumeMounts:
             - mountPath: /app/Pcap_Folder
               name: share-disk
@@ -87,10 +87,10 @@ spec:
           image: "registry.gitlab.com/k3y/pfcp-ids:latest"
           imagePullPolicy: Always
           args:
-            - PFCP_TCP_IDS_Sensor.py
-            - sid-reports
+            - "PFCP_TCP_IDS_Sensor.py"
+            - "sid-reports"
             - "kafka:9092"
-            - /app/bin/pcaps
+            - "/app/bin/pcaps"
           resources:
             requests:
               memory: 512Mi
