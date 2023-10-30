@@ -57,7 +57,7 @@ spec:
   - name: filter
         image:   franckccv/filter_sid:1.0
         imagePullPolicy: Always
-  env:
+        env:
         - name: "reduction_factor"
           value: "10" #divide output messages by 10
         - name: "kafka_ip"
