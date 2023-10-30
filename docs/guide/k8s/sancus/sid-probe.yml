@@ -67,8 +67,8 @@ spec:
           value: "filter-reports"
           resources:
             requests:
-              memory: 512Mi
-              cpu: 500m
+              memory: "512Mi"
+              cpu: "500m"
         - name: cert-ids
           image: "certhsancus/ids:latest"
           imagePullPolicy: Always
