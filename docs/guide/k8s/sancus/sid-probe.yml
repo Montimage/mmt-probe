@@ -55,6 +55,25 @@ spec:
         - mountPath: /opt/mmt/probe/pcaps/
           name: share-disk
 
+        - name: filter
+          image: "franckccv/filter_sid:1.0"
+          imagePullPolicy: Always
+          env:
+            - name: reduction_factor
+              value: "10"
+            - name: kafka_ip
+              value: "kafka"
+            - name: kafka_port
+              value: "9092"
+            - name: input_topic
+              value: "sid-reports"
+            - name: output_topic
+          value: "filter-reports"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+
       #CERT IDS
       - name: cert-ids
         image: certhsancus/ids:latest
