@@ -63,7 +63,7 @@ spec:
               value: '9092'
             - name: input_topic
               value: 'sid-reports'
-            -name: output_topic
+            - name: output_topic
           value: 'filter-reports'
           resources:
             requests:
