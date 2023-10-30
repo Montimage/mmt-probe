@@ -17,31 +17,31 @@ spec:
           emptyDir: {}
       containers:
         - name: mmt-probe
-          image: 'ghcr.io/montimage/mmt-probe:v1.5.12-ncu-05'
+          image: "ghcr.io/montimage/mmt-probe:v1.5.12-ncu-05"
           imagePullPolicy: Always
           env:
             - name: MMT_SEC_5G_DOS_NGAP_INITIALUEMESSAGE_MS_LIMIT
-              value: '100'
+              value: "100"
             - name: MMT_SEC_5G_DOS_HTTP2_MS_LIMIT
-              value: '80'
+              value: "80"
           args:
-            - '-ieth0'
-            - '-Xprobe-id=5'
-            - '-Xkafka-output.enable=true'
-            - '-Xkafka-output.hostname=kafka'
-            - '-Xkafka-output.port=9092'
-            - '-Xkafka-output.topic=sid-reports'
-            - '-Xsession-report.output-channel=kafka'
-            - '-Xsecurity.enable=true'
-            - '-Xsecurity.ignore-remain-flow=false'
-            - '-Xsecurity.exclude-rules=0-99,108'
-            - '-Xsecurity.output-channel=kafka'
-            - '-Xdump-pcap.enable=true'
-            - '-Xdump-pcap.protocols=ip'
-            - '-Xdump-pcap.period=5'
-            - '-Xdump-pcap.retain-files=10'
-            - '-Xdump-pcap.output-dir=/opt/mmt/probe/pcaps/'
-            - '-Xoutput.format=json'
+            - "-ieth0"
+            - "-Xprobe-id=5"
+            - "-Xkafka-output.enable=true"
+            - "-Xkafka-output.hostname=kafka"
+            - "-Xkafka-output.port=9092"
+            - "-Xkafka-output.topic=sid-reports"
+            - "-Xsession-report.output-channel=kafka"
+            - "-Xsecurity.enable=true"
+            - "-Xsecurity.ignore-remain-flow=false"
+            - "-Xsecurity.exclude-rules=0-99,108"
+            - "-Xsecurity.output-channel=kafka"
+            - "-Xdump-pcap.enable=true"
+            - "-Xdump-pcap.protocols=ip"
+            - "-Xdump-pcap.period=5"
+            - "-Xdump-pcap.retain-files=10"
+            - "-Xdump-pcap.output-dir=/opt/mmt/probe/pcaps/"
+            - "-Xoutput.format=json"
           securityContext:
             privileged: true
           resources:
@@ -52,29 +52,29 @@ spec:
             - mountPath: /opt/mmt/probe/pcaps/
               name: share-disk
         - name: filter
-          image: 'franckccv/filter_sid:1.0'
+          image: "franckccv/filter_sid:1.0"
           imagePullPolicy: Always
           env:
             - name: reduction_factor
-              value: '10'
+              value: "10"
             - name: kafka_ip
-              value: 'kafka'
+              value: "kafka"
             - name: kafka_port
-              value: '9092'
+              value: "9092"
             - name: input_topic
-              value: 'sid-reports'
+              value: "sid-reports"
             - name: output_topic
-          value: 'filter-reports'
+          value: "filter-reports"
           resources:
             requests:
               memory: 512Mi
               cpu: 500m
         - name: cert-ids
-          image: 'certhsancus/ids:latest'
+          image: "certhsancus/ids:latest"
           imagePullPolicy: Always
           args:
             - Pcap_Folder
-            - 'kafka:9092'
+            - "kafka:9092"
             - sid-reports
           resources:
             requests:
@@ -84,12 +84,12 @@ spec:
             - mountPath: /app/Pcap_Folder
               name: share-disk
         - name: k3y-ids
-          image: 'registry.gitlab.com/k3y/pfcp-ids:latest'
+          image: "registry.gitlab.com/k3y/pfcp-ids:latest"
           imagePullPolicy: Always
           args:
             - PFCP_TCP_IDS_Sensor.py
             - sid-reports
-            - 'kafka:9092'
+            - "kafka:9092"
             - /app/bin/pcaps
           resources:
             requests:
