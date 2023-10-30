@@ -58,13 +58,13 @@ spec:
             - name: reduction_factor
               value: '10'
             - name: kafka_ip
-              value: kafka
+              value: 'kafka'
             - name: kafka_port
               value: '9092'
             - name: input_topic
-              value: sid-reports
-              '-name': output_topic
-          value: filter-reports
+              value: 'sid-reports'
+            -name: output_topic
+          value: 'filter-reports'
           resources:
             requests:
               memory: 512Mi
