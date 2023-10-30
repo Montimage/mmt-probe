@@ -54,6 +54,7 @@ spec:
         volumeMounts:
         - mountPath: /opt/mmt/probe/pcaps/
           name: share-disk
+      #Filter
       - name: filter
         image:   franckccv/filter_sid:1.0
         imagePullPolicy: Always
