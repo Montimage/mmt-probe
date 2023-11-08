@@ -129,7 +129,8 @@ static void _gtp_ip_src_handle(const ipacket_t * ipacket, attribute_t * attribut
 		return;
 
 	session_gtp_stat_t *gtp_data = _get_gtp_session_data(ipacket, true);
-
+	if( !gtp_data )
+		return;
 	_gtp_update_ip( gtp_data, ipacket );
 
 	_gtp_update_teid( gtp_data, ipacket );
