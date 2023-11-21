@@ -271,7 +271,20 @@ static void _print_security_verdict(
 
 	int i;
 	struct timeval ts;
-	mmt_sec_decode_timeval(timestamp, &ts );
+	gettimeofday(&ts, NULL);
+ 	struct tm *timeinfo;
+   	time_t rawtime = ts.tv_sec;
+  	timeinfo = localtime(&rawtime);
+
+    	// Format the time as a string
+  	char buffer[25]; // Adjust the size as needed
+	strftime(buffer, sizeof(buffer), "%H:%M:%S", timeinfo);
+
+   	 // Append the milliseconds component
+	sprintf(buffer + strlen(buffer), ":%03ld", ts.tv_usec / 1000);
+	printf("Timestamp detection %s\n",buffer);
+
+
 
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 	int offset = 0;
