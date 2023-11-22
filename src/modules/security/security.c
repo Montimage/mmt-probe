@@ -270,10 +270,12 @@ static void _print_security_verdict(
 	const char *exec_trace  = mmt_convert_execution_trace_to_json_string( trace, rule );
 
 	int i;
-	struct timeval ts;
-	gettimeofday(&ts, NULL);
+	struct timeval ts1;
+
+
+	gettimeofday(&ts1, NULL);
  	struct tm *timeinfo;
-   	time_t rawtime = ts.tv_sec;
+   	time_t rawtime = ts1.tv_sec;
   	timeinfo = localtime(&rawtime);
 
     	// Format the time as a string
@@ -281,11 +283,11 @@ static void _print_security_verdict(
 	strftime(buffer, sizeof(buffer), "%H:%M:%S", timeinfo);
 
    	 // Append the milliseconds component
-	sprintf(buffer + strlen(buffer), ":%03ld", ts.tv_usec / 1000);
+	sprintf(buffer + strlen(buffer), ":%03ld", ts1.tv_usec / 1000);
 	printf("Timestamp detection %s\n",buffer);
 
-
-
+	struct timeval ts;
+	mmt_sec_decode_timeval(timestamp, &ts );
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 	int offset = 0;
 	STRING_BUILDER_WITH_SEPARATOR( offset, message, sizeof( message ), ",",
