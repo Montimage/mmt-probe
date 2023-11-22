@@ -19,7 +19,7 @@ spec:
       containers:
       # MI probe
       - name: mmt-probe
-        image: ghcr.io/montimage/mmt-probe:v1.5.12-ncu-10
+        image: ghcr.io/montimage/mmt-probe:v1.5.12-ncu-11
         imagePullPolicy: Always
         env:
         - name: "MMT_SEC_5G_DOS_NGAP_INITIALUEMESSAGE_MS_LIMIT"
