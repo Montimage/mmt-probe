@@ -19,7 +19,7 @@ spec:
       containers:
       # MI probe
       - name: mmt-probe
-        image: ghcr.io/montimage/mmt-probe:v1.5.12-ncu-09
+        image: ghcr.io/montimage/mmt-probe:v1.5.12-ncu-10
         imagePullPolicy: Always
         env:
         - name: "MMT_SEC_5G_DOS_NGAP_INITIALUEMESSAGE_MS_LIMIT"
@@ -54,25 +54,6 @@ spec:
         volumeMounts:
         - mountPath: /opt/mmt/probe/pcaps/
           name: share-disk
-
-        - name: filter
-          image: "franckccv/filter_sid:1.0"
-          imagePullPolicy: Always
-          env:
-            - name: reduction_factor
-              value: "10"
-            - name: kafka_ip
-              value: "kafka"
-            - name: kafka_port
-              value: "9092"
-            - name: input_topic
-              value: "sid-reports"
-            - name: output_topic
-          value: "filter-reports"
-          resources:
-            requests:
-              memory: "512Mi"
-              cpu: "500m"
 
       #CERT IDS
       - name: cert-ids
