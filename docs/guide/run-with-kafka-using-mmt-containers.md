@@ -32,6 +32,10 @@ For any further configuration, please see [docs](https://github.com/Montimage/mm
 
 # All in one
 
+The following commands are to run MMT-Operator and MMT-Probe in a single machine. The communication between them is done via Kafka bus which is installed in the same machine. Since MMT-Operator uses MongoDB in localhost, we can ignore its parameter `-Xdatabase_server.host` as it is set by default. MMT-Probe analyses network traffic in `lo` NIC.
+
+We then use [5Greplay](https://5greplay.org) to inject traffic to a HTTP2 web server.
+
 ```bash
 # ensure that no process is listening on port 9092, 27017, 8080
 # e.g., sudo lsof -i :9092
