@@ -1,0 +1,27 @@
+<beginning>
+
+<embedded_functions><![CDATA[
+//any numeric values in mmt-security are "double" 
+// (even integer ou float, they are stored in a double)
+
+static bool em_coor(double pos){
+       bool result = false;
+       if(pos < 44 || pos > 48)
+              result = true;
+       return result;
+}
+
+double em_threshold(){
+	static double val = -1;
+}
+]]></embedded_functions>
+
+<property property_id="112" type_property="SECURITY" value="THEN"
+    description="Hoist position must be in range [44,48]">
+    <event event_id="1" value="COMPUTE" description="3 first markers"
+           boolean_expression="( true )"/>
+    <event event_id="2" value="COMPUTE" description="Check Hoist Position"
+           boolean_expression="(#em_coor(lps_data.MhPos))"/>
+ </property>
+
+</beginning>

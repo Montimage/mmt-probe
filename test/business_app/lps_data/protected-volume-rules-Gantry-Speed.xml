@@ -1,0 +1,30 @@
+<beginning>
+
+<embedded_functions><![CDATA[
+//any numeric values in mmt-security are "double" 
+// (even integer ou float, they are stored in a double)
+
+static bool em_coor(double pos, double spd_ref){
+       bool result = true;
+       if(((pos < 2) && (pos > 0)) || ((pos > 4) && (pos < 6))){
+              if (spd_ref!=0.0f){
+                     result = false;
+              }
+       }
+       return result;
+}
+
+double em_threshold(){
+	static double val = -1;
+}
+]]></embedded_functions>
+
+<property property_id="113" type_property="SECURITY" value="THEN"
+    description="Gantry approaching to protected volume with speed != 0">
+    <event event_id="1" value="COMPUTE" description="3 first markers"
+           boolean_expression="( true )"/>
+    <event event_id="2" value="COMPUTE" description="Negative acceleration not detected for Gantry"
+           boolean_expression="(#em_coor(lps_data.GaPos, lps_data.GaSpdRef))"/>
+ </property>
+
+</beginning>
