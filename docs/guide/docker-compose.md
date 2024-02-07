@@ -28,7 +28,7 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin 
 
 # Docker compose
 
-- create `docker-compose.yml` file with the following content, then run `sudo docker-compose up -d`
+- create `docker-compose.yml` file with the following content, then run `sudo docker compose up -d`
    - NOTE: we are monitoring `enp0s3` NIC
    - NOTE: we can access to mmt-operator at http://localhost:3000
 
