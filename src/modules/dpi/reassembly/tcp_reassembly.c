@@ -8,6 +8,7 @@
 #include <tcpip/mmt_tcpip.h>
 
 #include "../../../lib/memory.h"
+#include "../../../lib/malloc.h"
 
 struct tcp_reassembly_struct{
 	tcp_session_payload_callback_t callback;
