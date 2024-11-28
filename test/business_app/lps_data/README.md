@@ -2,16 +2,16 @@
 # 1. Download, compile, and install the lastest version of mmt-sdk, and mmt-security
 
 - MMT-SDK
-    + branch `proto-s1ap`
+    + branch `mmt-abb`
 
 - MMT-Security
-    + branch `5greplay`
+    + branch `mmt-abb`
     + Build: `make clean-all; make DEBUG=1; sudo make install`
 
 # 2. Download and compile mmt-probe
 
 - Code info:
-    + branch `replay`
+    + branch `mmt-abb`
 
 - Compile MMT-Probe: `make clean; make DEBUG STREAM_CAPTURE SECURITY_MODULE compile`
 
