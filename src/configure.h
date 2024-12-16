@@ -51,6 +51,8 @@ typedef struct kafka_output_conf_struct{
 	internet_service_address_t host;
 	//further setting for kafka connection, such as, TLS certificate, cipher type, ...
 	char *topic_name;
+	char *username;
+	char *password;
 }kafka_output_conf_t;
 
 typedef struct mongodb_output_conf_struct{

@@ -39,6 +39,21 @@ struct output_struct{
 	}modules;
 };
 
+/*
+ * Only for ocpp_data: 
+ * A dictionary-type struct to include the attack name if needed
+ */
+
+typedef struct attack_name_dict{
+    const char *key;
+    const char *value; // Use const char* for strings
+};
+
+const struct attack_name_dict attack_name[] = {
+    {"200", "cyberattack_ocpp16_dos_flooding_heartbeat"},
+    {NULL, NULL} // Sentinel value to indicate the end of the dictionary
+};
+
 
 //public API
 output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct *config, uint32_t probe_id, const char* input_src, bool is_multi_threads ){
@@ -162,6 +177,114 @@ static inline int _write( output_t *output, output_channel_conf_t channels, cons
 	return ret;
 }
 
+static inline void split_string_at_comma(const char *input, char **first_part, char **second_part) {
+    // Find the first occurrence of the comma
+    const char *comma_pos = strchr(input, ',');
+
+    if (comma_pos == NULL) {
+        // No comma found, return the whole input as the first part and the second part as empty
+        *first_part = strdup(input);
+        *second_part = strdup("");
+        return;
+    }
+
+    // Calculate the length of the first part
+    size_t first_len = comma_pos - input;
+
+    // Allocate memory and copy the first part
+    *first_part = (char *)malloc(first_len + 1);
+    strncpy(*first_part, input, first_len);
+    (*first_part)[first_len] = '\0';
+
+    // Allocate memory and copy the second part (excluding the comma)
+    *second_part = strdup(comma_pos + 1);
+}
+
+static inline char *extract_substring(const char *main_str, const char *start_sub, const char *end_sub) {
+    if (!main_str || !start_sub || !end_sub) {
+        // Handle null pointers
+        return NULL;
+    }
+
+    // Find the start of the start_sub in main_str
+    const char *start_pos = strstr(main_str, start_sub);
+    if (!start_pos) {
+        // start_sub not found, return NULL
+        return NULL;
+    }
+
+    // Move the pointer to the end of start_sub
+    start_pos += strlen(start_sub);
+
+    // Find the start of the end_sub in main_str after the start_pos
+    const char *end_pos = strstr(start_pos, end_sub);
+    if (!end_pos) {
+        // end_sub not found, return NULL
+        return NULL;
+    }
+
+    // Calculate the length of the substring to extract
+    size_t substring_length = end_pos - start_pos;
+
+    // Allocate memory for the result substring (+1 for null terminator)
+    char *result = (char *)malloc(substring_length + 1);
+    if (!result) {
+        // Memory allocation failed
+        return NULL;
+    }
+
+    // Copy the substring into the allocated memory
+    strncpy(result, start_pos, substring_length);
+    result[substring_length] = '\0'; // Null-terminate the string
+
+    return result;
+}
+
+static inline const char* get_attack_name(const char *key) {
+    for (int i = 0; attack_name[i].key != NULL; i++) {
+        if (strcmp(attack_name[i].key, key) == 0) {
+            return attack_name[i].value;
+        }
+    }
+    return ""; // Key not found
+}
+
+static const char* search_uuid_by_python_script(const char *python_path, const char *gml_file_path, const char *ip_addr){
+	char command[512];
+    char result[64];
+
+    // Format the command to call the Python script
+    snprintf(command, sizeof(command),
+             "bash -c 'cd /home/pqv/Documents/ocpp/ && source .venv/bin/activate && python3 %s %s %s'",
+             python_path, gml_file_path, ip_addr);
+
+    // Open a pipe to read the output of the Python script
+    FILE *fp = popen(command, "r");
+    if (fp == NULL) {
+        fprintf(stderr, "Failed to run Python script.\n");
+        return NULL;
+    }
+
+    // Read the prediction from the script output
+    if (fgets(result, sizeof(result), fp) != NULL) {
+		pclose(fp);
+		if (strlen(result) == 0) {
+			return "";
+		}
+        // Allocate memory for the result and copy the string
+		//printf("The input ip is %s found uuid is %s\n", ip_addr, result);
+        char *dynamic_result = malloc(strlen(result) + 1);
+        if (dynamic_result == NULL) {
+            fprintf(stderr, "Memory allocation failed.\n");
+            return NULL;
+        }
+        strcpy(dynamic_result, result);
+        return dynamic_result;
+    }
+	pclose(fp);
+	return NULL;
+}
+
 
 /*
  * This macro is used to synchronize only when using in multi-threading,
@@ -200,20 +323,53 @@ int output_write_report( output_t *output, output_channel_conf_t channels,
 
 	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 	int offset = 0;
-	STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_REPORT_MESSAGE, ",",
+	
+	//Need to handle ocpp_data specifically because the output format will be different for this case
+	char *first_part = NULL;
+	char *second_part = NULL;
+
+	if ( message_body != NULL ){
+		split_string_at_comma(message_body, &first_part, &second_part);
+	}
+
+	if (strcmp(first_part, "200") == 0)
+	{	
+		const char* src_ip = extract_substring(message_body, "\"ocpp_data.src_ip\",\"", "\"]");
+		const char* dst_ip = extract_substring(message_body, "\"ocpp_data.dst_ip\",\"", "\"]");
+		STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
+			__STR("9b497c8c-36be-4fd6-91ce-a6bffe5d935c"), //hard coded, which is from the file DYNABIC Event IDs
+			__STR(search_uuid_by_python_script("./aware4bc_gml_parser_simple.py", "./gml_attack_model_2024-12-13_11-06-20.gml", src_ip)),
+			__STR(search_uuid_by_python_script("./aware4bc_gml_parser_simple.py", "./gml_attack_model_2024-12-13_11-06-20.gml", dst_ip)),
+			__STR("simulated"),
+			__STR(get_attack_name(first_part)),
+			__TIME( ts )
+		);
+
+		if( strcmp(second_part, "") !=0 ){
+			message[ offset ++ ] = ',';
+			size_t len = strlen( second_part );
+			if( len > MAX_LENGTH_REPORT_MESSAGE - offset )
+				len = MAX_LENGTH_REPORT_MESSAGE - offset;
+			memcpy( message+offset, second_part, len );
+			message[ offset + len ] = '\0';
+		}
+	}else	//Other data used the same output format
+	{
+		STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
 			__INT( report_type ),
 			__INT( output->probe_id ),
 			__STR( output->input_src ),
 			__TIME( ts )
-	);
+		);
 
-	if( message_body != NULL ){
-		message[ offset ++ ] = ',';
-		size_t len = strlen( message_body );
-		if( len > MAX_LENGTH_REPORT_MESSAGE - offset )
-			len = MAX_LENGTH_REPORT_MESSAGE - offset;
-		memcpy( message+offset, message_body, len );
-		message[ offset + len ] = '\0';
+		if( message_body != NULL ){
+			message[ offset ++ ] = ',';
+			size_t len = strlen( message_body );
+			if( len > MAX_LENGTH_REPORT_MESSAGE - offset )
+				len = MAX_LENGTH_REPORT_MESSAGE - offset;
+			memcpy( message+offset, message_body, len );
+			message[ offset + len ] = '\0';
+		}
 	}
 
 	int ret = _write( output, channels, message, false );
