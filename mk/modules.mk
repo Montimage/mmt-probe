@@ -249,6 +249,7 @@ endif
 
 # to use DPDK to capture packet
 $(eval $(call EXPORT_TARGET,DPDK_CAPTURE))
+$(eval $(call EXPORT_TARGET,STREAM_CAPTURE))
 
 ifdef DPDK_CAPTURE
   $(info - Use DPDK to capture packet)
@@ -264,12 +265,18 @@ ifdef DPDK_CAPTURE
     $(error DPDK_CAPTURE and STATIC_LINK cannot be together)
   endif
 else
-  $(eval $(call _info,- Use PCAP to capture packet))
-  ifdef STATIC_LINK
-    MODULE_LIBS  += -l:libpcap.a
+  ifdef STREAM_CAPTURE
+    $(eval $(call _info,- Analyse text stream, line-by-line))
+    MODULE_FLAGS += -DSTREAM_MODULE
+    MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/stream/*.c)
   else
-    MODULE_LIBS  += -lpcap
+    $(eval $(call _info,- Use PCAP to capture packet))
+    ifdef STATIC_LINK
+      MODULE_LIBS  += -l:libpcap.a
+    else
+      MODULE_LIBS  += -lpcap
+    endif
+    MODULE_FLAGS += -DPCAP_MODULE
+    MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/pcap/*.c)
   endif
-  MODULE_FLAGS += -DPCAP_MODULE
-  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/pcap/*.c)
 endif

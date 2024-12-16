@@ -63,6 +63,12 @@
 	#define IF_ENABLE_DPDK( x )
 #endif
 
+#ifdef STREAM_MODULE
+	#define IF_ENABLE_STREAM( x ) x
+#else
+	#define IF_ENABLE_STREAM( x )
+#endif
+
 #ifdef SECURITY_MODULE
 	#define IF_ENABLE_SECURITY( x ) x
 #else

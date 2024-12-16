@@ -1,0 +1,5 @@
+{
+    "files.associations": {
+        "pcap_capture.h": "c"
+    }
+}

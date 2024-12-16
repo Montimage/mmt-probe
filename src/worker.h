@@ -63,6 +63,9 @@ struct worker_context_struct{
 	IF_ENABLE_DPDK(
 			struct dpdk_worker_context_struct *dpdk );
 
+	IF_ENABLE_STREAM(
+			struct stream_worker_context_struct *stream );
+
 
 	IF_ENABLE_SECURITY(
 			struct security_context_struct *security);
