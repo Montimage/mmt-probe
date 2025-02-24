@@ -1,0 +1,1 @@
+timestamp:2024-11-08 13:30:23.843829,protocol:HTTP,src_ip:192.168.62.50,dst_ip:192.168.64.51,src_port:50015,dst_port:80,length:1043,tcp_flags:0x0018,payload_size:2966

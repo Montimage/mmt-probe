@@ -96,8 +96,8 @@ int flow_avg_ocpp16_metervalues_wh_diff, int flow_max_ocpp16_metervalues_wh_diff
 
 ]]></embedded_functions>
 
-<property value="THEN"  property_id="200" type_property="ATTACK" 
-    description="OCPPFlowMeter Attack Dectection">
+<property value="THEN"  property_id="201" type_property="ATTACK" 
+    description="OCPPFlowMeter Attack Detection">
     <event value="COMPUTE" event_id="1" 
         description="Suspiciously high number of packets flowing"
         boolean_expression="( ocpp_data.total_flow_packets>0 )"/>

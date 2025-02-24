@@ -374,6 +374,8 @@ bool _init_protocol_stack(uint32_t stack_type, uint32_t stack_offset ){
 		// => the function "_stack_classification" will no be called
 	case 802: //ocpp_data that is has been registered
 		return true;
+	case 803:
+		return true;
 	default:
 		//for the other stack, we need to register it to DPI
 		//We use protocol ID as the stack number

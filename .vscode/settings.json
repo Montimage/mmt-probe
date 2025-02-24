@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "pcap_capture.h": "c"
+        "pcap_capture.h": "c",
+        "stdio.h": "c"
     }
 }

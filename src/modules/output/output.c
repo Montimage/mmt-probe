@@ -338,8 +338,9 @@ int output_write_report( output_t *output, output_channel_conf_t channels,
 		const char* dst_ip = extract_substring(message_body, "\"ocpp_data.dst_ip\",\"", "\"]");
 		STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
 			__STR("9b497c8c-36be-4fd6-91ce-a6bffe5d935c"), //hard coded, which is from the file DYNABIC Event IDs
-			__STR(search_uuid_by_python_script("./aware4bc_gml_parser_simple.py", "./gml_attack_model_2024-12-13_11-06-20.gml", src_ip)),
-			__STR(search_uuid_by_python_script("./aware4bc_gml_parser_simple.py", "./gml_attack_model_2024-12-13_11-06-20.gml", dst_ip)),
+			__STR("T1498"), //hard coded for DoS attack
+			//__STR(search_uuid_by_python_script("./aware4bc_gml_parser_simple.py", "./gml_attack_model_2024-12-13_11-06-20.gml", src_ip)),
+			//__STR(search_uuid_by_python_script("./aware4bc_gml_parser_simple.py", "./gml_attack_model_2024-12-13_11-06-20.gml", dst_ip)),
 			__STR("simulated"),
 			__STR(get_attack_name(first_part)),
 			__TIME( ts )
