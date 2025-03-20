@@ -6,6 +6,8 @@
  */
 #include <stdarg.h>
 #include <pthread.h>
+#include <uuid/uuid.h>
+#include <time.h>
 
 #include "../../configure.h"
 
@@ -44,14 +46,20 @@ struct output_struct{
  * A dictionary-type struct to include the attack name if needed
  */
 
-typedef struct attack_name_dict{
-    const char *key;
-    const char *value; // Use const char* for strings
-};
+typedef struct attack_info{
+    const char *rule_id;
+	const char *attack_uuid;
+    const char *attack_name;
+	const char *mitre_ttp_id;
+	const char *ttp_name; 
+} attack_info_t;
 
-const struct attack_name_dict attack_name[] = {
-    {"200", "cyberattack_ocpp16_dos_flooding_heartbeat"},
-    {NULL, NULL} // Sentinel value to indicate the end of the dictionary
+const attack_info_t attack_name[] = {
+    {"201", "9b497c8c-36be-4fd6-91ce-a6bffe5d935c", "cyberattack_ocpp16_dos_flooding_heartbeat", "T1498", "Network Denial of Service"},
+	{"202", "123e4567-e89b-12d3-a456-426614174120", "cyberattack_ocpp16_fdi_chargingprofile", "T1565", "Charging Profile Manipulation"},
+	{"204", "123e4567-e89b-12d3-a456-426614174121", "lockbit_execution", "", ""},
+	{"205", "123e4567-e89b-12d3-a456-426614174122", "pac_server_dos", "T1498", "Network Denial of Service"},
+    {NULL, NULL, NULL, NULL, NULL} // Sentinel value to indicate the end of the dictionary
 };
 
 
@@ -177,30 +185,63 @@ static inline int _write( output_t *output, output_channel_conf_t channels, cons
 	return ret;
 }
 
-static inline void split_string_at_comma(const char *input, char **first_part, char **second_part) {
-    // Find the first occurrence of the comma
-    const char *comma_pos = strchr(input, ',');
+char *extract_substring_with_delimiter(const char *str, char delimiter, int n) {
+    if (!str || n < 0) return NULL;
+    const char *start = str;
+    const char *end = NULL;
+    int count = 0;
 
-    if (comma_pos == NULL) {
-        // No comma found, return the whole input as the first part and the second part as empty
-        *first_part = strdup(input);
-        *second_part = strdup("");
-        return;
+    // Locate the nth delimiter
+    while (*str) {
+        if (*str == delimiter) {
+            if (count == n) {
+                end = str;
+                break;
+            }
+            start = str + 1;
+            count++;
+        }
+        str++;
     }
 
-    // Calculate the length of the first part
-    size_t first_len = comma_pos - input;
+    // If n is the last delimiter, return the substring after it
+    if (count == n && !end) {
+        return (*start) ? strdup(start) : NULL;
+    }
 
-    // Allocate memory and copy the first part
-    *first_part = (char *)malloc(first_len + 1);
-    strncpy(*first_part, input, first_len);
-    (*first_part)[first_len] = '\0';
+    // If there are not enough delimiters
+    if (count < n) return NULL;
 
-    // Allocate memory and copy the second part (excluding the comma)
-    *second_part = strdup(comma_pos + 1);
+    // Allocate and copy the substring
+    int length = (end) ? (end - start) : strlen(start);
+    char *result = (char *)malloc(length + 1);
+    if (!result) return NULL;
+
+    strncpy(result, start, length);
+    result[length] = '\0';
+
+    return result;
 }
 
-static inline char *extract_substring(const char *main_str, const char *start_sub, const char *end_sub) {
+void format_timeval_iso8601(const struct timeval *ts, int utc_timezone, char *buffer, size_t buffer_size) {
+    // Convert timeval to struct tm in UTC
+    struct tm tm;
+    gmtime_r(&ts->tv_sec, &tm);
+
+    // Adjust for UTC+1 timezone
+    tm.tm_hour += utc_timezone;
+
+    // Normalize the time structure in case of overflow (e.g., adding an hour might change the date)
+    mktime(&tm);
+
+    // Format date and time without fractional seconds
+    strftime(buffer, buffer_size, "%Y-%m-%dT%H:%M:%SZ", &tm);
+	
+	size_t len = strlen(buffer);
+    snprintf(buffer + len, buffer_size - len, ".%03ldZ", ts->tv_usec / 1000);
+}
+
+static inline char *extract_substring_between(const char *main_str, const char *start_sub, const char *end_sub) {
     if (!main_str || !start_sub || !end_sub) {
         // Handle null pointers
         return NULL;
@@ -240,13 +281,13 @@ static inline char *extract_substring(const char *main_str, const char *start_su
     return result;
 }
 
-static inline const char* get_attack_name(const char *key) {
-    for (int i = 0; attack_name[i].key != NULL; i++) {
-        if (strcmp(attack_name[i].key, key) == 0) {
-            return attack_name[i].value;
+static attack_info_t* get_attack_info(const char *rule_id) {
+    for (int i = 0; attack_name[i].rule_id != NULL; i++) {
+        if (strcmp(attack_name[i].rule_id, rule_id) == 0) {
+            return &attack_name[i];
         }
     }
-    return ""; // Key not found
+    return NULL; // Key not found
 }
 
 static const char* search_uuid_by_python_script(const char *python_path, const char *gml_file_path, const char *ip_addr){
@@ -285,6 +326,11 @@ static const char* search_uuid_by_python_script(const char *python_path, const c
 	return NULL;
 }
 
+void generate_uuid(char* uuid_str) {
+    uuid_t uuid;
+    uuid_generate_random(uuid);
+    uuid_unparse_lower(uuid, uuid_str);
+}
 
 /*
  * This macro is used to synchronize only when using in multi-threading,
@@ -325,37 +371,149 @@ int output_write_report( output_t *output, output_channel_conf_t channels,
 	int offset = 0;
 	
 	//Need to handle ocpp_data specifically because the output format will be different for this case
-	char *first_part = NULL;
-	char *second_part = NULL;
+	char *rule_id = NULL;
+	int message_constucted = 0;
 
 	if ( message_body != NULL ){
-		split_string_at_comma(message_body, &first_part, &second_part);
+		rule_id = extract_substring_with_delimiter(message_body, ',', 0);
 	}
 
-	if (strcmp(first_part, "200") == 0)
-	{	
-		const char* src_ip = extract_substring(message_body, "\"ocpp_data.src_ip\",\"", "\"]");
-		const char* dst_ip = extract_substring(message_body, "\"ocpp_data.dst_ip\",\"", "\"]");
-		STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
-			__STR("9b497c8c-36be-4fd6-91ce-a6bffe5d935c"), //hard coded, which is from the file DYNABIC Event IDs
-			__STR("T1498"), //hard coded for DoS attack
-			//__STR(search_uuid_by_python_script("./aware4bc_gml_parser_simple.py", "./gml_attack_model_2024-12-13_11-06-20.gml", src_ip)),
-			//__STR(search_uuid_by_python_script("./aware4bc_gml_parser_simple.py", "./gml_attack_model_2024-12-13_11-06-20.gml", dst_ip)),
-			__STR("simulated"),
-			__STR(get_attack_name(first_part)),
-			__TIME( ts )
+	if( rule_id == NULL ){
+		__UNLOCK_IF_NEED( output );
+		return 0;
+	}
+
+//#ifdef STIX_FORMAT
+	if (strcmp(rule_id, "201") == 0 ||
+		strcmp(rule_id, "202") == 0 ||
+		strcmp(rule_id, "204") == 0 ||
+		strcmp(rule_id, "205") == 0) {
+
+		char bundle_uuid[37], identity_uuid[37], observed_uuid[37];
+		generate_uuid(bundle_uuid);
+		generate_uuid(identity_uuid);
+    	generate_uuid(observed_uuid);
+		
+		// Attack info
+		attack_info_t* info = get_attack_info(rule_id);
+		const char* attack_uuid = info->attack_uuid;
+		const char* ttp_id = info->mitre_ttp_id;
+		const char* mitre_ttp_name = info->ttp_name;
+		const char* attack_name = info->attack_name;
+		// Description from MMT
+		const char* description = extract_substring_with_delimiter(message_body, ',', 3);
+		
+		// IP asset uuid
+		const char* src_ip = extract_substring_between(message_body, "\"ocpp_data.src_ip\",\"", "\"]");
+		const char* dst_ip = extract_substring_between(message_body, "\"ocpp_data.dst_ip\",\"", "\"]");
+		const char* src_asset_uuid = "123e4567-e89b-12d3-a456-426614174008";
+		const char* dst_asset_uuid = "123e4567-e89b-12d3-a456-426614174009";		
+
+		// Simulation ID
+		int simulated_id = -1;
+		char simulation[256];
+		if (simulated_id == -1) {
+			snprintf(simulation, sizeof(simulation), "Simulated attack");
+		} else {
+			snprintf(simulation, sizeof(simulation), "Simulated attack with id %d", simulated_id);
+		}
+		
+		// Timestamp
+		char timestamp[30];
+		format_timeval_iso8601(ts, 1, timestamp, sizeof(timestamp));
+
+		snprintf(
+			message, 8192,
+			"{\n"
+			"    \"type\": \"bundle\",\n"
+			"    \"id\": \"bundle--%s\",\n"
+			"    \"objects\": [\n"
+			"      {\n"
+			"        \"type\": \"identity\",\n"
+			"        \"spec_version\": \"2.1\",\n"
+			"        \"id\": \"identity--%s\",\n"
+			"        \"created\": \"%s\",\n"
+			"        \"modified\": \"%s\",\n"
+			"        \"name\": \"MMT-PROBE\",\n"
+			"        \"identity_class\": \"organization\",\n"
+			"        \"extensions\": {\n"
+			"          \"x-probe-id-ext\": {\n"
+			"            \"extension_type\": \"property-extension\",\n"
+			"            \"probe-id\": \"MMT-PROBE-1\"\n"
+			"          }\n"
+			"        }\n"
+			"      },\n"
+			"      {\n"
+			"        \"type\": \"observed-data\",\n"
+			"        \"spec_version\": \"2.1\",\n"
+			"        \"id\": \"observed-data--%s\",\n"
+			"        \"created\": \"%s\",\n"
+			"        \"modified\": \"%s\",\n"
+			"        \"first_observed\": \"%s\",\n"
+			"        \"last_observed\": \"%s\",\n"
+			"        \"number_observed\": 1,\n"
+			"        \"object_refs\": [\n"
+			"          \"ipv4-addr--%s\",\n"
+			"          \"ipv4-addr--%s\",\n"
+			"          \"x-attack-type--%s\"\n"
+			"        ],\n"
+			"        \"created_by_ref\": \"identity--%s\",\n"
+			"        \"extensions\": {\n"
+			"            \"x-observed-data-ext\": {\n"
+			"                \"extension_type\": \"property-extension\",\n"
+			"                \"description\": %s\n"
+			"            }\n"
+			"        }\n"
+			"      },\n"
+			"      {\n"
+			"        \"type\": \"ipv4-addr\",\n"
+			"        \"id\": \"ipv4-addr--%s\",\n"
+			"        \"value\": \"%s\"\n"
+			"      },\n"
+			"      {\n"
+			"        \"type\": \"ipv4-addr\",\n"
+			"        \"id\": \"ipv4-addr--%s\",\n"
+			"        \"value\": \"%s\"\n"
+			"      },\n"
+			"      {\n"
+			"        \"type\": \"x-attack-type\",\n"
+			"        \"id\": \"x-attack-type--%s\",\n"
+			"        \"user_id\": \"%s\",\n"
+			"        \"created\":  \"%s\",\n"
+			"        \"modified\":  \"%s\",\n"
+			"        \"extensions\": {\n"
+			"          \"x-attack-type-ext\": {\n"
+			"            \"extension_type\": \"new-sdo\"\n"
+			"          },\n"
+			"          \"x-simulation-ext\": {\n"
+			"            \"extension_type\": \"property-extension\",\n"
+			"            \"simulation\": \"%s\"\n"
+			"          }\n"
+			"        },\n"
+			"        \"external_references\": [\n"
+			"          {\n"
+			"            \"source_name\": \"mitre-attack\",\n"
+			"            \"url\": \"https://attack.mitre.org/techniques/%s/\",\n"
+			"            \"external_id\": \"%s\"\n"
+			"          }\n"
+			"        ]\n"
+			"      }\n"
+			"    ]\n"
+			"  }",
+			bundle_uuid, identity_uuid, timestamp, timestamp,
+			observed_uuid, timestamp, timestamp, timestamp, timestamp,
+			src_asset_uuid, dst_asset_uuid, attack_uuid, identity_uuid, description,
+			src_asset_uuid, src_ip,
+			dst_asset_uuid, dst_ip,
+			attack_uuid, attack_name, timestamp, timestamp, simulation, ttp_id, ttp_id
 		);
 
-		if( strcmp(second_part, "") !=0 ){
-			message[ offset ++ ] = ',';
-			size_t len = strlen( second_part );
-			if( len > MAX_LENGTH_REPORT_MESSAGE - offset )
-				len = MAX_LENGTH_REPORT_MESSAGE - offset;
-			memcpy( message+offset, second_part, len );
-			message[ offset + len ] = '\0';
-		}
-	}else	//Other data used the same output format
-	{
+		message_constucted = 1;
+	}
+//#endif
+	
+	if( !message_constucted ){	//Other data used the same output format
+	
 		STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
 			__INT( report_type ),
 			__INT( output->probe_id ),

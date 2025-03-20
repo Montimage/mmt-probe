@@ -1,1 +1,15 @@
 timestamp:2024-11-08 13:30:23.843829,protocol:HTTP,src_ip:192.168.62.50,dst_ip:192.168.64.51,src_port:50015,dst_port:80,length:1043,tcp_flags:0x0018,payload_size:2966
+timestamp:2025-03-14 11:33:00.858797,protocol:TCP,src_ip:192.168.61.59,dst_ip:192.168.56.50,src_port:36068,dst_port:1514,length:68,tcp_flags:0x0011,payload_size:0
+timestamp:2025-03-14 11:33:00.858881,protocol:TCP,src_ip:192.168.61.59,dst_ip:192.168.56.50,src_port:49312,dst_port:1514,length:76,tcp_flags:0x0002,payload_size:0
+timestamp:2025-03-14 11:33:00.859577,protocol:TCP,src_ip:192.168.56.50,dst_ip:192.168.61.59,src_port:1514,dst_port:36068,length:68,tcp_flags:0x0010,payload_size:0
+timestamp:2025-03-14 11:33:00.859713,protocol:TCP,src_ip:192.168.56.50,dst_ip:192.168.61.59,src_port:1514,dst_port:49312,length:76,tcp_flags:0x0012,payload_size:0
+timestamp:2025-03-14 11:33:00.859794,protocol:TCP,src_ip:192.168.61.59,dst_ip:192.168.56.50,src_port:49312,dst_port:1514,length:68,tcp_flags:0x0010,payload_size:0
+timestamp:2025-03-14 11:33:00.859957,protocol:DATA,src_ip:192.168.61.59,dst_ip:192.168.56.50,src_port:49312,dst_port:1514,length:194,tcp_flags:0x0018,payload_size:0
+timestamp:2025-03-14 11:33:00.860538,protocol:TCP,src_ip:192.168.56.50,dst_ip:192.168.61.59,src_port:1514,dst_port:49312,length:68,tcp_flags:0x0010,payload_size:0
+timestamp:2025-03-14 11:33:00.860830,protocol:TCP,src_ip:192.168.56.50,dst_ip:192.168.61.59,src_port:1514,dst_port:49312,length:68,tcp_flags:0x0011,payload_size:0
+timestamp:2025-03-14 11:33:00.868981,protocol:TCP,src_ip:192.168.61.59,dst_ip:192.168.56.50,src_port:49312,dst_port:1514,length:68,tcp_flags:0x0010,payload_size:0
+timestamp:2025-03-14 11:33:00.877061,protocol:TCP,src_ip:192.168.61.53,dst_ip:192.168.126.67,src_port:57288,dst_port:9093,length:76,tcp_flags:0x0002,payload_size:0
+timestamp:2025-03-14 11:33:00.895164,protocol:TCP,src_ip:192.168.126.67,dst_ip:192.168.61.53,src_port:9093,dst_port:57288,length:56,tcp_flags:0x0014,payload_size:0
+timestamp:2025-03-14 11:33:00.922210,protocol:DATA,src_ip:198.41.200.33,dst_ip:192.168.61.58,src_port:7844,dst_port:36817,length:65,tcp_flags:None,payload_size:0
+timestamp:2025-03-14 11:33:00.943235,protocol:DATA,src_ip:198.41.200.193,dst_ip:192.168.61.58,src_port:7844,dst_port:47021,length:65,tcp_flags:None,payload_size:0
+timestamp:2025-03-14 11:33:00.947898,protocol:DATA,src_ip:192.168.61.58,dst_ip:198.41.200.33,src_port:36817,dst_port:7844,length:92,tcp_flags:None,payload_size:0

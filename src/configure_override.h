@@ -190,6 +190,8 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__KAFKA_OUTPUT__HOSTNAME, "kafka-output.hostname", &conf->outputs.kafka->host.host_name,   CHAR_STAR),
 	(CONF_ATT__KAFKA_OUTPUT__PORT,     "kafka-output.port",     &conf->outputs.kafka->host.port_number, UINT16_T),
 	(CONF_ATT__KAFKA_OUTPUT__TOPICNAME,"kafka-output.topic",    &conf->outputs.kafka->topic_name,       CHAR_STAR),
+	(CONF_ATT__KAFKA_OUTPUT__USERNAME, "kafka-output.username", &conf->outputs.kafka->username,       	CHAR_STAR),
+	(CONF_ATT__KAFKA_OUTPUT__PASSWORD, "kafka-output.password", &conf->outputs.kafka->password,       	CHAR_STAR),
 #endif
 
 #ifdef REDIS_MODULE

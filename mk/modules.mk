@@ -280,3 +280,10 @@ else
     MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/pcap/*.c)
   endif
 endif
+
+#################### Other optional parameters for STIX format ######################
+$(eval $(call check_module,STIX_FORMAT))
+ifdef STIX_FORMAT
+  MODULE_LIBS  += -luuid
+  MODULE_FLAGS += -DSTIX_FORMAT
+endif
