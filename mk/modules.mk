@@ -160,6 +160,17 @@ ifdef REDIS_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/output/redis/*.c)
 endif
 
+$(eval $(call check_module,MQTT_MODULE))
+ifdef MQTT_MODULE
+  ifdef STATIC_LINK
+    MODULE_LIBS  += -l:lpaho-mqtt3c.a
+  else
+    MODULE_LIBS  += -lpaho-mqtt3c
+  endif
+  MODULE_FLAGS += -DMQTT_MODULE
+  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/output/mqtt/*.c)
+endif
+
 $(eval $(call check_module,SOCKET_MODULE))
 ifdef SOCKET_MODULE
   MODULE_FLAGS += -DSOCKET_MODULE

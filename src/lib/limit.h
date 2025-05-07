@@ -99,6 +99,11 @@
 	#define IF_ENABLE_SOCKET( x )
 #endif
 
+#ifdef MQTT_MODULE
+	#define IF_ENABLE_MQTT( x ) x
+#else
+	#define IF_ENABLE_MQTT( x )
+#endif
 
 #ifdef PCAP_DUMP_MODULE
 	#define IF_ENABLE_PCAP_DUMP( x ) x

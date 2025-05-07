@@ -53,6 +53,14 @@ typedef struct kafka_output_conf_struct{
 	char *topic_name;
 }kafka_output_conf_t;
 
+typedef struct mqtt_output_conf_struct{
+	bool is_enable;
+	char* address;
+	//further setting for mqtt published message
+	char *topic_name;
+	bool is_retain;
+}mqtt_output_conf_t;
+
 typedef struct mongodb_output_conf_struct{
 	bool is_enable;
 	internet_service_address_t host;
@@ -85,9 +93,11 @@ typedef enum {
 	CONF_OUTPUT_CHANNEL_MONGODB = 8,
 	CONF_OUTPUT_CHANNEL_SOCKET  = 16,
 	CONF_OUTPUT_CHANNEL_STDOUT  = 32,
+	CONF_OUTPUT_CHANNEL_MQTT    = 64,
 	CONF_OUTPUT_CHANNEL_ALL     = CONF_OUTPUT_CHANNEL_FILE  | CONF_OUTPUT_CHANNEL_REDIS
 								| CONF_OUTPUT_CHANNEL_KAFKA | CONF_OUTPUT_CHANNEL_MONGODB
 								| CONF_OUTPUT_CHANNEL_SOCKET| CONF_OUTPUT_CHANNEL_STDOUT
+								| CONF_OUTPUT_CHANNEL_MQTT
 }output_channel_conf_t;
 
 #define IS_ENABLE_OUTPUT_TO( name, channels ) ( channels & CONF_OUTPUT_CHANNEL_ ##name )
@@ -265,6 +275,7 @@ typedef struct output_conf_struct{
 	file_output_conf_t  *file;
 	redis_output_conf_t *redis;
 	kafka_output_conf_t *kafka;
+	mqtt_output_conf_t *mqtt;
 	mongodb_output_conf_t *mongodb;
 	socket_output_conf_t *socket;
 	enum {OUTPUT_FORMAT_CSV, OUTPUT_FORMAT_JSON} format;

@@ -179,6 +179,14 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_END()
 	};
 
+	cfg_opt_t mqtt_output_opts[] = {
+			CFG_STR("address", "tcp://localhost:1883", CFGF_NONE),
+			CFG_STR("topic", "report", CFGF_NONE),
+			CFG_BOOL("enable", false, CFGF_NONE),
+			CFG_BOOL("retain", false, CFGF_NONE),
+			CFG_END()
+	};
+
 	cfg_opt_t mongodb_output_opts[] = {
 			CFG_STR("hostname", "localhost", CFGF_NONE),
 			CFG_INT("port", 27017, CFGF_NONE),
@@ -320,6 +328,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_SEC("file-output", file_output_opts, CFGF_NONE),
 			CFG_SEC("redis-output", redis_output_opts, CFGF_NONE),
 			CFG_SEC("kafka-output", kafka_output_opts, CFGF_NONE),
+			CFG_SEC("mqtt-output", mqtt_output_opts, CFGF_NONE),
 			CFG_SEC("data-output", data_output_opts, CFGF_NONE),
 			CFG_SEC("socket-output", socket_opts, CFGF_NONE),
 
@@ -511,6 +520,19 @@ static inline kafka_output_conf_t *_parse_output_to_kafka( cfg_t *cfg ){
 	return ret;
 }
 
+static inline mqtt_output_conf_t *_parse_output_to_mqtt( cfg_t *cfg ){
+	if( (cfg = _get_first_cfg_block( cfg, "mqtt-output")) == NULL )
+		return NULL;
+
+	mqtt_output_conf_t *ret = mmt_alloc( sizeof( mqtt_output_conf_t ));
+
+	ret->is_enable   = cfg_getbool( cfg, "enable");
+	ret->is_retain   = cfg_getbool( cfg, "retain");
+	ret->address     = _cfg_get_str(cfg, "address");
+	ret->topic_name  = _cfg_get_str(cfg, "topic");
+
+	return ret;
+}
 static inline mongodb_output_conf_t *_parse_output_to_mongodb( cfg_t *cfg ){
 	if( (cfg = _get_first_cfg_block( cfg, "mongodb-output")) == NULL )
 		return NULL;
@@ -599,6 +621,8 @@ static inline  output_channel_conf_t _parse_output_channel( cfg_t *cfg ){
 			out |= CONF_OUTPUT_CHANNEL_SOCKET;
 		else if( strncmp( channel_name, "stdout", 6 ) == 0 )
 			out |= CONF_OUTPUT_CHANNEL_STDOUT;
+		else if( strncmp( channel_name, "mqtt", 4 ) == 0 )
+			out |= CONF_OUTPUT_CHANNEL_MQTT;
 		else
 			log_write( LOG_WARNING, "Unexpected channel '%s'", channel_name );
 	}
@@ -1177,8 +1201,9 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 	_parse_output_block( &conf->outputs, cfg );
 	//set of output channels
 	conf->outputs.file  = _parse_output_to_file( cfg );
-	conf->outputs.kafka = _parse_output_to_kafka( cfg );
 	conf->outputs.redis = _parse_output_to_redis( cfg );
+	conf->outputs.kafka = _parse_output_to_kafka( cfg );
+	conf->outputs.mqtt  = _parse_output_to_mqtt( cfg );
 	conf->outputs.mongodb = _parse_output_to_mongodb( cfg );
 	conf->outputs.socket = _parse_socket_block( cfg );
 	//a global
@@ -1346,6 +1371,11 @@ void conf_release( probe_conf_t *conf){
 		mmt_probe_free( conf->outputs.redis->host.host_name );
 		mmt_probe_free( conf->outputs.redis->channel_name );
 		mmt_probe_free( conf->outputs.redis );
+	}
+	if( conf->outputs.mqtt ){
+		mmt_probe_free( conf->outputs.mqtt->address );
+		mmt_probe_free( conf->outputs.mqtt->topic_name );
+		mmt_probe_free( conf->outputs.mqtt );
 	}
 	if( conf->outputs.mongodb ){
 		mmt_probe_free( conf->outputs.mongodb->collection_name );

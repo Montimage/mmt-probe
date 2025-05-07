@@ -19,6 +19,7 @@
 #include "socket/socket_output.h"
 #include "mongodb/mongodb.h"
 #include "redis/redis.h"
+#include "mqtt/mqtt_output.h"
 
 struct output_struct{
 	uint16_t index;
@@ -36,6 +37,7 @@ struct output_struct{
 		IF_ENABLE_KAFKA(   kafka_output_t *kafka; )
 		IF_ENABLE_MONGODB( mongodb_output_t *mongodb; )
 		IF_ENABLE_SOCKET(  socket_output_t *socket; )
+		IF_ENABLE_MQTT(  mqtt_output_t *mqtt; )
 	}modules;
 };
 
@@ -85,6 +87,10 @@ output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct
 
 #ifdef SOCKET_MODULE
 	ret->modules.socket = socket_output_init( ret->config->socket );
+#endif
+
+#ifdef MQTT_MODULE
+	ret->modules.mqtt = mqtt_output_alloc_init( ret->config->mqtt, probe_id );
 #endif
 	return ret;
 }
@@ -157,6 +163,12 @@ static inline int _write( output_t *output, output_channel_conf_t channels, cons
 #ifdef SOCKET_MODULE
 	if( output->modules.socket && IS_ENABLE_OUTPUT_TO( SOCKET, channels )){
 		ret += socket_output_send( output->modules.socket, message );
+	}
+#endif
+
+#ifdef MQTT_MODULE
+	if( output->modules.mqtt && IS_ENABLE_OUTPUT_TO( MQTT, channels )){
+		ret += mqtt_output_send( output->modules.mqtt, message );
 	}
 #endif
 	return ret;
@@ -308,6 +320,7 @@ void output_release( output_t * output){
 	IF_ENABLE_KAFKA( kafka_output_release( output->modules.kafka ); )
 	IF_ENABLE_REDIS( redis_release( output->modules.redis ); )
 	IF_ENABLE_SOCKET( socket_output_release( output->modules.socket ); )
+	IF_ENABLE_MQTT( mqtt_output_release( output->modules.mqtt ); )
 
 	if( output->mutex ){
 		pthread_mutex_destroy( output->mutex );

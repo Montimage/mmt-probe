@@ -58,6 +58,9 @@ make -j $CPU
 make install
 ldconfig
 
+# install MQTT library
+sudo apt install libpaho-mqtt-dev
+
 
 # install mmt-dpi
 cd $TMP_DIR
@@ -84,7 +87,7 @@ make deb
 cd $TMP_DIR
 git clone https://github.com/montimage/mmt-probe mmt-probe
 cd mmt-probe
-MODULES="KAFKA_MODULE MONGODB_MODULE PCAP_DUMP_MODULE QOS_MODULE REDIS_MODULE SECURITY_MODULE SOCKET_MODULE LTE_MODULE"
+MODULES="KAFKA_MODULE MONGODB_MODULE PCAP_DUMP_MODULE QOS_MODULE REDIS_MODULE MQTT_MODULE SECURITY_MODULE SOCKET_MODULE LTE_MODULE"
 make -j $CPU $MODULES compile
 make $MODULES deb
 make $MODULES install
