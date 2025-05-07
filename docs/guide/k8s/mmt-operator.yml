@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: mmt-operator
-        image: ghcr.io/montimage/mmt-operator:latest
+        image: ghcr.io/montimage/mmt-operator:v1.7.6
         imagePullPolicy: Always
         args: 
         - "-Xprobe_analysis_mode=online"
