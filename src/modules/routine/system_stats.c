@@ -87,7 +87,7 @@ static void * _stats_routine(void * args){
 	//int freq = *((int*) f);
 
 	struct timeval ts;
-	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
 	int offset;
 
 	//disable? no output?

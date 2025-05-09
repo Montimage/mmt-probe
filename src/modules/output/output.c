@@ -104,7 +104,7 @@ output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct
  */
 static inline int _write( output_t *output, output_channel_conf_t channels, const char *message, bool raw ){
 	int ret = 0;
-	char new_msg[ MAX_LENGTH_REPORT_MESSAGE ];
+	char new_msg[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
 
 	//we surround message inside [] to convert it to JSON
 	//this needs to be done when:
@@ -210,7 +210,7 @@ int output_write_report( output_t *output, output_channel_conf_t channels,
 		return 0;
 	}
 
-	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
 	int offset = 0;
 	STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_REPORT_MESSAGE, ",",
 			__INT( report_type ),
@@ -254,7 +254,7 @@ int output_write_report_with_format( output_t *output, output_channel_conf_t cha
 	//otherwise there will be a deadlock as there will be a lock in @output_write_report
 	__UNLOCK_IF_NEED( output );
 
-	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
 	int offset, ret;
 
 	if( unlikely( format == NULL )){

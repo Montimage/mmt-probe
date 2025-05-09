@@ -36,7 +36,7 @@ static inline void _write_behaviour_report( file_output_t *output,
 		uint64_t dl_volume
 		){
 
-	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
 	int valid = 0;
 	STRING_BUILDER_WITH_SEPARATOR( valid, message, MAX_LENGTH_REPORT_MESSAGE, ",",
 			__INT( BEHAVIOUR_REPORT_ID ),
@@ -128,7 +128,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 
 	struct timeval start_time = get_session_init_time(dpi_session);
 
-	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
 	int valid = 0;
 	STRING_BUILDER_WITH_SEPARATOR( valid, message, MAX_LENGTH_REPORT_MESSAGE, ",",
 		__INT( context->stat_periods_index),
@@ -280,7 +280,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 			proto_hierarchy,
 			app_path, sizeof( app_path) );
 
-	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
 	int valid = 0;
 	STRING_BUILDER_WITH_SEPARATOR( valid, message, MAX_LENGTH_REPORT_MESSAGE, ",",
 			__INT( context->stat_periods_index ),
