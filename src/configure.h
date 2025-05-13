@@ -80,6 +80,7 @@ typedef struct input_source_conf_struct{
 	uint16_t snap_len;    //pcap param
 	uint32_t buffer_size; //pcap param
 	uint32_t timeout;     //pcap param
+	char *pcap_filter;    //https://www.tcpdump.org/manpages/pcap-filter.7.html
 
 	IF_ENABLE_DPDK( char *dpdk_options; )
 }input_source_conf_t;
