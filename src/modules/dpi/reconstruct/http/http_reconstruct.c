@@ -418,7 +418,7 @@ void http_reconstruct_release( http_reconstruct_t *context){
  * @param session
  */
 void http_reconstruct_flush_session_to_file_and_free( http_session_t *session ){
-	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
 
 	if( session == NULL )
 		return;

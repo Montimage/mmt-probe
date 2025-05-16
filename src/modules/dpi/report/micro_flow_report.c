@@ -22,7 +22,7 @@ micro_flow_report_context_t *micro_flow_report_alloc_init( const micro_flow_conf
 }
 
 static inline void _print_micro_flow_report( micro_flow_stats_t *stat, output_t *output, output_channel_conf_t channel ){
-	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
 
 	//App id, Nb of flows, DL Packet Count, UL Packet Count, DL Byte Count, UL Byte Count
 	int offset = 0;

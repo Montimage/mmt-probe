@@ -70,7 +70,7 @@ static void _report_one_item( size_t key_len, void *_key, void *_data, void *arg
 	inet_ntop4( key->ip_dst, ip_dst_str );
 	inet_ntop4( key->ip_src, ip_src_str );
 
-	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
 	uint32_t proto_id = PROTO_IP; //IPv4
 	int valid = 0;
 	STRING_BUILDER_WITH_SEPARATOR( valid, message, MAX_LENGTH_REPORT_MESSAGE, ",",

@@ -1,3 +1,8 @@
+## v1.6.0 (16 May 2025)
+- add ability to output reports to MQTT: `mqtt-output`
+- add `pcap-filter` parameter to capture only selected packets using BPF syntax
+- fixed reports' issue when analysing IP-in-IP
+
 ## v1.5.12
 - fixed bug rejecting -X param having same value
 

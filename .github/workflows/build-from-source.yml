@@ -2,7 +2,7 @@ name: C/C++ CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, output-to-mqtt ]
   pull_request:
     branches: [ master ]
 

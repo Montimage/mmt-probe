@@ -260,7 +260,7 @@ pcap_dump_context_t* pcap_dump_start( uint16_t worker_index, const probe_conf_t 
 	pcap_dump_conf_t *config = probe_config->reports.pcap_dump;
 	if( ! config->is_enable )
 		return NULL;
-	char msg[MAX_LENGTH_REPORT_MESSAGE];
+	char msg[MAX_LENGTH_REPORT_MESSAGE + 1 ];
 	size_t index=0;
 
 	pcap_dump_context_t *context = mmt_alloc_and_init_zero(sizeof( pcap_dump_context_t ));

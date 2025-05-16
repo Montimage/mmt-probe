@@ -36,7 +36,7 @@ static inline void _write_behaviour_report( file_output_t *output,
 		uint64_t dl_volume
 		){
 
-	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
 	int valid = 0;
 	STRING_BUILDER_WITH_SEPARATOR( valid, message, MAX_LENGTH_REPORT_MESSAGE, ",",
 			__INT( BEHAVIOUR_REPORT_ID ),
@@ -59,8 +59,8 @@ static inline void _write_behaviour_report( file_output_t *output,
 #ifndef SIMPLE_REPORT
 //This callback is called by DPI periodically
 static inline void _print_ip_session_report (const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context){
-	uint64_t ul_packets = get_session_ul_cap_packet_count(dpi_session);
-	uint64_t dl_packets = get_session_dl_cap_packet_count(dpi_session);
+	uint64_t ul_packets = get_session_total_ul_packet_count(dpi_session);
+	uint64_t dl_packets = get_session_total_dl_packet_count(dpi_session);
 	uint64_t total_packets = ul_packets + dl_packets;
 
 	// check the condition if in the last interval there was a protocol activity or not
@@ -68,12 +68,12 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	if( total_packets == (session_stat->packets.upload + session_stat->packets.download) )
 		return;
 
-	uint64_t ul_volumes = get_session_ul_cap_byte_count(dpi_session);
-	uint64_t dl_volumes = get_session_dl_cap_byte_count(dpi_session);
+	uint64_t ul_volumes = get_session_total_ul_byte_count(dpi_session);
+	uint64_t dl_volumes = get_session_total_dl_byte_count(dpi_session);
 	uint64_t total_volumes = ul_volumes + dl_volumes;
 
-	uint64_t ul_payload = get_session_ul_data_byte_count(dpi_session);
-	uint64_t dl_payload = get_session_dl_data_byte_count(dpi_session);
+	uint64_t ul_payload = get_session_total_ul_data_byte_count(dpi_session);
+	uint64_t dl_payload = get_session_total_dl_data_byte_count(dpi_session);
 	uint64_t total_payload = ul_payload + dl_payload;
 
 	const proto_hierarchy_t * proto_hierarchy = get_session_protocol_hierarchy(dpi_session);
@@ -128,7 +128,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 
 	struct timeval start_time = get_session_init_time(dpi_session);
 
-	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
 	int valid = 0;
 	STRING_BUILDER_WITH_SEPARATOR( valid, message, MAX_LENGTH_REPORT_MESSAGE, ",",
 		__INT( context->stat_periods_index),
@@ -261,8 +261,8 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 //This callback is called by DPI periodically
 static inline void _print_ip_session_report (const mmt_session_t * dpi_session, session_stat_t * session, const dpi_context_t *context){
 
-	uint64_t ul_volumes = get_session_ul_cap_byte_count(dpi_session);
-	uint64_t dl_volumes = get_session_dl_cap_byte_count(dpi_session);
+	uint64_t ul_volumes = get_session_total_ul_byte_count(dpi_session);
+	uint64_t dl_volumes = get_session_total_dl_byte_count(dpi_session);
 
 	if( unlikely( ul_volumes + dl_volumes == 0 ))
 		return;
@@ -280,7 +280,7 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 			proto_hierarchy,
 			app_path, sizeof( app_path) );
 
-	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
 	int valid = 0;
 	STRING_BUILDER_WITH_SEPARATOR( valid, message, MAX_LENGTH_REPORT_MESSAGE, ",",
 			__INT( context->stat_periods_index ),

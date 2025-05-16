@@ -21,6 +21,7 @@
 #define SOCKET_MODULE
 #define LICENSE_CHECK
 #define DPDK_MODULE
+#define MQTT_MODULE
 #endif
 
 /**
@@ -154,6 +155,7 @@ DECLARE_CONF_ATT(
 	//input
 	(CONF_ATT__INPUT__MODE,        "input.mode",        &conf->input->input_mode,   UINT16_T),
 	(CONF_ATT__INPUT__SOURCE,      "input.source",      &conf->input->input_source, CHAR_STAR),
+	(CONF_ATT__INPUT__PCAP_FILTER, "input.pcap-filter", &conf->input->pcap_filter,  CHAR_STAR),
 	(CONF_ATT__INPUT__SNAP_LEN,    "input.snap-len",    &conf->input->snap_len,     UINT16_T),
 	(CONF_ATT__INPUT__BUFFER_SIZE, "input.buffer-size", &conf->input->buffer_size,  UINT32_T),
 	(CONF_ATT__INPUT__TIMEOUT,     "input.timeout",     &conf->input->timeout,      UINT32_T),
@@ -198,6 +200,14 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__REDIS_OUTPUT__HOSTNAME,     "redis-output.hostname", &conf->outputs.redis->host.host_name,   CHAR_STAR),
 	(CONF_ATT__REDIS_OUTPUT__CHANNEL_NAME, "redis-output.channel",  &conf->outputs.redis->channel_name,     CHAR_STAR),
 	(CONF_ATT__REDIS_OUTPUT__PORT,         "redis-output.port",     &conf->outputs.redis->host.port_number, UINT16_T),
+#endif
+
+#ifdef MQTT_MODULE
+	//mqtt-output
+	(CONF_ATT__MQTT_OUTPUT__ENABLE,       "mqtt-output.enable",   &conf->outputs.mqtt->is_enable,        BOOL),
+	(CONF_ATT__MQTT_OUTPUT__HOSTNAME,     "mqtt-output.address",  &conf->outputs.mqtt->address,          CHAR_STAR),
+	(CONF_ATT__MQTT_OUTPUT__CHANNEL_NAME, "mqtt-output.topic",    &conf->outputs.mqtt->topic_name,       CHAR_STAR),
+	(CONF_ATT__MQTT_OUTPUT__PORT,         "mqtt-output.retain",   &conf->outputs.mqtt->is_retain,        BOOL),
 #endif
 
 #ifdef SOCKET_MODULE

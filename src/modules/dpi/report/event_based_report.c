@@ -16,7 +16,7 @@ typedef struct event_based_report_context_struct {
 	/**
 	 * the latest values of the protocols and attributes to be checked in the delta condition above
 	 */
-	char last_delta_atts_values[MAX_LENGTH_REPORT_MESSAGE];
+	char last_delta_atts_values[MAX_LENGTH_REPORT_MESSAGE + 1 ];
 }event_based_report_context_t;
 
 
@@ -127,13 +127,13 @@ static void _event_report_handle( const ipacket_t *packet, attribute_t *attribut
 	event_based_report_context_t *context = (event_based_report_context_t *)arg;
 
 	size_t i;
-	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
 	int offset, ret;
 	const event_report_conf_t *config = context->config;
 
 	//if delta-cond is available
 	if( config->delta_condition.attributes_size ){
-		memset( message, 0, MAX_LENGTH_REPORT_MESSAGE );
+		memset( message, 0, sizeof(message) );
 		ret = _get_attributes_values(packet,
 				config->delta_condition.attributes,
 				config->delta_condition.attributes_size,
