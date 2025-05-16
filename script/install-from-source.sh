@@ -8,6 +8,8 @@ fi
 # exit immediately when having error
 set -e
 
+export DEBIAN_FRONTEND=noninteractive
+
 # directory of this script
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
@@ -62,7 +64,7 @@ make install
 ldconfig
 
 # install MQTT library
-sudo apt install libpaho-mqtt-dev
+apt-get install -y libpaho-mqtt-dev
 
 
 # install mmt-dpi
@@ -76,7 +78,7 @@ make deb
 
 # install mmt-security
 cd $TMP_DIR
-apt-get install libxml2-dev libpcap-dev libconfuse-dev
+apt-get install -y libxml2-dev libpcap-dev libconfuse-dev
 git clone https://github.com/Montimage/mmt-security.git mmt-security
 cd mmt-security
 make clean-all
