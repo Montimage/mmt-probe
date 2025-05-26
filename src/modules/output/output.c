@@ -56,10 +56,12 @@ typedef struct attack_info{
 
 const attack_info_t attack_name[] = {
     {"201", "9b497c8c-36be-4fd6-91ce-a6bffe5d935c", "cyberattack_ocpp16_dos_flooding_heartbeat", "T1498", "Network Denial of Service"},
-	{"202", "123e4567-e89b-12d3-a456-426614174120", "cyberattack_ocpp16_fdi_chargingprofile", "T1565", "Charging Profile Manipulation"},
-	{"204", "123e4567-e89b-12d3-a456-426614174121", "lockbit_execution", "", ""},
-	{"205", "123e4567-e89b-12d3-a456-426614174122", "pac_server_dos", "T1498", "Network Denial of Service"},
-    {NULL, NULL, NULL, NULL, NULL} // Sentinel value to indicate the end of the dictionary
+	{"202", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "cyberattack_ocpp16_fdi_chargingprofile", "T1565", "Charging Profile Manipulation"},
+	//{"204", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "lockbit_execution", "", ""},
+	//{"205", "123e4567-e89b-12d3-a456-426614174122", "pac_server_dos", "T1498", "Network Denial of Service"},
+	{"206", "9facae2f-7628-4090-9052-1141dbb47e38", "pac_server_dos", "T1498", "Network Denial of Service"},
+    {"207", "7406f73-bc3d-4e37-87e6-d955ed0a5dec", "lockbit_execution", "", "Lockbit Execution attack"},
+	{NULL, NULL, NULL, NULL, NULL} // Sentinel value to indicate the end of the dictionary
 };
 
 
@@ -383,11 +385,13 @@ int output_write_report( output_t *output, output_channel_conf_t channels,
 		return 0;
 	}
 
-//#ifdef STIX_FORMAT
+#ifdef STIX_FORMAT
 	if (strcmp(rule_id, "201") == 0 ||
 		strcmp(rule_id, "202") == 0 ||
 		strcmp(rule_id, "204") == 0 ||
-		strcmp(rule_id, "205") == 0) {
+		strcmp(rule_id, "205") == 0 ||
+		strcmp(rule_id, "206") == 0 ||
+		strcmp(rule_id, "207") == 0) {
 
 		char bundle_uuid[37], identity_uuid[37], observed_uuid[37];
 		generate_uuid(bundle_uuid);
@@ -400,20 +404,27 @@ int output_write_report( output_t *output, output_channel_conf_t channels,
 		const char* ttp_id = info->mitre_ttp_id;
 		const char* mitre_ttp_name = info->ttp_name;
 		const char* attack_name = info->attack_name;
+		int simulated_id = 0;
 		// Description from MMT
 		const char* description = extract_substring_with_delimiter(message_body, ',', 3);
 		
 		// IP asset uuid
 		const char* src_ip = extract_substring_between(message_body, "\"ocpp_data.src_ip\",\"", "\"]");
 		const char* dst_ip = extract_substring_between(message_body, "\"ocpp_data.dst_ip\",\"", "\"]");
-		const char* src_asset_uuid = "123e4567-e89b-12d3-a456-426614174008";
-		const char* dst_asset_uuid = "123e4567-e89b-12d3-a456-426614174009";		
+		if (src_ip == NULL && dst_ip == NULL) {
+			src_ip = extract_substring_between(message_body, "\"cicflow_data.Src_IP\",\"", "\"]");
+			dst_ip = extract_substring_between(message_body, "\"cicflow_data.Dst_IP\",\"", "\"]");
+			simulated_id = -1;
+		}
+		//const char* src_asset_uuid = "123e4567-e89b-12d3-a456-426614174008";
+		//const char* dst_asset_uuid = "123e4567-e89b-12d3-a456-426614174009";		
+		const char* src_asset_uuid = "123e4567-e89b-12d3-a456-000000000000";
+		const char* dst_asset_uuid = "123e4567-e89b-12d3-a456-000000000001";	
 
 		// Simulation ID
-		int simulated_id = -1;
 		char simulation[256];
 		if (simulated_id == -1) {
-			snprintf(simulation, sizeof(simulation), "Simulated attack");
+			snprintf(simulation, sizeof(simulation), "Real attack");
 		} else {
 			snprintf(simulation, sizeof(simulation), "Simulated attack with id %d", simulated_id);
 		}
@@ -510,7 +521,7 @@ int output_write_report( output_t *output, output_channel_conf_t channels,
 
 		message_constucted = 1;
 	}
-//#endif
+#endif
 	
 	if( !message_constucted ){	//Other data used the same output format
 	
