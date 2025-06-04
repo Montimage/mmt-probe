@@ -48,6 +48,7 @@ struct output_struct{
 
 typedef struct attack_info{
     const char *rule_id;
+	const char *event_uuid;
 	const char *attack_uuid;
     const char *attack_name;
 	const char *mitre_ttp_id;
@@ -55,12 +56,12 @@ typedef struct attack_info{
 } attack_info_t;
 
 const attack_info_t attack_name[] = {
-    {"201", "9b497c8c-36be-4fd6-91ce-a6bffe5d935c", "cyberattack_ocpp16_dos_flooding_heartbeat", "T1498", "Network Denial of Service"},
-	{"202", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "cyberattack_ocpp16_fdi_chargingprofile", "T1565", "Charging Profile Manipulation"},
+    {"201", "9ad941d2-526d-4988-ba62-d9870569b603", "9b497c8c-36be-4fd6-91ce-a6bffe5d935c", "cyberattack_ocpp16_dos_flooding_heartbeat", "T1498", "Network Denial of Service"},
+	{"202", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "cyberattack_ocpp16_fdi_chargingprofile", "T1565", "Charging Profile Manipulation"},
 	//{"204", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "lockbit_execution", "", ""},
 	//{"205", "123e4567-e89b-12d3-a456-426614174122", "pac_server_dos", "T1498", "Network Denial of Service"},
-	{"206", "9facae2f-7628-4090-9052-1141dbb47e38", "pac_server_dos", "T1498", "Network Denial of Service"},
-    {"207", "7406f73-bc3d-4e37-87e6-d955ed0a5dec", "lockbit_execution", "", "Lockbit Execution attack"},
+	{"206", "9facae2f-7628-4090-9052-1141dbb47e38", "9f83bc19-f76b-47e7-ad4d-01caf1a6dad0", "pac_server_dos", "T1498", "Network Denial of Service"},
+    {"207", "7406f73-bc3d-4e37-87e6-d955ed0a5dec", "33795917-9bb2-4ec0-9c6d-67ebcbd18d9a", "lockbit_execution", "", "Lockbit Execution attack"},
 	{NULL, NULL, NULL, NULL, NULL} // Sentinel value to indicate the end of the dictionary
 };
 
@@ -393,13 +394,16 @@ int output_write_report( output_t *output, output_channel_conf_t channels,
 		strcmp(rule_id, "206") == 0 ||
 		strcmp(rule_id, "207") == 0) {
 
-		char bundle_uuid[37], identity_uuid[37], observed_uuid[37];
+		char bundle_uuid[37], identity_uuid[37]; 
 		generate_uuid(bundle_uuid);
 		generate_uuid(identity_uuid);
-    	generate_uuid(observed_uuid);
+		//char observed_uuid[37];
+		//const char* identity_uuid = "4e05ef27-91ea-49a2-bc97-557af4598980";
+    	//generate_uuid(observed_uuid);
 		
 		// Attack info
 		attack_info_t* info = get_attack_info(rule_id);
+		const char* event_uuid = info->event_uuid;
 		const char* attack_uuid = info->attack_uuid;
 		const char* ttp_id = info->mitre_ttp_id;
 		const char* mitre_ttp_name = info->ttp_name;
@@ -512,7 +516,7 @@ int output_write_report( output_t *output, output_channel_conf_t channels,
 			"    ]\n"
 			"  }",
 			bundle_uuid, identity_uuid, timestamp, timestamp,
-			observed_uuid, timestamp, timestamp, timestamp, timestamp,
+			event_uuid, timestamp, timestamp, timestamp, timestamp,
 			src_asset_uuid, dst_asset_uuid, attack_uuid, identity_uuid, description,
 			src_asset_uuid, src_ip,
 			dst_asset_uuid, dst_ip,
