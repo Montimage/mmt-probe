@@ -41,30 +41,6 @@ struct output_struct{
 	}modules;
 };
 
-/*
- * Only for ocpp_data: 
- * A dictionary-type struct to include the attack name if needed
- */
-
-typedef struct attack_info{
-    const char *rule_id;
-	const char *event_uuid;
-	const char *attack_uuid;
-    const char *attack_name;
-	const char *mitre_ttp_id;
-	const char *ttp_name; 
-} attack_info_t;
-
-const attack_info_t attack_name[] = {
-    {"201", "9ad941d2-526d-4988-ba62-d9870569b603", "9b497c8c-36be-4fd6-91ce-a6bffe5d935c", "cyberattack_ocpp16_dos_flooding_heartbeat", "T1498", "Network Denial of Service"},
-	{"202", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "cyberattack_ocpp16_fdi_chargingprofile", "T1565", "Charging Profile Manipulation"},
-	//{"204", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "lockbit_execution", "", ""},
-	//{"205", "123e4567-e89b-12d3-a456-426614174122", "pac_server_dos", "T1498", "Network Denial of Service"},
-	{"206", "9facae2f-7628-4090-9052-1141dbb47e38", "9f83bc19-f76b-47e7-ad4d-01caf1a6dad0", "pac_server_dos", "T1498", "Network Denial of Service"},
-    {"207", "7406f73-bc3d-4e37-87e6-d955ed0a5dec", "33795917-9bb2-4ec0-9c6d-67ebcbd18d9a", "lockbit_execution", "", "Lockbit Execution attack"},
-	{NULL, NULL, NULL, NULL, NULL} // Sentinel value to indicate the end of the dictionary
-};
-
 
 //public API
 output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct *config, uint32_t probe_id, const char* input_src, bool is_multi_threads ){
@@ -188,6 +164,40 @@ static inline int _write( output_t *output, output_channel_conf_t channels, cons
 	return ret;
 }
 
+///////////////////////////// Funtions for DYNABIC //////////////////////////////////
+
+typedef struct attack_info{
+    const char *rule_id;
+	const char *event_uuid;
+	const char *attack_uuid;
+    const char *attack_name;
+	const char *mitre_ttp_id;
+	const char *ttp_name; 
+} attack_info_t;
+
+const attack_info_t attack_info_list[] = {
+    {"201", "9ad941d2-526d-4988-ba62-d9870569b603", "9b497c8c-36be-4fd6-91ce-a6bffe5d935c", "cyberattack_ocpp16_dos_flooding_heartbeat", "T1498", "Network Denial of Service"},
+	{"202", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "cyberattack_ocpp16_fdi_chargingprofile", "T1565", "Charging Profile Manipulation"},
+	//{"204", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "lockbit_execution", "", ""},
+	//{"205", "123e4567-e89b-12d3-a456-426614174122", "pac_server_dos", "T1498", "Network Denial of Service"},
+	{"206", "9facae2f-7628-4090-9052-1141dbb47e38", "9f83bc19-f76b-47e7-ad4d-01caf1a6dad0", "pac_server_dos", "T1498", "Network Denial of Service"},
+    {"207", "7406f73-bc3d-4e37-87e6-d955ed0a5dec", "33795917-9bb2-4ec0-9c6d-67ebcbd18d9a", "lockbit_execution", "", "Lockbit Execution attack"},
+	{NULL, NULL, NULL, NULL, NULL, NULL} // Sentinel value to indicate the end of the dictionary
+};
+
+typedef struct asset_uuid_ip{
+    const char *ip;
+	const char *uuid;
+} asset_uuid_ip_t;
+
+const asset_uuid_ip_t asset_list[] = {
+    {"201", "cf8601c0-6cfc-4f86-8725-3a6c8c8b9f2b"},
+	{"202", "cf8601c0-6cfc-4f86-8725-3a6c8c8b9f2b"},
+	{"206", "31b07896-6c13-406b-910b-fa5628f57bff"},
+    {"207", "31b07896-6c13-406b-910b-fa5628f57bff"},
+	{NULL, NULL} // Sentinel value to indicate the end of the dictionary
+};
+
 char *extract_substring_with_delimiter(const char *str, char delimiter, int n) {
     if (!str || n < 0) return NULL;
     const char *start = str;
@@ -285,160 +295,128 @@ static inline char *extract_substring_between(const char *main_str, const char *
 }
 
 static attack_info_t* get_attack_info(const char *rule_id) {
-    for (int i = 0; attack_name[i].rule_id != NULL; i++) {
-        if (strcmp(attack_name[i].rule_id, rule_id) == 0) {
-            return &attack_name[i];
+    for (int i = 0; attack_info_list[i].rule_id != NULL; i++) {
+        if (strcmp(attack_info_list[i].rule_id, rule_id) == 0) {
+            return &attack_info_list[i];
         }
     }
     return NULL; // Key not found
 }
 
-static const char* search_uuid_by_python_script(const char *python_path, const char *gml_file_path, const char *ip_addr){
-	char command[512];
-    char result[64];
+// static const char* search_uuid_by_python_script(const char *python_path, const char *gml_file_path, const char *ip_addr){
+// 	char command[512];
+//     char result[64];
 
-    // Format the command to call the Python script
-    snprintf(command, sizeof(command),
-             "bash -c 'cd /home/pqv/Documents/ocpp/ && source .venv/bin/activate && python3 %s %s %s'",
-             python_path, gml_file_path, ip_addr);
+//     // Format the command to call the Python script
+//     snprintf(command, sizeof(command),
+//              "bash -c 'cd /home/pqv/Documents/ocpp/ && source .venv/bin/activate && python3 %s %s %s'",
+//              python_path, gml_file_path, ip_addr);
 
-    // Open a pipe to read the output of the Python script
-    FILE *fp = popen(command, "r");
-    if (fp == NULL) {
-        fprintf(stderr, "Failed to run Python script.\n");
-        return NULL;
-    }
+//     // Open a pipe to read the output of the Python script
+//     FILE *fp = popen(command, "r");
+//     if (fp == NULL) {
+//         fprintf(stderr, "Failed to run Python script.\n");
+//         return NULL;
+//     }
 
-    // Read the prediction from the script output
-    if (fgets(result, sizeof(result), fp) != NULL) {
-		pclose(fp);
-		if (strlen(result) == 0) {
-			return "";
-		}
-        // Allocate memory for the result and copy the string
-		//printf("The input ip is %s found uuid is %s\n", ip_addr, result);
-        char *dynamic_result = malloc(strlen(result) + 1);
-        if (dynamic_result == NULL) {
-            fprintf(stderr, "Memory allocation failed.\n");
-            return NULL;
-        }
-        strcpy(dynamic_result, result);
-        return dynamic_result;
-    }
-	pclose(fp);
-	return NULL;
-}
+//     // Read the prediction from the script output
+//     if (fgets(result, sizeof(result), fp) != NULL) {
+// 		pclose(fp);
+// 		if (strlen(result) == 0) {
+// 			return "";
+// 		}
+//         // Allocate memory for the result and copy the string
+// 		//printf("The input ip is %s found uuid is %s\n", ip_addr, result);
+//         char *dynamic_result = malloc(strlen(result) + 1);
+//         if (dynamic_result == NULL) {
+//             fprintf(stderr, "Memory allocation failed.\n");
+//             return NULL;
+//         }
+//         strcpy(dynamic_result, result);
+//         return dynamic_result;
+//     }
+// 	pclose(fp);
+// 	return NULL;
+// }
 
-void generate_uuid(char* uuid_str) {
+static void generate_uuid(char* uuid_str) {
     uuid_t uuid;
     uuid_generate_random(uuid);
     uuid_unparse_lower(uuid, uuid_str);
 }
 
-/*
- * This macro is used to synchronize only when using in multi-threading,
- * i.e., (output->mutex != NULL)
- * The code after calling this macro is ensured thread-safe.
- * __UNLOCK macro must be called before any return.
- *
- * Currently we need to lock only when security is enable.
- */
-#define __LOCK_IF_NEED( output )                        \
-	while( output->mutex != NULL &&                     \
-		pthread_mutex_lock( output->mutex ) != 0 );     \
-/*
- * This macro unlocks the mutex being locked by the macro above.
- */
-#define __UNLOCK_IF_NEED( output )                      \
-	while( output->mutex != NULL &&                     \
-		pthread_mutex_unlock( output->mutex ) != 0 );   \
+static int construct_alert_stix_format(
+	const char* message_body,
+	const struct timeval* ts,
+	char* message, size_t message_size
+){
+	if (!message_body || !message) return -1;
 
-
-//public API
-int output_write_report( output_t *output, output_channel_conf_t channels,
-		report_type_t report_type, const struct timeval *ts,
-		const char* message_body){
-
-	__LOCK_IF_NEED( output );
-
-	//global output is disable or no output on this channel
-	if( output == NULL
-			|| output->config == NULL
-			|| ! output->config->is_enable
-			|| IS_DISABLE_OUTPUT( channels ) ){
-		__UNLOCK_IF_NEED( output );
-		return 0;
-	}
-
-	char message[ MAX_LENGTH_REPORT_MESSAGE ];
-	int offset = 0;
-	
-	//Need to handle ocpp_data specifically because the output format will be different for this case
 	char *rule_id = NULL;
-	int message_constucted = 0;
 
 	if ( message_body != NULL ){
 		rule_id = extract_substring_with_delimiter(message_body, ',', 0);
 	}
 
 	if( rule_id == NULL ){
-		__UNLOCK_IF_NEED( output );
-		return 0;
+		return -1;
 	}
 
-#ifdef STIX_FORMAT
 	if (strcmp(rule_id, "201") == 0 ||
 		strcmp(rule_id, "202") == 0 ||
-		strcmp(rule_id, "204") == 0 ||
-		strcmp(rule_id, "205") == 0 ||
+		//strcmp(rule_id, "204") == 0 ||
+		//strcmp(rule_id, "205") == 0 ||
 		strcmp(rule_id, "206") == 0 ||
 		strcmp(rule_id, "207") == 0) {
 
-		char bundle_uuid[37], identity_uuid[37]; 
+		// Generate UUIDs
+		char bundle_uuid[37], identity_uuid[37];
 		generate_uuid(bundle_uuid);
 		generate_uuid(identity_uuid);
 		//char observed_uuid[37];
 		//const char* identity_uuid = "4e05ef27-91ea-49a2-bc97-557af4598980";
-    	//generate_uuid(observed_uuid);
-		
-		// Attack info
+		//generate_uuid(observed_uuid);
+
+		// Extract attack info
 		attack_info_t* info = get_attack_info(rule_id);
+		if (!info) return -1;
+
 		const char* event_uuid = info->event_uuid;
 		const char* attack_uuid = info->attack_uuid;
 		const char* ttp_id = info->mitre_ttp_id;
-		const char* mitre_ttp_name = info->ttp_name;
 		const char* attack_name = info->attack_name;
-		int simulated_id = 0;
+
 		// Description from MMT
 		const char* description = extract_substring_with_delimiter(message_body, ',', 3);
 		
 		// IP asset uuid
 		const char* src_ip = extract_substring_between(message_body, "\"ocpp_data.src_ip\",\"", "\"]");
 		const char* dst_ip = extract_substring_between(message_body, "\"ocpp_data.dst_ip\",\"", "\"]");
-		if (src_ip == NULL && dst_ip == NULL) {
+
+		int simulated_id = 0;
+		if (!src_ip && !dst_ip) {
 			src_ip = extract_substring_between(message_body, "\"cicflow_data.Src_IP\",\"", "\"]");
 			dst_ip = extract_substring_between(message_body, "\"cicflow_data.Dst_IP\",\"", "\"]");
 			simulated_id = -1;
 		}
-		//const char* src_asset_uuid = "123e4567-e89b-12d3-a456-426614174008";
-		//const char* dst_asset_uuid = "123e4567-e89b-12d3-a456-426614174009";		
+
 		const char* src_asset_uuid = "123e4567-e89b-12d3-a456-000000000000";
-		const char* dst_asset_uuid = "123e4567-e89b-12d3-a456-000000000001";	
+		const char* dst_asset_uuid = "123e4567-e89b-12d3-a456-000000000001";
 
 		// Simulation ID
 		char simulation[256];
-		if (simulated_id == -1) {
+		if (simulated_id == -1)
 			snprintf(simulation, sizeof(simulation), "Real attack");
-		} else {
+		else
 			snprintf(simulation, sizeof(simulation), "Simulated attack with id %d", simulated_id);
-		}
-		
+
 		// Timestamp
 		char timestamp[30];
 		format_timeval_iso8601(ts, 1, timestamp, sizeof(timestamp));
 
+		// Construct message
 		snprintf(
-			message, 8192,
+			message, message_size,
 			"{\n"
 			"    \"type\": \"bundle\",\n"
 			"    \"id\": \"bundle--%s\",\n"
@@ -522,12 +500,59 @@ int output_write_report( output_t *output, output_channel_conf_t channels,
 			dst_asset_uuid, dst_ip,
 			attack_uuid, attack_name, timestamp, timestamp, simulation, ttp_id, ttp_id
 		);
-
-		message_constucted = 1;
+		return 1;
 	}
+	return 0;
+}
+
+///////////////////////////// Funtions for DYNABIC //////////////////////////////////
+
+/*
+ * This macro is used to synchronize only when using in multi-threading,
+ * i.e., (output->mutex != NULL)
+ * The code after calling this macro is ensured thread-safe.
+ * __UNLOCK macro must be called before any return.
+ *
+ * Currently we need to lock only when security is enable.
+ */
+#define __LOCK_IF_NEED( output )                        \
+	while( output->mutex != NULL &&                     \
+		pthread_mutex_lock( output->mutex ) != 0 );     \
+/*
+ * This macro unlocks the mutex being locked by the macro above.
+ */
+#define __UNLOCK_IF_NEED( output )                      \
+	while( output->mutex != NULL &&                     \
+		pthread_mutex_unlock( output->mutex ) != 0 );   \
+
+
+//public API
+int output_write_report( output_t *output, output_channel_conf_t channels,
+		report_type_t report_type, const struct timeval *ts,
+		const char* message_body){
+
+	__LOCK_IF_NEED( output );
+
+	//global output is disable or no output on this channel
+	if( output == NULL
+			|| output->config == NULL
+			|| ! output->config->is_enable
+			|| IS_DISABLE_OUTPUT( channels ) ){
+		__UNLOCK_IF_NEED( output );
+		return 0;
+	}
+
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	int offset = 0;
+	int message_constucted = 0;
+
+/////////////////////// DYNABIC ////////////////////////////
+#ifdef STIX_FORMAT
+	message_constucted = construct_alert_stix_format(message_body, ts, message, 8192);
 #endif
+/////////////////////// DYNABIC	////////////////////////////
 	
-	if( !message_constucted ){	//Other data used the same output format
+	if( message_constucted != 1 ){	//Other data used the same output format
 	
 		STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_FULL_PATH_FILE_NAME, ",",
 			__INT( report_type ),

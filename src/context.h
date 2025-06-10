@@ -59,7 +59,7 @@ typedef struct probe_context_struct{
 	struct{
 #ifdef PCAP_MODULE
 		struct pcap_probe_context_struct *pcap;
-#elif defined(STREAM_MODULE)
+#elif defined(STREAM_FILE_MODULE)
 		struct stream_probe_context_struct *stream;
 #endif
 	}modules;

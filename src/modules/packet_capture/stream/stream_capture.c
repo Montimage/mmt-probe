@@ -19,8 +19,8 @@
 #include "../../../worker.h"
 
 
-#ifndef STREAM_CAPTURE_MODULE
-#define STREAM_CAPTURE_MODULE
+#ifndef STREAM_FILE_MODULE
+#define STREAM_FILE_MODULE
 #endif
 
 #include <time.h>

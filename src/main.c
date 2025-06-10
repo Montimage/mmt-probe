@@ -52,7 +52,7 @@
 #include "modules/packet_capture/pcap/pcap_capture.h"
 #endif
 
-#ifdef STREAM_MODULE
+#ifdef STREAM_FILE_MODULE
 #include "modules/packet_capture/stream/stream_capture.h"
 #endif
 
@@ -66,6 +66,14 @@
 
 #if defined DPDK_MODULE && defined PCAP_MODULE
 #error("Either DPDK_MODULE or PCAP_MODULE is defined but must not all of them")
+#endif
+
+#if defined STREAM_FILE_MODULE && defined PCAP_MODULE
+#error("Either STREAM_FILE_MODULE or PCAP_MODULE is defined but must not all of them")
+#endif
+
+#if defined DPDK_MODULE && defined STREAM_FILE_MODULE
+#error("Either DPDK_MODULE or STREAM_FILE_MODULE is defined but must not all of them")
 #endif
 
 #ifdef DEBUG_MODE

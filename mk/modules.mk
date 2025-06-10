@@ -267,7 +267,7 @@ ifdef DPDK_CAPTURE
 else
   ifdef STREAM_CAPTURE
     $(eval $(call _info,- Analyse text stream, line-by-line))
-    MODULE_FLAGS += -DSTREAM_MODULE
+    MODULE_FLAGS += -DSTREAM_FILE_MODULE
     MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/stream/*.c)
   else
     $(eval $(call _info,- Use PCAP to capture packet))
