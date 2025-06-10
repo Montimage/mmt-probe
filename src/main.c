@@ -459,10 +459,10 @@ static int _main_processing( int argc, char** argv ){
 
 #ifdef DPDK_MODULE
 	dpdk_capture_start( context );
-#elif defined(PCAP_MODULE)
-    pcap_capture_start(context);
+#elif defined(STREAM_FILE_MODULE)
+	stream_capture_start(context);
 #else
-    stream_capture_start(context);
+	pcap_capture_start(context);
 #endif
 
 	IF_ENABLE_SECURITY(
