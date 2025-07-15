@@ -92,8 +92,13 @@ networks:
 
 # Inject traffic
 
-- we can use [5Greplay](https://5greplay.org/docs.html) to generate some network traffic to test MMT
+We can use [5Greplay](https://5greplay.org/docs.html) to generate some network traffic to test MMT:
 
 ```bash
-docker run --network=host --rm -it ghcr.io/montimage/5greplay:v0.0.7 replay -t pcap/sa.pcap -Xforward.nb-copies=2000 -Xforward.default=FORWARD -Xforward.output-nic=enp0s3
+# download test pcap file:
+curl -L -o /tmp/test.pcap https://github.com/Montimage/mmt-security/raw/refs/heads/main/test/pcap/test_p9.pcap
+
+# replay the pcap file:
+docker run --network=host --rm -it -v/tmp/test.pcap:/x.pcap ghcr.io/montimage/5greplay:v0.0.7 replay -t /x.pcap -Xforward.nb-copies=2000 -Xforward.default=FORWARD -Xforward.output-nic=enp0s3
 ```
+
