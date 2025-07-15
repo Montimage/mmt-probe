@@ -1,0 +1,32 @@
+# 1. deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: 5greplay
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: 5greplay
+  template:
+    metadata:
+      labels:
+        app: 5greplay
+      annotations:
+        ## Below annotation when pods are in different hosts in the cluster
+        k8s.v1.cni.cncf.io/networks: monitor-macvlan-net
+        ## Below annotation when pods are in same host node
+        #k8s.v1.cni.cncf.io/networks: '[{ "name": "n2network-controlplane-free5gc-amf", "namespace": "cp", "ips": [ "10.100.50.249/29" ] }]'
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: nsit-intact-w0
+        #kubernetes.io/hostname: nsit-intact-master 
+      containers:
+      - name: 5greplay
+        image: ghcr.io/montimage/5greplay:latest
+        imagePullPolicy: Always
+        command: ["/bin/bash"]
+        args: ["-c", "apt install -y tcpdump netcat iputils-ping vim; while true; do ping localhost; sleep 60;done"]
+        securityContext:
+          capabilities:
+            add: ["NET_ADMIN", "NET_RAW"]
