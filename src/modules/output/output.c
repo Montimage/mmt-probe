@@ -168,6 +168,7 @@ static inline int _write( output_t *output, output_channel_conf_t channels, cons
 
 typedef struct attack_info{
     const char *rule_id;
+	const char *uc;
 	const char *event_uuid;
 	const char *attack_uuid;
     const char *attack_name;
@@ -176,26 +177,32 @@ typedef struct attack_info{
 } attack_info_t;
 
 const attack_info_t attack_info_list[] = {
-    {"201", "9ad941d2-526d-4988-ba62-d9870569b603", "9b497c8c-36be-4fd6-91ce-a6bffe5d935c", "cyberattack_ocpp16_dos_flooding_heartbeat", "T1498", "Network Denial of Service"},
-	{"202", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "cyberattack_ocpp16_fdi_chargingprofile", "T1565", "Charging Profile Manipulation"},
+    {"201", "uc1", "9ad941d2-526d-4988-ba62-d9870569b603", "9b497c8c-36be-4fd6-91ce-a6bffe5d935c", "cyberattack_ocpp16_dos_flooding_heartbeat", "T1498", "Network Denial of Service"},
+	{"202", "uc1", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "cyberattack_ocpp16_fdi_chargingprofile", "T1565", "Charging Profile Manipulation"},
 	//{"204", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "lockbit_execution", "", ""},
 	//{"205", "123e4567-e89b-12d3-a456-426614174122", "pac_server_dos", "T1498", "Network Denial of Service"},
-	{"206", "9facae2f-7628-4090-9052-1141dbb47e38", "9f83bc19-f76b-47e7-ad4d-01caf1a6dad0", "pac_server_dos", "T1498", "Network Denial of Service"},
-    {"207", "7406f73-bc3d-4e37-87e6-d955ed0a5dec", "33795917-9bb2-4ec0-9c6d-67ebcbd18d9a", "lockbit_execution", "", "Lockbit Execution attack"},
+	{"206", "uc4", "9facae2f-7628-4090-9052-1141dbb47e38", "9f83bc19-f76b-47e7-ad4d-01caf1a6dad0", "pac_server_dos", "T1498", "Network Denial of Service"},
+    {"207", "uc4", "7406f73-bc3d-4e37-87e6-d955ed0a5dec", "33795917-9bb2-4ec0-9c6d-67ebcbd18d9a", "lockbit_execution", "", "Lockbit Execution attack"},
 	{NULL, NULL, NULL, NULL, NULL, NULL} // Sentinel value to indicate the end of the dictionary
 };
 
 typedef struct asset_uuid_ip{
+	const char *uc;
     const char *ip;
 	const char *uuid;
 } asset_uuid_ip_t;
 
 const asset_uuid_ip_t asset_list[] = {
-    {"201", "cf8601c0-6cfc-4f86-8725-3a6c8c8b9f2b"},
-	{"202", "cf8601c0-6cfc-4f86-8725-3a6c8c8b9f2b"},
-	{"206", "31b07896-6c13-406b-910b-fa5628f57bff"},
-    {"207", "31b07896-6c13-406b-910b-fa5628f57bff"},
-	{NULL, NULL} // Sentinel value to indicate the end of the dictionary
+    {"uc1", "10.250.100.52", "cf8601c0-6cfc-4f86-8725-3a6c8c8b9f2b"},
+	{"uc1", "192.168.21.22", "r5gj12ax-b83m-3200-5121-kv34uik9k8l4"},
+	{"uc1", "192.168.21.210", "540f782a-fc1f-4830-8b52-4b52c8f06ff6"},
+	{"uc1", "192.168.21.212", "453c592f-9197-42f2-b292-f817b3424128"},
+	{"uc1", "192.168.21.206", "83c1afe9-b342-4d2b-aed4-0d9ec76f5450"},
+	{"uc1", "192.168.21.222", "e3bc13aa-c00b-4099-9883-a2e58ec4e6e5"},
+	{"uc4", "192.168.61.50", "e81ffd6a-1ee3-408c-9747-7ada293d9ac4"},
+	{"uc4", "192.168.62.100", "422e8e2a-c635-4b19-84b2-b4d097667026"},
+	{"uc4", "192.168.61.54", "9a07fb6a-ecfa-4b29-bcbd-4ff6b2aad072"},
+	{NULL, NULL, NULL} // Sentinel value to indicate the end of the dictionary
 };
 
 char *extract_substring_with_delimiter(const char *str, char delimiter, int n) {
@@ -303,6 +310,19 @@ static attack_info_t* get_attack_info(const char *rule_id) {
     return NULL; // Key not found
 }
 
+const char* get_uuid_by_ip_usecase(const char *uc, const char *ip) {
+    if (uc == NULL || ip == NULL) {
+        return "";
+    }    
+    for (int i = 0; asset_list[i].uc != NULL; i++) {
+        if (strcmp(asset_list[i].uc, uc) == 0 && 
+            strcmp(asset_list[i].ip, ip) == 0) {
+            return asset_list[i].uuid;
+        }
+    }
+    return ""; // Not found
+}
+
 // static const char* search_uuid_by_python_script(const char *python_path, const char *gml_file_path, const char *ip_addr){
 // 	char command[512];
 //     char result[64];
@@ -380,7 +400,8 @@ static int construct_alert_stix_format(
 		// Extract attack info
 		attack_info_t* info = get_attack_info(rule_id);
 		if (!info) return -1;
-
+		
+		const char* uc = info->uc;
 		const char* event_uuid = info->event_uuid;
 		const char* attack_uuid = info->attack_uuid;
 		const char* ttp_id = info->mitre_ttp_id;
@@ -400,8 +421,8 @@ static int construct_alert_stix_format(
 			simulated_id = -1;
 		}
 
-		const char* src_asset_uuid = "123e4567-e89b-12d3-a456-000000000000";
-		const char* dst_asset_uuid = "123e4567-e89b-12d3-a456-000000000001";
+		const char* src_asset_uuid = get_uuid_by_ip_usecase(uc, src_ip);
+		const char* dst_asset_uuid = get_uuid_by_ip_usecase(uc, dst_ip);
 
 		// Simulation ID
 		char simulation[256];
