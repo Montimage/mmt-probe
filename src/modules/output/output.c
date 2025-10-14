@@ -418,15 +418,19 @@ static int construct_alert_stix_format(
 		if (!src_ip && !dst_ip) {
 			src_ip = extract_substring_between(message_body, "\"cicflow_data.Src_IP\",\"", "\"]");
 			dst_ip = extract_substring_between(message_body, "\"cicflow_data.Dst_IP\",\"", "\"]");
-			simulated_id = -1;
 		}
 
 		const char* src_asset_uuid = get_uuid_by_ip_usecase(uc, src_ip);
 		const char* dst_asset_uuid = get_uuid_by_ip_usecase(uc, dst_ip);
 
+		const char* simulated_id_str = extract_substring_between(message_body, "\"ocpp_data.simulation_id\",", "]");
+		if( simulated_id_str != NULL ){
+			simulated_id = atoi(simulated_id_str);
+		}
+
 		// Simulation ID
 		char simulation[256];
-		if (simulated_id == -1)
+		if (simulated_id == 0)
 			snprintf(simulation, sizeof(simulation), "Real attack");
 		else
 			snprintf(simulation, sizeof(simulation), "Simulated attack with id %d", simulated_id);
@@ -569,7 +573,10 @@ int output_write_report( output_t *output, output_channel_conf_t channels,
 
 /////////////////////// DYNABIC ////////////////////////////
 #ifdef STIX_FORMAT
-	message_constucted = construct_alert_stix_format(message_body, ts, message, 8192);
+	message_constucted = construct_alert_stix_format(message_body, ts, message, sizeof(message));
+	if (strcmp(output->config->kafka->topic_name, "UC1.dashboard_alerts") == 0) {
+		message_constucted = 0;
+	}
 #endif
 /////////////////////// DYNABIC	////////////////////////////
 	
