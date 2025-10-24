@@ -255,7 +255,7 @@ void format_timeval_iso8601(const struct timeval *ts, int utc_timezone, char *bu
     mktime(&tm);
 
     // Format date and time without fractional seconds
-    strftime(buffer, buffer_size, "%Y-%m-%dT%H:%M:%SZ", &tm);
+    strftime(buffer, buffer_size, "%Y-%m-%dT%H:%M:%S", &tm);
 	
 	size_t len = strlen(buffer);
     snprintf(buffer + len, buffer_size - len, ".%03ldZ", ts->tv_usec / 1000);
