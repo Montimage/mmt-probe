@@ -181,7 +181,7 @@ const attack_info_t attack_info_list[] = {
 	{"202", "uc1", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "cyberattack_ocpp16_fdi_chargingprofile", "T1565", "Charging Profile Manipulation"},
 	//{"204", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "lockbit_execution", "", ""},
 	//{"205", "123e4567-e89b-12d3-a456-426614174122", "pac_server_dos", "T1498", "Network Denial of Service"},
-	{"206", "uc4", "9facae2f-7628-4090-9052-1141dbb47e38", "9f83bc19-f76b-47e7-ad4d-01caf1a6dad0", "pac_server_dos", "T1498", "Network Denial of Service"},
+	{"206", "uc4", "9facae2f-7628-4090-9052-1141dbb47e38", "9f83bc19-f76b-47e7-ad4d-01caf1a6dad0", "pacs_server_ddos", "T1498", "Network Denial of Service"},
     {"207", "uc4", "7406f73-bc3d-4e37-87e6-d955ed0a5dec", "33795917-9bb2-4ec0-9c6d-67ebcbd18d9a", "lockbit_execution", "", "Lockbit Execution attack"},
 	{NULL, NULL, NULL, NULL, NULL, NULL} // Sentinel value to indicate the end of the dictionary
 };
