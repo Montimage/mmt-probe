@@ -179,6 +179,7 @@ typedef struct attack_info{
 const attack_info_t attack_info_list[] = {
     {"201", "uc1", "9ad941d2-526d-4988-ba62-d9870569b603", "9b497c8c-36be-4fd6-91ce-a6bffe5d935c", "cyberattack_ocpp16_dos_flooding_heartbeat", "T1498", "Network Denial of Service"},
 	{"202", "uc1", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "cyberattack_ocpp16_fdi_chargingprofile", "T1565", "Charging Profile Manipulation"},
+	{"203", "uc2", "b75fbd14-8623-446c-8847-d42fdadbc193", "92d2178d-1887-4075-b847-81f9513e712c", "ransomware_execution", "", "Ransomware Execution attack"},
 	//{"204", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "lockbit_execution", "", ""},
 	//{"205", "123e4567-e89b-12d3-a456-426614174122", "pac_server_dos", "T1498", "Network Denial of Service"},
 	{"206", "uc4", "9facae2f-7628-4090-9052-1141dbb47e38", "9f83bc19-f76b-47e7-ad4d-01caf1a6dad0", "pacs_server_ddos", "T1498", "Network Denial of Service"},
@@ -199,6 +200,21 @@ const asset_uuid_ip_t asset_list[] = {
 	{"uc1", "192.168.21.212", "453c592f-9197-42f2-b292-f817b3424128"},
 	{"uc1", "192.168.21.206", "83c1afe9-b342-4d2b-aed4-0d9ec76f5450"},
 	{"uc1", "192.168.21.222", "e3bc13aa-c00b-4099-9883-a2e58ec4e6e5"},
+	{"uc2", "37.146.34.63", "7a20840f-cbd8-44c7-9ec1-ccd8b23925fa"},
+	{"uc2", "131.132.36.182", "91ea1603-65a9-4aee-aeb9-0a63e03a871a"},
+	{"uc2", "37.146.34.9", "4bebb167-52e4-405a-a6f4-ca4c15c9b197"},
+	{"uc2", "37.146.34.53", "992337c6-3115-4cab-a9ca-6c5c50605e5"},
+	{"uc2", "37.146.34.33", "a8645120-c1d2-44b1-8606-480be93cd33e"},
+	{"uc2", "37.146.34.29", "a1650f87-14cf-4b31-8e8e-835e5d8325e6"},
+	{"uc2", "37.146.34.51", "47323158-e850-4864-9cfb-20edf90c8ba5"},
+	{"uc2", "37.146.58.180", "0e62e887-a3c3-4c6b-9544-6204dee96e34"},
+	{"uc2", "37.146.34.50", "84dbdef4-09e0-47ad-8a5b-94514af0a3dd"},
+	{"uc2", "131.132.36.73", "c5a8f317-d636-422e-996e-0edf442d4768"},
+	{"uc2", "37.130.2.202", "7230a09a-50d6-41f1-a038-a56b673ab094"},
+	{"uc2", "37.146.35.203", "b72f70b5-4d28-4565-a558-5f733d12018b"},
+	{"uc2", "37.146.35.211", "ae6do5ee-89ee-1202-c585-adee28000adb"},
+	{"uc2", "37.146.35.197", "d77e89aa-11ec-aea8-du7e-abe13dac0i72"},
+	{"uc2", "37.146.35.195", "1aeb9f0e-8da8-1230-ef2b-9a35aedb010f"},
 	{"uc4", "192.168.61.50", "e81ffd6a-1ee3-408c-9747-7ada293d9ac4"},
 	{"uc4", "192.168.62.100", "422e8e2a-c635-4b19-84b2-b4d097667026"},
 	{"uc4", "192.168.61.54", "9a07fb6a-ecfa-4b29-bcbd-4ff6b2aad072"},
@@ -384,6 +400,7 @@ static int construct_alert_stix_format(
 
 	if (strcmp(rule_id, "201") == 0 ||
 		strcmp(rule_id, "202") == 0 ||
+		strcmp(rule_id, "203") == 0 ||
 		//strcmp(rule_id, "204") == 0 ||
 		//strcmp(rule_id, "205") == 0 ||
 		strcmp(rule_id, "206") == 0 ||
