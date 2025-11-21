@@ -1,3 +1,6 @@
+## v1.6.1 (21 Nov 2025)
+- fixed bug which prevents session-based reports when `stack-type` is not 1. This occurs when analysing non Ethernet-based traffic, e.g., a TUN device.
+
 ## v1.6.0 (16 May 2025)
 - add ability to output reports to MQTT: `mqtt-output`
 - add `pcap-filter` parameter to capture only selected packets using BPF syntax
