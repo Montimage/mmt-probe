@@ -13,6 +13,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <pcap.h>
 #include <string.h>
 #include <unistd.h>
@@ -39,6 +40,7 @@ static uint32_t proto_id = PROTO_ETHERNET; //protocol to extract, by default: et
 static uint32_t att_id   = ETH_SRC;        //attribute to extract, by default: address source
 static uint16_t proto_index = 0;
 static uint32_t proto_stack = 1;
+static uint32_t packet_offset = 0;
 /**
  * Packet handler
  * @param ipacket   packet
@@ -80,6 +82,7 @@ void usage(const char * prg_name) {
 	fprintf(stderr, "\t-a             : ID or Name of attribute to be extracted.\n");
 	fprintf(stderr, "\t-d             : Index of protocol to extract. For example: ETH.IP.UDP.GTP.IP, if d=3 (or ignored) IP after ETH, d=6 represent IP after GTP\n");
 	fprintf(stderr, "\t-r             : ID of protocol stack. Default = 1 (Ethernet)\n");
+	fprintf(stderr, "\t-k             : Offset of packet at which starting to analyze\n");
 	fprintf(stderr, "\t-l             : Print list of protocol and attribute, then exit.\n");
 	fprintf(stderr, "\t-h             : Prints this help.\n");
 	exit(1);
@@ -104,7 +107,7 @@ void protocols_iterator(uint32_t proto_id, void * args) {
 void parseOptions(int argc, char ** argv, char * filename, int * type) {
 	int opt, optcount = 0;
 	int got_attr_id = 0;
-	while ((opt = getopt(argc, argv, "t:i:p:a:d:r:hl")) != EOF) {
+	while ((opt = getopt(argc, argv, "t:i:p:a:d:r:k:hl")) != EOF) {
 		switch (opt) {
 		case 't':
 			optcount++;
@@ -157,6 +160,10 @@ void parseOptions(int argc, char ** argv, char * filename, int * type) {
 		case 'r':
 			proto_stack = atoi( optarg );
 			break;
+		case 'k':
+			packet_offset = atoi( optarg );
+			break;
+
 		case 'l':
 			//Initialize MMT
 			iterate_through_protocols(protocols_iterator, NULL);
@@ -179,6 +186,38 @@ void parseOptions(int argc, char ** argv, char * filename, int * type) {
 	return;
 }
 
+
+static struct {
+	uint32_t type;
+	uint32_t offset;
+} stack = {1, 0}; //1: Ethernet, 0: no offset => protocol Ethernet is started immediately at the first byte
+
+static classified_proto_t _stack_classification(ipacket_t * ipacket) {
+	classified_proto_t retval;
+	retval.offset   = stack.offset;
+	retval.proto_id = stack.type;
+	retval.status   = Classified;
+	return retval;
+}
+
+bool _init_protocol_stack(uint32_t stack_type, uint32_t stack_offset ){
+	switch( stack_type ){
+	//these stack are already registered in DPI
+	case 1:   //Ethernet
+	case 624: //Linux cooked capture
+	case 800: //ieee802154
+		//Use the function that is registered in DPI
+		// => the function "_stack_classification" will no be called
+		return true;
+	default:
+		//for the other stack, we need to register it to DPI
+		//We use protocol ID as the stack number
+		stack.type   = stack_type;
+		stack.offset = stack_offset;
+		return register_protocol_stack( stack_type, "Dynamic-Stack", _stack_classification);
+	}
+}
+
 /**
  * Live capture callback function
  * @param user     [description]
@@ -192,6 +231,7 @@ void live_capture_callback( u_char *user, const struct pcap_pkthdr *p_pkthdr, co
 	header.ts = p_pkthdr->ts;
 	header.caplen = p_pkthdr->caplen;
 	header.len = p_pkthdr->len;
+
 	if (!packet_process( mmt, &header, data )) {
 		fprintf(stderr, "Packet data extraction failure.\n");
 	}
@@ -211,14 +251,18 @@ int main(int argc, char ** argv){
 	struct pcap_pkthdr p_pkthdr;
 	char errbuf[1024];
 
+	parseOptions(argc, argv, filename, &type);
+
 	//Initialize MMT
 	init_extraction();
 
-	parseOptions(argc, argv, filename, &type);
-
+	if( ! _init_protocol_stack(proto_stack, packet_offset)){
+		fprintf(stderr, "Does not support stack %d.\n", proto_stack);
+		return EXIT_FAILURE;
+	}
 
 	//Initialize MMT handler
-	mmt_handler =mmt_init_handler( proto_stack,0,mmt_errbuf);
+	mmt_handler = mmt_init_handler( proto_stack, 0, mmt_errbuf);
 	if(!mmt_handler){
 		fprintf(stderr, "MMT handler init failed for the following reason: %s\n",mmt_errbuf );
 		return EXIT_FAILURE;
