@@ -242,8 +242,12 @@ static void _http_response_handle(const ipacket_t * ipacket, attribute_t * attri
 
 	uint32_t content_length = _get_content_length(ipacket);
 
-	//need 200 OK
-	if( strncmp( response->ptr, "200 OK", response->len ) != 0 )
+	//need 200 OK (case-insensitive check for "Ok", "OK", "ok")
+	if( response->len < 6 || strncmp( response->ptr, "200 ", 4 ) != 0 )
+		return;
+	// Check for "OK" case-insensitively
+	if( !((response->ptr[4] == 'O' || response->ptr[4] == 'o') &&
+	      (response->ptr[5] == 'K' || response->ptr[5] == 'k')) )
 		return;
 
 	packet_session_t *packet_session = dpi_get_packet_session( ipacket );
@@ -289,14 +293,15 @@ static void _http_response_handle(const ipacket_t * ipacket, attribute_t * attri
 	uint32_t data_len    = *(uint32_t *)tcp_payload_len;
 	uint32_t i = 3;
 
-	//find empty line to cutoff HTTP header
-	while( i<data_len )
-		if(tcp_payload[i] == '\r' && tcp_payload[i-1] == '\n' && tcp_payload[i-1] == '\n')
+	//find empty line (\r\n\r\n) to cutoff HTTP header
+	while( i < data_len )
+		if(tcp_payload[i-3] == '\r' && tcp_payload[i-2] == '\n' &&
+		   tcp_payload[i-1] == '\r' && tcp_payload[i] == '\n')
 			break;
 		else
 			i++;
-	//jump over empty line
-	i += 2;
+	//jump over the last \n of the empty line
+	i += 1;
 
 	//body is empty
 	if( unlikely( i >= data_len ))

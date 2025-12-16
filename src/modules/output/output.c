@@ -179,7 +179,10 @@ typedef struct attack_info{
 const attack_info_t attack_info_list[] = {
     {"201", "uc1", "9ad941d2-526d-4988-ba62-d9870569b603", "9b497c8c-36be-4fd6-91ce-a6bffe5d935c", "cyberattack_ocpp16_dos_flooding_heartbeat", "T1498", "Network Denial of Service"},
 	{"202", "uc1", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "cyberattack_ocpp16_fdi_chargingprofile", "T1565", "Charging Profile Manipulation"},
-	{"203", "uc2", "b75fbd14-8623-446c-8847-d42fdadbc193", "92d2178d-1887-4075-b847-81f9513e712c", "ransomware_execution", "", "Ransomware Execution attack"},
+	{"203", "uc2", "b75fbd14-8623-446c-8847-d42fdadbc193", "92d2178d-1887-4075-b847-81f9513e712c", "PHP_insecure_intrusion", "T1190", "Exploit public-facing web applications"},
+	{"204", "uc2", "b75fbd14-8623-446c-8847-d42fdadbc193", "92d2178d-1887-4075-b847-81f9513e712c", "smb_intrusion", "T1003", "OS Credential Dumping"},
+	{"210", "uc2", "b75fbd14-8623-446c-8847-d42fdadbc193", "92d2178d-1887-4075-b847-81f9513e712c", "rdp_intrusion", "T1110", "Brute Force"},
+	{"211", "uc2", "b75fbd14-8623-446c-8847-d42fdadbc193", "92d2178d-1887-4075-b847-81f9513e712c", "ssh_intrusion", "T1078", "Valid Accounts"},
 	//{"204", "28beb0a3-069f-44bb-b2d7-4c9490284e83", "lockbit_execution", "", ""},
 	//{"205", "123e4567-e89b-12d3-a456-426614174122", "pac_server_dos", "T1498", "Network Denial of Service"},
 	{"206", "uc4", "9facae2f-7628-4090-9052-1141dbb47e38", "9f83bc19-f76b-47e7-ad4d-01caf1a6dad0", "pacs_server_ddos", "T1498", "Network Denial of Service"},
@@ -401,6 +404,9 @@ static int construct_alert_stix_format(
 	if (strcmp(rule_id, "201") == 0 ||
 		strcmp(rule_id, "202") == 0 ||
 		strcmp(rule_id, "203") == 0 ||
+		strcmp(rule_id, "204") == 0 ||
+		strcmp(rule_id, "210") == 0 ||
+		strcmp(rule_id, "211") == 0 ||
 		//strcmp(rule_id, "204") == 0 ||
 		//strcmp(rule_id, "205") == 0 ||
 		strcmp(rule_id, "206") == 0 ||
@@ -445,12 +451,14 @@ static int construct_alert_stix_format(
 			simulated_id = atoi(simulated_id_str);
 		}
 
+		// simulated_id = 1;
+
 		// Simulation ID
 		char simulation[256];
 		if (simulated_id == 0)
 			snprintf(simulation, sizeof(simulation), "Real attack");
 		else
-			snprintf(simulation, sizeof(simulation), "Simulated attack with id %d", simulated_id);
+			snprintf(simulation, sizeof(simulation), "Simulated attack", simulated_id);
 
 		// Timestamp
 		char timestamp[30];
@@ -591,7 +599,8 @@ int output_write_report( output_t *output, output_channel_conf_t channels,
 /////////////////////// DYNABIC ////////////////////////////
 #ifdef STIX_FORMAT
 	message_constucted = construct_alert_stix_format(message_body, ts, message, sizeof(message));
-	if (strcmp(output->config->kafka->topic_name, "UC1.dashboard_alerts") == 0) {
+	// if output->config->kafka->topic_name contains dahsboard_alerts, we force to use normal format
+	if (strstr( output->config->kafka->topic_name, "dashboard_alerts") != NULL) {
 		message_constucted = 0;
 	}
 #endif
