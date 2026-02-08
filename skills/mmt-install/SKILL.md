@@ -18,6 +18,24 @@ Use this skill when the user asks to:
 - Create .deb or .rpm packages
 - Run MMT-Probe via Docker
 
+## Important: Docker / Non-root Environments
+
+Inside Docker containers you typically run as root, so `sudo` is neither available nor needed. All commands below use `sudo` for host installations. **In Docker containers, omit `sudo`** from every command (or define an alias: `alias sudo=''`).
+
+To detect if you are in a Docker container:
+
+```bash
+if [ -f /.dockerenv ] || grep -q docker /proc/1/cgroup 2>/dev/null; then
+    SUDO=""
+    echo "Docker detected: running without sudo"
+else
+    SUDO="sudo"
+    echo "Host detected: using sudo"
+fi
+```
+
+Then use `$SUDO` in place of `sudo` throughout (e.g., `$SUDO apt-get update`).
+
 ## Prerequisites Check
 
 ### Detect the OS
@@ -45,17 +63,17 @@ echo "Detected OS: $OS_ID $OS_VERSION"
 ### Debian/Ubuntu
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y build-essential gcc g++ cpp cmake git curl
-sudo apt-get install -y libconfuse-dev libpcap-dev
+$SUDO apt-get update
+$SUDO apt-get install -y build-essential gcc g++ cpp cmake git curl
+$SUDO apt-get install -y libconfuse-dev libpcap-dev
 ```
 
 ### RHEL/CentOS/Fedora
 
 ```bash
-sudo yum groupinstall -y "Development Tools"
-sudo yum install -y cmake git curl
-sudo yum install -y libconfuse-devel libpcap-devel
+$SUDO yum groupinstall -y "Development Tools"
+$SUDO yum install -y cmake git curl
+$SUDO yum install -y libconfuse-devel libpcap-devel
 ```
 
 ### Verify
@@ -76,8 +94,8 @@ cd "$TMP_DIR"
 git clone https://github.com/montimage/mmt-dpi.git mmt-dpi
 cd mmt-dpi/sdk
 make -j$(nproc)
-sudo make install
-sudo ldconfig
+$SUDO make install
+$SUDO ldconfig
 ```
 
 Verify: `ls /opt/mmt/dpi/lib/libmmt_core.so` and `ls /opt/mmt/dpi/include/`
@@ -100,46 +118,46 @@ Only install libraries for the modules you need. Skip any you do not need.
 cd "$TMP_DIR"
 git clone https://github.com/redis/hiredis.git hiredis
 cd hiredis && git checkout v1.0.2
-make -j$(nproc) && sudo make install && sudo ldconfig
+make -j$(nproc) && $SUDO make install && $SUDO ldconfig
 ```
 
 ### 3b. Kafka (librdkafka v1.8.2)
 
 ```bash
-sudo apt-get install -y libsasl2-dev libssl-dev  # Debian/Ubuntu
+$SUDO apt-get install -y libsasl2-dev libssl-dev  # Debian/Ubuntu
 cd "$TMP_DIR"
 git clone https://github.com/edenhill/librdkafka.git librdkafka
 cd librdkafka && git checkout v1.8.2
-./configure && make -j$(nproc) && sudo make install && sudo ldconfig
+./configure && make -j$(nproc) && $SUDO make install && $SUDO ldconfig
 ```
 
 ### 3c. MongoDB (mongo-c-driver 1.9.5)
 
 ```bash
-sudo apt-get install -y pkg-config libssl-dev libsasl2-dev  # Debian/Ubuntu
+$SUDO apt-get install -y pkg-config libssl-dev libsasl2-dev  # Debian/Ubuntu
 cd "$TMP_DIR"
 curl -Lk --output mongo-c.tar.gz https://github.com/mongodb/mongo-c-driver/releases/download/1.9.5/mongo-c-driver-1.9.5.tar.gz
 tar xzf mongo-c.tar.gz && cd mongo-c-driver-1.9.5
 ./configure --disable-automatic-init-and-cleanup
-make -j$(nproc) && sudo make install && sudo ldconfig
+make -j$(nproc) && $SUDO make install && $SUDO ldconfig
 ```
 
 ### 3d. MQTT (libpaho-mqtt)
 
 ```bash
-sudo apt-get install -y libpaho-mqtt-dev  # Debian/Ubuntu
+$SUDO apt-get install -y libpaho-mqtt-dev  # Debian/Ubuntu
 ```
 
 ### 3e. MMT-Security
 
 ```bash
-sudo apt-get install -y libxml2-dev libpcap-dev libconfuse-dev
+$SUDO apt-get install -y libxml2-dev libpcap-dev libconfuse-dev
 cd "$TMP_DIR"
 git clone https://github.com/Montimage/mmt-security.git mmt-security
 cd mmt-security
 make clean-all
 make -j1  # Must use single thread for header generation ordering
-sudo make install && sudo ldconfig
+$SUDO make install && $SUDO ldconfig
 ```
 
 Verify: `ls /opt/mmt/security/lib/libmmt_security2.*`
@@ -211,9 +229,9 @@ make -j$(nproc) DPDK_CAPTURE compile
 ## Step 5: Install
 
 ```bash
-sudo make install
+$SUDO make install
 # Or with modules:
-sudo make KAFKA_MODULE REDIS_MODULE SECURITY_MODULE install
+$SUDO make KAFKA_MODULE REDIS_MODULE SECURITY_MODULE install
 ```
 
 Installs to `/opt/mmt/probe/` (or `$MMT_BASE/probe/`):
@@ -245,7 +263,7 @@ docker build -t mmt-probe:local .
 For a fully automated installation with all modules on Debian/Ubuntu:
 
 ```bash
-sudo ./script/install-from-source.sh
+$SUDO ./script/install-from-source.sh
 ```
 
 This installs all dependencies, compiles with all modules, and creates a `.deb` package.
@@ -255,7 +273,7 @@ This installs all dependencies, compiles with all modules, and creates a `.deb` 
 ```bash
 ./probe -v                  # Print version (e.g., mmt-probe 1.6.0)
 ./probe -h                  # Print usage help
-sudo ./probe -t test/UA-Exp01.pcap -Xfile-output.output-dir=/tmp/mmt-test/
+$SUDO ./probe -t test/UA-Exp01.pcap -Xfile-output.output-dir=/tmp/mmt-test/
 ls -la /tmp/mmt-test/       # Should contain report files
 ldd /opt/mmt/probe/bin/probe  # All libraries resolved (no "not found")
 ```
@@ -270,13 +288,14 @@ ldd /opt/mmt/probe/bin/probe  # All libraries resolved (no "not found")
 | `-lrdkafka` not found | librdkafka missing | Install (Step 3b) or remove `KAFKA_MODULE` |
 | `-lmongoc-1.0` not found | mongo-c-driver missing | Install (Step 3c) or remove `MONGODB_MODULE` |
 | `-lpaho-mqtt3c` not found | libpaho-mqtt missing | Install (Step 3d) or remove `MQTT_MODULE` |
-| `error while loading shared libraries` | Library not in LD path | Run `sudo ldconfig` |
+| `error while loading shared libraries` | Library not in LD path | Run `ldconfig` (or `sudo ldconfig` on host) |
 | Library path issues | `/usr/local/lib` not in linker path | `ldconfig -p \| grep <lib>` to check |
+| `sudo: command not found` | Running inside Docker | Omit `sudo` — you are already root in Docker |
 
 ## Important Notes
 
 - Always run `make clean` before recompiling with different modules.
-- Run `sudo ldconfig` after installing any shared library.
+- Run `ldconfig` (or `sudo ldconfig` on host) after installing any shared library.
 - DPDK mode requires hugepage allocation: `echo 1024 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages`
 
 ## Cross-references

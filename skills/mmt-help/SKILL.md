@@ -177,8 +177,9 @@ S1AP, NGAP, NAS, GTP-U, GTP-C, PFCP, Diameter, RADIUS
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| `error while loading shared libraries` | Library not in LD path | Run `sudo ldconfig` |
-| `Permission denied` on interface | Missing root privileges | Run with `sudo` or set `CAP_NET_RAW` capability |
+| `error while loading shared libraries` | Library not in LD path | Run `ldconfig` (or `sudo ldconfig` on host) |
+| `Permission denied` on interface | Missing root privileges | Run with `sudo` on host, or use `--network=host` in Docker |
+| `sudo: command not found` | Running inside Docker | Omit `sudo` — you are already root in Docker |
 | Probe exits immediately | License check with no key | Remove `LICENSE_MODULE` or provide `license.key` |
 | No config file found | Missing mmt-probe.conf | Use `-c <path>` or place config in `./` or `/opt/mmt/probe/` |
 
@@ -243,7 +244,7 @@ Network Traffic -> MMT-Probe -> [Kafka/Redis/Files] -> MMT-Operator (Web UI)
 | OS | Linux (x86_64) | Ubuntu 22.04 |
 | RAM | 100 MB | 2 GB+ (DPDK) |
 | Disk | ~50 MB | + space for reports |
-| Privileges | root or `CAP_NET_RAW` | root |
+| Privileges | root or `CAP_NET_RAW` (not needed in Docker) | root |
 
 ## Cross-references
 

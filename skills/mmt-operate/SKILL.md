@@ -18,29 +18,34 @@ Use this skill when the user asks to:
 - Control the probe at runtime (start, stop, update)
 - Troubleshoot operational issues (no output, packet drops, etc.)
 
+## Important: Docker / Non-root Environments
+
+Inside Docker containers you typically run as root, so `sudo` is not needed and may not be available. **Omit `sudo` from all commands when running inside Docker.** The commands below show `sudo` for host use; drop it in containers. Note also that `systemctl` is typically unavailable inside containers.
+
 ## Execution Modes
 
 ### Live capture on interface
 
 ```bash
-sudo ./probe -i eth0
+sudo ./probe -i eth0          # on host (needs root for raw capture)
+./probe -i eth0                # in Docker (already root)
 ```
 
 ### Offline PCAP analysis
 
 ```bash
-sudo ./probe -t /path/to/capture.pcap
+./probe -t /path/to/capture.pcap   # no sudo needed for file analysis
 ```
 
 ### With a configuration file
 
 ```bash
-sudo ./probe -c /path/to/mmt-probe.conf
+./probe -c /path/to/mmt-probe.conf
 ```
 
 ### As a systemd service
 
-Available when installed to `/opt/mmt/probe/`.
+Available when installed to `/opt/mmt/probe/` on a host with systemd (not available inside Docker).
 
 ```bash
 sudo systemctl start mmt-probe
@@ -63,7 +68,7 @@ docker run -v /path/to/pcaps:/data ghcr.io/montimage/mmt-probe:latest \
 ### Quick test
 
 ```bash
-sudo ./probe -t test/UA-Exp01.pcap -Xfile-output.output-dir=/tmp/mmt-test/
+./probe -t test/UA-Exp01.pcap -Xfile-output.output-dir=/tmp/mmt-test/
 ls -la /tmp/mmt-test/
 ```
 
@@ -82,8 +87,10 @@ ls -la /tmp/mmt-test/
 Multiple `-X` flags can be combined:
 
 ```bash
-sudo ./probe -i eth0 -Xfile-output.enable=true -Xsecurity.enable=true -Xthread-nb=2
+./probe -i eth0 -Xfile-output.enable=true -Xsecurity.enable=true -Xthread-nb=2
 ```
+
+> Use `sudo` on a host system for live capture. In Docker, omit it.
 
 ## Report Types
 
@@ -201,7 +208,8 @@ Control the probe at runtime via Unix domain socket (default: `/tmp/mmt.sock`).
 ### Start processing
 
 ```bash
-printf "start\0" | sudo nc -U /tmp/mmt.sock
+printf "start\0" | nc -U /tmp/mmt.sock          # in Docker (already root)
+printf "start\0" | sudo nc -U /tmp/mmt.sock      # on host
 ```
 
 Returns: `0`=success, `1`=already running, `2`=error
@@ -209,7 +217,7 @@ Returns: `0`=success, `1`=already running, `2`=error
 ### Stop processing
 
 ```bash
-printf "stop\0" | sudo nc -U /tmp/mmt.sock
+printf "stop\0" | nc -U /tmp/mmt.sock
 ```
 
 Returns: `0`=success, `1`=not running, `2`=error
@@ -217,7 +225,7 @@ Returns: `0`=success, `1`=not running, `2`=error
 ### Update configuration
 
 ```bash
-printf 'update{\ninput.source="enp0s3"\ninput.mode=ONLINE\n}\0' | sudo nc -U /tmp/mmt.sock
+printf 'update{\ninput.source="enp0s3"\ninput.mode=ONLINE\n}\0' | nc -U /tmp/mmt.sock
 ```
 
 Returns: `0`=updated (no restart), `1`=updated (restarted), `2`=syntax error, `3`=internal error
@@ -225,7 +233,7 @@ Returns: `0`=updated (no restart), `1`=updated (restarted), `2`=syntax error, `3
 ### List parameters
 
 ```bash
-printf 'ls\0' | sudo nc -U /tmp/mmt.sock
+printf 'ls\0' | nc -U /tmp/mmt.sock
 ```
 
 ## Viewing Logs
@@ -261,8 +269,9 @@ journalctl -t mmt-probe --since "1 hour ago"
 | High `nic-lost` in status reports | NIC buffer too small | Increase `input.buffer-size` |
 | High `mmt-lost` in status reports | Processing too slow | Increase `thread-nb` and `thread-queue` |
 | Packet drops with multi-thread | Thread queue full | Increase `thread-queue` value |
-| `Permission denied` on interface | Missing root/capabilities | Run with `sudo` or set `CAP_NET_RAW` |
-| `error while loading shared libraries` | Library path issue | Run `sudo ldconfig` |
+| `Permission denied` on interface | Missing root/capabilities | Run with `sudo` on host, or use `--network=host` in Docker |
+| `error while loading shared libraries` | Library path issue | Run `ldconfig` (or `sudo ldconfig` on host) |
+| `sudo: command not found` | Running inside Docker | Omit `sudo` — you are already root in Docker |
 | High memory usage | Too many active sessions | Reduce `session-timeout` values |
 | Reports not in expected channel | Channel not enabled | Ensure global `<channel>-output.enable = true` |
 

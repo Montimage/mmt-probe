@@ -18,6 +18,10 @@ Use this skill when the user asks to:
 - Tune performance (threads, queues, timeouts)
 - Override configuration at runtime
 
+## Important: Docker / Non-root Environments
+
+Inside Docker containers you typically run as root, so `sudo` is not needed and may not be available. **Omit `sudo` from all commands when running inside Docker.** All commands below show `sudo` for host use; drop it in containers.
+
 ## Configuration Basics
 
 MMT-Probe uses **libconfuse** format for its configuration file.
@@ -35,7 +39,7 @@ If no config file is found, the probe stops.
 Any configuration parameter can be overridden at runtime:
 
 ```bash
-sudo ./probe -i eth0 -Xfile-output.enable=true -Xfile-output.output-dir=/tmp/
+./probe -i eth0 -Xfile-output.enable=true -Xfile-output.output-dir=/tmp/
 ```
 
 ### List all overridable parameters
@@ -382,7 +386,7 @@ micro-flows {
 ### High-throughput monitoring
 
 ```bash
-sudo ./probe -i eth0 \
+./probe -i eth0 \
   -Xthread-nb=4 \
   -Xthread-queue=524288 \
   -Xoutput.cache-max=500000 \
@@ -394,7 +398,7 @@ sudo ./probe -i eth0 \
 ### Security analysis
 
 ```bash
-sudo ./probe -i eth0 \
+./probe -i eth0 \
   -Xsecurity.enable=true \
   -Xsecurity.thread-nb=2 \
   -Xsession-report.ssl=true \
@@ -404,7 +408,7 @@ sudo ./probe -i eth0 \
 ### Kafka streaming pipeline
 
 ```bash
-sudo ./probe -i eth0 \
+./probe -i eth0 \
   -Xkafka-output.enable=true \
   -Xkafka-output.hostname=kafka-broker \
   -Xkafka-output.port=9092 \
@@ -415,7 +419,7 @@ sudo ./probe -i eth0 \
 ### Offline forensic analysis
 
 ```bash
-sudo ./probe -t /path/to/capture.pcap \
+./probe -t /path/to/capture.pcap \
   -Xfile-output.enable=true \
   -Xfile-output.output-dir=/tmp/analysis/ \
   -Xsession-report.http=true \
