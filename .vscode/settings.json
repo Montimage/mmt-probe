@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "pcap_capture.h": "c",
+        "stdio.h": "c",
+        "system_error": "c",
+        "memory.h": "c",
+        "functional": "c"
+    }
+}

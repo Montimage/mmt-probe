@@ -486,20 +486,6 @@ void pcap_capture_start( probe_context_t *context ){
 					context->config->stack_type);
 	}
 
-	// Compile and set the filter
-	struct bpf_program fp;
-	const char *pcap_filter = context->config->input->pcap_filter;
-	if( pcap_filter && strlen(pcap_filter) > 0 ){
-		log_write( LOG_INFO, "Applying filter: %s", pcap_filter );
-		ret = pcap_compile(pcap, &fp, pcap_filter, 0, PCAP_NETMASK_UNKNOWN);
-		ASSERT( ret == 0,
-			"Couldn't parse filter '%s': %s", pcap_filter, pcap_geterr(pcap));
-
-		ret = pcap_setfilter(pcap, &fp);
-		ASSERT( ret == 0,
-			"Couldn't install filter '%s': %s\n", pcap_filter, pcap_geterr(pcap));
-	}
-
 	context->modules.pcap->handler = pcap;
 
 	ret = 0;

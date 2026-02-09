@@ -37,7 +37,7 @@ struct lte_topo_report_struct{
 
 static inline bool _build_msg_to_add_new_entity( char *message, const s1ap_entity_t *entity){
 	int valid = 0;
-	char message_tmp[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
+	char message_tmp[ MAX_LENGTH_REPORT_MESSAGE ];
 	char ip_str[INET_ADDRSTRLEN];
 
 	//empty ip
@@ -122,7 +122,7 @@ static void _got_s1ap_packet(const ipacket_t * ipacket, attribute_t * attribute,
 	if( attribute->data == NULL )
 		return;
 
-	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 
 
 	const mmt_binary_var_data_t *binary_data = (mmt_binary_var_data_t *)attribute->data;

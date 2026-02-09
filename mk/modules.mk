@@ -160,17 +160,6 @@ ifdef REDIS_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/output/redis/*.c)
 endif
 
-$(eval $(call check_module,MQTT_MODULE))
-ifdef MQTT_MODULE
-  ifdef STATIC_LINK
-    MODULE_LIBS  += -l:lpaho-mqtt3c.a
-  else
-    MODULE_LIBS  += -lpaho-mqtt3c
-  endif
-  MODULE_FLAGS += -DMQTT_MODULE
-  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/output/mqtt/*.c)
-endif
-
 $(eval $(call check_module,SOCKET_MODULE))
 ifdef SOCKET_MODULE
   MODULE_FLAGS += -DSOCKET_MODULE
@@ -260,6 +249,7 @@ endif
 
 # to use DPDK to capture packet
 $(eval $(call EXPORT_TARGET,DPDK_CAPTURE))
+$(eval $(call EXPORT_TARGET,STREAM_CAPTURE))
 
 ifdef DPDK_CAPTURE
   $(info - Use DPDK to capture packet)
@@ -275,12 +265,25 @@ ifdef DPDK_CAPTURE
     $(error DPDK_CAPTURE and STATIC_LINK cannot be together)
   endif
 else
-  $(eval $(call _info,- Use PCAP to capture packet))
-  ifdef STATIC_LINK
-    MODULE_LIBS  += -l:libpcap.a
+  ifdef STREAM_CAPTURE
+    $(eval $(call _info,- Analyse text stream, line-by-line))
+    MODULE_FLAGS += -DSTREAM_FILE_MODULE
+    MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/stream/*.c)
   else
-    MODULE_LIBS  += -lpcap
+    $(eval $(call _info,- Use PCAP to capture packet))
+    ifdef STATIC_LINK
+      MODULE_LIBS  += -l:libpcap.a
+    else
+      MODULE_LIBS  += -lpcap
+    endif
+    MODULE_FLAGS += -DPCAP_MODULE
+    MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/pcap/*.c)
   endif
-  MODULE_FLAGS += -DPCAP_MODULE
-  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/pcap/*.c)
+endif
+
+#################### Other optional parameters for STIX format ######################
+$(eval $(call check_module,STIX_FORMAT))
+ifdef STIX_FORMAT
+  MODULE_LIBS  += -luuid
+  MODULE_FLAGS += -DSTIX_FORMAT
 endif

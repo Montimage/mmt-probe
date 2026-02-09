@@ -70,7 +70,7 @@ static void _protocols_stats_iterator(uint32_t proto_id, void * args) {
 
 	//printf ("report_number = %lu \n", th->report_counter);
 	char proto_path_str[128];
-	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 	int i, offset;
 	proto_hierarchy_t proto_hierarchy;
 	while (proto_stats != NULL) {
@@ -111,7 +111,7 @@ static inline void _report_ip_frag_stat( no_session_report_context_t *context ){
 	proto_statistics_t * proto_stats = get_protocol_stats( context->dpi_handler, PROTO_IP );
 
 	char proto_path_str[128];
-	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 	int i, offset;
 	proto_hierarchy_t proto_hierarchy;
 	while( proto_stats != NULL ){

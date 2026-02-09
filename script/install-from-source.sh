@@ -8,11 +8,6 @@ fi
 # exit immediately when having error
 set -e
 
-export DEBIAN_FRONTEND=noninteractive
-
-# directory of this script
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-
 # the temp directory to contain sources to be installed
 TMP_DIR=$(mktemp -d -t mmt-probe-installation-XXXXXXXXXX)
 # do not forget to remove the temp dir when exit
@@ -63,9 +58,6 @@ make -j $CPU
 make install
 ldconfig
 
-# install MQTT library
-apt-get install -y libpaho-mqtt-dev
-
 
 # install mmt-dpi
 cd $TMP_DIR
@@ -78,7 +70,7 @@ make deb
 
 # install mmt-security
 cd $TMP_DIR
-apt-get install -y libxml2-dev libpcap-dev libconfuse-dev
+apt-get install libxml2-dev libpcap-dev libconfuse-dev
 git clone https://github.com/Montimage/mmt-security.git mmt-security
 cd mmt-security
 make clean-all
@@ -89,10 +81,10 @@ make deb
 
 
 # install mmt-probe
-cd "$SCRIPT_DIR/.."
-#git clone https://github.com/montimage/mmt-probe mmt-probe
-#cd mmt-probe
-MODULES="KAFKA_MODULE MONGODB_MODULE PCAP_DUMP_MODULE QOS_MODULE REDIS_MODULE MQTT_MODULE SECURITY_MODULE SOCKET_MODULE LTE_MODULE"
+cd $TMP_DIR
+git clone https://github.com/montimage/mmt-probe mmt-probe
+cd mmt-probe
+MODULES="KAFKA_MODULE MONGODB_MODULE PCAP_DUMP_MODULE QOS_MODULE REDIS_MODULE SECURITY_MODULE SOCKET_MODULE LTE_MODULE"
 make -j $CPU $MODULES compile
 make $MODULES deb
 make $MODULES install

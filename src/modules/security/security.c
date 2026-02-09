@@ -273,7 +273,7 @@ static void _print_security_verdict(
 	struct timeval ts;
 	mmt_sec_decode_timeval(timestamp, &ts );
 
-	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 	int offset = 0;
 	STRING_BUILDER_WITH_SEPARATOR( offset, message, sizeof( message ), ",",
 			__INT( rule->id ),

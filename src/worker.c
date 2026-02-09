@@ -102,6 +102,10 @@ void _send_version_information( output_t *output ){
 	struct timeval now;
 	gettimeofday (&now, NULL);
 
+#ifdef KAFKA_MODULE
+	return;
+#endif
+
 #ifdef SECURITY_MODULE
 	output_write_report_with_format(
 				output,

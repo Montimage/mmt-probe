@@ -34,7 +34,7 @@ static void _radius_code_handle(const ipacket_t *ipacket, attribute_t *attribute
 			return;
 
 	radius_report_context_t *context = (radius_report_context_t *) user_args;
-	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 
 	char f_ipv4[INET_ADDRSTRLEN];
 	char sgsn_ip[INET_ADDRSTRLEN];

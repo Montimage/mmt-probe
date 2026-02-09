@@ -1,9 +1,9 @@
-FROM ubuntu:22.04
+FROM ubuntu:18.04
 
 LABEL maintainer="Montimage <contact@montimage.com>"
 
-COPY . .
-RUN ./script/install-from-source.sh
+COPY ./script/install-from-source.sh .
+RUN ./install-from-source.sh
 
 ENTRYPOINT ["mmt-probe"]
 #default parameter

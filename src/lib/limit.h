@@ -10,7 +10,7 @@
 #define SRC_LIB_LIMIT_H_
 //maximal length of an absolute path
 #define MAX_LENGTH_FULL_PATH_FILE_NAME 4096
-#define MAX_LENGTH_REPORT_MESSAGE      3000
+#define MAX_LENGTH_REPORT_MESSAGE      6000
 
 //TODO: remove this block
 /*
@@ -63,6 +63,12 @@
 	#define IF_ENABLE_DPDK( x )
 #endif
 
+#ifdef STREAM_FILE_MODULE
+	#define IF_ENABLE_STREAM( x ) x
+#else
+	#define IF_ENABLE_STREAM( x )
+#endif
+
 #ifdef SECURITY_MODULE
 	#define IF_ENABLE_SECURITY( x ) x
 #else
@@ -99,11 +105,6 @@
 	#define IF_ENABLE_SOCKET( x )
 #endif
 
-#ifdef MQTT_MODULE
-	#define IF_ENABLE_MQTT( x ) x
-#else
-	#define IF_ENABLE_MQTT( x )
-#endif
 
 #ifdef PCAP_DUMP_MODULE
 	#define IF_ENABLE_PCAP_DUMP( x ) x

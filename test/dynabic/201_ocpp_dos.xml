@@ -1,0 +1,128 @@
+<beginning>
+<!--
+This rule analyses the OCPPFlowMeter data then predict if a packet sent resembles an attacks.
+
+-->
+
+<embedded_functions><![CDATA[
+
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "mmt_lib.h"
+
+static char* python_script_path = "/home/pqv/Documents/ocpp/detection_PPC_OCPPFLOWMETER_line_by_line.py";
+static char* model_path = "/home/pqv/Documents/ocpp/detection_PPC_OCPPFLOWMETER_20240918_YES_IP.pkl";
+
+static bool em_predict_attack
+
+(int level_0, int index, const char* flow_id, const char* src_ip, const char* dst_ip, 
+int src_port, int dst_port, int total_flow_packets, int total_fw_packets, 
+int total_bw_packets, float flow_duration, float flow_down_up_ratio, 
+int flow_total_SYN_flag, int flow_total_RST_flag, int flow_total_PSH_flag, 
+int flow_total_ACK_flag, int flow_total_URG_flag, int flow_total_CWE_flag, 
+int flow_total_ECE_flag, int flow_total_FIN_flag, const char* flow_start_timestamp, 
+const char* flow_end_timestamp, int flow_total_http_get_packets, int flow_total_http_2xx_packets, 
+int flow_total_http_4xx_packets, int flow_total_http_5xx_packets, 
+float flow_websocket_packts_per_second, float fw_websocket_packts_per_second, 
+float bw_websocket_packts_per_second, float flow_websocket_bytes_per_second, 
+float fw_websocket_bytes_per_second, float bw_websocket_bytes_per_second, 
+int flow_total_websocket_ping_packets, int flow_total_websocket_pong_packets, 
+int flow_total_websocket_close_packets, int flow_total_websocket_data_messages, 
+int flow_total_ocpp16_heartbeat_packets, int flow_total_ocpp16_resetHard_packets, 
+int flow_total_ocpp16_resetSoft_packets, int flow_total_ocpp16_unlockconnector_packets, 
+int flow_total_ocpp16_starttransaction_packets, int flow_total_ocpp16_remotestarttransaction_packets, 
+int flow_total_ocpp16_authorize_not_accepted_packets, int flow_total_ocpp16_setchargingprofile_packets, 
+int flow_avg_ocpp16_setchargingprofile_limit, int flow_max_ocpp16_setchargingprofile_limit, 
+int flow_min_ocpp16_setchargingprofile_limit, float flow_avg_ocpp16_setchargingprofile_minchargingrate, 
+int flow_min_ocpp16_setchargingprofile_minchargingrate, int flow_max_ocpp16_setchargingprofile_minchargingrate, 
+int flow_total_ocpp16_metervalues, int flow_min_ocpp16_metervalues_soc, int flow_max_ocpp16_metervalues_soc, 
+int flow_avg_ocpp16_metervalues_wh_diff, int flow_max_ocpp16_metervalues_wh_diff, int flow_min_ocpp16_metervalues_wh_diff) 
+
+{
+    char buffer[4096];
+    char command[8192];
+
+    snprintf(buffer, sizeof(buffer), 
+            "level_0=%d,index=%d,flow_id=%s,src_ip=%s,dst_ip=%s,src_port=%d,dst_port=%d,total_flow_packets=%d,total_fw_packets=%d,total_bw_packets=%d,flow_duration=%f,flow_down_up_ratio=%f,flow_total_SYN_flag=%d,flow_total_RST_flag=%d,flow_total_PSH_flag=%d,flow_total_ACK_flag=%d,flow_total_URG_flag=%d,flow_total_CWE_flag=%d,flow_total_ECE_flag=%d,flow_total_FIN_flag=%d,flow_start_timestamp=%s,flow_end_timestamp=%s,flow_total_http_get_packets=%d,flow_total_http_2xx_packets=%d,flow_total_http_4xx_packets=%d,flow_total_http_5xx_packets=%d,flow_websocket_packts_per_second=%f,fw_websocket_packts_per_second=%f,bw_websocket_packts_per_second=%f,flow_websocket_bytes_per_second=%f,fw_websocket_bytes_per_second=%f,bw_websocket_bytes_per_second=%f,flow_total_websocket_ping_packets=%d,flow_total_websocket_pong_packets=%d,flow_total_websocket_close_packets=%d,flow_total_websocket_data_messages=%d,flow_total_ocpp16_heartbeat_packets=%d,flow_total_ocpp16_resetHard_packets=%d,flow_total_ocpp16_resetSoft_packets=%d,flow_total_ocpp16_unlockconnector_packets=%d,flow_total_ocpp16_starttransaction_packets=%d,flow_total_ocpp16_remotestarttransaction_packets=%d,flow_total_ocpp16_authorize_not_accepted_packets=%d,flow_total_ocpp16_setchargingprofile_packets=%d,flow_avg_ocpp16_setchargingprofile_limit=%d,flow_max_ocpp16_setchargingprofile_limit=%d,flow_min_ocpp16_setchargingprofile_limit=%d,flow_avg_ocpp16_setchargingprofile_minchargingrate=%f,flow_min_ocpp16_setchargingprofile_minchargingrate=%d,flow_max_ocpp16_setchargingprofile_minchargingrate=%d,flow_total_ocpp16_metervalues=%d,flow_min_ocpp16_metervalues_soc=%d,flow_max_ocpp16_metervalues_soc=%d,flow_avg_ocpp16_metervalues_wh_diff=%d,flow_max_ocpp16_metervalues_wh_diff=%d,flow_min_ocpp16_metervalues_wh_diff=%d", 
+            level_0, index, flow_id, src_ip, dst_ip, src_port, dst_port, total_flow_packets, total_fw_packets, total_bw_packets, flow_duration, flow_down_up_ratio, flow_total_SYN_flag, flow_total_RST_flag, flow_total_PSH_flag, flow_total_ACK_flag, flow_total_URG_flag, flow_total_CWE_flag, flow_total_ECE_flag, flow_total_FIN_flag, flow_start_timestamp, flow_end_timestamp, flow_total_http_get_packets, flow_total_http_2xx_packets, flow_total_http_4xx_packets, flow_total_http_5xx_packets, flow_websocket_packts_per_second, fw_websocket_packts_per_second, bw_websocket_packts_per_second, flow_websocket_bytes_per_second, fw_websocket_bytes_per_second, bw_websocket_bytes_per_second, flow_total_websocket_ping_packets, flow_total_websocket_pong_packets, flow_total_websocket_close_packets, flow_total_websocket_data_messages, flow_total_ocpp16_heartbeat_packets, flow_total_ocpp16_resetHard_packets, flow_total_ocpp16_resetSoft_packets, flow_total_ocpp16_unlockconnector_packets, flow_total_ocpp16_starttransaction_packets, flow_total_ocpp16_remotestarttransaction_packets, flow_total_ocpp16_authorize_not_accepted_packets, flow_total_ocpp16_setchargingprofile_packets, flow_avg_ocpp16_setchargingprofile_limit, flow_max_ocpp16_setchargingprofile_limit, flow_min_ocpp16_setchargingprofile_limit, flow_avg_ocpp16_setchargingprofile_minchargingrate, flow_min_ocpp16_setchargingprofile_minchargingrate, flow_max_ocpp16_setchargingprofile_minchargingrate, flow_total_ocpp16_metervalues, flow_min_ocpp16_metervalues_soc, flow_max_ocpp16_metervalues_soc, flow_avg_ocpp16_metervalues_wh_diff, flow_max_ocpp16_metervalues_wh_diff, flow_min_ocpp16_metervalues_wh_diff);
+    
+    char result[128];
+    char last_result[128] = "";
+    int prediction;
+
+    // Command to call the Python script
+    snprintf(command, sizeof(command),
+             "bash -c 'cd /home/pqv/Documents/ocpp/ && source .venv/bin/activate && python3 %s %s \"%s\"'",
+             python_script_path, model_path, buffer);
+
+
+    FILE *fp = popen(command, "r");
+    if (fp == NULL) {
+        fprintf(stderr, "Failed to run Python script.\n");
+        return 5;
+    }
+
+    // Read the output line by line
+    while (fgets(result, sizeof(result), fp) != NULL) {
+        // Store the current line into `last_result`
+        strncpy(last_result, result, sizeof(last_result) - 1);
+        last_result[sizeof(last_result) - 1] = '\0';  // Ensure null-termination
+    }
+
+    // Close the pipe
+    pclose(fp);
+
+    // Check if we captured any output
+    if (strlen(last_result) == 0) {
+        fprintf(stderr, "No output from Python script.\n");
+        return 5;
+    }
+
+    // Trim any trailing newline or whitespace from `last_result`
+    size_t len = strlen(last_result);
+    if (len > 0 && last_result[len - 1] == '\n') {
+        last_result[len - 1] = '\0';
+    }
+
+    prediction = atoi(last_result);
+    
+    if (prediction == 1) {
+        printf("Attack detected from flow id: %s\n", flow_id);
+    }
+
+    return prediction;
+}
+
+]]></embedded_functions>
+
+<property value="THEN"  property_id="201" type_property="ATTACK" 
+    description="OCPPFlowMeter Attack Detection">
+    <event value="COMPUTE" event_id="1" 
+        description="Suspiciously high number of packets flowing"
+        boolean_expression="( ocpp_data.total_flow_packets>0 )"/>
+    <event value="COMPUTE" event_id="2" 
+        description="OCPPFlowMeter Attack Detected"
+        boolean_expression="( 
+        (#em_predict_attack(ocpp_data.level_0, ocpp_data.index, ocpp_data.flow_id, ocpp_data.src_ip, ocpp_data.dst_ip, 
+                            ocpp_data.src_port, ocpp_data.dst_port, ocpp_data.total_flow_packets, ocpp_data.total_fw_packets, 
+                            ocpp_data.total_bw_packets, ocpp_data.flow_duration, ocpp_data.flow_down_up_ratio, 
+                            ocpp_data.flow_total_SYN_flag, ocpp_data.flow_total_RST_flag, ocpp_data.flow_total_PSH_flag, 
+                            ocpp_data.flow_total_ACK_flag, ocpp_data.flow_total_URG_flag, ocpp_data.flow_total_CWE_flag, 
+                            ocpp_data.flow_total_ECE_flag, ocpp_data.flow_total_FIN_flag, ocpp_data.flow_start_timestamp, 
+                            ocpp_data.flow_end_timestamp, ocpp_data.flow_total_http_get_packets, ocpp_data.flow_total_http_2xx_packets, 
+                            ocpp_data.flow_total_http_4xx_packets, ocpp_data.flow_total_http_5xx_packets, 
+                            ocpp_data.flow_websocket_packts_per_second, ocpp_data.fw_websocket_packts_per_second, 
+                            ocpp_data.bw_websocket_packts_per_second, ocpp_data.flow_websocket_bytes_per_second, ocpp_data.fw_websocket_bytes_per_second, 
+                            ocpp_data.bw_websocket_bytes_per_second, ocpp_data.flow_total_websocket_ping_packets, ocpp_data.flow_total_websocket_pong_packets, 
+                            ocpp_data.flow_total_websocket_close_packets, ocpp_data.flow_total_websocket_data_messages, 
+                            ocpp_data.flow_total_ocpp16_heartbeat_packets, ocpp_data.flow_total_ocpp16_resetHard_packets, ocpp_data.flow_total_ocpp16_resetSoft_packets, 
+                            ocpp_data.flow_total_ocpp16_unlockconnector_packets, ocpp_data.flow_total_ocpp16_starttransaction_packets, 
+                            ocpp_data.flow_total_ocpp16_remotestarttransaction_packets, ocpp_data.flow_total_ocpp16_authorize_not_accepted_packets, 
+                            ocpp_data.flow_total_ocpp16_setchargingprofile_packets, ocpp_data.flow_avg_ocpp16_setchargingprofile_limit, 
+                            ocpp_data.flow_max_ocpp16_setchargingprofile_limit, ocpp_data.flow_min_ocpp16_setchargingprofile_limit, ocpp_data.flow_avg_ocpp16_setchargingprofile_minchargingrate, 
+                            ocpp_data.flow_min_ocpp16_setchargingprofile_minchargingrate, ocpp_data.flow_max_ocpp16_setchargingprofile_minchargingrate, ocpp_data.flow_total_ocpp16_metervalues, 
+                            ocpp_data.flow_min_ocpp16_metervalues_soc, ocpp_data.flow_max_ocpp16_metervalues_soc, ocpp_data.flow_avg_ocpp16_metervalues_wh_diff, 
+                            ocpp_data.flow_max_ocpp16_metervalues_wh_diff, ocpp_data.flow_min_ocpp16_metervalues_wh_diff) == 1 ) )"/>
+</property>
+</beginning>

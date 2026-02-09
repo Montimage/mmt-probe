@@ -52,6 +52,10 @@
 #include "modules/packet_capture/pcap/pcap_capture.h"
 #endif
 
+#ifdef STREAM_FILE_MODULE
+#include "modules/packet_capture/stream/stream_capture.h"
+#endif
+
 #ifdef SECURITY_MODULE
 #include "modules/security/security.h"
 #endif
@@ -62,6 +66,14 @@
 
 #if defined DPDK_MODULE && defined PCAP_MODULE
 #error("Either DPDK_MODULE or PCAP_MODULE is defined but must not all of them")
+#endif
+
+#if defined STREAM_FILE_MODULE && defined PCAP_MODULE
+#error("Either STREAM_FILE_MODULE or PCAP_MODULE is defined but must not all of them")
+#endif
+
+#if defined DPDK_MODULE && defined STREAM_FILE_MODULE
+#error("Either DPDK_MODULE or STREAM_FILE_MODULE is defined but must not all of them")
 #endif
 
 #ifdef DEBUG_MODE
@@ -250,6 +262,9 @@ static inline void _stop_modules( probe_context_t *context){
 	IF_ENABLE_PCAP(
 		pcap_capture_stop(context);
 	)
+	IF_ENABLE_STREAM(
+		stream_capture_stop(context);
+	)
 
 }
 
@@ -365,6 +380,11 @@ bool _init_protocol_stack(uint32_t stack_type, uint32_t stack_offset ){
 	case 800: //ieee802154
 		//Use the function that is registered in DPI
 		// => the function "_stack_classification" will no be called
+	case 802: //ocpp_data that is has been registered
+		return true;
+	case 803: //dynabic_hes_data that is has been registered
+		return true;
+	case 804: //cicflow_data that is has been registered
 		return true;
 	default:
 		//for the other stack, we need to register it to DPI
@@ -430,7 +450,7 @@ static int _main_processing( int argc, char** argv ){
 	context->output = output_alloc_init( output_id, &context->config->outputs, context->config->probe_id, context->config->input->input_source, true );
 
 	if( !_init_protocol_stack( context->config->stack_type, context->config->stack_offset )  ){
-		log_write( LOG_ERR, "Cannot initialize stack-type=%d! Exiting!", context->config->stack_type );
+		log_write( LOG_ERR, "Cannot initialize =%d! Exiting!", context->config->stack_type );
 		return EXIT_FAILURE;
 	}
 
@@ -439,8 +459,10 @@ static int _main_processing( int argc, char** argv ){
 
 #ifdef DPDK_MODULE
 	dpdk_capture_start( context );
+#elif defined(STREAM_FILE_MODULE)
+	stream_capture_start(context);
 #else
-	pcap_capture_start( context );
+	pcap_capture_start(context);
 #endif
 
 	IF_ENABLE_SECURITY(

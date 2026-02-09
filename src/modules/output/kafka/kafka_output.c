@@ -52,6 +52,12 @@ static void _connect_to_kafka( kafka_output_t *context ){
 	 */
 	rd_conf = rd_kafka_conf_new();
 
+	// Add Kafka security configurations
+    rd_kafka_conf_set(rd_conf, "security.protocol", "SASL_PLAINTEXT", errstr, sizeof(errstr));
+    rd_kafka_conf_set(rd_conf, "sasl.mechanisms", "PLAIN", errstr, sizeof(errstr));
+    rd_kafka_conf_set(rd_conf, "sasl.username", config->username, errstr, sizeof(errstr));
+    rd_kafka_conf_set(rd_conf, "sasl.password", config->password, errstr, sizeof(errstr));
+
 	/* Set bootstrap broker(s) as a comma-separated list of
 	 * host or host:port (default port 9092).
 	 * librdkafka will use the bootstrap brokers to acquire the full

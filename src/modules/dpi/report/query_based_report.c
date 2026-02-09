@@ -174,7 +174,7 @@ static size_t _get_string_values( size_t message_size, char *message,
 
 static void _query_report_handle( const ipacket_t *packet,  query_based_report_context_t *context){
 	const query_report_conf_t *config = context->config;
-	char message[MAX_LENGTH_REPORT_MESSAGE + 1 ], *key;
+	char message[MAX_LENGTH_REPORT_MESSAGE], *key;
 	size_t key_len;
 	query_operator_stack_t **select_operators;
 
@@ -382,7 +382,7 @@ void query_based_report_unregister( mmt_handler_t *dpi_handler, list_query_based
 
 static void _flush_reports_then_reset( query_based_report_context_t *rep, const struct timeval *tv ){
 	const query_report_conf_t *config = rep->config;
-	char message[MAX_LENGTH_REPORT_MESSAGE + 1 ], *p;
+	char message[MAX_LENGTH_REPORT_MESSAGE], *p;
 	query_operator_stack_t **select_operators;
 	size_t i;
 	hash_item_t *it;

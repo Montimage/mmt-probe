@@ -53,7 +53,7 @@ static void _got_data(const ipacket_t * ipacket, attribute_t * attribute, void *
 	//report if all elements have been fulfilled
 	if( context->qci != 0 && context->teid != 0 && context->ue_id != 0 ){
 		int valid = 0;
-		char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
+		char message[ MAX_LENGTH_REPORT_MESSAGE ];
 		STRING_BUILDER_WITH_SEPARATOR( valid, message, MAX_LENGTH_REPORT_MESSAGE-valid, ",",
 				__INT( context->ue_id ),
 				__INT( context->teid  ),

@@ -116,9 +116,9 @@ make DPDK_CAPTURE compile
 make compile
 ```
 
-##### **Output modules**:  `REDIS_MODULE`, `KAFKA_MODULE`, `MQTT_MODULE`, `MONGODB_MODULE`
+##### **Output modules**:  `REDIS_MODULE`, `KAFKA_MODULE`, `MONGODB_MODULE`
 
-In addition to output reports to files, MMT-Probe can ouput to redis, kafka, mqtt, and mongodb servers. 
+In addition to output reports to files, MMT-Probe can ouput to redis, kafka and mongodb servers. 
 
 Install required libraries
 
@@ -146,11 +146,6 @@ sudo make install
 sudo ldconfig
 ```
 
-- When output to mqtt, we need [Eclipse Paho MQTT C library](https://github.com/eclipse-paho/paho.mqtt.c).
-
-```bash
-sudo apt install libpaho-mqtt-dev
-```
 
 - When output to mongodb, we need [`libmongo` and `libbson`](http://mongoc.org/libmongoc/current/installing.html)
 
@@ -167,9 +162,7 @@ sudo make install
 Compile MMT-Probe:
 
 ```bash
-# support output to file and MQTT servers
-make MQTT_MODULE compile
-#or support output to file, redis and kafka servers
+#support output to file, redis and kafka servers
 make REDIS_MODULE KAFKA_MODULE compile
 #or support only output to file and mongodb server
 make MONGODB_MODULE compile

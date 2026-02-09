@@ -237,7 +237,8 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 	)
 
 	//callback when starting a new IP session
-	if( config->reports.session->is_enable ){
+	if( config->stack_type == DLT_EN10MB
+			&& config->reports.session->is_enable ){
 		if( ! register_attribute_handler(dpi_handler, PROTO_IP, PROTO_SESSION, _starting_session_handler, NULL, ret ) )
 			ABORT("Cannot register handler for processing a session at starting");
 

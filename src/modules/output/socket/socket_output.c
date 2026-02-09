@@ -112,7 +112,7 @@ socket_output_t* socket_output_init( const socket_output_conf_t *config ){
 }
 
 bool socket_output_send( socket_output_t *context, const char *msg ){
-	char m[MAX_LENGTH_REPORT_MESSAGE + 1 ];
+	char m[MAX_LENGTH_REPORT_MESSAGE];
 	size_t len = snprintf(m, MAX_LENGTH_REPORT_MESSAGE, "%s\n", msg);
 	bool ret = false;
 	if( context->unix_socket_fd != NO_SOCKET_FD ){

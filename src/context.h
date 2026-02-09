@@ -59,6 +59,8 @@ typedef struct probe_context_struct{
 	struct{
 #ifdef PCAP_MODULE
 		struct pcap_probe_context_struct *pcap;
+#elif defined(STREAM_FILE_MODULE)
+		struct stream_probe_context_struct *stream;
 #endif
 	}modules;
 }probe_context_t;
@@ -70,7 +72,7 @@ typedef struct probe_context_struct{
  */
 static inline void context_print_traffic_stat( const probe_context_t *context, const struct timeval *now ){
 	//print a dummy message to inform that MMT-Probe is still alive
-	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE ];
 	int valid = 0;
 
 	//build message

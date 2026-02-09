@@ -28,10 +28,9 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin 
 
 # Docker compose
 
-To monitor `enp0s3` NIC of the current computer, then:
-
 - create `docker-compose.yml` file with the following content, then run `sudo docker compose up -d`
-- we can access to mmt-operator at http://localhost:3000 (use `admin`/`mmt2nm` as user/pass to login)
+   - NOTE: we are monitoring `enp0s3` NIC
+   - NOTE: we can access to mmt-operator at http://localhost:3000
 
 ```yml
 version: '3.9'
@@ -39,7 +38,7 @@ version: '3.9'
 services:
   probe:
     container_name: mi_probe
-    image: ghcr.io/montimage/mmt-probe:v1.6.0
+    image: ghcr.io/montimage/mmt-probe:v1.5.12
     command: mmt-probe -i enp0s3 -Xsecurity.enable=true
     restart: unless-stopped
     network_mode: host
@@ -53,12 +52,12 @@ services:
 
   mongodb:
     container_name: mi_db
-    image: mongo:8
+    image: mongo:4.4
     restart: unless-stopped
     volumes:
       - mi_mongodb_storage:/data/db:rw
     healthcheck:
-      test: [ "CMD-SHELL", "mongosh" ]
+      test: [ "CMD-SHELL", "mongo" ]
       interval: 10s
       timeout: 1s
       retries: 5
@@ -67,11 +66,11 @@ services:
 
   operator:
     container_name: mi_operator
-    image: ghcr.io/montimage/mmt-operator:v1.7.7
+    image: ghcr.io/montimage/mmt-operator:v1.7.6
     command: /opt/mmt/operator/bin/www -Xdatabase_server.host=mongodb -Xport_number=8080 -Xprobe_analysis_mode=online
     restart: unless-stopped
     ports:
-      - 127.0.0.1:3000:8080/tcp #access to GUI from external via port 3000
+      - 127.0.0.1:3000:8080/tcp #access to GUI from external via port 3002
     # wait for mongodb is available
     depends_on:
       mongodb:
@@ -92,13 +91,13 @@ networks:
 
 # Inject traffic
 
-We can use [5Greplay](https://5greplay.org/docs.html) to generate some network traffic to test MMT:
+- we can use [5Greplay](https://5greplay.org/docs.html) to generate some network traffic to test MMT
 
 ```bash
-# download test pcap file:
-curl -L -o /tmp/test.pcap https://github.com/Montimage/mmt-security/raw/refs/heads/main/test/pcap/test_p9.pcap
-
-# replay the pcap file:
-docker run --network=host --rm -it -v/tmp/test.pcap:/x.pcap ghcr.io/montimage/5greplay:v0.0.7 replay -t /x.pcap -Xforward.nb-copies=2000 -Xforward.default=FORWARD -Xforward.output-nic=enp0s3
+docker run --network=host --rm -it ghcr.io/montimage/5greplay:v0.0.7 replay -t pcap/sa.pcap -Xforward.nb-copies=2000 -Xforward.default=FORWARD -Xforward.output-nic=enp0s3
 ```
 
+- if we have AMF which is listening on `10.0.0.2:38412`, then we can use 5Greplay to attack it:
+```bash
+docker run --network=host --rm -it ghcr.io/montimage/5greplay:v0.0.7 replay -t pcap/sa.pcap -Xforward.nb-copies=2000 -Xforward.default=FORWARD -Xforward.output-nic=enp0s3 -Xforward.target-ports=38412 -Xforward.target-hosts=10.0.0.2
+```

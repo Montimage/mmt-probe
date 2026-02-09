@@ -156,10 +156,9 @@ static inline void _free_linked_list( struct pkt_node *node ){
 	//uint16_t counter = 0;
 	while( node != NULL ){
 		p = node;
-		node = node->next;
-
 		DEBUG("no ack seq = %u", p->seq_number );
 		mmt_probe_free( p );
+		node = node->next;
 		//counter ++;
 	}
 
