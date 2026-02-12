@@ -66,6 +66,8 @@ struct worker_context_struct{
 	IF_ENABLE_STREAM(
 			struct stream_worker_context_struct *stream );
 
+	IF_ENABLE_KAFKA_INPUT(
+			struct kafka_worker_context_struct *kafka );
 
 	IF_ENABLE_SECURITY(
 			struct security_context_struct *security);

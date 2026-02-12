@@ -194,6 +194,18 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__KAFKA_OUTPUT__PASSWORD, "kafka-output.password", &conf->outputs.kafka->password,       	CHAR_STAR),
 #endif
 
+#ifdef KAFKA_INPUT_MODULE
+	//kafka-input
+	(CONF_ATT__KAFKA_INPUT__ENABLE,       "kafka-input.enable",       &conf->kafka_input->is_enable,        BOOL),
+	(CONF_ATT__KAFKA_INPUT__HOSTNAME,     "kafka-input.hostname",     &conf->kafka_input->host.host_name,   CHAR_STAR),
+	(CONF_ATT__KAFKA_INPUT__PORT,         "kafka-input.port",         &conf->kafka_input->host.port_number, UINT16_T),
+	(CONF_ATT__KAFKA_INPUT__TOPICNAME,    "kafka-input.topic",        &conf->kafka_input->topic_name,       CHAR_STAR),
+	(CONF_ATT__KAFKA_INPUT__GROUP_ID,     "kafka-input.group-id",     &conf->kafka_input->group_id,         CHAR_STAR),
+	(CONF_ATT__KAFKA_INPUT__OFFSET_RESET, "kafka-input.offset-reset", &conf->kafka_input->offset_reset,     CHAR_STAR),
+	(CONF_ATT__KAFKA_INPUT__USERNAME,     "kafka-input.username",     &conf->kafka_input->username,         CHAR_STAR),
+	(CONF_ATT__KAFKA_INPUT__PASSWORD,     "kafka-input.password",     &conf->kafka_input->password,         CHAR_STAR),
+#endif
+
 #ifdef REDIS_MODULE
 	//redis-output
 	(CONF_ATT__REDIS_OUTPUT__ENABLE,       "redis-output.enable",   &conf->outputs.redis->is_enable,        BOOL),

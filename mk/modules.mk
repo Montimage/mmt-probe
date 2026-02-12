@@ -265,7 +265,19 @@ ifdef DPDK_CAPTURE
     $(error DPDK_CAPTURE and STATIC_LINK cannot be together)
   endif
 else
-  ifdef STREAM_CAPTURE
+  ifdef KAFKA_INPUT
+    $(eval $(call _info,- Use Kafka to consume traffic data))
+    MODULE_FLAGS += -DKAFKA_INPUT_MODULE
+    MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/kafka/*.c)
+    # rdkafka is already linked if KAFKA_MODULE is enabled for kafka-output
+    ifndef KAFKA_MODULE
+      ifdef STATIC_LINK
+        MODULE_LIBS  += -l:librdkafka.a
+      else
+        MODULE_LIBS  += -lrdkafka
+      endif
+    endif
+  else ifdef STREAM_CAPTURE
     $(eval $(call _info,- Analyse text stream, line-by-line))
     MODULE_FLAGS += -DSTREAM_FILE_MODULE
     MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/packet_capture/stream/*.c)

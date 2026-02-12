@@ -93,6 +93,12 @@
 	#define IF_ENABLE_KAFKA( x )
 #endif
 
+#ifdef KAFKA_INPUT_MODULE
+	#define IF_ENABLE_KAFKA_INPUT(x) x
+#else
+	#define IF_ENABLE_KAFKA_INPUT(x)
+#endif
+
 #ifdef MONGODB_MODULE
 	#define IF_ENABLE_MONGODB( x ) x
 #else
@@ -189,6 +195,7 @@
 	IF_ENABLE_FTP_RECONSTRUCT( ", FTP_RECONSTRUCT" )   \
 	IF_ENABLE_HTTP_RECONSTRUCT( ", HTTP_RECONSTRUCT" ) \
 	IF_ENABLE_KAFKA( ", KAFKA" )                       \
+	IF_ENABLE_KAFKA_INPUT(", KAFKA_INPUT")             \
 	IF_ENABLE_LICENSE_CHECK( ", LICENSE" )             \
 	IF_ENABLE_LTE_REPORT( ", LTE_REPORT" )             \
 	IF_ENABLE_MONGODB( ", MONGODB" )                   \

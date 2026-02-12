@@ -56,6 +56,10 @@
 #include "modules/packet_capture/stream/stream_capture.h"
 #endif
 
+#ifdef KAFKA_INPUT_MODULE
+#include "modules/packet_capture/kafka/kafka_capture.h"
+#endif
+
 #ifdef SECURITY_MODULE
 #include "modules/security/security.h"
 #endif
@@ -74,6 +78,18 @@
 
 #if defined DPDK_MODULE && defined STREAM_FILE_MODULE
 #error("Either DPDK_MODULE or STREAM_FILE_MODULE is defined but must not all of them")
+#endif
+
+#if defined KAFKA_INPUT_MODULE && defined PCAP_MODULE
+#error("Either KAFKA_INPUT_MODULE or PCAP_MODULE is defined but must not all of them")
+#endif
+
+#if defined KAFKA_INPUT_MODULE && defined DPDK_MODULE
+#error("Either KAFKA_INPUT_MODULE or DPDK_MODULE is defined but must not all of them")
+#endif
+
+#if defined KAFKA_INPUT_MODULE && defined STREAM_FILE_MODULE
+#error("Either KAFKA_INPUT_MODULE or STREAM_FILE_MODULE is defined but must not all of them")
 #endif
 
 #ifdef DEBUG_MODE
@@ -264,6 +280,9 @@ static inline void _stop_modules( probe_context_t *context){
 	)
 	IF_ENABLE_STREAM(
 		stream_capture_stop(context);
+	)
+	IF_ENABLE_KAFKA_INPUT(
+		kafka_capture_stop(context);
 	)
 
 }
@@ -461,6 +480,8 @@ static int _main_processing( int argc, char** argv ){
 	dpdk_capture_start( context );
 #elif defined(STREAM_FILE_MODULE)
 	stream_capture_start(context);
+#elif defined(KAFKA_INPUT_MODULE)
+	kafka_capture_start(context);
 #else
 	pcap_capture_start(context);
 #endif

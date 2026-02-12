@@ -61,6 +61,8 @@ typedef struct probe_context_struct{
 		struct pcap_probe_context_struct *pcap;
 #elif defined(STREAM_FILE_MODULE)
 		struct stream_probe_context_struct *stream;
+#elif defined(KAFKA_INPUT_MODULE)
+    struct kafka_probe_context_struct *kafka;
 #endif
 	}modules;
 }probe_context_t;

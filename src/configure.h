@@ -55,6 +55,16 @@ typedef struct kafka_output_conf_struct{
 	char *password;
 }kafka_output_conf_t;
 
+typedef struct kafka_input_conf_struct{
+	bool is_enable;
+	internet_service_address_t host;
+	char *topic_name;
+	char *group_id;
+	char *offset_reset; //"earliest" or "latest"
+	char *username;
+	char *password;
+}kafka_input_conf_t;
+
 typedef struct mongodb_output_conf_struct{
 	bool is_enable;
 	internet_service_address_t host;
@@ -349,6 +359,8 @@ typedef struct probe_conf_struct{
 	char *license_file;
 
 	input_source_conf_t *input;
+
+	kafka_input_conf_t *kafka_input;
 }probe_conf_t;
 
 

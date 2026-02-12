@@ -181,6 +181,18 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_END()
 	};
 
+	cfg_opt_t kafka_input_opts[] = {
+			CFG_STR("hostname", "localhost", CFGF_NONE),
+			CFG_STR("topic", "traffic-data", CFGF_NONE),
+			CFG_STR("group-id", "mmt-probe-consumer", CFGF_NONE),
+			CFG_STR("offset-reset", "earliest", CFGF_NONE),
+			CFG_STR("username", "", CFGF_NONE),
+			CFG_STR("password", "", CFGF_NONE),
+			CFG_INT("port", 9092, CFGF_NONE),
+			CFG_BOOL("enable", false, CFGF_NONE),
+			CFG_END()
+	};
+
 	cfg_opt_t mongodb_output_opts[] = {
 			CFG_STR("hostname", "localhost", CFGF_NONE),
 			CFG_INT("port", 27017, CFGF_NONE),
@@ -322,6 +334,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_SEC("file-output", file_output_opts, CFGF_NONE),
 			CFG_SEC("redis-output", redis_output_opts, CFGF_NONE),
 			CFG_SEC("kafka-output", kafka_output_opts, CFGF_NONE),
+			CFG_SEC("kafka-input", kafka_input_opts, CFGF_NONE),
 			CFG_SEC("data-output", data_output_opts, CFGF_NONE),
 			CFG_SEC("socket-output", socket_opts, CFGF_NONE),
 
@@ -433,15 +446,20 @@ static inline input_source_conf_t * _parse_input_source( cfg_t *cfg ){
 #ifndef DPDK_MODULE
 #ifndef PCAP_MODULE
 #ifndef STREAM_FILE_MODULE
-	#error("Neither DPDK nor PCAP nor STREAM is defined")
+#ifndef KAFKA_INPUT_MODULE
+	#error("Neither DPDK nor PCAP nor STREAM nor KAFKA_INPUT is defined")
+#endif
 #endif
 #endif
 #endif
 
 #if defined(DPDK_MODULE) && defined(PCAP_MODULE) || \
     defined(DPDK_MODULE) && defined(STREAM_FILE_MODULE) || \
-    defined(PCAP_MODULE) && defined(STREAM_FILE_MODULE)
-    #error "Only one of DPDK_MODULE, PCAP_MODULE, or STREAM_FILE_MODULE can be defined."
+    defined(PCAP_MODULE) && defined(STREAM_FILE_MODULE) || \
+    defined(KAFKA_INPUT_MODULE) && defined(PCAP_MODULE) || \
+    defined(KAFKA_INPUT_MODULE) && defined(DPDK_MODULE) || \
+    defined(KAFKA_INPUT_MODULE) && defined(STREAM_FILE_MODULE)
+    #error "Only one of DPDK_MODULE, PCAP_MODULE, STREAM_FILE_MODULE, or KAFKA_INPUT_MODULE can be defined."
 #endif
 
 
@@ -516,6 +534,24 @@ static inline kafka_output_conf_t *_parse_output_to_kafka( cfg_t *cfg ){
 	ret->username		  = _cfg_get_str(cfg, "username");
 	ret->password		  = _cfg_get_str(cfg, "password");
 	
+	return ret;
+}
+
+static inline kafka_input_conf_t *_parse_input_from_kafka( cfg_t *cfg ){
+	if( (cfg = _get_first_cfg_block( cfg, "kafka-input")) == NULL )
+		return NULL;
+
+	kafka_input_conf_t *ret = mmt_alloc( sizeof( kafka_input_conf_t ));
+
+	ret->is_enable        = cfg_getbool( cfg,  "enable" );
+	ret->host.host_name   = _cfg_get_str(cfg, "hostname");
+	ret->host.port_number = cfg_getint( cfg,  "port" );
+	ret->topic_name       = _cfg_get_str(cfg, "topic");
+	ret->group_id         = _cfg_get_str(cfg, "group-id");
+	ret->offset_reset     = _cfg_get_str(cfg, "offset-reset");
+	ret->username         = _cfg_get_str(cfg, "username");
+	ret->password         = _cfg_get_str(cfg, "password");
+
 	return ret;
 }
 
@@ -1197,6 +1233,7 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 									|| (conf->outputs.socket != NULL && conf->outputs.socket->is_enable ));
 
 	conf->dynamic_conf = _parse_dynamic_config_block( cfg );
+	conf->kafka_input = _parse_input_from_kafka( cfg );
 	//
 	conf->thread = _parse_thread( cfg );
 
@@ -1371,6 +1408,16 @@ void conf_release( probe_conf_t *conf){
 	if( conf->dynamic_conf ){
 		mmt_probe_free( conf->dynamic_conf->descriptor );
 		mmt_probe_free( conf->dynamic_conf );
+	}
+
+	if( conf->kafka_input ){
+		mmt_probe_free( conf->kafka_input->host.host_name );
+		mmt_probe_free( conf->kafka_input->topic_name );
+		mmt_probe_free( conf->kafka_input->group_id );
+		mmt_probe_free( conf->kafka_input->offset_reset );
+		mmt_probe_free( conf->kafka_input->username );
+		mmt_probe_free( conf->kafka_input->password );
+		mmt_probe_free( conf->kafka_input );
 	}
 
 
