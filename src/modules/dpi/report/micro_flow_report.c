@@ -42,10 +42,10 @@ void micro_flow_report__update( micro_flow_report_context_t *mf, const mmt_sessi
 	micro_flow_stats_t *stat = &mf->stats[ app_id ];
 
 	//update statistic
-	stat->dl_pcount += get_session_dl_packet_count(dpi_session);
-	stat->dl_bcount += get_session_dl_byte_count(dpi_session);
-	stat->ul_pcount += get_session_ul_packet_count(dpi_session);
-	stat->ul_bcount += get_session_ul_byte_count(dpi_session);
+	stat->dl_pcount += get_session_total_dl_packet_count(dpi_session);
+	stat->dl_bcount += get_session_total_dl_byte_count(dpi_session);
+	stat->ul_pcount += get_session_total_ul_packet_count(dpi_session);
+	stat->ul_bcount += get_session_total_ul_byte_count(dpi_session);
 	stat->last_time = get_session_last_activity_time(dpi_session);
 	stat->flows_nb  ++;
 

@@ -22,6 +22,7 @@
 #define LICENSE_CHECK
 #define DPDK_MODULE
 #endif
+#define MQTT_MODULE
 
 /**
  * Data type using by the attributes of the configuration
@@ -157,6 +158,7 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__INPUT__SNAP_LEN,    "input.snap-len",    &conf->input->snap_len,     UINT16_T),
 	(CONF_ATT__INPUT__BUFFER_SIZE, "input.buffer-size", &conf->input->buffer_size,  UINT32_T),
 	(CONF_ATT__INPUT__TIMEOUT,     "input.timeout",     &conf->input->timeout,      UINT32_T),
+	(CONF_ATT__INPUT__PCAP_FILTER, "input.pcap-filter", &conf->input->pcap_filter,  CHAR_STAR),
 
 #ifdef DPDK_MODULE
 	(CONF_ATT__INPUT__DPDK_OPTION, "input.dpdk-option", &conf->input->dpdk_options, CHAR_STAR),
@@ -221,6 +223,14 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__SOCKET_OUTPUT__HOSTNAME,     "socket-output.hostname",   &conf->outputs.socket->internet_socket.host_name,   CHAR_STAR),
 	(CONF_ATT__SOCKET_OUTPUT__PORT,         "socket-output.port",       &conf->outputs.socket->internet_socket.port_number, UINT16_T),
 	(CONF_ATT__SOCKET_OUTPUT__DESCRIPTOR,   "socket-output.descriptor", &conf->outputs.socket->unix_socket_descriptor,      CHAR_STAR),
+#endif
+
+#ifdef MQTT_MODULE
+	//mqtt-output
+	(CONF_ATT__MQTT_OUTPUT__ENABLE,       "mqtt-output.enable",   &conf->outputs.mqtt->is_enable,        BOOL),
+	(CONF_ATT__MQTT_OUTPUT__HOSTNAME,     "mqtt-output.address",  &conf->outputs.mqtt->address,          CHAR_STAR),
+	(CONF_ATT__MQTT_OUTPUT__CHANNEL_NAME, "mqtt-output.topic",    &conf->outputs.mqtt->topic_name,       CHAR_STAR),
+	(CONF_ATT__MQTT_OUTPUT__PORT,         "mqtt-output.retain",   &conf->outputs.mqtt->is_retain,        BOOL),
 #endif
 
 #ifdef PCAP_DUMP_MODULE

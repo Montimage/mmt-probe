@@ -193,6 +193,14 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_END()
 	};
 
+	cfg_opt_t mqtt_output_opts[] = {
+			CFG_STR("address", "tcp://localhost:1883", CFGF_NONE),
+			CFG_STR("topic", "report", CFGF_NONE),
+			CFG_BOOL("enable", false, CFGF_NONE),
+			CFG_BOOL("retain", false, CFGF_NONE),
+			CFG_END()
+	};
+
 	cfg_opt_t mongodb_output_opts[] = {
 			CFG_STR("hostname", "localhost", CFGF_NONE),
 			CFG_INT("port", 27017, CFGF_NONE),
@@ -314,6 +322,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_INT("snap-len", 65535, CFGF_NONE),
 			CFG_INT("buffer-size", 0, CFGF_NONE),
 			CFG_INT("timeout", 0, CFGF_NONE),
+			CFG_STR("pcap-filter", "", CFGF_NONE ),
 			CFG_STR("dpdk-option", "", CFGF_NONE ),
 			CFG_END()
 	};
@@ -335,6 +344,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_SEC("redis-output", redis_output_opts, CFGF_NONE),
 			CFG_SEC("kafka-output", kafka_output_opts, CFGF_NONE),
 			CFG_SEC("kafka-input", kafka_input_opts, CFGF_NONE),
+			CFG_SEC("mqtt-output", mqtt_output_opts, CFGF_NONE),
 			CFG_SEC("data-output", data_output_opts, CFGF_NONE),
 			CFG_SEC("socket-output", socket_opts, CFGF_NONE),
 
@@ -475,6 +485,7 @@ static inline input_source_conf_t * _parse_input_source( cfg_t *cfg ){
 	ret->snap_len    = cfg_getint( cfg, "snap-len" );
 	ret->buffer_size = cfg_getint( cfg, "buffer-size" );
 	ret->timeout     = cfg_getint( cfg, "timeout" );
+	ret->pcap_filter = _cfg_get_str(cfg, "pcap-filter");
 
 	return ret;
 }
@@ -551,6 +562,20 @@ static inline kafka_input_conf_t *_parse_input_from_kafka( cfg_t *cfg ){
 	ret->offset_reset     = _cfg_get_str(cfg, "offset-reset");
 	ret->username         = _cfg_get_str(cfg, "username");
 	ret->password         = _cfg_get_str(cfg, "password");
+
+	return ret;
+}
+
+static inline mqtt_output_conf_t *_parse_output_to_mqtt( cfg_t *cfg ){
+	if( (cfg = _get_first_cfg_block( cfg, "mqtt-output")) == NULL )
+		return NULL;
+
+	mqtt_output_conf_t *ret = mmt_alloc( sizeof( mqtt_output_conf_t ));
+
+	ret->is_enable   = cfg_getbool( cfg, "enable");
+	ret->is_retain   = cfg_getbool( cfg, "retain");
+	ret->address     = _cfg_get_str(cfg, "address");
+	ret->topic_name  = _cfg_get_str(cfg, "topic");
 
 	return ret;
 }
@@ -643,6 +668,8 @@ static inline  output_channel_conf_t _parse_output_channel( cfg_t *cfg ){
 			out |= CONF_OUTPUT_CHANNEL_SOCKET;
 		else if( strncmp( channel_name, "stdout", 6 ) == 0 )
 			out |= CONF_OUTPUT_CHANNEL_STDOUT;
+		else if( strncmp( channel_name, "mqtt", 4 ) == 0 )
+			out |= CONF_OUTPUT_CHANNEL_MQTT;
 		else
 			log_write( LOG_WARNING, "Unexpected channel '%s'", channel_name );
 	}
@@ -1222,6 +1249,7 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 	//set of output channels
 	conf->outputs.file  = _parse_output_to_file( cfg );
 	conf->outputs.kafka = _parse_output_to_kafka( cfg );
+	conf->outputs.mqtt  = _parse_output_to_mqtt( cfg );
 	conf->outputs.redis = _parse_output_to_redis( cfg );
 	conf->outputs.mongodb = _parse_output_to_mongodb( cfg );
 	conf->outputs.socket = _parse_socket_block( cfg );
@@ -1230,7 +1258,8 @@ probe_conf_t* conf_load_from_file( const char* filename ){
 									|| (conf->outputs.mongodb != NULL && conf->outputs.mongodb->is_enable)
 									|| (conf->outputs.redis != NULL && conf->outputs.redis->is_enable)
 									|| (conf->outputs.kafka != NULL && conf->outputs.kafka->is_enable )
-									|| (conf->outputs.socket != NULL && conf->outputs.socket->is_enable ));
+									|| (conf->outputs.socket != NULL && conf->outputs.socket->is_enable )
+									|| (conf->outputs.mqtt != NULL && conf->outputs.mqtt->is_enable ));
 
 	conf->dynamic_conf = _parse_dynamic_config_block( cfg );
 	conf->kafka_input = _parse_input_from_kafka( cfg );
@@ -1328,6 +1357,7 @@ void conf_release( probe_conf_t *conf){
 	int i;
 
 	mmt_probe_free( conf->input->input_source );
+	mmt_probe_free( conf->input->pcap_filter );
 	mmt_probe_free( conf->input );
 
 	for( i=0; i<conf->reports.events_size; i++ )
@@ -1403,6 +1433,12 @@ void conf_release( probe_conf_t *conf){
 		mmt_probe_free( conf->outputs.socket->unix_socket_descriptor );
 		mmt_probe_free( conf->outputs.socket->internet_socket.host_name );
 		mmt_probe_free( conf->outputs.socket );
+	}
+
+	if( conf->outputs.mqtt ){
+		mmt_probe_free( conf->outputs.mqtt->address );
+		mmt_probe_free( conf->outputs.mqtt->topic_name );
+		mmt_probe_free( conf->outputs.mqtt );
 	}
 
 	if( conf->dynamic_conf ){

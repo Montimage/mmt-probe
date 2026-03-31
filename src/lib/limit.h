@@ -111,6 +111,12 @@
 	#define IF_ENABLE_SOCKET( x )
 #endif
 
+#ifdef MQTT_MODULE
+	#define IF_ENABLE_MQTT( x ) x
+#else
+	#define IF_ENABLE_MQTT( x )
+#endif
+
 
 #ifdef PCAP_DUMP_MODULE
 	#define IF_ENABLE_PCAP_DUMP( x ) x
@@ -206,6 +212,7 @@
 	IF_ENABLE_REDIS( ", REDIS" )                       \
 	IF_ENABLE_SIMPLE_REPORT( ", SIMPLE_REPORT" )       \
 	IF_ENABLE_SOCKET( ", SOCKET" )                     \
+	IF_ENABLE_MQTT( ", MQTT" )                         \
 	IF_ENABLE_SECURITY(", SECURITY")                   \
 	IF_ENABLE_TCP_REASSEMBLY(", TCP_REASSEMBLY" )      \
 	IF_ENABLE_DEBUG( ", debug" )                       \

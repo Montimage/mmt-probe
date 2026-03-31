@@ -29,7 +29,7 @@ endif
 #decide when we need to print out the message if a module is disable
 #ex: no need when we do: make clean
 #by default, we do not print out the message
-undefine PRINT_MODULE_MSG
+#undefine PRINT_MODULE_MSG
 #by default, when no target is given to `make` commandline => do `make compile`
 ifndef MAKECMDGOALS
   PRINT_MODULE_MSG := 1
@@ -136,6 +136,13 @@ ifdef KAFKA_MODULE
   endif
   MODULE_FLAGS += -I /usr/local/include/librdkafka -DKAFKA_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/output/kafka/*.c)
+endif
+
+$(eval $(call check_module,MQTT_MODULE))
+ifdef MQTT_MODULE
+  MODULE_LIBS  += -lpaho-mqtt3c
+  MODULE_FLAGS += -DMQTT_MODULE
+  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/output/mqtt/*.c)
 endif
 
 $(eval $(call check_module,MONGODB_MODULE))

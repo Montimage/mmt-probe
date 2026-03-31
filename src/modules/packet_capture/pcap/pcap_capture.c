@@ -358,6 +358,20 @@ static inline void _pcap_capture_release( probe_context_t *context ){
 	mmt_probe_free( context->modules.pcap );
 }
 
+static inline int _sleep(pcap_t *pcap ){
+	int pcap_fd = pcap_get_selectable_fd( pcap );
+
+	fd_set rfds;
+	FD_ZERO(&rfds);
+	FD_SET(pcap_fd, &rfds);
+
+	struct timeval tv;
+	tv.tv_sec = 0;
+	tv.tv_usec = 100*1000*1000; //100 ms
+
+	int ret = select(pcap_fd + 1, &rfds, NULL, NULL, &tv);
+	return ret;
+}
 
 
 //public API
@@ -486,6 +500,20 @@ void pcap_capture_start( probe_context_t *context ){
 					context->config->stack_type);
 	}
 
+	// Compile and set the filter
+	struct bpf_program fp;
+	const char *pcap_filter = context->config->input->pcap_filter;
+	if( pcap_filter && strlen(pcap_filter) > 0 ){
+		log_write( LOG_INFO, "Applying filter: %s", pcap_filter );
+		ret = pcap_compile(pcap, &fp, pcap_filter, 0, PCAP_NETMASK_UNKNOWN);
+		ASSERT( ret == 0,
+			"Couldn't parse filter '%s': %s", pcap_filter, pcap_geterr(pcap));
+
+		ret = pcap_setfilter(pcap, &fp);
+		ASSERT( ret == 0,
+			"Couldn't install filter '%s': %s\n", pcap_filter, pcap_geterr(pcap));
+	}
+
 	context->modules.pcap->handler = pcap;
 
 	ret = 0;
@@ -524,7 +552,7 @@ void pcap_capture_start( probe_context_t *context ){
 				// such as, worker_on_timer_stat_period, worker_on_timer_sample_file_period
 				_got_a_packet( (u_char*) context, NULL, NULL );
 				//we need to small sleep here to wait for a new packet
-				nanosleep( (const struct timespec[]){{0, 100000L}}, NULL );
+				_sleep( pcap );
 			}
 		}else if( ret > 0 )
 			continue;

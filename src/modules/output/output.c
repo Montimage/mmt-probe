@@ -16,9 +16,9 @@
 #include "../../lib/string_builder.h"
 #include "file/file_output.h"
 #include "kafka/kafka_output.h"
-#include "mongodb/mongodb.h"
 #include "redis/redis.h"
 #include "socket/socket_output.h"
+#include "mqtt/mqtt_output.h"
 #include "stix_alert.h"
 
 struct output_struct {
@@ -37,6 +37,7 @@ struct output_struct {
     IF_ENABLE_KAFKA(kafka_output_t *kafka;)
     IF_ENABLE_MONGODB(mongodb_output_t *mongodb;)
     IF_ENABLE_SOCKET(socket_output_t *socket;)
+    IF_ENABLE_MQTT(mqtt_output_t *mqtt;)
   } modules;
 };
 
@@ -90,6 +91,10 @@ output_t *output_alloc_init(uint16_t output_id,
 #ifdef SOCKET_MODULE
   ret->modules.socket = socket_output_init(ret->config->socket);
 #endif
+
+#ifdef MQTT_MODULE
+  ret->modules.mqtt = mqtt_output_alloc_init(ret->config->mqtt, probe_id);
+#endif
   return ret;
 }
 
@@ -103,7 +108,7 @@ output_t *output_alloc_init(uint16_t output_id,
 static inline int _write(output_t *output, output_channel_conf_t channels,
                          const char *message, bool raw) {
   int ret = 0;
-  char new_msg[MAX_LENGTH_REPORT_MESSAGE];
+  char new_msg[MAX_LENGTH_REPORT_MESSAGE + 1 ];
 
   // we surround message inside [] to convert it to JSON
   // this needs to be done when:
@@ -164,6 +169,12 @@ static inline int _write(output_t *output, output_channel_conf_t channels,
     ret += socket_output_send(output->modules.socket, message);
   }
 #endif
+
+#ifdef MQTT_MODULE
+  if (output->modules.mqtt && IS_ENABLE_OUTPUT_TO(MQTT, channels)) {
+    ret += mqtt_output_send(output->modules.mqtt, message);
+  }
+#endif
   return ret;
 }
 
@@ -199,7 +210,7 @@ int output_write_report(output_t *output, output_channel_conf_t channels,
     return 0;
   }
 
-  char message[MAX_LENGTH_REPORT_MESSAGE];
+  char message[MAX_LENGTH_REPORT_MESSAGE + 1 ];
   int offset = 0;
   int message_constucted = 0;
 
@@ -259,7 +270,7 @@ int output_write_report_with_format(output_t *output,
   // @output_write_report
   __UNLOCK_IF_NEED(output);
 
-  char message[MAX_LENGTH_REPORT_MESSAGE];
+  char message[MAX_LENGTH_REPORT_MESSAGE + 1 ];
   int offset, ret;
 
   if (unlikely(format == NULL)) {
@@ -327,6 +338,7 @@ void output_release(output_t *output) {
   IF_ENABLE_KAFKA(kafka_output_release(output->modules.kafka);)
   IF_ENABLE_REDIS(redis_release(output->modules.redis);)
   IF_ENABLE_SOCKET(socket_output_release(output->modules.socket);)
+  IF_ENABLE_MQTT(mqtt_output_release(output->modules.mqtt);)
 
   if (output->mutex) {
     pthread_mutex_destroy(output->mutex);

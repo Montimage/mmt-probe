@@ -65,6 +65,14 @@ typedef struct kafka_input_conf_struct{
 	char *password;
 }kafka_input_conf_t;
 
+typedef struct mqtt_output_conf_struct{
+	bool is_enable;
+	char* address;
+	//further setting for mqtt published message
+	char *topic_name;
+	bool is_retain;
+}mqtt_output_conf_t;
+
 typedef struct mongodb_output_conf_struct{
 	bool is_enable;
 	internet_service_address_t host;
@@ -84,6 +92,7 @@ typedef struct input_source_conf_struct{
 	uint16_t snap_len;    //pcap param
 	uint32_t buffer_size; //pcap param
 	uint32_t timeout;     //pcap param
+	char *pcap_filter;    //https://www.tcpdump.org/manpages/pcap-filter.7.html
 
 	IF_ENABLE_DPDK( char *dpdk_options; )
 }input_source_conf_t;
@@ -97,9 +106,11 @@ typedef enum {
 	CONF_OUTPUT_CHANNEL_MONGODB = 8,
 	CONF_OUTPUT_CHANNEL_SOCKET  = 16,
 	CONF_OUTPUT_CHANNEL_STDOUT  = 32,
+	CONF_OUTPUT_CHANNEL_MQTT    = 64,
 	CONF_OUTPUT_CHANNEL_ALL     = CONF_OUTPUT_CHANNEL_FILE  | CONF_OUTPUT_CHANNEL_REDIS
 								| CONF_OUTPUT_CHANNEL_KAFKA | CONF_OUTPUT_CHANNEL_MONGODB
 								| CONF_OUTPUT_CHANNEL_SOCKET| CONF_OUTPUT_CHANNEL_STDOUT
+								| CONF_OUTPUT_CHANNEL_MQTT
 }output_channel_conf_t;
 
 #define IS_ENABLE_OUTPUT_TO( name, channels ) ( channels & CONF_OUTPUT_CHANNEL_ ##name )
@@ -279,6 +290,7 @@ typedef struct output_conf_struct{
 	kafka_output_conf_t *kafka;
 	mongodb_output_conf_t *mongodb;
 	socket_output_conf_t *socket;
+	mqtt_output_conf_t *mqtt;
 	enum {OUTPUT_FORMAT_CSV, OUTPUT_FORMAT_JSON} format;
 }output_conf_t;
 

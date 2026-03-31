@@ -74,7 +74,7 @@ typedef struct probe_context_struct{
  */
 static inline void context_print_traffic_stat( const probe_context_t *context, const struct timeval *now ){
 	//print a dummy message to inform that MMT-Probe is still alive
-	char message[ MAX_LENGTH_REPORT_MESSAGE ];
+	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
 	int valid = 0;
 
 	//build message
@@ -97,11 +97,16 @@ static inline void context_print_traffic_stat( const probe_context_t *context, c
 	}
 
 
-	log_write_dual( LOG_INFO, "%s%% dropped by NIC %.4f, by MMT %.4f", message,
-			context->traffic_stat.nic.receive == 0? 0 :
-					(context->traffic_stat.nic.drop * 100.0 / context->traffic_stat.nic.receive ),
-			context->traffic_stat.nic.receive == 0? 0 :
-					(context->traffic_stat.mmt.packets.drop * 100.0 / context->traffic_stat.nic.receive )
+	uint64_t total_pkt = context->traffic_stat.nic.receive;
+	uint64_t total_dropped_pkt = context->traffic_stat.nic.drop + context->traffic_stat.mmt.packets.drop;
+
+	log_write_dual( LOG_INFO, "got %"PRIu64" packets, processed %"PRIu64" packets (%"PRIu64" bytes), dropped %"PRIu64" packets (%.2f%%)",
+			total_pkt,
+			context->traffic_stat.mmt.packets.receive,
+			context->traffic_stat.mmt.bytes.receive,
+			total_dropped_pkt,
+			total_dropped_pkt == 0 ? 0:
+					( total_dropped_pkt * 100.0 / total_pkt )
 	 );
 }
 

@@ -16,7 +16,7 @@ typedef struct event_based_report_context_struct {
 	/**
 	 * the latest values of the protocols and attributes to be checked in the delta condition above
 	 */
-	char last_delta_atts_values[MAX_LENGTH_REPORT_MESSAGE];
+	char last_delta_atts_values[MAX_LENGTH_REPORT_MESSAGE + 1 ];
 }event_based_report_context_t;
 
 
