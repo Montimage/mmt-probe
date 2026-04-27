@@ -232,6 +232,14 @@ ifdef DYNAMIC_CONFIG_MODULE
   MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/dynamic_conf/*.c)
 endif
 
+# Emit security alerts as STIX 2.1 bundles instead of the default CSV row
+$(eval $(call check_module,STIX_FORMAT))
+ifdef STIX_FORMAT
+  MODULE_LIBS  += -luuid
+  MODULE_FLAGS += -DSTIX_FORMAT
+  MODULE_SRCS  += $(wildcard $(SRC_DIR)/modules/output_format/*.c)
+endif
+
 #################### Other optional parameters for compiling ######################
 $(eval $(call EXPORT_TARGET,DISABLE_REPORT))
 $(eval $(call EXPORT_TARGET,SIMPLE_REPORT))

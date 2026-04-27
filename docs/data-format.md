@@ -275,6 +275,49 @@ This reports security problems detected by MMT-Security
 10,123,"eth1",1452523000.331799,4,"detected","attack","Two successive TCP SYN requests but with different destnation addresses.",{"event_12":{"timestamp":1452523000.158154,"description":"SYN request","attributes":[["ip.src","192.168.0.20"],["ip.dst","67.196.156.65"],["tcp.flags","2"]]},"event_13":{"timestamp":1452523000.329879,"description":"SYN request","attributes":[["ip.src","192.168.0.20"],["ip.dst","66.235.120.127"],["tcp.flags","2"]]}}
 ```
 
+### STIX 2.1 alternative output (compile-time flag `STIX_FORMAT`)
+
+When mmt-probe is built with `make STIX_FORMAT=1` (and `-luuid` is available),
+security reports are emitted as a STIX 2.1 JSON bundle in place of the CSV row
+above. Other report types are unaffected.
+
+The bundle contains one `identity` SDO, one `observed-data` SDO, two
+`ipv4-addr` SCOs (source and destination), and one custom `x-attack-type`
+SDO. Behaviour:
+
+- All UUIDs are randomly generated per alert.
+- The rule's `description` from the alert is copied into both
+  `observed-data.extensions.x-observed-data-ext.description` and
+  `x-attack-type.name`. (Requires `security.report-rule-description = true`
+  in the probe configuration; otherwise both fields are emitted as `""`.)
+- Source and destination IPs are extracted from the trace JSON: first by
+  looking up the canonical `ip.src` / `ip.dst` keys, then by falling back
+  to any key ending in `.src_ip` / `.dst_ip` (case-insensitive). When
+  neither matches, `ipv4-addr.value` is emitted as `""`.
+- The rule id is recorded under
+  `x-attack-type.external_references[0]` with `source_name = "mmt-security"`.
+- MITRE ATT&CK identifiers are not currently propagated by mmt-security
+  and are therefore not included in the bundle.
+
+#### Example:
+```JSON
+{
+  "type": "bundle",
+  "id": "bundle--<uuid>",
+  "objects": [
+    { "type": "identity", "spec_version": "2.1", "id": "identity--<uuid>", ... },
+    { "type": "observed-data", "spec_version": "2.1", "id": "observed-data--<uuid>",
+      "object_refs": ["ipv4-addr--<uuid>", "ipv4-addr--<uuid>", "x-attack-type--<uuid>"],
+      "extensions": { "x-observed-data-ext": { "description": "<rule description>" } } },
+    { "type": "ipv4-addr", "id": "ipv4-addr--<uuid>", "value": "192.168.0.20" },
+    { "type": "ipv4-addr", "id": "ipv4-addr--<uuid>", "value": "67.196.156.65" },
+    { "type": "x-attack-type", "id": "x-attack-type--<uuid>",
+      "name": "<rule description>",
+      "external_references": [ { "source_name": "mmt-security", "external_id": "4" } ] }
+  ]
+}
+```
+
 
 ## HTTP reconstruction reports
 

@@ -21,6 +21,10 @@
 #include "redis/redis.h"
 #include "mqtt/mqtt_output.h"
 
+#ifdef STIX_FORMAT
+#include "../output_format/stix_format.h"
+#endif
+
 struct output_struct{
 	uint16_t index;
 	uint32_t probe_id;
@@ -212,20 +216,30 @@ int output_write_report( output_t *output, output_channel_conf_t channels,
 
 	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
 	int offset = 0;
-	STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_REPORT_MESSAGE, ",",
-			__INT( report_type ),
-			__INT( output->probe_id ),
-			__STR( output->input_src ),
-			__TIME( ts )
-	);
+	int stix_built = 0;
 
-	if( message_body != NULL ){
-		message[ offset ++ ] = ',';
-		size_t len = strlen( message_body );
-		if( len > MAX_LENGTH_REPORT_MESSAGE - offset )
-			len = MAX_LENGTH_REPORT_MESSAGE - offset;
-		memcpy( message+offset, message_body, len );
-		message[ offset + len ] = '\0';
+#ifdef STIX_FORMAT
+	if( report_type == SECURITY_REPORT_TYPE )
+		stix_built = construct_alert_stix_format( message_body, ts,
+				message, MAX_LENGTH_REPORT_MESSAGE );
+#endif
+
+	if( !stix_built ){
+		STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_REPORT_MESSAGE, ",",
+				__INT( report_type ),
+				__INT( output->probe_id ),
+				__STR( output->input_src ),
+				__TIME( ts )
+		);
+
+		if( message_body != NULL ){
+			message[ offset ++ ] = ',';
+			size_t len = strlen( message_body );
+			if( len > MAX_LENGTH_REPORT_MESSAGE - offset )
+				len = MAX_LENGTH_REPORT_MESSAGE - offset;
+			memcpy( message+offset, message_body, len );
+			message[ offset + len ] = '\0';
+		}
 	}
 
 	int ret = _write( output, channels, message, false );
