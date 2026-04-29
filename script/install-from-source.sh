@@ -26,7 +26,7 @@ CPU=$(getconf _NPROCESSORS_ONLN)
 # install libraries 
 apt-get update && apt-get install -y \
 	git cmake gcc g++ cpp\
-	libconfuse-dev libpcap-dev libxml2-dev\
+	libconfuse-dev libpcap-dev libxml2-dev uuid-dev\
 	curl
 
 gcc -v
