@@ -108,7 +108,8 @@ output_t *output_alloc_init( uint16_t output_id, const struct output_conf_struct
  */
 static inline int _write( output_t *output, output_channel_conf_t channels, const char *message, bool raw ){
 	int ret = 0;
-	char new_msg[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
+	//room for '[' + message (up to MAX_LENGTH_REPORT_MESSAGE) + ']' + '\0'
+	char new_msg[ MAX_LENGTH_REPORT_MESSAGE + 3 ];
 
 	//we surround message inside [] to convert it to JSON
 	//this needs to be done when:
