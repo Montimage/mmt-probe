@@ -205,7 +205,7 @@ int construct_alert_stix_format(const char *message_body,
 		"      \"created\": \"%s\",\n"
 		"      \"modified\": \"%s\",\n"
 		"      \"name\": \"MMT-PROBE\",\n"
-		"      \"identity_class\": \"organization\"\n"
+		"      \"identity_class\": \"organization\",\n"
 		"        \"extensions\": {\n"
 		"          \"x-probe-id-ext\": {\n"
 		"            \"extension_type\": \"property-extension\",\n"
