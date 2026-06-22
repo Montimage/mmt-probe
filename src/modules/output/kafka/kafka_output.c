@@ -68,6 +68,30 @@ static void _connect_to_kafka( kafka_output_t *context ){
 		return;
 	}
 
+	/* Configure SASL/PLAIN authentication when a username is provided.
+	 * Credentials are sent over SASL_PLAINTEXT (no TLS).
+	 * When no username is configured, the probe connects without authentication
+	 * (default PLAINTEXT behaviour). */
+	if( config->username != NULL ){
+		struct { const char *key, *value; } sasl_props[] = {
+			{ "security.protocol", "SASL_PLAINTEXT" },
+			{ "sasl.mechanism",    "PLAIN" },
+			{ "sasl.username",     config->username },
+			{ "sasl.password",     config->password != NULL ? config->password : "" },
+		};
+		size_t i;
+		for( i = 0; i < sizeof(sasl_props)/sizeof(sasl_props[0]); i++ ){
+			val = rd_kafka_conf_set(rd_conf, sasl_props[i].key, sasl_props[i].value, errstr, sizeof(errstr));
+			if( val != RD_KAFKA_CONF_OK ) {
+				log_write( LOG_ERR, "Failed to setup Kafka %s: %s", sasl_props[i].key, errstr);
+				rd_kafka_conf_destroy( rd_conf );
+				_release_current_kafka_connection( context );
+				return;
+			}
+		}
+		log_write( LOG_INFO, "Kafka output using SASL/PLAIN authentication (user '%s')", config->username );
+	}
+
 	/* Set the delivery report callback.
 	 * This callback will be called once per message to inform
 	 * the application if delivery succeeded or failed.
