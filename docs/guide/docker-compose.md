@@ -39,7 +39,8 @@ version: '3.9'
 services:
   probe:
     container_name: mi_probe
-    image: ghcr.io/montimage/mmt-probe:v1.6.0
+    image: ghcr.io/montimage/mmt-probe:v1.6.4
+    # you might need to replace enp0s3 by your NIC
     command: mmt-probe -i enp0s3 -Xsecurity.enable=true
     restart: unless-stopped
     network_mode: host
@@ -67,7 +68,7 @@ services:
 
   operator:
     container_name: mi_operator
-    image: ghcr.io/montimage/mmt-operator:v1.7.7
+    image: ghcr.io/montimage/mmt-operator:v1.7.8
     command: /opt/mmt/operator/bin/www -Xdatabase_server.host=mongodb -Xport_number=8080 -Xprobe_analysis_mode=online
     restart: unless-stopped
     ports:
