@@ -1,3 +1,6 @@
+## v1.6.3 (18 May 2026)
+  - add DICOM protocol detection rules (IDs 200-229) from mmt-security
+
 ## v1.6.2 (16 Mar 2026)
 - improved CPU consumption when no or (very less) packets are being proccessed in online capture mode
 - clarified execution log (output on the commandline, and syslog)
