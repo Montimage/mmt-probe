@@ -124,6 +124,12 @@ static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 	IF_ENABLE_STAT_REPORT(
 		event_based_report_callback_on_receiving_packet( ipacket, context->event_reports );
 		query_based_report_callback_on_receiving_packet( ipacket, context->query_reports );
+		if( context->probe_config->reports.session->is_enable ){
+			// Ugly Ethernet coverage: per-packet id=100 for terminals with
+			// no periodic session row (GTP-inner UNKNOWN/PTP, bare ETH...).
+			// Covered packets (IP/ARP sessions) reuse their session rows.
+			session_report_emit_uncovered_eth_report( ipacket, context );
+		}
 	)
 	return 0;
 }

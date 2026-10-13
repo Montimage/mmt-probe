@@ -33,6 +33,175 @@ static inline bool _is_broadcast_mac(const uint8_t *mac) {
 	return mac[0]==0xff && mac[1]==0xff && mac[2]==0xff && mac[3]==0xff && mac[4]==0xff && mac[5]==0xff;
 }
 
+// Find first occurrence of proto_id in packet hierarchy, -1 if absent
+static inline int _eth_first_proto_index(const ipacket_t *ipacket, uint32_t proto_id) {
+	if (!ipacket || !ipacket->proto_hierarchy) return -1;
+	for (int i = 0; i < ipacket->proto_hierarchy->len; i++)
+		if (ipacket->proto_hierarchy->proto_path[i] == (int)proto_id)
+			return i;
+	return -1;
+}
+
+// Resolve the ethertype (host order, e.g. 0x8892) that produced the UNKNOWN
+// terminal at unknown_idx in the packet hierarchy:
+// - parent ETH (99): use extracted ETH_PROTOCOL attribute
+// - parent VLAN (7) / 8021AD (656): read inner ethertype bytes (header + 2)
+// Returns 0 when unavailable (then no suffix is appended).
+static inline uint16_t _eth_unknown_ethertype(const ipacket_t *ipacket, int unknown_idx) {
+	if (!ipacket || unknown_idx <= 0 || !ipacket->proto_hierarchy) return 0;
+	if (unknown_idx >= ipacket->proto_hierarchy->len) return 0;
+	if (ipacket->proto_hierarchy->proto_path[unknown_idx] != PROTO_UNKNOWN) return 0;
+	int parent_idx = unknown_idx - 1;
+	int parent_id = ipacket->proto_hierarchy->proto_path[parent_idx];
+	if (parent_id == PROTO_ETHERNET) {
+		uint16_t *ethertype = (uint16_t *) get_attribute_extracted_data_at_index(
+				ipacket, PROTO_ETHERNET, ETH_PROTOCOL, parent_idx);
+		if (ethertype) return *ethertype; // already host order (ntohs at extraction)
+		return 0;
+	}
+	if (parent_id == PROTO_8021Q || parent_id == PROTO_8021AD) {
+		int voff = get_packet_offset_at_index(ipacket, parent_idx);
+		// VLAN header: TPID(2) + TCI(2), inner ethertype follows at +2..+3
+		// (mmt_vlan_struct.code + h_proto, see proto_8021q.c)
+		if (voff >= 0 && ipacket->p_hdr && voff + 4 <= (int)ipacket->p_hdr->caplen) {
+			uint16_t v;
+			memcpy(&v, &ipacket->data[voff + 2], sizeof(v));
+			return ntohs(v);
+		}
+	}
+	return 0;
+}
+
+// Effective hierarchy length for per-packet decisions.
+// ipacket->proto_hierarchy may be repointed to a shared DPI session path
+// (packet_processing.c:2580) whose tail is stale: a previous longer packet
+// (e.g. GTP.ETH.VLAN.UNKNOWN, len 8) leaves trailing elements that the
+// current shorter packet (e.g. GTP.ETH.PTP, len 7) never classified, yet the
+// session path still shows them (observed "...99.508.0" for a PTP packet).
+// A trailing UNKNOWN can never be genuine when its parent has no
+// classifier producing children (ARP, PTP, UNKNOWN itself); drop such
+// tails. Never mutates the shared hierarchy, only returns a shorter length.
+static inline int _eth_effective_len(const proto_hierarchy_t *hier) {
+	if (!hier) return 0;
+	int len = hier->len;
+	while (len >= 3
+			&& hier->proto_path[len - 1] == PROTO_UNKNOWN
+			&& (hier->proto_path[len - 2] == PROTO_ARP
+				|| hier->proto_path[len - 2] == PROTO_PTP
+				|| hier->proto_path[len - 2] == PROTO_UNKNOWN))
+		len--;
+	return len;
+}
+
+// Append ".high.low" of a host-order ethertype to a path string buffer.
+// dest holds a NUL-terminated string of length *len_inout, capacity dest_size.
+// Ugly: raw ethertype bytes share the proto-id namespace (e.g. 0x8892 shows
+// as 136.146), but this is what downstream expects (profinet = 99.0.136.146).
+// Never touches an empty path: a bare ".136.146" is not a valid protocol path.
+static inline void _eth_append_suffix(char *dest, size_t dest_size, size_t *len_inout, uint16_t ethertype) {
+	if (!dest || !len_inout || ethertype == 0) return;
+	size_t len = *len_inout;
+	if (len == 0 || dest[0] == '\0') return; // no base path: nothing to extend
+	if (len + 8 >= dest_size) return; // need room for ".255.255" + NUL
+	len += append_char(dest + len, dest_size - len, '.');
+	len += append_number(dest + len, dest_size - len, (ethertype >> 8) & 0xFF);
+	len += append_char(dest + len, dest_size - len, '.');
+	len += append_number(dest + len, dest_size - len, ethertype & 0xFF);
+	dest[len] = '\0';
+	*len_inout = len;
+}
+
+// Index of the first PROTO_GTP layer of a hierarchy, -1 if not GTP.
+// Used to cut an outer GTP session path at ".141" so that the outer row never
+// advertises an inner protocol stack (see _path_ids_to_str_outside_gtp).
+static inline int _path_first_gtp_index(const proto_hierarchy_t *hier) {
+	if (!hier) return -1;
+	for (uint32_t i = 0; i < hier->len; i++)
+		if (hier->proto_path[i] == PROTO_GTP) return (int) i;
+	return -1;
+}
+
+// Do two protocol hierarchies agree? Compares element by element over the
+// common depth: one direction of a session can lag one protocol behind (or be
+// missing altogether), which is fine, but they must never contradict each
+// other. Used to keep the ul/dl paths of a single report row overlapping
+// ("might different length, not branch out").
+static inline bool _hier_overlap(const proto_hierarchy_t *a, const proto_hierarchy_t *b) {
+	if (!a || !b || a->len == 0 || b->len == 0) return false;
+	uint32_t n = (a->len < b->len) ? a->len : b->len;
+	return memcmp(a->proto_path, b->proto_path, n * sizeof(int)) == 0;
+}
+
+// Render a hierarchy to a string, cutting it right after PROTO_GTP when the
+// caller asks for it (truncated_out != NULL) and the hierarchy is an *outer*
+// GTP session path. The inner protocol stack (ETH/VLAN/UNKNOWN/TCP/... after
+// the tunnel) is reported by the inner rows instead, so the outer row stays
+// stable at e.g. "99.178.376.141". Callers that pass truncated_out == NULL
+// (inner sessions, non GTP) always get the complete hierarchy.
+// Returns the rendered length; *truncated_out tells if a cut was applied.
+static inline size_t _path_ids_to_str_outside_gtp(const proto_hierarchy_t *hier,
+		char *dest, size_t dest_size, bool *truncated_out) {
+	if (truncated_out) *truncated_out = false;
+	if (!hier) { if (dest_size) dest[0] = '\0'; return 0; }
+	int gtp = (truncated_out) ? _path_first_gtp_index(hier) : -1;
+	if (gtp < 0)
+		return dpi_proto_hierarchy_ids_to_str(hier, dest, dest_size);
+
+	proto_hierarchy_t cut = *hier;
+	cut.len = (uint32_t) (gtp + 1);
+	*truncated_out = true;
+	return dpi_proto_hierarchy_ids_to_str(&cut, dest, dest_size);
+}
+
+// Is the hierarchy that of an *outer* GTP session (tunnel present and nothing
+// sessionized above it)? Those rows describe the tunnel, not the payload.
+static inline bool _path_is_outer_gtp(const proto_hierarchy_t *hier) {
+	int gtp = _path_first_gtp_index(hier);
+	return gtp >= 0;
+}
+
+// Ugly per-packet Ethernet coverage check.
+// Returns true when this packet's terminal protocol has NO periodic id=100
+// session row covering it, i.e. a dedicated per-packet ETH id=100 row is
+// needed. Packets already covered reuse their session rows:
+// - terminal IP/IPv6/ARP: own session row exists
+// - terminal L4/app with an IP/IPv6/ARP session below (regular TCP, GTP with
+//   inner IP): covered by that session row (GTP inner-IP case already yields
+//   2 rows: outer + inner)
+// - GTP echo (terminal GTP) or empty inner: covered by outer session
+// Otherwise (bare ETH terminal like UNKNOWN/PTP/LLC, GTP-inner ETH terminal
+// without inner IP/ARP): needs a per-packet row.
+// Uses the effective length (stale UNKNOWN tails from shared session paths
+// are ignored, see _eth_effective_len).
+static inline bool _eth_needs_packet_report(const ipacket_t *ipacket) {
+	if (!ipacket || !ipacket->proto_hierarchy) return false;
+	const proto_hierarchy_t *hier = ipacket->proto_hierarchy;
+	int elen = _eth_effective_len(hier);
+	if (elen < 2) return false; // need at least META + something
+	// Must contain an Ethernet layer to report (we report MACs)
+	if (_eth_first_proto_index(ipacket, PROTO_ETHERNET) < 0) return false;
+	int last = hier->proto_path[elen - 1];
+	if (last == PROTO_IP || last == PROTO_IPV6 || last == PROTO_ARP) return false;
+	int gtp_idx = get_protocol_index_by_id(ipacket, PROTO_GTP);
+	if (gtp_idx >= 0) {
+		// GTP packet: look only at the inner portion after GTP
+		if (elen - 1 <= gtp_idx) return false; // echo / empty inner
+		for (int i = gtp_idx + 1; i < elen; i++) {
+			int pid = hier->proto_path[i];
+			if (pid == PROTO_IP || pid == PROTO_IPV6 || pid == PROTO_ARP)
+				return false; // inner IP/ARP session row exists
+		}
+		return true; // inner terminal (UNKNOWN/PTP/...) uncovered
+	}
+	// Non-GTP: covered if any IP/IPv6/ARP session exists below terminal
+	for (int i = 0; i < elen - 1; i++) {
+		int pid = hier->proto_path[i];
+		if (pid == PROTO_IP || pid == PROTO_IPV6 || pid == PROTO_ARP)
+			return false;
+	}
+	return true;
+}
+
 
 static inline void _write_behaviour_report( file_output_t *output,
 		int probe_id,
@@ -65,6 +234,140 @@ static inline void _write_behaviour_report( file_output_t *output,
 
 #define _div( a, b ) (b==0? 0 : a/b)
 
+// Ugly per-packet Ethernet id=100 report (see session_report.h).
+// One row per uncovered packet: volumes = wire len (inner len for GTP-inner),
+// packets = 1, payload = 0, ports = 0, QoS = 0, format = 0, IPs empty.
+// MACs: inner ETH (first ETH after GTP) when GTP present, else first ETH.
+void session_report_emit_uncovered_eth_report(const ipacket_t * ipacket, dpi_context_t *context ){
+	if (!ipacket || !context || !ipacket->proto_hierarchy) return;
+	if (!_eth_needs_packet_report(ipacket)) return;
+
+	const proto_hierarchy_t *hier = ipacket->proto_hierarchy;
+	// Work on a truncated copy: the shared session path may carry stale
+	// trailing UNKNOWNs from previous longer packets (see _eth_effective_len)
+	proto_hierarchy_t eff_hier;
+	memcpy(&eff_hier, hier, sizeof(eff_hier));
+	eff_hier.len = _eth_effective_len(hier);
+	int proto_id = eff_hier.proto_path[eff_hier.len - 1];
+
+	char path[160];
+	size_t path_len = dpi_proto_hierarchy_ids_to_str(&eff_hier, path, sizeof(path));
+	if (proto_id == PROTO_UNKNOWN)
+		_eth_append_suffix(path, sizeof(path), &path_len,
+				_eth_unknown_ethertype(ipacket, eff_hier.len - 1));
+
+	// MAC context: inner ETH for GTP, else first ETH
+	int gtp_idx = get_protocol_index_by_id(ipacket, PROTO_GTP);
+	int eth_idx = -1;
+	if (gtp_idx >= 0) {
+		for (int i = gtp_idx + 1; i < hier->len; i++)
+			if (hier->proto_path[i] == PROTO_ETHERNET) { eth_idx = i; break; }
+	}
+	if (eth_idx < 0) eth_idx = _eth_first_proto_index(ipacket, PROTO_ETHERNET);
+	uint8_t *mac_src = NULL, *mac_dst = NULL;
+	if (eth_idx >= 0) {
+		mac_src = (uint8_t *) get_attribute_extracted_data_at_index(
+				ipacket, PROTO_ETHERNET, ETH_SRC, eth_idx);
+		mac_dst = (uint8_t *) get_attribute_extracted_data_at_index(
+				ipacket, PROTO_ETHERNET, ETH_DST, eth_idx);
+	}
+	if (!mac_src)
+		mac_src = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_SRC);
+	if (!mac_dst)
+		mac_dst = (uint8_t *) get_attribute_extracted_data(ipacket, PROTO_ETHERNET, ETH_DST);
+	uint8_t zero_mac[6] = {0,0,0,0,0,0};
+	if (!mac_src) mac_src = zero_mac;
+	if (!mac_dst) mac_dst = zero_mac;
+
+	// Volume: inside the tunnel for GTP-inner, full wire otherwise
+	uint64_t vol = ipacket->p_hdr ? ipacket->p_hdr->len : 0;
+	if (gtp_idx >= 0 && gtp_idx + 1 < hier->len) {
+		int inner_off = get_packet_offset_at_index(ipacket, gtp_idx + 1);
+		if (inner_off >= 0 && ipacket->p_hdr && inner_off < (int)ipacket->p_hdr->len)
+			vol = ipacket->p_hdr->len - inner_off;
+	}
+	uint8_t dir = DIRECTION_UPLOAD;
+	if (ipacket->session)
+		dir = !!get_session_last_packet_direction(ipacket->session);
+	uint64_t ul_vol = (dir == DIRECTION_UPLOAD) ? vol : 0;
+	uint64_t dl_vol = (dir == DIRECTION_UPLOAD) ? 0 : vol;
+	uint64_t ul_pkts = (dir == DIRECTION_UPLOAD) ? 1 : 0;
+	uint64_t dl_pkts = (dir == DIRECTION_UPLOAD) ? 0 : 1;
+
+	struct timeval ts = {0, 0};
+	if (ipacket->p_hdr) ts = ipacket->p_hdr->ts;
+	uint64_t total_active_sessions = get_active_session_count(context->dpi_handler);
+	uint64_t session_id = ipacket->session ? get_session_id(ipacket->session) : 0;
+
+	char message[ MAX_LENGTH_REPORT_MESSAGE + 1 ];
+	int valid = 0;
+#ifdef SIMPLE_REPORT
+	STRING_BUILDER_WITH_SEPARATOR( valid, message, MAX_LENGTH_REPORT_MESSAGE, ",",
+			__INT( context->stat_periods_index ),
+			__INT( proto_id ),
+			__STR( path ),
+			__INT( ul_vol ),
+			__INT( dl_vol ),
+			__STR( "" ),
+			__STR( "" ),
+			__MAC( mac_src ),
+			__MAC( mac_dst ),
+			__INT( 0 ),
+			__INT( 0 )
+	);
+#else
+	STRING_BUILDER_WITH_SEPARATOR( valid, message, MAX_LENGTH_REPORT_MESSAGE, ",",
+		__INT( context->stat_periods_index),
+		__INT( proto_id),
+		__STR( path),
+		__STR( path),
+		__INT( total_active_sessions),
+		__INT( vol),
+		__INT( 0 ),
+		__INT( 1 ),
+		__INT( ul_vol),
+		__INT( 0 ),
+		__INT( ul_pkts),
+		__INT( dl_vol),
+		__INT( 0 ),
+		__INT( dl_pkts),
+		__TIME( &ts ),
+		__STR( "" ),
+		__STR( "" ),
+		__MAC( mac_src ),
+		__MAC( mac_dst),
+		__INT( session_id ),
+		__INT( 0 ),
+		__INT( 0 ),
+		__INT( context->worker_index),
+	#ifdef QOS_MODULE
+		__INT( 0 ),
+		__INT( 0 ),
+		__INT( 0 ),
+		__INT( 0 ),
+		__INT( 0 ),
+		__INT( 0 ),
+		__INT( 0 ),
+		__INT( 0 ),
+		__INT( 0 ),
+		__INT( 0 ),
+		__INT( 0 ),
+	#else
+		__ARR( "0,0,0,0,0,0,0,0,0,0,0" ),
+	#endif
+		__INT( 0 ),
+		__INT( get_application_class_by_protocol_id( proto_id )),
+		__INT( 0 )
+	);
+#endif
+
+	output_write_report( context->output,
+			context->probe_config->reports.session->output_channels,
+			SESSION_REPORT_TYPE,
+			&ts,
+			message );
+}
+
 #ifndef SIMPLE_REPORT
 //This callback is called by DPI periodically
 static inline void _print_ip_session_report (const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context){
@@ -95,15 +398,30 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	uint64_t total_payload = ul_payload + dl_payload;
 
 
-	char path_ul[128], path_dl[128];
+	char path_ul[160], path_dl[160];
 
-	dpi_proto_hierarchy_ids_to_str(
+	size_t path_ul_len = dpi_proto_hierarchy_ids_to_str(
 			get_session_proto_path_direction( dpi_session, 1 ),
 			path_ul, sizeof( path_ul) );
 
-	dpi_proto_hierarchy_ids_to_str(
+	size_t path_dl_len = dpi_proto_hierarchy_ids_to_str(
 			get_session_proto_path_direction( dpi_session, 0 ),
 			path_dl, sizeof( path_dl ));
+
+	// Ugly: append ethertype bytes to UNKNOWN terminals (e.g. 99.0.136.146).
+	// Only when the parent can actually provide an ethertype (ETH/VLAN);
+	// other parents (TCP/IP/...) never resolve one, so a cached value would
+	// be stale and misleading there.
+	if (proto_id == PROTO_UNKNOWN && session_stat->has_last_unknown_ethertype
+			&& proto_hierarchy->len >= 2
+			&& (proto_hierarchy->proto_path[proto_hierarchy->len - 2] == PROTO_ETHERNET
+				|| proto_hierarchy->proto_path[proto_hierarchy->len - 2] == PROTO_8021Q
+				|| proto_hierarchy->proto_path[proto_hierarchy->len - 2] == PROTO_8021AD)) {
+		_eth_append_suffix(path_ul, sizeof(path_ul), &path_ul_len,
+				session_stat->last_unknown_ethertype);
+		_eth_append_suffix(path_dl, sizeof(path_dl), &path_dl_len,
+				session_stat->last_unknown_ethertype);
+	}
 
 	struct timeval timestamp = get_session_last_activity_time( dpi_session );
 	uint64_t total_active_sessions = get_active_session_count( context->dpi_handler );
@@ -334,11 +652,22 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 
 	struct timeval last_activity_time = get_session_last_activity_time( dpi_session );
 
-	char app_path[128];
+	char app_path[160];
 
-	dpi_proto_hierarchy_ids_to_str(
+	size_t app_path_len = dpi_proto_hierarchy_ids_to_str(
 			proto_hierarchy,
 			app_path, sizeof( app_path) );
+
+	// Ugly: append ethertype bytes to UNKNOWN terminals (e.g. 99.0.136.146).
+	// Only when the parent can actually provide an ethertype (ETH/VLAN).
+	if (proto_id == PROTO_UNKNOWN && session->has_last_unknown_ethertype
+			&& proto_hierarchy->len >= 2
+			&& (proto_hierarchy->proto_path[proto_hierarchy->len - 2] == PROTO_ETHERNET
+				|| proto_hierarchy->proto_path[proto_hierarchy->len - 2] == PROTO_8021Q
+				|| proto_hierarchy->proto_path[proto_hierarchy->len - 2] == PROTO_8021AD)) {
+		_eth_append_suffix(app_path, sizeof(app_path), &app_path_len,
+				session->last_unknown_ethertype);
+	}
 
 	uint64_t ul_delta = is_inner ? ul_volumes - session->saved_inner_volumes.upload : ul_volumes - session->volumes.upload;
 	uint64_t dl_delta = is_inner ? dl_volumes - session->saved_inner_volumes.download : dl_volumes - session->volumes.download;
@@ -623,6 +952,21 @@ int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, sessi
 
 	if (unlikely(session_stat == NULL))
 		return 0;
+	// Cache last-seen ethertype of UNKNOWN terminals for ".high.low" suffix
+	// on paths ending with ".0" (e.g. profinet 0x8892 -> 99.0.136.146).
+	// Uses the effective length (stale UNKNOWN tails from shared session
+	// paths are ignored; their parent cannot resolve an ethertype anyway).
+	if (ipacket->proto_hierarchy && ipacket->proto_hierarchy->len >= 2) {
+		int eff_len = _eth_effective_len(ipacket->proto_hierarchy);
+		if (eff_len >= 2
+				&& ipacket->proto_hierarchy->proto_path[eff_len - 1] == PROTO_UNKNOWN) {
+			uint16_t et = _eth_unknown_ethertype(ipacket, eff_len - 1);
+			if (et != 0) {
+				session_stat->last_unknown_ethertype = et;
+				session_stat->has_last_unknown_ethertype = true;
+			}
+		}
+	}
 	// GTP inner accounting: data volume/packets/payload should be inside GTP, not outer tunnel
 	// Also ARP outer (no DPI byte counters) needs manual accounting
 	uint32_t sess_proto = 0;
@@ -801,6 +1145,8 @@ static inline void
 
 	ret &= register_extraction_attribute(mmt_handler, PROTO_ETHERNET, ETH_DST);
 	ret &= register_extraction_attribute(mmt_handler, PROTO_ETHERNET, ETH_SRC);
+	// Ugly ETH coverage: ethertype for ".high.low" suffix on UNKNOWN paths
+	ret &= register_extraction_attribute(mmt_handler, PROTO_ETHERNET, ETH_PROTOCOL);
 	ret &= register_extraction_attribute(mmt_handler, PROTO_IP, IP_SRC);
 	ret &= register_extraction_attribute(mmt_handler, PROTO_IP, IP_DST);
 	ret &= register_extraction_attribute(mmt_handler, PROTO_IP, IP_PROTO_ID);

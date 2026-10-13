@@ -78,6 +78,12 @@ typedef struct session_stat_struct {
 	bool is_gtp_inner;
 	flow_stat_data_t inner_volumes;
 	flow_stat_data_t saved_inner_volumes;
+	// Last-seen ethertype (host order) of an UNKNOWN terminal protocol, for
+	// appending ".high.low" to paths ending with ".0" (e.g. profinet 0x8892
+	// becomes 99.0.136.146). Best effort: sessions mixing several unknown
+	// ethertypes report the most recent one.
+	uint16_t last_unknown_ethertype;
+	bool has_last_unknown_ethertype;
 
 //we don't need these parameters in simple version for MMT-BOX
 #ifndef SIMPLE_REPORT
@@ -171,6 +177,17 @@ void session_report_callback_on_ending_session(const mmt_session_t * dpi_session
  * @param context
  */
 void session_report_do_report(const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context);
+
+/**
+ * Ugly per-packet Ethernet report (format id 100).
+ * Emits one id=100 row for packets whose terminal protocol is NOT covered by
+ * any periodic IP/IPv6/ARP session row (e.g. GTP-inner UNKNOWN/PTP, bare
+ * ETH.UNKNOWN like profinet). Packets already covered (regular TCP, ARP,
+ * GTP with inner IP) reuse their session rows and emit nothing.
+ * Safe to call for every packet; no-ops when session reporting is disabled
+ * are handled by the caller checking config.
+ */
+void session_report_emit_uncovered_eth_report(const ipacket_t * ipacket, dpi_context_t *context);
 
 /*This function takes IPv6 address and finds whether this address belongs to a local network.
  *It returns 1 if the address belongs to a IPv6 local network
