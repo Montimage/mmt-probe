@@ -76,6 +76,13 @@ typedef struct session_stat_struct {
 	flow_stat_data_t volumes;
 	// GTP inner session flag and volume: valid for both SIMPLE and full reports
 	bool is_gtp_inner;
+	// The session itself is an ARP session (mmt-dpi has no byte counters for
+	// ARP, so such sessions are accounted by hand). Decided once, when the
+	// session starts, from the protocol the session is attached to. It cannot
+	// be decided from the protocol hierarchy leaf: the *outer* GTP session of
+	// an ARP-in-GTP packet also ends on the inner ARP, and using the inner
+	// counters for it (which stay at zero) suppressed its report entirely.
+	bool is_arp_session;
 	flow_stat_data_t inner_volumes;
 	flow_stat_data_t saved_inner_volumes;
 	// Last-seen ethertype (host order) of an UNKNOWN terminal protocol, for

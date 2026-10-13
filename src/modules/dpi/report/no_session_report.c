@@ -13,12 +13,16 @@
 
 
 #include "no_session_report.h"
+#include "../dpi.h"
 #include "../dpi_tool.h"
 #include "../../../lib/malloc_ext.h"
 
 struct no_session_report_context_struct{
 	mmt_handler_t *dpi_handler;
 	output_t *output;
+	const dpi_context_t *dpi_context;
+	// period of the last packet processed (used when a row timestamp is not
+	// found in the worker period history)
 	uint32_t report_number;
 	bool is_enable_ip_fragementation_stat;
 	bool is_enable_proto_no_session_stat;
@@ -104,9 +108,15 @@ static void _protocols_stats_iterator(uint32_t proto_id, void * args) {
 				proto_id != PROTO_ARP && // ARP now reported as session (id=100) per requirement
 				_is_leaf_stats(context->dpi_handler, proto_stats, proto_id)) {
 
+				// the row is stamped with last_packet_time: use the period of
+				// that packet so all rows of one frame carry the same number
+				uint32_t report_number = context->dpi_context ?
+						(uint32_t) dpi_period_index_of_packet( context->dpi_context, &proto_stats->last_packet_time ) :
+						context->report_number;
+
 				offset = 0;
 				STRING_BUILDER_WITH_SEPARATOR( offset, message, MAX_LENGTH_REPORT_MESSAGE, ",",
-						__INT( context->report_number ),
+						__INT( report_number ),
 						__INT( proto_id ),
 						__STR( proto_path_str ),
 						__INT( 0 ), //Nb active flows
@@ -173,10 +183,11 @@ static inline void _report_ip_frag_stat( no_session_report_context_t *context ){
  * @param context
  * @return
  */
-void no_session_report( no_session_report_context_t *context, uint32_t report_number ){
+void no_session_report( no_session_report_context_t *context, const dpi_context_t *dpi_context ){
 	if( context == NULL )
 		return;
-	context->report_number = report_number;
+	context->dpi_context = dpi_context;
+	context->report_number = dpi_context ? (uint32_t) dpi_context->last_packet_period_index : 0;
 
 	if( context->is_enable_ip_fragementation_stat ){
 		_report_ip_frag_stat( context );
