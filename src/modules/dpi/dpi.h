@@ -48,6 +48,16 @@ typedef struct session_stat_struct session_stat_t;
 #include "lte/topology_report.h"
 #include "lte/lte_qos_report.h"
 
+// Number of (packet timestamp -> stat period) pairs kept per worker. An
+// aggregated report row is emitted right after the last packet it accounts
+// for, so only the very last packets are ever looked up.
+#define STAT_PERIOD_HISTORY 512
+
+typedef struct stat_period_entry_struct{
+	struct timeval ts;
+	size_t period_index;
+}stat_period_entry_t;
+
 //the instances of this structure are used on global scope: during running time of MMT-Probe
 typedef struct dpi_context_struct{
 	uint16_t worker_index;
@@ -87,9 +97,31 @@ typedef struct dpi_context_struct{
 	// => this number will increase 1 for each 5 seconds
 	size_t stat_periods_index;
 
+	// stat_periods_index of the last packet processed by this worker. The
+	// periodic flush increments stat_periods_index *before* reporting, so
+	// reporting with the live counter would label every aggregated row with
+	// the period that follows its packets, while the per-packet rows of the
+	// same frame carry the period of the packet itself. Keeping the packet
+	// side value lets all rows of one frame agree.
+	size_t last_packet_period_index;
+
+	// Ring of (packet timestamp -> stat period it belonged to). An aggregated
+	// row is stamped with the timestamp of the last packet it accounts for, so
+	// looking that timestamp up gives the period of the very packet the row is
+	// about, whatever session it belongs to. Needed because the outer GTP
+	// session is not the innermost session of every one of its packets (inner
+	// IP/TCP sessions take over), so its own counter stops being refreshed.
+	stat_period_entry_t period_history[ STAT_PERIOD_HISTORY ];
+	size_t period_history_cursor;
+	size_t period_history_size;
+
 	// this timer is fired to tell dpi to perform its session reports
 	ms_timer_t stat_timer;
 }dpi_context_t;
+
+// Period a packet timestamp belonged to. Falls back to the period of the last
+// processed packet when the timestamp is not in the ring (e.g. first period).
+size_t dpi_period_index_of_packet(const dpi_context_t *context, const struct timeval *ts);
 
 //the instances of this structure are used on session scope: during session period
 typedef struct packet_session_struct {

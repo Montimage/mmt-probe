@@ -104,6 +104,17 @@ static void _ending_session_handler(const mmt_session_t * dpi_session, void * us
 //this callback is called each time when a packet is coming
 static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 	dpi_context_t *context = (dpi_context_t *)user_args;
+	// this packet belongs to the current stat period: the periodic reports
+	// triggered right after it must use this index, not the incremented one
+	context->last_packet_period_index = context->stat_periods_index;
+	if( likely( ipacket->p_hdr != NULL ) ){
+		stat_period_entry_t *entry = &context->period_history[ context->period_history_cursor ];
+		entry->ts = ipacket->p_hdr->ts;
+		entry->period_index = context->stat_periods_index;
+		context->period_history_cursor = (context->period_history_cursor + 1) % STAT_PERIOD_HISTORY;
+		if( context->period_history_size < STAT_PERIOD_HISTORY )
+			context->period_history_size ++;
+	}
 	//when packet is below to one session
 	if( ipacket->session != NULL ){
 		packet_session_t *session = dpi_get_packet_session(ipacket);
@@ -124,8 +135,29 @@ static int _packet_handler(const ipacket_t * ipacket, void * user_args) {
 	IF_ENABLE_STAT_REPORT(
 		event_based_report_callback_on_receiving_packet( ipacket, context->event_reports );
 		query_based_report_callback_on_receiving_packet( ipacket, context->query_reports );
+		if( context->probe_config->reports.session->is_enable ){
+			// Ugly Ethernet coverage: per-packet id=100 for terminals with
+			// no periodic session row (GTP-inner UNKNOWN/PTP, bare ETH...).
+			// Covered packets (IP/ARP sessions) reuse their session rows.
+			session_report_emit_uncovered_eth_report( ipacket, context );
+		}
 	)
 	return 0;
+}
+
+// Period a packet timestamp belonged to, so that a report row stamped with
+// the time of its last packet carries the same period number as the per
+// packet rows of that very packet.
+size_t dpi_period_index_of_packet(const dpi_context_t *context, const struct timeval *ts) {
+	if( context == NULL )
+		return 0;
+	for( size_t i = 0; i < context->period_history_size; i++ ){
+		size_t idx = (context->period_history_cursor + STAT_PERIOD_HISTORY - 1 - i) % STAT_PERIOD_HISTORY;
+		const stat_period_entry_t *entry = &context->period_history[ idx ];
+		if( entry->ts.tv_sec == ts->tv_sec && entry->ts.tv_usec == ts->tv_usec )
+			return entry->period_index;
+	}
+	return context->last_packet_period_index;
 }
 
 #ifdef TCP_REASSEMBLY_MODULE
@@ -178,7 +210,9 @@ static void _do_stat_reports( const  ms_timer_t *timer, void *args ){
 
 	IF_ENABLE_STAT_REPORT_FULL(
 		//do report for no-session protocols
-		no_session_report( dpi_context->no_session_report, dpi_context->stat_periods_index );
+		// (labelled with the stat period of the last processed packet, see
+		//  dpi_context_t::last_packet_period_index)
+		no_session_report( dpi_context->no_session_report, dpi_context );
 	)
 
 	//push DPI to perform session callback: DPI will call `_period_session_report` for each session its has
