@@ -1,5 +1,19 @@
 #!/bin/bash -x
 
+# stick to a specific version of DPI & Security
+
+#DPI_VERSION="v1.7.10"
+#SECURITY_VERSION="main"
+
+# 13 Apr 2026
+# https://github.com/Montimage/mmt-dpi/commit/6b1c9f5380a4db616c90bec3cfeda72bce5920a0
+DPI_VERSION="6b1c9f5380a4db616c90bec3cfeda72bce5920a0"
+
+# 05 Nov 2026
+# https://github.com/Montimage/mmt-security/tree/v1.2.20
+SECURITY_VERSION="v1.2.20"
+
+
 if [ "$EUID" -ne 0 ]
 	then echo "Please run this script under root user"
 	exit
@@ -70,22 +84,25 @@ apt-get install -y libpaho-mqtt-dev
 # install mmt-dpi
 cd $TMP_DIR
 git clone https://github.com/montimage/mmt-dpi mmt-dpi
-cd mmt-dpi/sdk
+cd mmt-dpi
+git checkout "$DPI_VERSION"
+cd sdk
 make -j $CPU
 make install
 ldconfig
-make deb
+#make deb
 
 # install mmt-security
 cd $TMP_DIR
 apt-get install -y libxml2-dev libpcap-dev libconfuse-dev
 git clone https://github.com/Montimage/mmt-security.git mmt-security
 cd mmt-security
+git checkout "$SECURITY_VERSION"
 make clean-all
 make -j1 #only one thread here to wait for the gneration of mmt-dpi.h
 make install
 ldconfig
-make deb
+#make deb
 
 
 # install mmt-probe
@@ -94,6 +111,6 @@ cd "$SCRIPT_DIR/.."
 #cd mmt-probe
 MODULES="KAFKA_MODULE MONGODB_MODULE PCAP_DUMP_MODULE QOS_MODULE REDIS_MODULE MQTT_MODULE SECURITY_MODULE SOCKET_MODULE LTE_MODULE"
 make -j $CPU $MODULES compile
-make $MODULES deb
+#make $MODULES deb
 make $MODULES install
 ls -lrat .
