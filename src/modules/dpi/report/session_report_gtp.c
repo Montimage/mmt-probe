@@ -28,10 +28,33 @@ struct session_gtp_stat_struct{
 	uint8_t ip_version;
 	mmt_ipv4_ipv6_t ip_src;
 	mmt_ipv4_ipv6_t ip_dst;
+	uint8_t mac_src[6];
+	uint8_t mac_dst[6];
 };
 
-#define _is_session_based_on_ip_after_gtp( ipacket  )\
-	(ipacket->session && get_protocol_index_by_id(ipacket, PROTO_GTP) + 1 ==  get_session_protocol_index( ipacket->session ))
+/**
+ * Index of GTP carrying the session of the packet, or -1 if the session is not just after GTP.
+ * The session may be after the Ethernet of a GTP Ethernet PDU, e.g., ETH.IP.UDP.GTP.ETH.VLAN.IP
+ */
+static inline int _get_gtp_index_before_session( const ipacket_t *ipacket ){
+	if( ipacket->session == NULL )
+		return -1;
+	int index = get_session_protocol_index( ipacket->session ) - 1;
+	while( index > 0 ){
+		switch( get_protocol_id_at_index( ipacket, index )){
+		case PROTO_GTP:
+			return index;
+		case PROTO_ETHERNET:
+		case PROTO_8021Q:
+		case PROTO_8021AD:
+			index --;
+			break;
+		default:
+			return -1;
+		}
+	}
+	return -1;
+}
 
 static inline session_gtp_stat_t *_get_gtp_session_data( const ipacket_t *ipacket, bool create_if_need ){
 	int i;
@@ -46,6 +69,9 @@ static inline session_gtp_stat_t *_get_gtp_session_data( const ipacket_t *ipacke
 		return NULL;
 
 	session_gtp_stat_t *gtp_data = NULL;
+	//apps is a union: the session is used by another app report, e.g., HTTP
+	if( temp_session->apps.gtp != NULL && temp_session->app_type != SESSION_STAT_TYPE_APP_GTP )
+		return NULL;
 	//if GTP data is not initialized
 	if( temp_session->apps.gtp == NULL && create_if_need ){
 		gtp_data = (session_gtp_stat_t *) mmt_alloc_and_init_zero( sizeof( session_gtp_stat_t ));
@@ -60,35 +86,55 @@ static inline session_gtp_stat_t *_get_gtp_session_data( const ipacket_t *ipacke
 }
 
 /**
- * Update IP src and DST
- * This function get the "original" IP: the one after Ethernet layer.
+ * Update IP src and dst, MAC src and dst
+ * This function get the "outer" IP: the one carrying GTP,
+ *  and the "outer" MAC: the Ethernet before this IP.
  * The information of IP after GTP has been extracted by session_report when a new session is created
  * @param gtp_data
  * @param ipacket
+ * @param gtp_index index of GTP in the protocol hierarchy
  */
-static inline void _gtp_update_ip( session_gtp_stat_t *gtp_data, const ipacket_t *ipacket ){
+static inline void _gtp_update_ip( session_gtp_stat_t *gtp_data, const ipacket_t *ipacket, int gtp_index ){
 	//ip was extracted
 	if( gtp_data->ip_version != 0 ){
 		//what happen when IP is changed
 		return;
 	}
 
-	//has IPv4 in protocol hierarchy ???
-	const uint32_t * ipv4_src = get_attribute_extracted_data( ipacket, PROTO_IP, IP_SRC );
+	//the IP carrying GTP, e.g., the IPv6 of ETH.IPV6.UDP.GTP.IP
+	int index = gtp_index - 1;
+	while( index > 0 && get_protocol_id_at_index( ipacket, index ) != PROTO_IP
+			&& get_protocol_id_at_index( ipacket, index ) != PROTO_IPV6 )
+		index --;
+	//the Ethernet before it
+	int eth_index = index - 1;
+	while( eth_index > 0 && get_protocol_id_at_index( ipacket, eth_index ) != PROTO_ETHERNET )
+		eth_index --;
+
+	const uint8_t *mac_src = get_attribute_extracted_data_at_index( ipacket, PROTO_ETHERNET, ETH_SRC, eth_index );
+	const uint8_t *mac_dst = get_attribute_extracted_data_at_index( ipacket, PROTO_ETHERNET, ETH_DST, eth_index );
+	if( mac_src )
+		memcpy( gtp_data->mac_src, mac_src, 6 );
+	if( mac_dst )
+		memcpy( gtp_data->mac_dst, mac_dst, 6 );
 
 	//IPv4
-	if ( ipv4_src != NULL ) {
+	if ( get_protocol_id_at_index( ipacket, index ) == PROTO_IP ) {
+		const uint32_t *ip_src = get_attribute_extracted_data_at_index( ipacket, PROTO_IP, IP_SRC, index );
+		const uint32_t *ip_dst = get_attribute_extracted_data_at_index( ipacket, PROTO_IP, IP_DST, index );
+		if( ip_src == NULL || ip_dst == NULL )
+			return;
 		gtp_data->ip_version = 4;
-		gtp_data->ip_src.ipv4 = *(uint32_t *) ipv4_src;
-		gtp_data->ip_dst.ipv4 = *(uint32_t *) get_attribute_extracted_data( ipacket, PROTO_IP, IP_DST );
-	}else{
+		gtp_data->ip_src.ipv4 = *ip_src;
+		gtp_data->ip_dst.ipv4 = *ip_dst;
+	}else if( get_protocol_id_at_index( ipacket, index ) == PROTO_IPV6 ){
+		const void *ip_src = get_attribute_extracted_data_at_index( ipacket, PROTO_IPV6, IP6_SRC, index );
+		const void *ip_dst = get_attribute_extracted_data_at_index( ipacket, PROTO_IPV6, IP6_DST, index );
+		if( ip_src == NULL || ip_dst == NULL )
+			return;
 		gtp_data->ip_version = 6;
-		memcpy(&gtp_data->ip_src.ipv6,
-				get_attribute_extracted_data( ipacket, PROTO_IPV6, IP6_SRC ),
-				16);
-		memcpy( gtp_data->ip_dst.ipv6,
-				get_attribute_extracted_data( ipacket, PROTO_IPV6, IP6_DST ),
-				16);
+		memcpy( gtp_data->ip_src.ipv6, ip_src, 16 );
+		memcpy( gtp_data->ip_dst.ipv6, ip_dst, 16 );
 	}
 }
 
@@ -97,9 +143,9 @@ static inline void _gtp_update_ip( session_gtp_stat_t *gtp_data, const ipacket_t
  * @param gtp_data
  * @param ipacket
  */
-static inline void _gtp_update_teid( session_gtp_stat_t *gtp_data, const ipacket_t *ipacket ){
+static inline void _gtp_update_teid( session_gtp_stat_t *gtp_data, const ipacket_t *ipacket, int gtp_index ){
 	int i;
-	const uint32_t *teid = ( uint32_t *) get_attribute_extracted_data( ipacket, PROTO_GTP, GTP_TEID );
+	const uint32_t *teid = ( uint32_t *) get_attribute_extracted_data_at_index( ipacket, PROTO_GTP, GTP_TEID, gtp_index );
 	//We has no TEID as we are processing IP that is before GTP in the hierarchy
 	//=> so we skip this IP session
 	if( teid == NULL )
@@ -125,14 +171,17 @@ static inline void _gtp_update_teid( session_gtp_stat_t *gtp_data, const ipacket
 //use this callback to process gtp.teid as gtp.teid is known before creating the IP session (as GTP.IP)
 static void _gtp_ip_src_handle(const ipacket_t * ipacket, attribute_t * attribute, void * user_args) {
 	//the session must be beyond IP over GTP
-	if( ! _is_session_based_on_ip_after_gtp(ipacket) )
+	int gtp_index = _get_gtp_index_before_session( ipacket );
+	if( gtp_index < 0 )
 		return;
 
 	session_gtp_stat_t *gtp_data = _get_gtp_session_data(ipacket, true);
+	if( gtp_data == NULL )
+		return;
 
-	_gtp_update_ip( gtp_data, ipacket );
+	_gtp_update_ip( gtp_data, ipacket, gtp_index );
 
-	_gtp_update_teid( gtp_data, ipacket );
+	_gtp_update_teid( gtp_data, ipacket, gtp_index );
 }
 
 //This function is called by session_report.session_report_register to register HTTP extractions
@@ -140,6 +189,7 @@ size_t get_session_gtp_handlers_to_register( const conditional_handler_t **ret )
 	static const conditional_handler_t handlers[] = {
 			{.proto_id = PROTO_GTP, .att_id = GTP_TEID, .handler = NULL},
 			{.proto_id = PROTO_IP,  .att_id = IP_SRC,   .handler = _gtp_ip_src_handle},
+			{.proto_id = PROTO_IPV6,.att_id = IP6_SRC,  .handler = _gtp_ip_src_handle},
 	};
 	*ret = handlers;
 	return (sizeof( handlers ) / sizeof( handlers[0] ));
@@ -196,7 +246,13 @@ int print_gtp_report(char *message, size_t message_size, const mmt_session_t * d
 	}
 
 	message[ret ++] = ']'; //close the array of TEIDs
-	message[ret ++] = '\0';
 
-    return ret;
+	STRING_BUILDER( ret, message, message_size,
+			__CHAR(','),
+			__MAC( gtp->mac_src ),
+			__CHAR(','),
+			__MAC( gtp->mac_dst )
+	);
+
+	return ret;
 }

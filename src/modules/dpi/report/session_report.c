@@ -101,13 +101,17 @@ static inline void _append_ethertype( char *path, size_t size, const proto_hiera
 	snprintf( &path[path_len], size - path_len, ".%d.%d", ethertype >> 8, ethertype & 0xFF );
 }
 
-// Length of the path of a session (its protocol is at session_index) without the layers nested in it:
-//  the path stops before the first IP, IPv6 or Ethernet after the session protocol,
+// Length of the path of a session (its protocol is at session_index) without the sessions nested in it:
+//  the path stops before the first IP or IPv6 after the session protocol and its link layers,
 //  e.g., 99.178.376.141 for ETH.IP.UDP.GTP.ETH.IP.TCP, 99.178.137 for ETH.IP.GRE.IP.UDP
+//  but 99.178.376.141.99.xx for ETH.IP.UDP.GTP.ETH.PTP as PTP has no session
 static inline int _get_session_path_len( const proto_hierarchy_t *hier, uint32_t session_index ){
 	for( int i = session_index + 1; i < hier->len; i++ )
-		if( hier->proto_path[i] == PROTO_IP || hier->proto_path[i] == PROTO_IPV6 || hier->proto_path[i] == PROTO_ETHERNET )
+		if( hier->proto_path[i] == PROTO_IP || hier->proto_path[i] == PROTO_IPV6 ){
+			while( i > session_index + 1 && _is_link_proto( hier->proto_path[i - 1] ))
+				i --;
 			return i;
+		}
 	return hier->len;
 }
 
@@ -123,9 +127,8 @@ static inline void _get_session_paths( const mmt_session_t *dpi_session, const s
 	if( len == 0 || memcmp( hier_ul->proto_path, hier_dl->proto_path, len * sizeof( int )) != 0 )
 		hier_ul = hier_dl = hier;
 
-	//a session carrying nested layers (tunnel) describes only its own layer:
-	// its paths stop before the nested layers which are reported by the nested sessions
-	// or by the per-packet ETH reports
+	//a session carrying nested sessions (tunnel) describes only the packets ending in it:
+	// its paths stop before the nested sessions which report their own packets
 	uint32_t session_index = get_session_protocol_index( dpi_session );
 	int path_len = _get_session_path_len( hier, session_index );
 	if( path_len < hier->len ){
@@ -144,20 +147,19 @@ static inline void _get_session_paths( const mmt_session_t *dpi_session, const s
 	_append_ethertype( path_dl, size, hier, hier->len, session_stat->last_unknown_ethertype );
 }
 
-// Index of an Ethernet frame of a packet that is not described by any session, or -1.
-// This is the first Ethernet after the innermost IP/IPv6 of the packet,
-//  e.g., ETH.PTP, ETH.IP.UDP.GTP.ETH.PTP, ETH.IP.UDP.VXLAN.ETH.PTP
-// when the packet does not end by IP, IPv6 or ARP (reported by session or non-session reports)
+// Index of the Ethernet of a packet that has no IP/IPv6, thus no session, or -1,
+//  e.g., ETH.PTP, ETH.VLAN.UNKNOWN.
+// ARP is reported by non-session reports.
+// A non-IP frame inside a tunnel, e.g., ETH.IP.UDP.GTP.ETH.PTP, is counted by the tunnel session.
 static inline int _get_uncovered_eth_index( const ipacket_t *ipacket ){
 	const proto_hierarchy_t *hier = ipacket->proto_hierarchy;
 	int i, len = _get_effective_len( hier );
-	if( len < 2 || hier->proto_path[len - 1] == PROTO_IP || hier->proto_path[len - 1] == PROTO_IPV6
-			|| hier->proto_path[len - 1] == PROTO_ARP )
+	if( len < 2 || hier->proto_path[len - 1] == PROTO_ARP )
 		return -1;
-	for( i = len - 2; i >= 0; i-- )
+	for( i = 0; i < len; i++ )
 		if( hier->proto_path[i] == PROTO_IP || hier->proto_path[i] == PROTO_IPV6 )
-			break;
-	for( i = i + 1; i < len; i++ )
+			return -1;
+	for( i = 0; i < len; i++ )
 		if( hier->proto_path[i] == PROTO_ETHERNET )
 			return i;
 	return -1;
@@ -179,13 +181,10 @@ void session_report_emit_uncovered_eth_report( const ipacket_t * ipacket, dpi_co
 	uint8_t *mac_src = (uint8_t *) get_attribute_extracted_data_at_index( ipacket, PROTO_ETHERNET, ETH_SRC, eth_index );
 	uint8_t *mac_dst = (uint8_t *) get_attribute_extracted_data_at_index( ipacket, PROTO_ETHERNET, ETH_DST, eth_index );
 
-	//volume of the Ethernet frame (the bytes before it are counted by the sessions carrying it)
 	uint64_t volume = ipacket->p_hdr->len;
-	int offset = get_packet_offset_at_index( ipacket, eth_index );
-	if( offset > 0 && offset < (int) volume )
-		volume -= offset;
-	bool is_upload = (ipacket->session == NULL || get_session_last_packet_direction( ipacket->session ) == DIRECTION_UPLOAD);
-	uint64_t ul_volume = is_upload ? volume : 0, dl_volume = is_upload ? 0 : volume;
+	//no session => no direction
+	const bool is_upload = true;
+	uint64_t ul_volume = volume, dl_volume = 0;
 
 	// +1: this packet will be reported in session reports by the next call of _do_stat_reports
 	//  which increases stat_periods_index before reporting
@@ -211,7 +210,7 @@ void session_report_emit_uncovered_eth_report( const ipacket_t * ipacket, dpi_co
 		__TIME( &ipacket->p_hdr->ts ),
 		__STR( "" ), __STR( "" ),
 		__MAC( mac_src ? mac_src : zero_mac ), __MAC( mac_dst ? mac_dst : zero_mac ),
-		__INT( ipacket->session ? get_session_id( ipacket->session ) : 0 ),
+		__INT( 0 ), //session id
 		__INT( 0 ), __INT( 0 ),
 		__INT( context->worker_index ),
 		__ARR( "0,0,0,0,0,0,0,0,0,0,0" ),
@@ -236,10 +235,8 @@ static inline void _print_ip_session_report (const mmt_session_t * dpi_session, 
 	uint64_t total_volumes = ul_volumes + dl_volumes;
 
 	// check the condition if in the last interval there was a protocol activity or not
-	// => no new packets nor bytes since the last report times
-	// (a session may have only bytes of the sessions nested in it)
-	if( total_packets == (session_stat->packets.upload + session_stat->packets.download)
-			&& total_volumes == (session_stat->volumes.upload + session_stat->volumes.download) )
+	// => no new packets since the last report times
+	if( total_packets == (session_stat->packets.upload + session_stat->packets.download) )
 		return;
 
 	uint64_t ul_payload = session_stat->own.payload.upload;
@@ -638,103 +635,32 @@ static inline int32_t _get_protocol_index_after_session( uint32_t proto_id, cons
 }
 
 /**
- * Called when IP or IPv6 is processed: ipacket->session is still the session of
- *  this protocol as mmt-dpi has not processed the protocols after it.
- * The sessions of a packet are then recorded from the outermost to the innermost one.
+ * Update own statistics of the session of a packet, i.e., its innermost session,
+ *  so that each packet is counted only once, with its whole length, e.g.,
+ *    ETH.IP.UDP.GTP.ETH.IP.IPV6.TCP : session of IPV6
+ *    ETH.IP.UDP.GTP.ETH.PTP         : session of the first IP (GTP tunnel)
+ * The sessions carrying it (tunnels) count only the packets ending in them, e.g., GTP echo.
  */
-static void _session_layer_handler( const ipacket_t * ipacket, attribute_t * attribute, void * user_args ){
-	dpi_context_t *context = (dpi_context_t *) user_args;
-	if( ipacket->session == NULL )
-		return;
-	if( context->session_layers_packet_id != ipacket->packet_id ){
-		context->session_layers_packet_id = ipacket->packet_id;
-		context->session_layers_count = 0;
-	}
-	uint8_t count = context->session_layers_count;
-	//no new session, e.g., IP fragment, or too many sessions
-	if( (count > 0 && context->session_layers[count - 1].session == ipacket->session)
-			|| count >= sizeof( context->session_layers ) / sizeof( context->session_layers[0] ))
-		return;
-	context->session_layers[count].session     = ipacket->session;
-	context->session_layers[count].proto_index = get_session_protocol_index( ipacket->session );
-	context->session_layers_count = count + 1;
-}
-
-static inline void _add_own_stat( session_stat_t *session_stat, const mmt_session_t *dpi_session,
-		uint32_t volume, uint32_t payload, uint32_t packets ){
+static inline void _update_own_stat( const ipacket_t * ipacket, session_stat_t * session_stat ){
+	const mmt_session_t *dpi_session = ipacket->session;
 	//the same definition of upload as get_session_total_ul_xx of mmt-dpi
-	flow_stat_data_t *volumes = &session_stat->own.volumes;
 	bool is_upload = (get_session_last_packet_direction( dpi_session ) == get_session_setup_direction( dpi_session ));
-	*(is_upload ? &volumes->upload : &volumes->download) += volume;
+	*(is_upload ? &session_stat->own.volumes.upload : &session_stat->own.volumes.download) += ipacket->p_hdr->len;
 #ifndef SIMPLE_REPORT
+	//payload of TCP or UDP, as get_session_total_xx_data_byte_count of mmt-dpi
+	uint32_t payload = 0;
+	int32_t index = _get_protocol_index_after_session( PROTO_TCP, dpi_session );
+	uint32_t *tcp_len = (index == -1)? NULL : get_attribute_extracted_data_at_index( ipacket, PROTO_TCP, TCP_PAYLOAD_LEN, index );
+	index = _get_protocol_index_after_session( PROTO_UDP, dpi_session );
+	uint16_t *udp_len = (index == -1)? NULL : get_attribute_extracted_data_at_index( ipacket, PROTO_UDP, UDP_LEN, index );
+	if( tcp_len )
+		payload = *tcp_len;
+	else if( udp_len && *udp_len > 8 )
+		payload = *udp_len - 8; //UDP header
+
 	*(is_upload ? &session_stat->own.payload.upload : &session_stat->own.payload.download) += payload;
-	*(is_upload ? &session_stat->own.packets.upload : &session_stat->own.packets.download) += packets;
+	*(is_upload ? &session_stat->own.packets.upload : &session_stat->own.packets.download) += 1;
 #endif
-}
-
-// Offset where the layer of a session begins: its protocol or the link layer just before it,
-//  e.g., the inner ETH of ETH.IP.UDP.GTP.ETH.IP
-static inline uint32_t _get_layer_offset( const ipacket_t * ipacket, uint32_t index ){
-	while( index > 1 && _is_link_proto( ipacket->proto_hierarchy->proto_path[ index - 1 ] ))
-		index --;
-	int offset = get_packet_offset_at_index( ipacket, index );
-	return offset > 0 ? offset : 0;
-}
-
-/**
- * Update own statistics of the sessions of a packet so that each byte and each packet
- *  is counted only once. For example:
- *    |ETH.IP.UDP.GTP|ETH.IP|IPV6.TCP.payload|  : session 1 | session 2 | session 3 + 1 packet
- *    |ETH.IP.UDP.GTP|ETH.PTP|                  : session 1 | 1 packet reported by session_report_emit_uncovered_eth_report
- */
-static inline void _update_own_stat( const ipacket_t * ipacket, session_stat_t * session_stat, dpi_context_t *context ){
-	uint32_t i, count = 0, end = ipacket->p_hdr->len;
-	if( context->session_layers_packet_id == ipacket->packet_id )
-		count = context->session_layers_count;
-	context->session_layers_count = 0;
-	//the innermost session must be the last one
-	if( count == 0 || context->session_layers[count - 1].session != ipacket->session ){
-		context->session_layers[0].session     = ipacket->session;
-		context->session_layers[0].proto_index = get_session_protocol_index( ipacket->session );
-		count = 1;
-	}
-
-	int eth_index = _get_uncovered_eth_index( ipacket );
-	if( eth_index > 0 )
-		end = get_packet_offset_at_index( ipacket, eth_index );
-
-	for( i = 0; i < count; i++ ){
-		const mmt_session_t *dpi_session = context->session_layers[i].session;
-		bool is_innermost = (i == count - 1);
-		uint32_t begin = (i == 0)? 0 : _get_layer_offset( ipacket, context->session_layers[i].proto_index );
-		uint32_t next  = is_innermost? end : _get_layer_offset( ipacket, context->session_layers[i + 1].proto_index );
-		uint32_t volume = (next > begin)? next - begin : 0;
-
-		session_stat_t *stat = session_stat;
-		if( ! is_innermost ){
-			packet_session_t *session = get_user_session_context( dpi_session );
-			if( session == NULL || session->session_stat == NULL )
-				continue;
-			stat = session->session_stat;
-		}
-		//the innermost session counts also the packet, unless a per-packet ETH report does it
-		if( is_innermost && eth_index < 0 ){
-			uint32_t payload = 0;
-#ifndef SIMPLE_REPORT
-			//payload of TCP or UDP, as get_session_total_xx_data_byte_count of mmt-dpi
-			int32_t index = _get_protocol_index_after_session( PROTO_TCP, dpi_session );
-			uint32_t *tcp_len = (index == -1)? NULL : get_attribute_extracted_data_at_index( ipacket, PROTO_TCP, TCP_PAYLOAD_LEN, index );
-			index = _get_protocol_index_after_session( PROTO_UDP, dpi_session );
-			uint16_t *udp_len = (index == -1)? NULL : get_attribute_extracted_data_at_index( ipacket, PROTO_UDP, UDP_LEN, index );
-			if( tcp_len )
-				payload = *tcp_len;
-			else if( udp_len && *udp_len > 8 )
-				payload = *udp_len - 8; //UDP header
-#endif
-			_add_own_stat( stat, dpi_session, volume, payload, 1 );
-		} else
-			_add_own_stat( stat, dpi_session, volume, 0, 0 );
-	}
 
 	//remember ethertype of UNKNOWN protocol to append to the protocol path
 	int len = _get_effective_len( ipacket->proto_hierarchy );
@@ -746,7 +672,7 @@ static inline void _update_own_stat( const ipacket_t * ipacket, session_stat_t *
 int session_report_callback_on_receiving_packet(const ipacket_t * ipacket, session_stat_t * session_stat, dpi_context_t *context ){
 	if( unlikely( session_stat == NULL ))
 		return 0;
-	_update_own_stat( ipacket, session_stat, context );
+	_update_own_stat( ipacket, session_stat );
 
 #ifndef SIMPLE_REPORT
 
@@ -901,10 +827,6 @@ bool session_report_register( mmt_handler_t *dpi_handler, session_report_conf_t 
 	//register basic protocols and their attributes for IP session statistic
 	_register_protocols( dpi_handler );
 
-	//to get the nested sessions of a packet
-	register_attribute_handler( dpi_handler, PROTO_IP,   IP_SRC,  _session_layer_handler, NULL, dpi_context );
-	register_attribute_handler( dpi_handler, PROTO_IPV6, IP6_SRC, _session_layer_handler, NULL, dpi_context );
-
 	size_t size;
 	const conditional_handler_t* handlers;
 
@@ -939,9 +861,6 @@ bool session_report_register( mmt_handler_t *dpi_handler, session_report_conf_t 
 bool session_report_unregister( mmt_handler_t *dpi_handler, session_report_conf_t *config ){
 	if( ! config->is_enable )
 		return false;
-
-	unregister_attribute_handler( dpi_handler, PROTO_IP,   IP_SRC,  _session_layer_handler );
-	unregister_attribute_handler( dpi_handler, PROTO_IPV6, IP6_SRC, _session_layer_handler );
 
 	size_t size;
 	const conditional_handler_t* handlers;

@@ -98,6 +98,11 @@ If protocol without session is enabled, MMT probe will periodically report stati
 
 This report is a session based reporting (When session report is enable). Session is based on IP source, IP destination, source port and destination port. 
 
+A packet having nested sessions, e.g., `ETH.IP.UDP.GTP.IP.TCP`, is counted (packets, data volume including all its headers, payload) only in its innermost session, e.g., the one of the IP after GTP.
+A session carrying nested sessions (tunnel) counts only the packets ending in it, e.g., GTP echo or `ETH.IP.UDP.GTP.ETH.PTP`, and its protocol path stops before the nested sessions, e.g., `99.178.376.141`.
+A packet having no IP, e.g., `ETH.PTP`, is reported in one report per packet (ARP is reported by the report having format id 99).
+Thus, the sum of all reports having format id 99 and 100 gives the total of the traffic.
+
 | #  | Column Name | Column Description | 
 | -  | ----------- | ------------------ | 
 | 5  | *report_number* | Number of reporting events |
@@ -230,9 +235,11 @@ This is reported for each HTTP transaction. If a TCP flow containing 3 HTTP tran
 
 | #  | Column Name | Column Description | 
 | -- | ----------- | ------------------ | 
-| 42 | *ip src*    | Source of the first IP after Ethernet. The one of IP after GTP is in main part of the report, at index 20  | 
-| 43 | *ip dst*    |  Destination of the first IP after Ethernet. The one of IP after GTP is in main part of the report, at index 21  |
+| 42 | *ip src*    | Source of the outer IP, i.e., the one carrying GTP. The one of IP after GTP is in main part of the report, at index 20  | 
+| 43 | *ip dst*    |  Destination of the outer IP, i.e., the one carrying GTP. The one of IP after GTP is in main part of the report, at index 21  |
 | 44 | *TEIDs*     | Array of TEID numbers, surrounded by `[` and `]` |
+| 45 | *mac src*   | Source of the outer MAC, i.e., the Ethernet before the outer IP. The one before IP after GTP (if any, e.g., Ethernet PDU session) is in main part of the report |
+| 46 | *mac dst*   | Destination of the outer MAC, i.e., the Ethernet before the outer IP |
 
 **Format id : 2000 (inside web report (format field), then it is MP2T ) **
 

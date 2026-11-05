@@ -75,10 +75,11 @@ typedef struct session_stat_struct {
 
 	flow_stat_data_t volumes;
 
-	// Own statistics of the session, counted by MMT-Probe (see _update_own_stat)
-	//  so that a packet is counted in only one session even if it has nested sessions.
+	// Own statistics of the session, counted by MMT-Probe (see _update_own_stat):
+	//  a packet is counted only in its innermost session, e.g., IPv6 of ETH.IP.UDP.GTP.IPV6.TCP.
 	// They are cumulative while `volumes`, `payload` and `packets` are their values at the last report.
-	// We do not use get_session_total_xx of mmt-dpi as they count also the traffic of the nested sessions.
+	// We do not use get_session_total_xx of mmt-dpi as they count a packet in all of its sessions,
+	//  e.g., in both IP and IPv6 sessions of ETH.IP.UDP.GTP.IPV6.TCP (see issue #10).
 	struct{
 		flow_stat_data_t volumes;
 #ifndef SIMPLE_REPORT
@@ -179,8 +180,8 @@ void session_report_callback_on_ending_session(const mmt_session_t * dpi_session
 void session_report_do_report(const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context);
 
 /**
- * Emit one report (format id 100) for a packet containing an Ethernet frame
- *  that is not described by any session, e.g., ETH.PTP or ETH.IP.UDP.GTP.ETH.PTP
+ * Emit one report (format id 100) for a packet having no session as it has no IP/IPv6,
+ *  e.g., ETH.PTP (ARP is reported by non-session reports)
  */
 void session_report_emit_uncovered_eth_report(const ipacket_t * ipacket, dpi_context_t *context);
 

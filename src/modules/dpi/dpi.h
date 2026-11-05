@@ -89,18 +89,6 @@ typedef struct dpi_context_struct{
 
 	// this timer is fired to tell dpi to perform its session reports
 	ms_timer_t stat_timer;
-
-	// Sessions of the current packet, from the outermost to the innermost one,
-	// e.g., 3 sessions for ETH.IP.UDP.GTP.ETH.IP.IPV6.TCP (see session_report.c).
-	// We cannot use get_session_parent() of mmt-dpi as the parent of a session
-	// is fixed at its creation, e.g., UL and DL of a GTP tunnel are often
-	// 2 different outer sessions of the same inner session (see issue #10)
-	struct{
-		const mmt_session_t *session;
-		uint32_t proto_index;
-	}session_layers[8];
-	uint8_t  session_layers_count;
-	uint64_t session_layers_packet_id;
 }dpi_context_t;
 
 //the instances of this structure are used on session scope: during session period
