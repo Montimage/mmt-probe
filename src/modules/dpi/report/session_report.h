@@ -74,34 +74,27 @@ typedef struct session_stat_struct {
 	uint8_t  mac_dst[6];
 
 	flow_stat_data_t volumes;
-	// GTP inner session flag and volume: valid for both SIMPLE and full reports
-	bool is_gtp_inner;
-	// The session itself is an ARP session (mmt-dpi has no byte counters for
-	// ARP, so such sessions are accounted by hand). Decided once, when the
-	// session starts, from the protocol the session is attached to. It cannot
-	// be decided from the protocol hierarchy leaf: the *outer* GTP session of
-	// an ARP-in-GTP packet also ends on the inner ARP, and using the inner
-	// counters for it (which stay at zero) suppressed its report entirely.
-	bool is_arp_session;
-	flow_stat_data_t inner_volumes;
-	flow_stat_data_t saved_inner_volumes;
-	// Last-seen ethertype (host order) of an UNKNOWN terminal protocol, for
-	// appending ".high.low" to paths ending with ".0" (e.g. profinet 0x8892
-	// becomes 99.0.136.146). Best effort: sessions mixing several unknown
-	// ethertypes report the most recent one.
+
+	// Own statistics of the session, counted by MMT-Probe (see _update_own_stat)
+	//  so that a packet is counted in only one session even if it has nested sessions.
+	// They are cumulative while `volumes`, `payload` and `packets` are their values at the last report.
+	// We do not use get_session_total_xx of mmt-dpi as they count also the traffic of the nested sessions.
+	struct{
+		flow_stat_data_t volumes;
+#ifndef SIMPLE_REPORT
+		flow_stat_data_t payload;
+		flow_stat_data_t packets;
+#endif
+	}own;
+
+	// Last-seen ethertype of an UNKNOWN protocol to append ".high.low" to its path,
+	//  e.g., profinet 0x8892 becomes 99.0.136.146
 	uint16_t last_unknown_ethertype;
-	bool has_last_unknown_ethertype;
 
 //we don't need these parameters in simple version for MMT-BOX
 #ifndef SIMPLE_REPORT
 	flow_stat_data_t payload;
 	flow_stat_data_t packets;
-
-	// GTP inner packet tracking for full report: payload/packets inner
-	flow_stat_data_t inner_payload;
-	flow_stat_data_t inner_packets;
-	flow_stat_data_t saved_inner_payload;
-	flow_stat_data_t saved_inner_packets;
 
 	uint16_t content_class;
 
@@ -186,13 +179,8 @@ void session_report_callback_on_ending_session(const mmt_session_t * dpi_session
 void session_report_do_report(const mmt_session_t * dpi_session, session_stat_t * session_stat, const dpi_context_t *context);
 
 /**
- * Ugly per-packet Ethernet report (format id 100).
- * Emits one id=100 row for packets whose terminal protocol is NOT covered by
- * any periodic IP/IPv6/ARP session row (e.g. GTP-inner UNKNOWN/PTP, bare
- * ETH.UNKNOWN like profinet). Packets already covered (regular TCP, ARP,
- * GTP with inner IP) reuse their session rows and emit nothing.
- * Safe to call for every packet; no-ops when session reporting is disabled
- * are handled by the caller checking config.
+ * Emit one report (format id 100) for a packet containing an Ethernet frame
+ *  that is not described by any session, e.g., ETH.PTP or ETH.IP.UDP.GTP.ETH.PTP
  */
 void session_report_emit_uncovered_eth_report(const ipacket_t * ipacket, dpi_context_t *context);
 
