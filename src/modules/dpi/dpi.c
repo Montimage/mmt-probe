@@ -292,7 +292,7 @@ dpi_context_t* dpi_alloc_init( const probe_conf_t *config, mmt_handler_t *dpi_ha
 			ret->data_reconstruct.http = http_reconstruct_init( config->reconstructions.http, dpi_handler, output );
 	)
 
-	ms_timer_init( &ret->stat_timer, ret->stat_periods_index * S2MS,
+	ms_timer_init( &ret->stat_timer, config->stat_period * S2MS,
 			_do_stat_reports, ret );
 	return ret;
 }
