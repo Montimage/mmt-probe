@@ -1,3 +1,6 @@
+## Unreleased
+  - fixed the default dynamic build against MMT-DPI >= 1.10: the probe now also links libmmt_tcpip (#18)
+
 ## v1.6.5 (05 Nov 2026)
   - fixed bug which generated session-based reports every packet 
 
