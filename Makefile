@@ -77,7 +77,8 @@ ifdef STATIC_LINK
   CFLAGS += -DSTATIC_LINK
   LIBS   += -l:libmmt_tcpip.a -l:libmmt_core.a
 else
-  LIBS   += -l:libmmt_core.so
+  # DPI >= 1.10 exports the class-lookup helpers from libmmt_tcpip
+  LIBS   += -l:libmmt_tcpip.so -l:libmmt_core.so
 endif
 
 
