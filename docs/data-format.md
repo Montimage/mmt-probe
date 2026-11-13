@@ -301,12 +301,77 @@ A bundle contains, in this order:
 | `identity.identity_class` | `system` |
 | `identity.extensions.x-probe-id-ext.probe-id` | `probe-id` of the running configuration (integer; `-X probe-id=N` applies) |
 | `identity.extensions.x-probe-id-ext.input-source` | input source of the probe: the interface name or the trace file (`input.source`, or `-i` / `-t`) |
-| `created`, `modified` (all SDOs), `first_observed`, `last_observed` | timestamp of the alert (UTC, millisecond precision) |
+| `identity.created`, `identity.modified` | the constant `1970-01-01T00:00:00.000Z` (Unix epoch), see *Identifiers* below |
+| `created`, `modified` (`observed-data`, `x-attack-type`) | timestamp of the alert (UTC, millisecond precision, e.g. `2023-04-26T11:02:05.089Z`) |
+| `observed-data.first_observed`, `observed-data.last_observed` | timestamp of the alert (UTC, microsecond precision, e.g. `2023-04-26T11:02:05.089123Z`); equal to the `timestamp` column of the CSV report |
 | `observed-data.extensions.x-observed-data-ext.description` | rule description; `""` when `security.report-rule-description = false` |
 | `x-attack-type.name` | rule description; `mmt-security rule <rule id>` when descriptions are not reported |
 | `x-attack-type.external_references[0]` | `source_name = "mmt-security"`, `external_id = <rule id>`. No `url` is emitted |
-| ids of `bundle`, `identity`, `observed-data`, `x-attack-type` | random UUIDv4, new for every alert |
+| `x-attack-type.extensions.x-attack-type-ext.verdict` | `verdict` column of the CSV report (`detected`, `not_detected`, `respected`, `not_respected`, `unknown`) |
+| `x-attack-type.extensions.x-attack-type-ext.rule_type` | `type` column of the CSV report (`attack`, `evasion`, `security`, `test`) |
+| `x-attack-type.extensions.x-attack-type-ext.priority` | `critical`, `high`, `medium` or `low`: from `security.stix-priority` if it lists the rule, otherwise from the rule type (see *Priority* below). STIX only: the CSV and JSON reports have no priority |
+| ids of `bundle`, `observed-data`, `x-attack-type` | deterministic, derived from the alert (see *Identifiers* below): the same alert always gives the same ids, in every run of the probe |
+| id of `identity` | deterministic, derived from the probe id only: one identity per probe (see *Identifiers* below) |
 | ids of address SCOs | deterministic UUIDv5 (STIX 2.1 section 2.9): namespace `00abedb4-aa42-466c-9c01-fed23315a9b7`, name `{"value":"<address>"}`. The same address always has the same id, in every bundle and every probe |
+
+#### Priority
+
+| Rule type | Default priority |
+| --------- | ---------------- |
+| `attack` | `high` |
+| `evasion` | `medium` |
+| `security` | `medium` |
+| `test` | `low` |
+| any other | `medium` |
+
+The default can be overridden per rule id in the `security` block of the
+configuration, without changing mmt-security:
+
+```
+security {
+    stix-priority = "(critical:4,5)(low:60-62)"
+}
+```
+
+or on the command line: `-X 'security.stix-priority=(critical:4,5)'`. Each
+group is `(<priority>:<rule ids>)`, where `<priority>` is `critical`,
+`high`, `medium` or `low` (case-insensitive) and `<rule ids>` a
+comma-separated list of ids or ranges `a-b`, as in `rules-mask`. A rule
+listed in several groups takes the first one; rules not listed keep the
+default. A malformed value is logged and stops the probe at start-up. The
+value is read once at start-up.
+
+#### Identifiers
+
+The bundle and SDO ids are computed, not random, so that a consumer can use
+them as a stable key of the alert (re-reading a capture or replaying a topic
+gives the same ids):
+
+1. alert namespace = UUIDv5 with the STIX namespace
+   `00abedb4-aa42-466c-9c01-fed23315a9b7` and the name
+   `mmt-probe|<probe-id>|<seconds>.<microseconds, 6 digits>|<rule id>|<trace>`,
+   where `<trace>` is the `history` column (the event trace JSON) as emitted;
+2. id of each object = SHA-1 name-based UUID with the alert namespace and the
+   object type as name (`bundle`, `observed-data`, `x-attack-type`),
+   computed as UUIDv5 but with the version field set to 4;
+3. id of the `identity` = the same computation with the probe namespace
+   (UUIDv5 with the STIX namespace and the name `mmt-probe|<probe-id>`) and
+   the name `identity`.
+
+There is one identity per probe id. Its `created` and `modified` are the
+constant `1970-01-01T00:00:00.000Z` instead of the alert time, so that the
+identity object is identical in every bundle and every run of the probe
+(STIX 2.1: objects with the same id and `modified` are the same object
+version). The epoch is a placeholder meaning "not dated": the probe has no
+record of when its identity was first configured. Its `input-source` is
+constant within a run; two runs of the same probe id on different inputs
+give the same identity id with a different `input-source`.
+
+Version 4 is used because STIX 2.1 recommends UUIDv4 for SDOs and bundles,
+and `stix2-validator` 3.2.0 rejects any other version on custom objects
+(`x-attack-type`). The objects of one bundle have distinct ids; two alerts
+differ in bundle, `observed-data` and `x-attack-type` ids as soon as their
+probe, time (microsecond), rule or trace differ. Address SCOs keep their UUIDv5 ids (above), shared across alerts.
 
 No field is labelled as a simulation (the former
 `x-simulation-ext.simulation = "Simulated attack"` was removed).
@@ -356,7 +421,7 @@ not know them may ignore them.
 | `x-probe-id-ext` | `identity` | `property-extension` | `probe-id` (integer), `input-source` (string) |
 | `x-observed-data-ext` | `observed-data` | `property-extension` | `description` (string): rule description |
 | `x-attack-type` | custom SDO | - | `name`, `created`, `modified`, `external_references` (rule id) |
-| `x-attack-type-ext` | `x-attack-type` | `new-sdo` | none: marks `x-attack-type` as a custom SDO |
+| `x-attack-type-ext` | `x-attack-type` | `new-sdo` | marks `x-attack-type` as a custom SDO, and carries `priority` (string: `critical` / `high` / `medium` / `low`), `verdict` (string) and `rule_type` (string) |
 
 MITRE ATT&CK identifiers are not currently propagated by mmt-security and are
 therefore not included in the bundle.
@@ -366,33 +431,34 @@ An ARP-conflict alert (rule 4), ids shortened:
 ```JSON
 {
   "type": "bundle",
-  "id": "bundle--<uuid4>",
+  "id": "bundle--<id>",
   "objects": [
-    { "type": "identity", "spec_version": "2.1", "id": "identity--<uuid4>",
-      "created": "2023-04-26T11:02:05.089Z", "modified": "2023-04-26T11:02:05.089Z",
+    { "type": "identity", "spec_version": "2.1", "id": "identity--<id>",
+      "created": "1970-01-01T00:00:00.000Z", "modified": "1970-01-01T00:00:00.000Z",
       "name": "MMT-Probe 3", "identity_class": "system",
       "extensions": { "x-probe-id-ext": { "extension_type": "property-extension",
         "probe-id": 3, "input-source": "/data/input/capture.pcap" } } },
-    { "type": "observed-data", "spec_version": "2.1", "id": "observed-data--<uuid4>",
+    { "type": "observed-data", "spec_version": "2.1", "id": "observed-data--<id>",
       "created": "2023-04-26T11:02:05.089Z", "modified": "2023-04-26T11:02:05.089Z",
-      "first_observed": "2023-04-26T11:02:05.089Z", "last_observed": "2023-04-26T11:02:05.089Z",
+      "first_observed": "2023-04-26T11:02:05.089123Z", "last_observed": "2023-04-26T11:02:05.089123Z",
       "number_observed": 1,
       "object_refs": [ "ipv4-addr--a1784191-0e18-5c7f-9e18-5d7d13a0f07b",
                        "mac-addr--74e77282-d096-5573-9fef-b19bd6e50f9e",
                        "mac-addr--25aa4fff-ae66-5f8d-8c46-683174883c1e",
                        "mac-addr--da942693-08d3-5ced-9d88-23c3f69444b1",
-                       "x-attack-type--<uuid4>" ],
-      "created_by_ref": "identity--<uuid4>",
+                       "x-attack-type--<id>" ],
+      "created_by_ref": "identity--<id>",
       "extensions": { "x-observed-data-ext": { "extension_type": "property-extension",
         "description": "IPv4 address conflict detection (RFC5227). Possible arp poisoning." } } },
     { "type": "ipv4-addr", "spec_version": "2.1", "id": "ipv4-addr--a1784191-0e18-5c7f-9e18-5d7d13a0f07b", "value": "192.168.21.70" },
     { "type": "mac-addr", "spec_version": "2.1", "id": "mac-addr--74e77282-d096-5573-9fef-b19bd6e50f9e", "value": "64:69:4e:f8:c7:e7" },
     { "type": "mac-addr", "spec_version": "2.1", "id": "mac-addr--25aa4fff-ae66-5f8d-8c46-683174883c1e", "value": "7a:8f:d9:4a:4c:4c" },
     { "type": "mac-addr", "spec_version": "2.1", "id": "mac-addr--da942693-08d3-5ced-9d88-23c3f69444b1", "value": "9e:0f:77:4e:b5:80" },
-    { "type": "x-attack-type", "id": "x-attack-type--<uuid4>",
+    { "type": "x-attack-type", "id": "x-attack-type--<id>",
       "name": "IPv4 address conflict detection (RFC5227). Possible arp poisoning.",
       "created": "2023-04-26T11:02:05.089Z", "modified": "2023-04-26T11:02:05.089Z",
-      "extensions": { "x-attack-type-ext": { "extension_type": "new-sdo" } },
+      "extensions": { "x-attack-type-ext": { "extension_type": "new-sdo",
+        "priority": "high", "verdict": "detected", "rule_type": "attack" } },
       "external_references": [ { "source_name": "mmt-security", "external_id": "4" } ] }
   ]
 }

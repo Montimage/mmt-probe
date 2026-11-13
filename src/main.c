@@ -56,6 +56,10 @@
 #include "modules/security/security.h"
 #endif
 
+#ifdef STIX_FORMAT
+#include "modules/output_format/stix_format.h"
+#endif
+
 #ifdef DYNAMIC_CONFIG_MODULE
 #include "modules/dynamic_conf/dynamic_conf.h"
 #endif
@@ -424,6 +428,14 @@ static int _main_processing( int argc, char** argv ){
 #endif
 
 	log_write( LOG_INFO, "MMT-DPI %s", mmt_version() );
+
+#if defined STIX_FORMAT && defined SECURITY_MODULE
+	if( context->config->reports.security != NULL
+			&& !stix_format_set_priority( context->config->reports.security->stix_priority ) ){
+		log_write( LOG_ERR, "Cannot parse security.stix-priority! Exiting!" );
+		return EXIT_FAILURE;
+	}
+#endif
 
 	//a statistic output
 	const uint16_t output_id = 0;

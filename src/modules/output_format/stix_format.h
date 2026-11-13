@@ -11,6 +11,19 @@
 #include <sys/time.h>
 
 /**
+ * Set the per-rule priority override (`security.stix-priority`).
+ * Format: a sequence of `(<priority>:<rule ids>)` groups, where <priority>
+ * is critical, high, medium or low (case-insensitive) and <rule ids> a
+ * comma-separated list of rule ids or ranges `a-b`, e.g.
+ * "(critical:4,5)(high:56,60-62)". NULL or "" clears the override.
+ * Must be called before any alert is built (not thread-safe).
+ *
+ * @return 1 on success, 0 if @p spec is malformed (the override is cleared
+ *         and an error is logged).
+ */
+int stix_format_set_priority(const char *spec);
+
+/**
  * Build a STIX 2.1 JSON bundle from a security alert.
  *
  * The expected @p message_body layout is the CSV row produced by

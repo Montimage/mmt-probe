@@ -8,9 +8,12 @@
  */
 #include "stix_format.h"
 
+#include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <time.h>
 #include <arpa/inet.h>
 #include <uuid/uuid.h>
@@ -21,6 +24,8 @@
 #define ADDR_STR_MAX      64   /* fits IPv4, IPv6 and MAC textual forms */
 #define RULE_ID_MAX       32
 #define MAX_ADDRS         16   /* max distinct address SCOs per bundle */
+#define WORD_MAX          32   /* verdict and rule type */
+#define MAX_PRIORITY_RANGES 256 /* max rule ranges in security.stix-priority */
 
 /* STIX 2.1 namespace for deterministic SCO identifiers (spec section 2.9). */
 static const uuid_t STIX_SCO_NAMESPACE = {
@@ -74,9 +79,63 @@ static void sb_json_escape(sbuf_t *sb, const char *s, size_t len) {
 /* ---------------------------------------------------------------------------
  * Identifiers and timestamps
  * ------------------------------------------------------------------------- */
-static void generate_uuid(char out[UUID_STR_LEN_NULL]) {
+/*
+ * Deterministic ids of the bundle and its SDOs (identity, observed-data,
+ * x-attack-type). An alert namespace is first derived from the STIX
+ * namespace and the alert key
+ *     mmt-probe|<probe id>|<seconds>.<6-digit microseconds>|<rule id>|<trace>
+ * then each id is SHA-1(alert namespace, "<object type>") as for a UUIDv5,
+ * with the version field set to 4. The same alert (same probe, time, rule
+ * and event trace) always gets the same ids, and the objects of one bundle
+ * get distinct ids.
+ *
+ * Why version 4: STIX 2.1 recommends UUIDv4 for SDOs and bundles (validator
+ * warning 103 otherwise), and stix2-validator 3.2.0 rejects any other version
+ * on custom objects such as x-attack-type (error). SHA-1 output is
+ * pseudo-random, which is what RFC 4122 asks of the version 4 bits.
+ * Returns 0 if memory for the key cannot be allocated.
+ */
+static int alert_namespace(uint32_t probe_id, const struct timeval *ts,
+                           const char *rule_id, const char *trace,
+                           uuid_t ns_out) {
+	char prefix[96];
+	int n = snprintf(prefix, sizeof(prefix), "mmt-probe|%u|%ld.%06ld|%s|",
+	                 probe_id, (long)ts->tv_sec, (long)ts->tv_usec, rule_id);
+	if (n < 0 || (size_t)n >= sizeof(prefix))
+		return 0;
+	size_t trace_len = strlen(trace);
+	char *key = malloc((size_t)n + trace_len);
+	if (!key)
+		return 0;
+	memcpy(key, prefix, (size_t)n);
+	memcpy(key + n, trace, trace_len);
+	uuid_generate_sha1(ns_out, STIX_SCO_NAMESPACE, key, (size_t)n + trace_len);
+	free(key);
+	return 1;
+}
+
+/*
+ * Namespace of the probe's identity: UUIDv5(STIX namespace,
+ * "mmt-probe|<probe id>"). The identity id is then
+ * generate_object_uuid(probe namespace, "identity"): one identity per probe
+ * id, the same in every bundle and every run.
+ */
+static void probe_namespace(uint32_t probe_id, uuid_t ns_out) {
+	char name[32];
+	int n = snprintf(name, sizeof(name), "mmt-probe|%u", probe_id);
+	uuid_generate_sha1(ns_out, STIX_SCO_NAMESPACE, name, (size_t)n);
+}
+
+/* created / modified of the identity: a constant, so that the identity
+ * object is identical in every bundle of a probe (STIX: same id and same
+ * modified = same object version). */
+#define IDENTITY_TIMESTAMP "1970-01-01T00:00:00.000Z"
+
+static void generate_object_uuid(const uuid_t alert_ns, const char *type,
+                                 char out[UUID_STR_LEN_NULL]) {
 	uuid_t uuid;
-	uuid_generate_random(uuid);
+	uuid_generate_sha1(uuid, alert_ns, type, strlen(type));
+	uuid[6] = (uuid[6] & 0x0f) | 0x40;  /* version 4; variant stays RFC 4122 */
 	uuid_unparse_lower(uuid, out);
 }
 
@@ -95,14 +154,127 @@ static void generate_sco_uuid(const char *value, char out[UUID_STR_LEN_NULL]) {
 	uuid_unparse_lower(uuid, out);
 }
 
-static void format_timeval_iso8601(const struct timeval *ts,
+/* RFC 3339 UTC timestamp with millisecond (@usec = 0) or microsecond
+ * (@usec = 1) precision. */
+static void format_timeval_iso8601(const struct timeval *ts, int usec,
                                    char *buf, size_t buf_size) {
 	struct tm tm;
 	gmtime_r(&ts->tv_sec, &tm);
 	size_t n = strftime(buf, buf_size, "%Y-%m-%dT%H:%M:%S", &tm);
-	if (n < buf_size)
-		snprintf(buf + n, buf_size - n, ".%03ldZ",
-		         (long)(ts->tv_usec / 1000));
+	if (n < buf_size) {
+		if (usec)
+			snprintf(buf + n, buf_size - n, ".%06ldZ", (long)ts->tv_usec);
+		else
+			snprintf(buf + n, buf_size - n, ".%03ldZ",
+			         (long)(ts->tv_usec / 1000));
+	}
+}
+
+/* ---------------------------------------------------------------------------
+ * Priority: default from the rule type, overridden per rule id by
+ * security.stix-priority = "(<priority>:<rule ids>)(<priority>:<rule ids>)..."
+ * ------------------------------------------------------------------------- */
+static const char *const PRIORITY_NAMES[] = { "critical", "high", "medium", "low" };
+#define NB_PRIORITIES (sizeof(PRIORITY_NAMES) / sizeof(PRIORITY_NAMES[0]))
+
+typedef struct {
+	uint32_t first, last;   /* inclusive rule id range */
+	const char *priority;   /* one of PRIORITY_NAMES */
+} priority_range_t;
+
+/* Written once at start-up by stix_format_set_priority(), read-only after. */
+static priority_range_t priority_ranges[MAX_PRIORITY_RANGES];
+static size_t priority_ranges_count = 0;
+
+static const char *skip_spaces(const char *p) {
+	while (*p && isspace((unsigned char)*p))
+		p++;
+	return p;
+}
+
+static int parse_rule_id(const char **pp, uint32_t *out) {
+	const char *p = *pp;
+	if (!isdigit((unsigned char)*p))
+		return 0;
+	char *end;
+	unsigned long v = strtoul(p, &end, 10);
+	if (v > UINT32_MAX)
+		return 0;
+	*out = (uint32_t)v;
+	*pp = end;
+	return 1;
+}
+
+int stix_format_set_priority(const char *spec) {
+	priority_ranges_count = 0;
+	if (spec == NULL)
+		return 1;
+	const char *p = skip_spaces(spec);
+	while (*p) {
+		if (*p != '(')
+			goto error;
+		p = skip_spaces(p + 1);
+		const char *word = p;
+		while (isalpha((unsigned char)*p))
+			p++;
+		size_t wlen = (size_t)(p - word);
+		const char *prio = NULL;
+		for (size_t i = 0; i < NB_PRIORITIES; i++)
+			if (wlen == strlen(PRIORITY_NAMES[i]) &&
+			    strncasecmp(word, PRIORITY_NAMES[i], wlen) == 0)
+				prio = PRIORITY_NAMES[i];
+		if (!prio)
+			goto error;
+		p = skip_spaces(p);
+		if (*p != ':')
+			goto error;
+		do {
+			p = skip_spaces(p + 1);
+			uint32_t first, last;
+			if (!parse_rule_id(&p, &first))
+				goto error;
+			last = first;
+			p = skip_spaces(p);
+			if (*p == '-') {
+				p = skip_spaces(p + 1);
+				if (!parse_rule_id(&p, &last) || last < first)
+					goto error;
+				p = skip_spaces(p);
+			}
+			if (priority_ranges_count >= MAX_PRIORITY_RANGES)
+				goto error;
+			priority_ranges[priority_ranges_count++] =
+				(priority_range_t){ first, last, prio };
+		} while (*p == ',');
+		if (*p != ')')
+			goto error;
+		p = skip_spaces(p + 1);
+	}
+	return 1;
+
+error:
+	log_write(LOG_ERR, "Invalid security.stix-priority \"%s\" near \"%s\": "
+	          "expected (<critical|high|medium|low>:<rule id or range>,...)...",
+	          spec, p);
+	priority_ranges_count = 0;
+	return 0;
+}
+
+/* Priority of an alert: the first group of security.stix-priority that lists
+ * the rule, otherwise the default of the rule type. */
+static const char *alert_priority(const char *rule_id, const char *rule_type) {
+	char *end;
+	unsigned long id = strtoul(rule_id, &end, 10);
+	if (*end == '\0' && end != rule_id)
+		for (size_t i = 0; i < priority_ranges_count; i++)
+			if (id >= priority_ranges[i].first && id <= priority_ranges[i].last)
+				return priority_ranges[i].priority;
+
+	if (strcmp(rule_type, "attack") == 0)
+		return "high";
+	if (strcmp(rule_type, "test") == 0)
+		return "low";
+	return "medium";   /* evasion, security, and any other type */
 }
 
 /* ---------------------------------------------------------------------------
@@ -130,6 +302,24 @@ static int csv_locate_columns(const char *s, size_t len, int max_col,
 			col_starts[found++] = i + 1;
 	}
 	return found;
+}
+
+/*
+ * Copy CSV column [@start, @end) into @out, without its surrounding double
+ * quotes if any. Returns 0 if it does not fit.
+ */
+static int copy_word_column(const char *s, size_t start, size_t end,
+                            char *out, size_t out_size) {
+	if (end > start + 1 && s[start] == '"' && s[end - 1] == '"') {
+		start++;
+		end--;
+	}
+	size_t n = end - start;
+	if (n >= out_size)
+		return 0;
+	memcpy(out, s + start, n);
+	out[n] = '\0';
+	return 1;
 }
 
 /*
@@ -342,6 +532,15 @@ int construct_alert_stix_format(const char *message_body,
 	memcpy(rule_id_buf, message_body + col_starts[0], rule_id_len);
 	rule_id_buf[rule_id_len] = '\0';
 
+	/* verdict (column 1) and rule type (column 2), e.g. detected / attack */
+	char verdict[WORD_MAX], rule_type[WORD_MAX];
+	if (!copy_word_column(message_body, col_starts[1], col_starts[2] - 1,
+	                      verdict, sizeof(verdict)) ||
+	    !copy_word_column(message_body, col_starts[2], col_starts[3] - 1,
+	                      rule_type, sizeof(rule_type)))
+		return 0;
+	const char *priority = alert_priority(rule_id_buf, rule_type);
+
 	/* description (column 3) — the content between the surrounding quotes.
 	 * Empty when the probe config disables report-rule-description. */
 	const char *desc_ptr = "";
@@ -373,13 +572,21 @@ int construct_alert_stix_format(const char *message_body,
 	char identity_uuid[UUID_STR_LEN_NULL];
 	char observed_uuid[UUID_STR_LEN_NULL];
 	char attack_uuid[UUID_STR_LEN_NULL];
-	generate_uuid(bundle_uuid);
-	generate_uuid(identity_uuid);
-	generate_uuid(observed_uuid);
-	generate_uuid(attack_uuid);
+	uuid_t alert_ns;
+	if (!alert_namespace(probe_id, ts, rule_id_buf, trace_ptr, alert_ns))
+		return 0;
+	generate_object_uuid(alert_ns, "bundle",        bundle_uuid);
+	uuid_t probe_ns;
+	probe_namespace(probe_id, probe_ns);
+	generate_object_uuid(probe_ns, "identity",      identity_uuid);
+	generate_object_uuid(alert_ns, "observed-data", observed_uuid);
+	generate_object_uuid(alert_ns, "x-attack-type", attack_uuid);
 
-	char timestamp[40];
-	format_timeval_iso8601(ts, timestamp, sizeof(timestamp));
+	/* created / modified: millisecond precision (STIX 2.1 section 3.2);
+	 * first_observed / last_observed: microsecond precision. */
+	char timestamp[40], observed_ts[40];
+	format_timeval_iso8601(ts, 0, timestamp, sizeof(timestamp));
+	format_timeval_iso8601(ts, 1, observed_ts, sizeof(observed_ts));
 
 	sbuf_t sb = { .buf = out, .size = out_size, .len = 0, .overflow = 0 };
 
@@ -404,7 +611,7 @@ int construct_alert_stix_format(const char *message_body,
 		"          \"extension_type\": \"property-extension\",\n"
 		"          \"probe-id\": %u,\n"
 		"          \"input-source\": \"",
-		identity_uuid, timestamp, timestamp, probe_id, probe_id);
+		identity_uuid, IDENTITY_TIMESTAMP, IDENTITY_TIMESTAMP, probe_id, probe_id);
 	if (input_src)
 		sb_json_escape(&sb, input_src, strlen(input_src));
 	sb_printf(&sb,
@@ -425,7 +632,7 @@ int construct_alert_stix_format(const char *message_body,
 		"      \"last_observed\": \"%s\",\n"
 		"      \"number_observed\": 1,\n"
 		"      \"object_refs\": [\n",
-		observed_uuid, timestamp, timestamp, timestamp, timestamp);
+		observed_uuid, timestamp, timestamp, observed_ts, observed_ts);
 	for (int i = 0; i < addrs.count; i++)
 		sb_printf(&sb, "        \"%s--%s\",\n", addrs.items[i].type, addrs.items[i].uuid);
 	sb_printf(&sb,
@@ -474,7 +681,16 @@ int construct_alert_stix_format(const char *message_body,
 		"      \"modified\": \"%s\",\n"
 		"      \"extensions\": {\n"
 		"        \"x-attack-type-ext\": {\n"
-		"          \"extension_type\": \"new-sdo\"\n"
+		"          \"extension_type\": \"new-sdo\",\n"
+		"          \"priority\": \"%s\",\n"
+		"          \"verdict\": \"",
+		timestamp, timestamp, priority);
+	sb_json_escape(&sb, verdict, strlen(verdict));
+	sb_printf(&sb, "\",\n"
+		"          \"rule_type\": \"");
+	sb_json_escape(&sb, rule_type, strlen(rule_type));
+	sb_printf(&sb,
+		"\"\n"
 		"        }\n"
 		"      },\n"
 		"      \"external_references\": [\n"
@@ -486,7 +702,7 @@ int construct_alert_stix_format(const char *message_body,
 		"    }\n"
 		"  ]\n"
 		"}",
-		timestamp, timestamp, rule_id_buf);
+		rule_id_buf);
 
 	if (sb.overflow) {
 		log_write(LOG_WARNING, "STIX bundle of rule %s does not fit in %zu bytes, "
