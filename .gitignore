@@ -51,3 +51,5 @@ openspec/
 CLAUDE.md
 AGENTS.md
 .claude/
+# unit test binaries
+test/stix_format/test_stix_format

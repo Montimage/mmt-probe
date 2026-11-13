@@ -22,3 +22,4 @@ clean:
 	$(QUIET) $(RM) $(APP)
 #remove all .o files
 	$(QUIET) find $(SRC_DIR)/ -name \*.o -type f -delete
+	$(QUIET) $(RM) $(TOP_DIR)/test/stix_format/test_stix_format

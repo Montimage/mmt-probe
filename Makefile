@@ -146,3 +146,4 @@ endif
 #other makefiles
 -include mk/serial-key.mk
 -include mk/install-package.mk
+-include mk/test.mk

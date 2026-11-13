@@ -229,6 +229,7 @@ static inline cfg_t *_load_cfg_from_file(const char *filename) {
 			CFG_INT("thread-nb",    0, CFGF_NONE),
 			CFG_STR("rules-mask",   0, CFGF_NONE),
 			CFG_STR("exclude-rules",   0, CFGF_NONE),
+			CFG_STR("stix-priority",   0, CFGF_NONE),
 			CFG_STR_LIST("output-channel", "{}", CFGF_NONE),
 
 			CFG_INT("input.max-message-size",    0, CFGF_NONE),
@@ -1064,6 +1065,7 @@ static inline security_conf_t *_parse_security_block( cfg_t *cfg ){
 	ret->threads_size = cfg_getint( cfg, "thread-nb" );
 	ret->excluded_rules = _cfg_get_str(cfg, "exclude-rules" );
 	ret->rules_mask = _cfg_get_str(cfg, "rules-mask" );
+	ret->stix_priority = _cfg_get_str(cfg, "stix-priority" );
 	ret->output_channels = _parse_output_channel( cfg );
 
 	ret->lib.security_max_instances = cfg_getint( cfg, "security.max-instances" );
@@ -1336,6 +1338,7 @@ void conf_release( probe_conf_t *conf){
 	if( conf->reports.security ){
 		mmt_probe_free( conf->reports.security->excluded_rules );
 		mmt_probe_free( conf->reports.security->rules_mask );
+		mmt_probe_free( conf->reports.security->stix_priority );
 		mmt_probe_free( conf->reports.security );
 	}
 

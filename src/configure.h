@@ -151,6 +151,7 @@ typedef struct security_conf_struct{
 	uint16_t threads_size;
 	char *excluded_rules;
 	char *rules_mask;
+	char *stix_priority; //per-rule priority override of STIX bundles, e.g., "(critical:4,5)(high:56)"
 	output_channel_conf_t output_channels;
 	struct{
 		uint32_t input_max_message_size;

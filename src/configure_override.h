@@ -248,6 +248,7 @@ DECLARE_CONF_ATT(
 	(CONF_ATT__SECURITY__THREAD_NB,     "security.thread-nb",       &conf->reports.security->threads_size,   UINT16_T),
 	(CONF_ATT__SECURITY__EXCLUDE_RULES, "security.exclude-rules",   &conf->reports.security->excluded_rules, CHAR_STAR),
 	(CONF_ATT__SECURITY__RULES_MASK,    "security.rules-mask",      &conf->reports.security->rules_mask,     CHAR_STAR),
+	(CONF_ATT__SECURITY__STIX_PRIORITY, "security.stix-priority",   &conf->reports.security->stix_priority,  CHAR_STAR),
 	(CONF_ATT__SECURITY__OUTPUT_CHANNEL, "security.output-channel", &conf->reports.security->output_channels, LIST),
 	(CONF_ATT__SECURITY__REPORT_RULE_DESCRIPTION, "security.report-rule-description", &conf->reports.security->is_report_rule_description, BOOL),
 	(CONF_ATT__SECURITY__INGORE_REMAIN_FLOW,      "security.ignore-remain-flow",      &conf->reports.security->ignore_remain_flow, CHAR_STAR ),
