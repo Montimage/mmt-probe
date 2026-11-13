@@ -7,6 +7,7 @@
 #define SRC_MODULES_OUTPUT_FORMAT_STIX_FORMAT_H_
 
 #include <stddef.h>
+#include <stdint.h>
 #include <sys/time.h>
 
 /**
@@ -18,6 +19,8 @@
  *
  * @param message_body alert body coming from the security callback (NUL-terminated).
  * @param ts           timestamp of the alert.
+ * @param probe_id     probe id of the running configuration (`probe-id`).
+ * @param input_src    input source of the probe (interface or trace file), may be NULL.
  * @param out          buffer to receive the JSON bundle.
  * @param out_size     size of @p out in bytes.
  * @return 1 if a STIX bundle was written into @p out, 0 otherwise (caller
@@ -25,6 +28,8 @@
  */
 int construct_alert_stix_format(const char *message_body,
                                 const struct timeval *ts,
+                                uint32_t probe_id,
+                                const char *input_src,
                                 char *out, size_t out_size);
 
 #endif /* SRC_MODULES_OUTPUT_FORMAT_STIX_FORMAT_H_ */

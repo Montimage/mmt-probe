@@ -222,6 +222,7 @@ int output_write_report( output_t *output, output_channel_conf_t channels,
 #ifdef STIX_FORMAT
 	if( report_type == SECURITY_REPORT_TYPE )
 		stix_built = construct_alert_stix_format( message_body, ts,
+				output->probe_id, output->input_src,
 				message, MAX_LENGTH_REPORT_MESSAGE );
 #endif
 
