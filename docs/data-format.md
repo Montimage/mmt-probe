@@ -284,6 +284,9 @@ alert. Other report types are unaffected. If a bundle does not fit in the
 report buffer (6000 bytes), a warning is logged and the alert is reported in
 the CSV format instead.
 
+The unit test of the bundle builder is run with `make test-stix` (needs
+`gcc` and `uuid-dev` only).
+
 A bundle contains, in this order:
 
 1. one `identity` SDO: the probe that raised the alert;
@@ -307,11 +310,11 @@ A bundle contains, in this order:
 | `observed-data.extensions.x-observed-data-ext.description` | rule description; `""` when `security.report-rule-description = false` |
 | `x-attack-type.name` | rule description; `mmt-security rule <rule id>` when descriptions are not reported |
 | `x-attack-type.external_references[0]` | `source_name = "mmt-security"`, `external_id = <rule id>`. No `url` is emitted |
-| `x-attack-type.extensions.x-attack-type-ext.verdict` | `verdict` column of the CSV report (`detected`, `not_detected`, `respected`, `not_respected`, `unknown`) |
-| `x-attack-type.extensions.x-attack-type-ext.rule_type` | `type` column of the CSV report (`attack`, `evasion`, `security`, `test`) |
+| `x-attack-type.extensions.x-attack-type-ext.verdict` | `verdict` column of the CSV report (`detected`, `not_detected`, `respected`, `not_respected`, `unknown`). A value of 32 characters or more is truncated to 31 and a warning is logged (rate-limited); the alert is kept |
+| `x-attack-type.extensions.x-attack-type-ext.rule_type` | `type` column of the CSV report (`attack`, `evasion`, `security`, `test`); truncated like `verdict` |
 | `x-attack-type.extensions.x-attack-type-ext.priority` | `critical`, `high`, `medium` or `low`: from `security.stix-priority` if it lists the rule, otherwise from the rule type (see *Priority* below). STIX only: the CSV and JSON reports have no priority |
 | ids of `bundle`, `observed-data`, `x-attack-type` | deterministic, derived from the alert (see *Identifiers* below): the same alert always gives the same ids, in every run of the probe |
-| id of `identity` | deterministic, derived from the probe id only: one identity per probe (see *Identifiers* below) |
+| id of `identity` | deterministic, derived from the probe id and the input source: one identity per probe and input (see *Identifiers* below) |
 | ids of address SCOs | deterministic UUIDv5 (STIX 2.1 section 2.9): namespace `00abedb4-aa42-466c-9c01-fed23315a9b7`, name `{"value":"<address>"}`. The same address always has the same id, in every bundle and every probe |
 
 #### Priority
@@ -355,17 +358,22 @@ gives the same ids):
    object type as name (`bundle`, `observed-data`, `x-attack-type`),
    computed as UUIDv5 but with the version field set to 4;
 3. id of the `identity` = the same computation with the probe namespace
-   (UUIDv5 with the STIX namespace and the name `mmt-probe|<probe-id>`) and
-   the name `identity`.
+   (UUIDv5 with the STIX namespace and the name
+   `mmt-probe|<probe-id>|<input-source>`, where `<input-source>` is the
+   value of `x-probe-id-ext.input-source`) and the name `identity`.
 
-There is one identity per probe id. Its `created` and `modified` are the
-constant `1970-01-01T00:00:00.000Z` instead of the alert time, so that the
-identity object is identical in every bundle and every run of the probe
-(STIX 2.1: objects with the same id and `modified` are the same object
-version). The epoch is a placeholder meaning "not dated": the probe has no
-record of when its identity was first configured. Its `input-source` is
-constant within a run; two runs of the same probe id on different inputs
-give the same identity id with a different `input-source`.
+There is one identity per probe id and input source. Every property of the
+identity is derived from these two values, and its `created` and `modified`
+are the constant `1970-01-01T00:00:00.000Z` instead of the alert time, so
+that the identity object is byte-identical in every bundle of a run and in
+every run of the probe on the same input (STIX 2.1: objects with the same id
+and `modified` are the same object version; one identity id never carries
+two different contents). The epoch is a placeholder meaning "not dated": the
+probe has no record of when its identity was first configured. Two runs of
+the same probe id on different inputs (another interface or trace file) give
+two identities; the input source stays readable in
+`x-probe-id-ext.input-source`. The bundle, `observed-data` and
+`x-attack-type` ids do not depend on the input source.
 
 Version 4 is used because STIX 2.1 recommends UUIDv4 for SDOs and bundles,
 and `stix2-validator` 3.2.0 rejects any other version on custom objects

@@ -1,12 +1,12 @@
 /*
  * Unit check of the STIX 2.1 alert builder (src/modules/output_format/stix_format.c).
  *
- * Build and run (needs uuid-dev):
- *   gcc -Wall -Wextra -o /tmp/test_stix test/stix_format/test_stix_format.c \
- *       src/modules/output_format/stix_format.c -luuid && /tmp/test_stix
+ * Build and run (needs gcc and uuid-dev, not MMT-DPI):
+ *   make test-stix
  *
  * Checks priority / verdict / rule_type (issue #24), the per-rule priority
- * override, deterministic ids and the timestamp precision.
+ * override and its rule id range, long verdicts and rule types, deterministic
+ * ids (one identity per probe and input source) and the timestamp precision.
  */
 #include <stdio.h>
 #include <string.h>
@@ -24,9 +24,27 @@ static int failures = 0;
 
 static char out[8192];
 
-static int build(const char *body, long sec, long usec, unsigned probe) {
+static int build_src(const char *body, long sec, long usec, unsigned probe, const char *src) {
 	struct timeval ts = { .tv_sec = sec, .tv_usec = usec };
-	return construct_alert_stix_format(body, &ts, probe, "/data/input/x.pcap", out, sizeof(out));
+	return construct_alert_stix_format(body, &ts, probe, src, out, sizeof(out));
+}
+
+static int build(const char *body, long sec, long usec, unsigned probe) {
+	return build_src(body, sec, usec, probe, "/data/input/x.pcap");
+}
+
+/* Copy the identity object of the last bundle (from its "type" to the next
+ * object) into @ident and its id into @id. */
+static void identity_of(char *ident, size_t n, char *id, size_t idn) {
+	const char *p = strstr(out, "\"type\": \"identity\"");
+	const char *e = p ? strstr(p, "\"type\": \"observed-data\"") : NULL;
+	snprintf(ident, n, "%.*s", e ? (int)(e - p) : 0, p ? p : "");
+	snprintf(id, idn, "%s", "");
+	if (p) {
+		const char *q = strstr(p, "\"id\": \"");
+		if (q)
+			snprintf(id, idn, "%.46s", q + 7);
+	}
 }
 
 /* Copy the string value of the first "<key>": "<value>" into @val. */
@@ -75,11 +93,33 @@ int main(void) {
 	expect("22,\"detected\",\"attack\",\"d\"," TRACE_ICMP, "high", "detected", "attack");
 
 	/* malformed specs are rejected and clear the override */
-	const char *bad[] = { "critical:4", "(urgent:4)", "(high:)", "(high:5-4)", "(high:4", "(high:4;5)", "(high:a)" };
+	const char *bad[] = { "critical:4", "(urgent:4)", "(high:)", "(high:5-4)", "(high:4", "(high:4;5)", "(high:a)",
+		/* rule ids beyond uint32 or beyond unsigned long (ERANGE) */
+		"(high:4294967296)", "(high:1-4294967296)", "(high:18446744073709551615)",
+		"(high:99999999999999999999999999)", "(high:1-99999999999999999999999999)" };
 	for (size_t i = 0; i < sizeof(bad) / sizeof(bad[0]); i++)
 		CHECK(!stix_format_set_priority(bad[i]), "malformed spec accepted: %s", bad[i]);
 	expect("4,\"detected\",\"attack\",\"d\"," TRACE_ICMP, "high", "detected", "attack");
 	CHECK(stix_format_set_priority(""), "empty spec");
+	/* the largest uint32 rule id is accepted */
+	CHECK(stix_format_set_priority("(critical:4294967295)(low:4294967290-4294967295)"), "UINT32_MAX rejected");
+	expect("4294967295,\"detected\",\"attack\",\"d\"," TRACE_ICMP, "critical", "detected", "attack");
+	expect("4294967294,\"detected\",\"attack\",\"d\"," TRACE_ICMP, "low", "detected", "attack");
+	CHECK(stix_format_set_priority(NULL), "NULL spec");
+
+	/* verdict / rule type of 32+ characters: the alert is kept, the value
+	 * truncated to 31 characters (a warning is logged) */
+	expect("20,\"detected_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"attack\",\"d\"," TRACE_ICMP,
+	       "high", "detected_aaaaaaaaaaaaaaaaaaaaaa", "attack");
+	expect("20,\"detected\",\"attack_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"d\"," TRACE_ICMP,
+	       "medium", "detected", "attack_bbbbbbbbbbbbbbbbbbbbbbbb");
+	expect("20,\"0123456789012345678901234567890\",\"attack\",\"d\"," TRACE_ICMP,   /* 31: kept whole */
+	       "high", "0123456789012345678901234567890", "attack");
+	expect("20,\"01234567890123456789012345678901\",\"attack\",\"d\"," TRACE_ICMP,  /* 32: cut */
+	       "high", "0123456789012345678901234567890", "attack");
+	/* truncation does not split a UTF-8 character (é = 2 bytes at bytes 30-31) */
+	expect("20,\"012345678901234567890123456789\xc3\xa9x\",\"attack\",\"d\"," TRACE_ICMP,
+	       "high", "012345678901234567890123456789", "attack");
 
 	/* deterministic ids: same alert -> same ids; different time / rule / trace / probe -> different */
 	const char *body = "20,\"detected\",\"attack\",\"d\"," TRACE_ICMP;
@@ -130,6 +170,41 @@ int main(void) {
 		get(strstr(out, "\"type\": \"identity\""), "id", id3, sizeof id3);
 		CHECK(strcmp(id1, id3) != 0, "probes 3 and 4 share an identity id");
 		CHECK(id1[10 + 14] == '4', "identity id is not v4-shaped: %s", id1);
+	}
+
+	/* one identity per probe and input source: the input source is part of
+	 * the id, so one id never carries two input sources */
+	{
+		char ia[2048], ib[2048], ic[2048], id_a[64], id_b[64], id_c[64];
+		build_src(body, 1682506925, 89123, 3, "eth0");
+		identity_of(ia, sizeof ia, id_a, sizeof id_a);
+		build_src("21,\"detected\",\"evasion\",\"x\",{}", 1700000000, 5, 3, "eth0");
+		identity_of(ib, sizeof ib, id_b, sizeof id_b);
+		CHECK(strcmp(ia, ib) == 0, "identity differs between two alerts of one probe on one input");
+		build_src(body, 1682506925, 89123, 3, "eth1");
+		identity_of(ic, sizeof ic, id_c, sizeof id_c);
+		CHECK(strcmp(id_a, id_c) != 0, "inputs eth0 and eth1 of probe 3 share identity %s", id_a);
+		CHECK(strstr(ic, "\"input-source\": \"eth1\"") != NULL, "input-source not in identity: %s", ic);
+		build_src(body, 1682506925, 89123, 3, "/data/input/x.pcap");
+		identity_of(ic, sizeof ic, id_c, sizeof id_c);
+		build(body, 1682506925, 89123, 3);
+		identity_of(ib, sizeof ib, id_b, sizeof id_b);
+		CHECK(strcmp(id_b, id_c) == 0, "same probe and input give different identity ids");
+		/* the identity id depends only on probe id and input source: the
+		 * alert ids do not change with the input source */
+		char ba[64], bb[64];
+		build_src(body, 1682506925, 89123, 3, "eth0"); get(out, "id", ba, sizeof ba);
+		build_src(body, 1682506925, 89123, 3, "eth1"); get(out, "id", bb, sizeof bb);
+		CHECK(strcmp(ba, bb) == 0, "bundle id depends on the input source");
+		/* no input source: still a bundle, with its own identity */
+		CHECK(build_src(body, 1682506925, 89123, 3, NULL), "no bundle without input source");
+		identity_of(ic, sizeof ic, id_c, sizeof id_c);
+		CHECK(strcmp(id_a, id_c) != 0 && strcmp(id_b, id_c) != 0, "empty input source shares an identity");
+		/* the separator keeps (probe 1, input "2x") and (probe 12, input "x") apart */
+		build_src(body, 1682506925, 89123, 1, "2x"); identity_of(ia, sizeof ia, id_a, sizeof id_a);
+		build_src(body, 1682506925, 89123, 12, "x"); identity_of(ib, sizeof ib, id_b, sizeof id_b);
+		CHECK(strcmp(id_a, id_b) != 0, "probe 1 input 2x and probe 12 input x share an identity");
+		build(body, 1682506925, 89123, 3);   /* for the timestamp checks below */
 	}
 
 	/* timestamps: created ms, first/last_observed us */

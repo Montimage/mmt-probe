@@ -9,6 +9,7 @@
 #include "stix_format.h"
 
 #include <ctype.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -116,19 +117,34 @@ static int alert_namespace(uint32_t probe_id, const struct timeval *ts,
 
 /*
  * Namespace of the probe's identity: UUIDv5(STIX namespace,
- * "mmt-probe|<probe id>"). The identity id is then
+ * "mmt-probe|<probe id>|<input source>"). The identity id is then
  * generate_object_uuid(probe namespace, "identity"): one identity per probe
- * id, the same in every bundle and every run.
+ * id and input source, the same in every bundle and every run on that input.
+ * Every property of the identity derives from these two values, so one
+ * identity id always has the same content.
+ * Returns 0 if memory for the name cannot be allocated.
  */
-static void probe_namespace(uint32_t probe_id, uuid_t ns_out) {
-	char name[32];
-	int n = snprintf(name, sizeof(name), "mmt-probe|%u", probe_id);
-	uuid_generate_sha1(ns_out, STIX_SCO_NAMESPACE, name, (size_t)n);
+static int probe_namespace(uint32_t probe_id, const char *input_src,
+                           uuid_t ns_out) {
+	char prefix[32];
+	int n = snprintf(prefix, sizeof(prefix), "mmt-probe|%u|", probe_id);
+	if (n < 0 || (size_t)n >= sizeof(prefix))
+		return 0;
+	size_t src_len = input_src ? strlen(input_src) : 0;
+	char *name = malloc((size_t)n + src_len + 1);
+	if (!name)
+		return 0;
+	memcpy(name, prefix, (size_t)n);
+	if (src_len)
+		memcpy(name + n, input_src, src_len);
+	uuid_generate_sha1(ns_out, STIX_SCO_NAMESPACE, name, (size_t)n + src_len);
+	free(name);
+	return 1;
 }
 
 /* created / modified of the identity: a constant, so that the identity
- * object is identical in every bundle of a probe (STIX: same id and same
- * modified = same object version). */
+ * object is identical in every bundle of a probe on one input (STIX: same
+ * id and same modified = same object version). */
 #define IDENTITY_TIMESTAMP "1970-01-01T00:00:00.000Z"
 
 static void generate_object_uuid(const uuid_t alert_ns, const char *type,
@@ -197,8 +213,9 @@ static int parse_rule_id(const char **pp, uint32_t *out) {
 	if (!isdigit((unsigned char)*p))
 		return 0;
 	char *end;
+	errno = 0;
 	unsigned long v = strtoul(p, &end, 10);
-	if (v > UINT32_MAX)
+	if (errno == ERANGE || v > UINT32_MAX)
 		return 0;
 	*out = (uint32_t)v;
 	*pp = end;
@@ -306,7 +323,8 @@ static int csv_locate_columns(const char *s, size_t len, int max_col,
 
 /*
  * Copy CSV column [@start, @end) into @out, without its surrounding double
- * quotes if any. Returns 0 if it does not fit.
+ * quotes if any. A value that does not fit is truncated to @out_size - 1
+ * bytes (at a UTF-8 character boundary) and 0 is returned; 1 otherwise.
  */
 static int copy_word_column(const char *s, size_t start, size_t end,
                             char *out, size_t out_size) {
@@ -315,11 +333,31 @@ static int copy_word_column(const char *s, size_t start, size_t end,
 		end--;
 	}
 	size_t n = end - start;
-	if (n >= out_size)
-		return 0;
+	int fits = n < out_size;
+	if (!fits) {
+		n = out_size - 1;
+		/* do not cut a multi-byte UTF-8 character */
+		while (n > 0 && ((unsigned char)s[start + n] & 0xC0) == 0x80)
+			n--;
+	}
 	memcpy(out, s + start, n);
 	out[n] = '\0';
-	return 1;
+	return fits;
+}
+
+/*
+ * Warn that the @field of an alert of rule @rule_id was truncated to @value.
+ * Rate-limited: @counter counts the truncations of that field and only the
+ * 1st, 2nd, 4th, 8th, ... are logged, so a rule that always emits a long
+ * value cannot flood the log. Thread-safe.
+ */
+static void warn_truncated(unsigned long *counter, const char *field,
+                           const char *rule_id, const char *value) {
+	unsigned long n = __sync_add_and_fetch(counter, 1);
+	if ((n & (n - 1)) == 0)
+		log_write(LOG_WARNING, "STIX: %s of rule %s is longer than %d characters, "
+		          "truncated to \"%s\" (%lu truncated %s so far)",
+		          field, rule_id, WORD_MAX - 1, value, n, field);
 }
 
 /*
@@ -532,13 +570,16 @@ int construct_alert_stix_format(const char *message_body,
 	memcpy(rule_id_buf, message_body + col_starts[0], rule_id_len);
 	rule_id_buf[rule_id_len] = '\0';
 
-	/* verdict (column 1) and rule type (column 2), e.g. detected / attack */
+	/* verdict (column 1) and rule type (column 2), e.g. detected / attack.
+	 * A value too long is truncated, not dropped (warning logged). */
+	static unsigned long verdict_truncated = 0, rule_type_truncated = 0;
 	char verdict[WORD_MAX], rule_type[WORD_MAX];
 	if (!copy_word_column(message_body, col_starts[1], col_starts[2] - 1,
-	                      verdict, sizeof(verdict)) ||
-	    !copy_word_column(message_body, col_starts[2], col_starts[3] - 1,
+	                      verdict, sizeof(verdict)))
+		warn_truncated(&verdict_truncated, "verdict", rule_id_buf, verdict);
+	if (!copy_word_column(message_body, col_starts[2], col_starts[3] - 1,
 	                      rule_type, sizeof(rule_type)))
-		return 0;
+		warn_truncated(&rule_type_truncated, "rule_type", rule_id_buf, rule_type);
 	const char *priority = alert_priority(rule_id_buf, rule_type);
 
 	/* description (column 3) — the content between the surrounding quotes.
@@ -577,7 +618,8 @@ int construct_alert_stix_format(const char *message_body,
 		return 0;
 	generate_object_uuid(alert_ns, "bundle",        bundle_uuid);
 	uuid_t probe_ns;
-	probe_namespace(probe_id, probe_ns);
+	if (!probe_namespace(probe_id, input_src, probe_ns))
+		return 0;
 	generate_object_uuid(probe_ns, "identity",      identity_uuid);
 	generate_object_uuid(alert_ns, "observed-data", observed_uuid);
 	generate_object_uuid(alert_ns, "x-attack-type", attack_uuid);
