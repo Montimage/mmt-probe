@@ -1,3 +1,9 @@
+## v1.6.5 (05 Nov 2026)
+  - fixed bug which generated session-based reports every packet 
+
+## v1.6.4 ()
+  - no codebase change but build multi-arch Docker containers: support both amd64 and arm64 (Raspberry Pi). 
+
 ## v1.6.3 (18 May 2026)
   - add DICOM protocol detection rules (IDs 200-229) from mmt-security
 
